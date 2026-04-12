@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JPS FP&A Platform v17.0</title>
+<title>JPS FP&A Platform v21.0</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -32,15 +32,51 @@
 }
 /* JPS CORPORATE THEME */
 :root.theme-jps{
-  --bg:#f2f2f2;--s1:#ffffff;--s2:#f8f8f8;--card:#ffffff;--card2:#eef2f7;--card3:#e4eaf2;
-  --border:#d0d8e4;--b2:#b8c4d4;
-  --gold:#f5a623;--glo:rgba(245,166,35,.12);--blue:#003da5;--teal:#00aeef;
+  --bg:#eef2f7;--s1:#ffffff;--s2:#e4eaf2;--card:#ffffff;--card2:#dce4f0;--card3:#cfd9ea;
+  --border:#b8c8dc;--b2:#9ab0c8;
+  --gold:#f5a623;--glo:rgba(245,166,35,.15);--blue:#003da5;--teal:#00aeef;
   --green:#00a651;--red:#e31837;--amber:#f5a623;--purple:#5c6bc0;--pink:#e31837;
-  --text:#1b2a4a;--muted:#5a6a7e;--dim:#d0d8e4;
-  --chart-grid:rgba(0,0,0,.07);--shadow:rgba(27,42,74,.12);
-  --input-bg:#eef2f7;--input-text:#1b2a4a;
+  --text:#0d1e3a;--muted:#4a6080;--dim:#b8c8dc;
+  --chart-grid:rgba(0,61,165,.07);--shadow:rgba(0,30,80,.15);
+  --input-bg:#dce4f0;--input-text:#0d1e3a;
   --table-header-bg:#003da5;--table-header-text:#ffffff;
 }
+/* JPS-specific overrides — navy topbar, blue accent bar */
+:root.theme-jps .topbar{
+  background:linear-gradient(135deg,#002d80 0%,#003da5 60%,#0055c8 100%);
+  border-bottom:3px solid #00aeef;
+}
+:root.theme-jps .brand{background:transparent;border-right-color:rgba(255,255,255,.15);}
+:root.theme-jps .brand-b{background:#00aeef;color:#fff;}
+:root.theme-jps .brand-n{color:#ffffff;}
+:root.theme-jps .brand-s{color:rgba(255,255,255,.6);}
+:root.theme-jps .sp{color:rgba(255,255,255,.55);border-left-color:rgba(255,255,255,.15);}
+:root.theme-jps .dot{background:#00aeef;}
+:root.theme-jps .cl{color:rgba(255,255,255,.55);}
+:root.theme-jps select.sel{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff;}
+:root.theme-jps .seg{border-color:rgba(255,255,255,.2);}
+:root.theme-jps .sb{background:rgba(255,255,255,.08);color:rgba(255,255,255,.6);border-right-color:rgba(255,255,255,.15);}
+:root.theme-jps .sb.on{background:#00aeef;color:#fff;}
+:root.theme-jps .sc-p{background:rgba(0,174,239,.2);border-color:rgba(0,174,239,.4);color:#00aeef;}
+:root.theme-jps #userNameDisp{color:#ffffff;}
+:root.theme-jps #userRoleDisp{color:#00aeef !important;}
+:root.theme-jps .btn-ghost{border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.7);}
+:root.theme-jps .btn-ghost:hover{border-color:#00aeef;color:#fff;}
+:root.theme-jps .theme-seg{border-color:rgba(255,255,255,.2);}
+:root.theme-jps .theme-btn{background:rgba(255,255,255,.08);color:rgba(255,255,255,.6);border-right-color:rgba(255,255,255,.15);}
+:root.theme-jps .theme-btn.on{background:#00aeef;color:#fff;}
+/* JPS tabbar — white with navy left-border accent per group */
+:root.theme-jps .tabbar{background:#ffffff;border-bottom:2px solid #003da5;box-shadow:0 2px 6px rgba(0,30,80,.12);}
+:root.theme-jps .tg{border-right-color:#d0dcea;}
+:root.theme-jps .tgl{border-bottom-color:#d0dcea;}
+:root.theme-jps .tg.rep .tgl{color:#003da5;background:#eef4fb;border-left:3px solid #003da5;}
+:root.theme-jps .tg.wrk .tgl{color:#c05800;background:#fff6ee;border-left:3px solid #f5a623;}
+:root.theme-jps .tg.ass .tgl{color:#006b3c;background:#edfaf3;border-left:3px solid #00a651;}
+:root.theme-jps .tg.ai  .tgl{color:#5c6bc0;background:#f3f4fd;border-left:3px solid #5c6bc0;}
+:root.theme-jps .tg.adm .tgl{color:#4a6080;background:#f4f6f9;border-left:3px solid #9ab0c8;}
+:root.theme-jps .tab{color:#4a6080;}
+:root.theme-jps .tab:hover{color:#0d1e3a;background:#f0f4f9;}
+:root.theme-jps .tab.on{color:#003da5;border-bottom-color:#003da5;background:#eef4fb;}
 *{margin:0;padding:0;box-sizing:border-box}html{font-size:12px}
 body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
@@ -158,17 +194,50 @@ select.sel:focus{border-color:var(--gold)}
 .ml{margin-left:auto}
 
 /* TABBAR */
-.tabbar{background:var(--s2);border-bottom:2px solid var(--border);display:flex;flex-shrink:0;overflow-x:auto}
-.tg{display:flex;border-right:1px solid var(--border)}
-.tgl{writing-mode:vertical-rl;transform:rotate(180deg);font-size:8px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:0 5px;display:flex;align-items:center;border-right:1px solid var(--border)}
-.tg.rep .tgl{color:var(--teal);background:rgba(6,182,212,.05)}
-.tg.wrk .tgl{color:var(--amber);background:rgba(245,158,11,.05)}
-.tg.ass .tgl{color:var(--gold);background:rgba(240,180,41,.05)}
-.tg.ai  .tgl{color:var(--purple);background:rgba(139,92,246,.07)}
-.tg.adm .tgl{color:#64748b;background:rgba(100,116,139,.04)}
-.tabs{display:flex;align-items:stretch}
-.tab{padding:0 13px;font-size:10px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;letter-spacing:.03em;display:flex;align-items:center;gap:5px;height:36px;margin-bottom:-2px}
-.tab:hover{color:var(--text)}.tab.on{color:var(--text);border-bottom-color:var(--gold);background:rgba(240,180,41,.05)}
+.tabbar{
+  background:#ffffff;
+  border-bottom:1px solid #e2e8f0;
+  box-shadow:0 1px 4px rgba(0,0,0,.06);
+  display:flex;flex-shrink:0;overflow-x:auto;
+  flex-direction:column;
+}
+.tabbar-inner{display:flex;align-items:stretch;}
+.tg{display:flex;flex-direction:column;border-right:1px solid #e8edf4;}
+.tgl{
+  writing-mode:horizontal-tb;transform:none;
+  font-size:8px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  padding:4px 12px 2px;
+  display:flex;align-items:center;gap:5px;
+  border-bottom:1px solid #e8edf4;
+  white-space:nowrap;
+}
+.tg.rep .tgl{color:#0891b2;background:#f0fafa;}
+.tg.wrk .tgl{color:#b45309;background:#fffbf0;}
+.tg.ass .tgl{color:#92681a;background:#fffdf0;}
+.tg.ai  .tgl{color:#6d28d9;background:#faf5ff;}
+.tg.adm .tgl{color:#475569;background:#f8fafc;}
+.tabs{display:flex;align-items:stretch;}
+.tab{
+  padding:0 13px;font-size:10px;font-weight:700;
+  color:#64748b;cursor:pointer;
+  border-bottom:2px solid transparent;
+  white-space:nowrap;transition:all .15s;letter-spacing:.03em;
+  display:flex;align-items:center;gap:5px;height:32px;margin-bottom:-1px;
+}
+.tab:hover{color:#1e293b;background:#f8fafc;}
+.tab.on{color:#1e293b;border-bottom-color:var(--gold);background:#fffdf5;}
+/* Dark/JPS theme overrides */
+:root:not(.theme-light):not(.theme-jps) .tabbar{background:var(--s2);border-bottom:1px solid var(--border);box-shadow:none;}
+:root:not(.theme-light):not(.theme-jps) .tgl{border-bottom:1px solid var(--border);}
+:root:not(.theme-light):not(.theme-jps) .tg{border-right:1px solid var(--border);}
+:root:not(.theme-light):not(.theme-jps) .tg.rep .tgl{color:var(--teal);background:rgba(6,182,212,.05);}
+:root:not(.theme-light):not(.theme-jps) .tg.wrk .tgl{color:var(--amber);background:rgba(245,158,11,.05);}
+:root:not(.theme-light):not(.theme-jps) .tg.ass .tgl{color:var(--gold);background:rgba(240,180,41,.05);}
+:root:not(.theme-light):not(.theme-jps) .tg.ai  .tgl{color:var(--purple);background:rgba(139,92,246,.07);}
+:root:not(.theme-light):not(.theme-jps) .tg.adm .tgl{color:#64748b;background:rgba(100,116,139,.04);}
+:root:not(.theme-light):not(.theme-jps) .tab{color:var(--muted);}
+:root:not(.theme-light):not(.theme-jps) .tab:hover{color:var(--text);background:transparent;}
+:root:not(.theme-light):not(.theme-jps) .tab.on{color:var(--text);border-bottom-color:var(--gold);background:rgba(240,180,41,.05);}
 
 /* MAIN */
 .main{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:12px}
@@ -375,10 +444,6 @@ tr.der td{color:var(--teal)}
 .theme-btn{padding:0 9px;font-size:10px;font-weight:700;color:var(--muted);cursor:pointer;background:var(--card2);border:none;font-family:var(--sans);border-right:1px solid var(--b2);line-height:26px;transition:all .15s}
 .theme-btn:last-child{border-right:none}
 .theme-btn.on{background:var(--gold);color:#000}
-:root.theme-jps .topbar{border-bottom:3px solid #00aeef}
-:root.theme-jps .brand-b{background:#003da5;color:#ffffff}
-:root.theme-jps .tab.on{color:#003da5;border-bottom-color:#003da5}
-:root.theme-jps .kpi::after{filter:none}
 :root.theme-light tbody tr:hover{background:rgba(0,0,0,.02)}
 </style>
 </head>
@@ -422,7 +487,7 @@ tr.der td{color:var(--teal)}
 <div class="topbar">
   <div class="brand">
     <div class="brand-b">JPS</div>
-    <div><div class="brand-n">FP&A Cloud v14.0</div><div class="brand-s" id="brandSub">Jamaica Public Service Co. · Feb 2026 LE</div></div>
+    <div><div class="brand-n">FP&A Cloud v21.0</div><div class="brand-s" id="brandSub">Jamaica Public Service Co. · Feb 2026 LE</div></div>
   </div>
   <div class="sp"><span class="dot"></span>Live · USD $'000</div>
   <div class="tc">
@@ -468,6 +533,7 @@ tr.der td{color:var(--teal)}
 
 <!-- TABBAR -->
 <div class="tabbar">
+<div class="tabbar-inner">
   <div class="tg rep"><div class="tgl">REPORTS</div><div class="tabs">
     <div class="tab on" onclick="showPane('dash',this)">📊 Dashboard</div>
     <div class="tab" onclick="showPane('rpt-pl',this)">📋 Income Statement</div>
@@ -499,6 +565,7 @@ tr.der td{color:var(--teal)}
     <div class="tab" onclick="showPane('adm-audit',this)">🔍 Audit Trail</div>
     <div class="tab" onclick="showPane('adm-guide',this)">📖 Guide</div>
   </div></div>
+</div><!-- /tabbar-inner -->
 </div>
 
 <div class="main">
@@ -1712,6 +1779,11 @@ function doLogin() {
 
 function doLogout() {
   auditLog('logout','session',currentUser.name,null);
+  // Destroy all chart instances to free memory
+  Object.keys(charts).forEach(k=>{ try{charts[k].destroy();}catch(e){} delete charts[k]; });
+  // Reset lazy-build tracker so tabs rebuild fresh on next login
+  _builtTabs.clear();
+  _platformInited = false;
   const shell = document.getElementById('appShell');
   shell.classList.remove('visible');
   const ws = document.getElementById('welcomeScreen');
@@ -4343,9 +4415,9 @@ function buildDashKpis(){
 
   const kpiCard=(label,strip,mtdA,mtdB,ytdA2,ytdB2,posGood)=>{
     const f=v=>v==null?'\u2013':'$'+Math.round(Math.abs(v)).toLocaleString();
-    return `<div style="display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);min-width:175px;flex:1">
-      <div style="width:26px;background:${strip};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <span style="color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap">${label}</span>
+    return `<div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);flex:1 1 155px;min-width:0">
+      <div style="background:${strip};padding:5px 10px;display:flex;align-items:center;gap:6px">
+        <span style="color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;white-space:nowrap">${label}</span>
       </div>
       <div style="flex:1;padding:8px 10px;display:flex;flex-direction:column;gap:5px;min-width:0">
         <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">MTD \u00b7 ${moLabel}</div>
@@ -4365,9 +4437,9 @@ function buildDashKpis(){
     </div>`;
   };
 
-  const noActCard=(label,strip,annLE,sub)=>`<div style="display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);min-width:175px;flex:1">
-    <div style="width:26px;background:${strip};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <span style="color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap">${label}</span>
+  const noActCard=(label,strip,annLE,sub)=>`<div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);flex:1 1 155px;min-width:0">
+    <div style="background:${strip};padding:5px 10px">
+      <span style="color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;white-space:nowrap">${label}</span>
     </div>
     <div style="flex:1;padding:8px 10px">
       <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">${sub||'2026 Annual LE'}</div>
@@ -4382,15 +4454,15 @@ function buildDashKpis(){
   const actYTDMargin=actYTDRev&&actYTDEBITDA?((actYTDEBITDA/actYTDRev)*100):null;
   const budYTDMargin=budYTDRev&&budYTDEBITDA?((budYTDEBITDA/budYTDRev)*100):null;
 
-  let html='<div style="display:flex;flex-wrap:wrap;gap:10px">';
+  let html='<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch">';
   if(loadedCount){
     html+=kpiCard('Revenue','var(--blue)',actMTDRev,budMTDRev,actYTDRev,budYTDRev,true);
     html+=kpiCard('Gross Profit','var(--teal)',actYTDGP?Math.round(actYTDGP/loadedCount):null,null,actYTDGP,null,true);
     html+=kpiCard('EBITDA','var(--green)',actMTDEBITDA,budMTDEBITDA,actYTDEBITDA,budYTDEBITDA,true);
     // EBITDA% card
-    html+=`<div style="display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);min-width:175px;flex:1">
-      <div style="width:26px;background:var(--gold);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <span style="color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;writing-mode:vertical-rl;transform:rotate(180deg)">EBITDA%</span>
+    html+=`<div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);flex:1 1 155px;min-width:0">
+      <div style="background:var(--gold);padding:5px 10px">
+        <span style="color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em">EBITDA%</span>
       </div>
       <div style="flex:1;padding:8px 10px;display:flex;flex-direction:column;gap:5px">
         <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">MTD \u00b7 ${moLabel}</div>
@@ -4407,15 +4479,13 @@ function buildDashKpis(){
       budYTDOpex!=null?Math.abs(budYTDOpex):null,false);
     html+=kpiCard('Net Income','var(--purple)',actMTDNI,budMTDNI,actYTDNI,budYTDNI,true);
     // Current Ratio / DSCR
-    html+=`<div style="display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);min-width:175px;flex:1">
-      <div style="width:26px;background:var(--amber);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <span style="color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;writing-mode:vertical-rl;transform:rotate(180deg)">Ratios</span>
+    html+=`<div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);flex:1 1 155px;min-width:0">
+      <div style="background:var(--amber);padding:5px 10px">
+        <span style="color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em">Ratios</span>
       </div>
       <div style="flex:1;padding:8px 10px">
         <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Current Ratio \u00b7 ${moLabel}</div>
-        <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:${actCR!=null?(actCR>=1.1?'var(--green)':'var(--red)'):'var(--muted)'}">
-          ${actCR!=null?actCR.toFixed(2)+'\u00d7':'\u2013'}
-        </div>
+        <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:${actCR!=null?(actCR>=1.1?'var(--green)':'var(--red)'):'var(--muted)'}">${actCR!=null?actCR.toFixed(2)+'\u00d7':'\u2013'}</div>
         <div style="font-size:9px;color:var(--muted)">Covenant: \u22651.10\u00d7 ${actCR!=null?(actCR>=1.1?'<span style="color:var(--green)">\u2713 Pass</span>':'<span style="color:var(--red)">\u2717 Breach</span>'):''}</div>
         <div style="height:1px;background:var(--border);margin:5px 0"></div>
         <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">DSCR</div>
@@ -4425,9 +4495,9 @@ function buildDashKpis(){
   } else {
     html+=noActCard('Revenue','var(--blue)',582);
     html+=noActCard('EBITDA','var(--green)',e26);
-    html+=`<div style="display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);min-width:175px;flex:1">
-      <div style="width:26px;background:var(--gold);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <span style="color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;writing-mode:vertical-rl;transform:rotate(180deg)">EBITDA%</span>
+    html+=`<div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);flex:1 1 155px;min-width:0">
+      <div style="background:var(--gold);padding:5px 10px">
+        <span style="color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em">EBITDA%</span>
       </div>
       <div style="flex:1;padding:8px 10px">
         <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">2026 Annual LE</div>
@@ -4979,32 +5049,44 @@ function confirmAddLine(){
 }
 
 // NAV
+// ── TAB BUILD REGISTRY ────────────────────────────────
+// Maps tab id → build function(s). Each function is called on first visit.
+// On subsequent visits (tab already built), _rebuildPane() is called instead
+// to refresh data without re-running expensive first-time setup.
+const _tabBuilders = {
+  'rpt-pl':    ()=>{ buildStatTbl(plLines,document.getElementById('plH'),document.getElementById('plB')); setPLView(plViewMode,document.querySelector('#plViewSeg .sb.on')||document.querySelector('#plViewSeg .sb')); },
+  'rpt-bs':    ()=>{ buildStatTbl(bsLines,document.getElementById('bsH'),document.getElementById('bsB')); },
+  'rpt-cf':    ()=>{ buildCFReport(); },
+  'rpt-dep':   ()=>{ buildDepReport(); },
+  'rpt-var':   ()=>{ buildVarReport(); buildActualsLog(); },
+  'rpt-rev':   ()=>{ buildRevReport(); },
+  'wrk-sc':    ()=>{ buildScPanel(); },
+  'wrk-gen':   ()=>{ buildGenTables(); },
+  'wrk-coll':  ()=>{ initYrSegs(); computeAll(selectedCollYear); buildCollTable(); },
+  'wrk-leases':()=>{ [2026,2027,2028,2029,2030].forEach(y=>computeAllLeases(y)); buildLeaseRegister(); },
+  'ass-rev':   ()=>{ buildRevEngine(); },
+  'ass-om':    ()=>{ initYrSegs(); buildOMTable(); },
+  'ass-capex': ()=>{ initYrSegs(); buildCapexTable(); },
+  'ass-dep':   ()=>{ buildDepAssumptions(); },
+  'ass-other': ()=>{ buildOtherFinancing(); },
+  'ass-proj':  ()=>{ buildProjTab(); },
+  'ai-comm':   ()=>{ buildCommCards(); },
+  'adm-data':  ()=>{ buildDataSources(); },
+  'adm-audit': ()=>{ renderAuditTable(); },
+  'adm-guide': ()=>{ buildGuide(); },
+};
+
 function showPane(id,el){
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
   document.getElementById('pane-'+id)?.classList.add('on');
   if(el){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');}
-  if(id==='rpt-pl')buildStatTbl(plLines,document.getElementById('plH'),document.getElementById('plB'));
-  if(id==='rpt-bs')buildStatTbl(bsLines,document.getElementById('bsH'),document.getElementById('bsB'));
-  if(id==='rpt-cf')buildCFReport();
-  if(id==='rpt-dep')buildDepReport();
-  if(id==='rpt-var'){buildVarReport();buildActualsLog();}
-  if(id==='rpt-rev'){buildRevReport();}
-  if(id==='wrk-sc')buildScPanel();
-  if(id==='wrk-gen')buildGenTables();
-  if(id==='wrk-coll'){initYrSegs();computeAll(selectedCollYear);buildCollTable();}
-  if(id==='wrk-leases'){[2026,2027,2028,2029,2030].forEach(y=>computeAllLeases(y));buildLeaseRegister();}
-  if(id==='ass-rev'){buildRevEngine();}
-  if(id==='ass-om'){initYrSegs();buildOMTable();}
-  if(id==='ass-capex'){initYrSegs();buildCapexTable();}
-  if(id==='ass-dep'){buildDepAssumptions();}
-  if(id==='ass-other'){buildOtherFinancing();}
-  if(id==='ass-proj'){buildProjTab();}
-  if(id==='rpt-pl'){setPLView(plViewMode,document.querySelector('#plViewSeg .sb.on')||document.querySelector('#plViewSeg .sb'));}
-  if(id==='ai-comm'){buildCommCards();}
-  if(id==='adm-data')buildDataSources();
-  if(id==='adm-audit'){renderAuditTable();}
-  if(id==='adm-guide')buildGuide();
+  const builder = _tabBuilders[id];
+  if(builder) {
+    builder(); // always rebuild on navigate (data may have changed)
+    _markBuilt(id);
+  }
 }
+
 function setPeriod(p,btn){const prev=period;period=p;document.querySelectorAll('.sb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');refreshAll();auditLog('period','Display Period',prev,p);}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
@@ -5013,12 +5095,16 @@ function exportCSV(){const rows=[['Year','Line','Section','2022','2023','2024','
 
 function refreshAll(){
   document.getElementById('scPill').textContent=activeSc;
+  // Always refresh dashboard KPIs and charts
   buildDashKpis();
-  setTimeout(()=>buildDashCharts(),60);
-  // Re-render monthly P&L with latest actuals (preserves current mode)
-  setTimeout(()=>buildMonthlyPL(plMonthlyYear),80);
+  requestAnimationFrame(()=>buildDashCharts());
+  // Refresh monthly P&L if it has been built
+  if(_isBuilt('rpt-pl')) requestAnimationFrame(()=>buildMonthlyPL(plMonthlyYear));
+  // Refresh the currently active tab (if not dash — already handled above)
   const active=document.querySelector('.pane.on')?.id?.replace('pane-','');
-  if(active&&active!=='dash')showPane(active,null);
+  if(active && active!=='dash' && _tabBuilders[active]) {
+    requestAnimationFrame(()=>_tabBuilders[active]());
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -7749,12 +7835,20 @@ function initYrSegs(){
 
 // ═══════════════════════════════════════════════════════
 //  PLATFORM INIT — called after successful login
+//  v18: lazy tab rendering — only Dashboard built on login.
+//  All other tabs built on first visit (tracked by _builtTabs).
 // ═══════════════════════════════════════════════════════
 let _platformInited = false;
+const _builtTabs = new Set(); // tracks which tabs have been rendered at least once
+
+function _markBuilt(id) { _builtTabs.add(id); }
+function _isBuilt(id)   { return _builtTabs.has(id); }
+
 function _initPlatform() {
   if (_platformInited) return;
   _platformInited = true;
-  // Wire IFRS-16 lease aggregates into depreciationComponents.otherLeases
+
+  // Core computations — must run before any rendering
   [2026,2027,2028,2029,2030].forEach(y=>{
     computeAllLeases(y);
     if(typeof leaseAggregates!=='undefined'&&leaseAggregates[y]){
@@ -7763,25 +7857,25 @@ function _initPlatform() {
   });
   computeAll(2026);
   initInterestIncome();
-  // Run projection engine to seed 2027-2030 from drivers
   try { runProjectionEngine(); } catch(e) { console.warn('Projection engine init:', e); }
-  buildDashKpis();
-  setTimeout(()=>buildDashCharts(),100);
-  setTimeout(()=>{ buildVarReport(); buildActualsLog(); }, 150);
-  setTimeout(()=>{ buildRevReport(); }, 200);
-  setTimeout(()=>{ buildRevEngine(); }, 250);
-  setTimeout(()=>{ buildCFReport(); }, 300);
-  setTimeout(()=>{
-    buildYrSeg('plMoYrSeg',plMonthlyYear,(y,btn)=>{plMonthlyYear=y;buildMonthlyPL(y);});
-    buildMonthlyPL(plMonthlyYear);
-  },350);
-  const fxEl = document.getElementById('revFxDisplay');
-  if (fxEl) { const avgFx=fxTable.billing.reduce((s,v)=>s+v,0)/12; fxEl.textContent='J$'+avgFx.toFixed(2)+' (Jan avg)'; }
+
+  // Unlock actuals months in selectors
   [1,2].forEach(m => {
     const opt1 = document.querySelector(`#varMo option[value="${m}"]`);
     const opt2 = document.querySelector(`#revRptMo option[value="${m}"]`);
     if (opt1) opt1.disabled = false;
     if (opt2) opt2.disabled = false;
+  });
+
+  // FX display
+  const fxEl = document.getElementById('revFxDisplay');
+  if (fxEl) { const avgFx=fxTable.billing.reduce((s,v)=>s+v,0)/12; fxEl.textContent='J$'+avgFx.toFixed(2)+' (Jan avg)'; }
+
+  // Build ONLY the dashboard (visible tab) — all others are lazy
+  buildDashKpis();
+  requestAnimationFrame(() => {
+    buildDashCharts();
+    _markBuilt('dash');
   });
 }
 
