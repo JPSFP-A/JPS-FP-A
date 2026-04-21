@@ -6,7 +6,7 @@
 <title>JPS FP&A Platform v28.0</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 :root{
@@ -84,7 +84,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
 /* ── WELCOME / LOGIN SCREEN ─────────────────────────────── */
 #welcomeScreen{
   position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
-  background:#001428;overflow:hidden;
+  background:linear-gradient(135deg,#001428 0%,#003da5 50%,#001428 100%);overflow:hidden;
 }
 #welcomeScreen .ws-bg{
   position:absolute;inset:0;background-size:cover;background-position:center;
@@ -96,9 +96,9 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
 }
 #welcomeScreen .ws-card{
   position:relative;z-index:2;width:420px;max-width:92vw;
-  background:rgba(255,255,255,.06);backdrop-filter:blur(18px);
-  border:1px solid rgba(255,255,255,.13);border-radius:16px;
-  padding:40px 36px 36px;box-shadow:0 32px 80px rgba(0,0,0,.55);
+  background:#0d1e3a;backdrop-filter:blur(18px);
+  border:1px solid rgba(0,174,239,.25);border-radius:16px;
+  padding:40px 36px 36px;box-shadow:0 32px 80px rgba(0,0,0,.7);
   animation:wsSlideIn .55s cubic-bezier(.22,1,.36,1) both;
 }
 @keyframes wsSlideIn{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
@@ -2257,7 +2257,6 @@ tr.der td{color:var(--teal)}
 <script>
 // ── Embedded assets (base64) ──────────────────────────
 const JPS_LOGO_DATA = 'https://rvtaryvxiryfmurudjcx.supabase.co/storage/v1/object/public/Model/JPS-Logo-2022-Outline-No-Tag-2.png';
-const WELCOME_BG_DATA = 'https://rvtaryvxiryfmurudjcx.supabase.co/storage/v1/object/public/Model/Welcome.jpg';
 const WELCOME_BG_DATA = 'https://rvtaryvxiryfmurudjcx.supabase.co/storage/v1/object/public/Model/Welcome.jpg';
 
 // ═══════════════════════════════════════════════════════
