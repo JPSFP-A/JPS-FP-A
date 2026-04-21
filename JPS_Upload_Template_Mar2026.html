@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JPS FP&amp;A — Upload Template | March 2026</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1a2a3a;font-size:13px}
+
+  /* Header */
+  .header{background:linear-gradient(135deg,#0a1628 0%,#1a3a5c 100%);color:#fff;padding:20px 32px;display:flex;align-items:center;gap:20px}
+  .header-logo{font-size:22px;font-weight:700;color:#f0b429;letter-spacing:1px}
+  .header-title{flex:1}
+  .header-title h1{font-size:18px;font-weight:600;color:#d4e2f4}
+  .header-title p{font-size:12px;color:#7da0c4;margin-top:2px}
+  .header-badge{background:#f0b429;color:#1a2a3a;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:700}
+
+  /* Legend */
+  .legend{background:#fff;border-bottom:1px solid #d0dce8;padding:12px 32px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500}
+  .legend-dot{width:16px;height:16px;border-radius:3px;flex-shrink:0}
+  .dot-input{background:#fef3c7;border:1px solid #f59e0b}
+  .dot-derived{background:#dbeafe;border:1px solid #3b82f6}
+  .dot-total{background:#f0fdf4;border:1px solid #22c55e}
+  .dot-stat{background:#fdf4ff;border:1px solid #a855f7}
+  .legend-note{margin-left:auto;font-size:11px;color:#64748b;font-style:italic}
+
+  /* Tabs */
+  .tabs{background:#fff;border-bottom:2px solid #e2e8f0;padding:0 32px;display:flex;gap:0}
+  .tab{padding:12px 24px;cursor:pointer;border-bottom:3px solid transparent;font-weight:600;font-size:13px;color:#64748b;margin-bottom:-2px;transition:all .15s}
+  .tab.active{border-bottom-color:#0a1628;color:#0a1628}
+  .tab:hover:not(.active){border-bottom-color:#94a3b8;color:#334155}
+
+  /* Content */
+  .content{padding:24px 32px;max-width:1400px;margin:0 auto}
+
+  /* Section */
+  .section{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:20px;overflow:hidden}
+  .section-header{background:#1e3a5c;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+  .section-header h3{font-size:13px;font-weight:600;letter-spacing:.3px}
+  .section-header span{font-size:11px;color:#94b4cc;font-style:italic}
+
+  /* Table */
+  table{width:100%;border-collapse:collapse}
+  thead th{background:#f1f5f9;padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:#475569;border-bottom:2px solid #e2e8f0;white-space:nowrap}
+  thead th.num{text-align:right}
+  tbody tr{border-bottom:1px solid #f1f5f9}
+  tbody tr:hover{background:#f8fafc}
+  td{padding:7px 10px;vertical-align:middle}
+  td.num{text-align:right;font-family:'Consolas',monospace;font-size:12px}
+  td.code{font-family:'Consolas',monospace;font-size:11px;color:#475569;white-space:nowrap}
+  td.label{font-weight:500}
+  td.source-sys{font-size:11px;color:#64748b;font-style:italic}
+  td.formula{font-size:11px;color:#3b82f6;font-family:'Consolas',monospace}
+
+  /* Row types */
+  tr.row-input td{background:#fef3c7}
+  tr.row-input td.code{color:#92400e}
+  tr.row-derived td{background:#dbeafe}
+  tr.row-derived td.code{color:#1e40af}
+  tr.row-total td{background:#f0fdf4;font-weight:700;border-top:2px solid #22c55e}
+  tr.row-stat td{background:#fdf4ff}
+  tr.row-stat td.code{color:#7e22ce}
+
+  /* Variance colors */
+  .pos{color:#16a34a;font-weight:600}
+  .neg{color:#dc2626;font-weight:600}
+  .zero{color:#94a3b8}
+
+  /* Tab pane */
+  .tab-pane{display:none}
+  .tab-pane.active{display:block}
+
+  /* Info box */
+  .info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin-bottom:20px;font-size:12px;color:#1e40af;line-height:1.6}
+  .info-box strong{display:block;margin-bottom:4px;color:#1e3a8a}
+
+  /* Summary strip */
+  .summary-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+  .kpi-card{background:#fff;border-radius:8px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.08);border-left:4px solid #0a1628}
+  .kpi-card.green{border-left-color:#22c55e}
+  .kpi-card.red{border-left-color:#ef4444}
+  .kpi-card.amber{border-left-color:#f59e0b}
+  .kpi-card.blue{border-left-color:#3b82f6}
+  .kpi-label{font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+  .kpi-val{font-size:17px;font-weight:700;color:#1a2a3a;margin-top:2px;font-family:'Consolas',monospace}
+  .kpi-sub{font-size:10px;color:#94a3b8;margin-top:2px}
+
+  .print-btn{position:fixed;bottom:24px;right:24px;background:#0a1628;color:#fff;border:none;padding:12px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+  .print-btn:hover{background:#1a3a5c}
+
+  @media print{.tabs,.print-btn{display:none}.tab-pane{display:block!important;page-break-before:always}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">JPS</div>
+  <div class="header-title">
+    <h1>FP&amp;A Platform — Data Upload Template</h1>
+    <p>Actuals &amp; Budget | Illustrative Month: March 2026 | All values USD 000 unless noted</p>
+  </div>
+  <div class="header-badge">TEMPLATE v1.0</div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot dot-input"></div><strong>INPUT</strong> — Enter from source system (Oracle GL, Billing, CapEx tracker, FA module)</div>
+  <div class="legend-item"><div class="legend-dot dot-derived"></div><strong>DERIVED</strong> — Platform calculates automatically; do not enter</div>
+  <div class="legend-item"><div class="legend-dot dot-total"></div><strong>SUBTOTAL / TOTAL</strong> — Calculated sum row</div>
+  <div class="legend-item"><div class="legend-dot dot-stat"></div><strong>STATISTICAL</strong> — Operational KPI, not a financial line</div>
+  <div class="legend-note">Negative values = costs/outflows. Enter costs as POSITIVE numbers unless noted.</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('actuals',this)">Actuals Upload — March 2026</div>
+  <div class="tab" onclick="switchTab('budget',this)">Budget Upload — AOP March 2026</div>
+  <div class="tab" onclick="switchTab('mapping',this)">Line Code Mapping</div>
+</div>
+
+<!-- ============================================================ ACTUALS TAB ============================================================ -->
+<div id="pane-actuals" class="tab-pane active">
+<div class="content">
+
+  <div class="info-box">
+    <strong>How to use this template (Actuals)</strong>
+    Fill in all <span style="background:#fef3c7;padding:1px 4px;border-radius:2px;font-weight:600">INPUT</span> rows from the indicated source systems.
+    Upload via <strong>Admin → Data Sources → Upload Actuals</strong> using the CSV export at bottom, or enter directly in the platform.
+    <span style="background:#dbeafe;padding:1px 4px;border-radius:2px;font-weight:600">DERIVED</span> rows will auto-calculate — never enter these manually.
+    Lock the period in <code>fpa_dim_period</code> after upload is reviewed and signed off.
+  </div>
+
+  <!-- Key Metrics Strip -->
+  <div class="summary-strip">
+    <div class="kpi-card green"><div class="kpi-label">Total EBITDA</div><div class="kpi-val">19,749</div><div class="kpi-sub">USD 000 | Mar 2026 Actuals</div></div>
+    <div class="kpi-card"><div class="kpi-label">Net Income</div><div class="kpi-val">3,094</div><div class="kpi-sub">USD 000</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Total Assets</div><div class="kpi-val">1,812,211</div><div class="kpi-sub">USD 000</div></div>
+    <div class="kpi-card amber"><div class="kpi-label">FX Rate (Billing)</div><div class="kpi-val">157.26</div><div class="kpi-sub">J$/USD</div></div>
+    <div class="kpi-card"><div class="kpi-label">Billed GWh (Est.)</div><div class="kpi-val">385</div><div class="kpi-sub">GWh | March 2026</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Cash (EOP)</div><div class="kpi-val">53,372</div><div class="kpi-sub">USD 000</div></div>
+  </div>
+
+  <!-- 1. STATISTICAL / VOLUMES -->
+  <div class="section">
+    <div class="section-header">
+      <h3>1. STATISTICAL — Volumes &amp; Rates</h3>
+      <span>Source: Billing System / Dispatch / Metering</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Line Code</th><th>Description</th><th>Type</th><th>Source System</th>
+        <th class="num">March 2026<br>Actuals</th><th>Unit</th><th>Notes</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-input"><td class="code">BILLED_GWH</td><td class="label">Billed Sales</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Billing System — Monthly Sales Report</td><td class="num">385.2</td><td>GWh</td><td class="source-sys">Sum of all rate class billed units for billing month</td></tr>
+        <tr class="row-input"><td class="code">NETGEN_GWH</td><td class="label">Net Generation</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Dispatch / Plant Operations Log</td><td class="num">542.8</td><td>GWh</td><td class="source-sys">JPS-owned + purchased (net of auxiliary load)</td></tr>
+        <tr class="row-input"><td class="code">PEAK_MW</td><td class="label">Peak Demand</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Dispatch / Metering</td><td class="num">624</td><td>MW</td><td class="source-sys">Monthly system peak</td></tr>
+        <tr class="row-derived"><td class="code">SYSLOSS</td><td class="label">System Losses</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">= 1 − (BILLED_GWH / NETGEN_GWH)</td><td class="num">29.0%</td><td>%</td><td class="source-sys">Auto-calculated from volumes</td></tr>
+        <tr class="row-input"><td class="code">HEATRATE</td><td class="label">Weighted Heat Rate</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Plant Operations / Fuel Management</td><td class="num">9,450</td><td>BTU/kWh</td><td class="source-sys">Weighted avg across generation units</td></tr>
+        <tr class="row-input"><td class="code">NF_CENTS</td><td class="label">Non-Fuel Tariff Rate</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Billing / OUR Approved Tariff Schedule</td><td class="num">11.35</td><td>J¢/kWh</td><td class="source-sys">Blended non-fuel rate for the month</td></tr>
+        <tr class="row-input"><td class="code">FX_BILL</td><td class="label">FX Billing Rate</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Treasury / BOJ Published Rate</td><td class="num">157.26</td><td>J$/USD</td><td class="source-sys">Rate used for revenue conversion this billing month</td></tr>
+        <tr class="row-input"><td class="code">FX_EOP</td><td class="label">FX End-of-Period Rate</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Treasury / BOJ Published Rate</td><td class="num">158.58</td><td>J$/USD</td><td class="source-sys">Used for B/S translation at month-end</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 2. REVENUE — P&L -->
+  <div class="section">
+    <div class="section-header">
+      <h3>2. REVENUE — P&amp;L Lines</h3>
+      <span>Source: Oracle Revenue Module / Billing</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Line Code</th><th>Description</th><th>Type</th><th>Source System</th>
+        <th class="num">March 2026<br>Actuals</th><th class="num">AOP March<br>2026</th><th class="num">Var<br>(A-B)</th><th>Notes</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-input"><td class="code">FUEL_REV</td><td class="label">Fuel Revenue</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Billing System — Fuel Charge Line</td><td class="num">12,600</td><td class="num">12,149</td><td class="num pos">451</td><td class="source-sys">Fuel component of customer billing</td></tr>
+        <tr class="row-input"><td class="code">FUEL_COST</td><td class="label">Fuel Costs</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Fuel Management / Oracle GL — Fuel Cost Center</td><td class="num">12,223</td><td class="num">12,114</td><td class="num neg">(109)</td><td class="source-sys">Enter as POSITIVE; platform shows as negative in P&amp;L</td></tr>
+        <tr class="row-derived"><td class="code">FUEL_SURP</td><td class="label">Fuel Surplus/(Penalty)</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">= FUEL_REV − FUEL_COST</td><td class="num">377</td><td class="num">35</td><td class="num pos">342</td><td class="source-sys">Auto-calculated</td></tr>
+        <tr class="row-input"><td class="code">NONFUEL</td><td class="label">Non-Fuel Revenue</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Billing System — Non-Fuel Revenue Report</td><td class="num">26,972</td><td class="num">28,262</td><td class="num neg">(1,290)</td><td class="source-sys">Total non-fuel tariff revenue billed for month</td></tr>
+        <tr class="row-input"><td class="code">OTHER_REV</td><td class="label">Other Operating Revenue</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — Miscellaneous Revenue Accounts</td><td class="num">21</td><td class="num">937</td><td class="num neg">(916)</td><td class="source-sys">Connection fees, reconnection charges, misc</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 3. PURCHASED POWER (IPP) -->
+  <div class="section">
+    <div class="section-header">
+      <h3>3. PURCHASED POWER (IPP)</h3>
+      <span>Source: IPP Contracts / Oracle Payables</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Line Code</th><th>Description</th><th>Type</th><th>Source System</th>
+        <th class="num">March 2026<br>Actuals</th><th class="num">AOP March<br>2026</th><th class="num">Var</th><th>Notes</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-input"><td class="code">IPP_FR</td><td class="label">IPP Fuel Revenue</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">IPP Contract Summary / Finance Operations</td><td class="num">25,318</td><td class="num">32,374</td><td class="num neg">(7,056)</td><td class="source-sys">Fuel pass-through portion billed by IPPs to JPS</td></tr>
+        <tr class="row-input"><td class="code">IPP_NR</td><td class="label">IPP Non-Fuel Revenue</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">IPP Contract Summary / Finance Operations</td><td class="num">12,290</td><td class="num">15,734</td><td class="num neg">(3,444)</td><td class="source-sys">Capacity / non-fuel component billed by IPPs</td></tr>
+        <tr class="row-input"><td class="code">IPP_COST</td><td class="label">Total IPP Costs Paid</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Payables — IPP Vendor Payments</td><td class="num">32,869</td><td class="num">43,425</td><td class="num pos">10,556</td><td class="source-sys">Total of all IPP invoice payments for month; enter POSITIVE</td></tr>
+        <tr class="row-derived"><td class="code">PP_CONTRIB</td><td class="label">PP Net Contribution</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">= IPP_FR + IPP_NR − IPP_COST</td><td class="num">4,739</td><td class="num">4,683</td><td class="num pos">56</td><td class="source-sys">Positive = net recovery; negative = net cost to JPS</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 4. O&M DETAIL -->
+  <div class="section">
+    <div class="section-header">
+      <h3>4. O&amp;M — Operating &amp; Maintenance Expense (Detail)</h3>
+      <span>Source: Oracle GL — Cost Center Report by Category</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Line Code</th><th>O&amp;M Category</th><th>Type</th><th>Source System</th>
+        <th class="num">March 2026<br>Actuals</th><th class="num">AOP March<br>2026</th><th class="num">Var<br>(Favourable)</th><th>Notes</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-input"><td class="code">OM_PAY</td><td class="label">01. Payroll &amp; Salaries</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle HRMS / Payroll Module</td><td class="num">4,350</td><td class="num">4,800</td><td class="num pos">450</td><td class="source-sys">Gross salaries before deductions; enter as positive</td></tr>
+        <tr class="row-input"><td class="code">OM_OT</td><td class="label">02. Overtime</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle HRMS / Payroll Module</td><td class="num">350</td><td class="num">400</td><td class="num pos">50</td><td class="source-sys">OT paid in the month</td></tr>
+        <tr class="row-input"><td class="code">OM_BEN</td><td class="label">03. Employee Benefits</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — Benefits Cost Centers</td><td class="num">1,000</td><td class="num">1,100</td><td class="num pos">100</td><td class="source-sys">Health, pension, statutory (NIS, NHT, ED Tax)</td></tr>
+        <tr class="row-input"><td class="code">OM_DBEN</td><td class="label">04. Discretionary Benefits</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — HR Discretionary Accounts</td><td class="num">210</td><td class="num">250</td><td class="num pos">40</td><td class="source-sys">Bonuses, staff welfare, etc.</td></tr>
+        <tr class="row-input"><td class="code">OM_TRN</td><td class="label">05. Training</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — Training Cost Center</td><td class="num">110</td><td class="num">150</td><td class="num pos">40</td><td class="source-sys">Formal training, conferences, certifications</td></tr>
+        <tr class="row-input"><td class="code">OM_3PTY</td><td class="label">06. Third Party Services</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Payables — Vendor Invoices (Services)</td><td class="num">2,150</td><td class="num">2,400</td><td class="num pos">250</td><td class="source-sys">Contracted maintenance, outsourced services, security</td></tr>
+        <tr class="row-input"><td class="code">OM_SUP</td><td class="label">07. Supplies</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — Supplies / Consumables</td><td class="num">650</td><td class="num">750</td><td class="num pos">100</td><td class="source-sys">Operational consumables, office supplies, safety equipment</td></tr>
+        <tr class="row-input"><td class="code">OM_MAT</td><td class="label">08. Materials</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Inventory / Materials Management</td><td class="num">1,200</td><td class="num">1,400</td><td class="num pos">200</td><td class="source-sys">Materials issued from stores for O&amp;M work orders</td></tr>
+        <tr class="row-input"><td class="code">OM_BDR</td><td class="label">09. Billing, Delivery &amp; Recovery</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — Revenue Operations Cost Centers</td><td class="num">460</td><td class="num">500</td><td class="num pos">40</td><td class="source-sys">Meter reading, bill printing, delivery, collection agents</td></tr>
+        <tr class="row-input"><td class="code">OM_TECH</td><td class="label">10. Technology &amp; IT</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — IT Cost Center</td><td class="num">780</td><td class="num">900</td><td class="num pos">120</td><td class="source-sys">Software licences, IT support, telecoms</td></tr>
+        <tr class="row-input"><td class="code">OM_OFF</td><td class="label">11. Office Expenses</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — Admin Cost Centers</td><td class="num">360</td><td class="num">400</td><td class="num pos">40</td><td class="source-sys">Rent, utilities, travel, communications</td></tr>
+        <tr class="row-input"><td class="code">OM_ENVR</td><td class="label">12. Environment</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — Environmental Cost Center</td><td class="num">260</td><td class="num">300</td><td class="num pos">40</td><td class="source-sys">Environmental compliance, waste disposal, permits</td></tr>
+        <tr class="row-input"><td class="code">OM_INS</td><td class="label">13. Insurance</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL / Insurance Schedule</td><td class="num">420</td><td class="num">450</td><td class="num pos">30</td><td class="source-sys">Monthly premium amortisation per insurance schedule</td></tr>
+        <tr class="row-input"><td class="code">OM_MISC</td><td class="label">14. Miscellaneous</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — Miscellaneous Expense</td><td class="num">220</td><td class="num">250</td><td class="num pos">30</td><td class="source-sys">Items not classified above</td></tr>
+        <tr class="row-input"><td class="code">OM_MGMT</td><td class="label">15. Management Fees</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Payables — Marubeni / Parent Fees</td><td class="num">351</td><td class="num">248</td><td class="num neg">(103)</td><td class="source-sys">Monthly management fee to parent company per agreement</td></tr>
+        <tr class="row-total"><td class="code">OPEX</td><td class="label">TOTAL O&amp;M</td><td><span style="background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">TOTAL</span></td><td class="formula">= Sum of OM_* lines</td><td class="num">12,871</td><td class="num">14,298</td><td class="num pos">1,427</td><td class="source-sys">Feeds into P&amp;L as OPEX</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 5. DEPRECIATION -->
+  <div class="section">
+    <div class="section-header">
+      <h3>5. DEPRECIATION &amp; AMORTISATION</h3>
+      <span>Source: Oracle Fixed Assets / IFRS 16 Lease Register</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Line Code</th><th>Description</th><th>Type</th><th>Source System</th>
+        <th class="num">March 2026<br>Actuals</th><th class="num">AOP March<br>2026</th><th class="num">Var</th><th>Notes</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-input"><td class="code">DEP_FA</td><td class="label">FA Register Depreciation</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Fixed Assets — Depreciation Run</td><td class="num">7,219</td><td class="num">7,500</td><td class="num pos">281</td><td class="source-sys">Monthly depreciation from completed FA run</td></tr>
+        <tr class="row-input"><td class="code">DEP_SJPC</td><td class="label">SJPC Depreciation</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">SJPC Accounts / Oracle GL</td><td class="num">310</td><td class="num">320</td><td class="num pos">10</td><td class="source-sys">JPS share of SJPC depreciation</td></tr>
+        <tr class="row-derived"><td class="code">DEP_LEASE</td><td class="label">IFRS 16 Lease Depreciation</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">= Sum from fpa_leases schedule</td><td class="num">3,109</td><td class="num">3,100</td><td class="num neg">(9)</td><td class="source-sys">Auto-calculated from lease register; separate IFRS 16 line</td></tr>
+        <tr class="row-input"><td class="code">DEP_SP</td><td class="label">Capital Spares</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Fixed Assets</td><td class="num">280</td><td class="num">300</td><td class="num pos">20</td><td class="source-sys">Depreciation on strategic spares inventory</td></tr>
+        <tr class="row-input"><td class="code">DEP_IMP</td><td class="label">Impairment</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL / Impairment Event Record</td><td class="num">0</td><td class="num">0</td><td class="num zero">—</td><td class="source-sys">Enter only if IAS 36 impairment charge recognised this month</td></tr>
+        <tr class="row-total"><td class="code">DEPN</td><td class="label">TOTAL DEPRECIATION</td><td><span style="background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">TOTAL</span></td><td class="formula">= Sum of DEP_* lines</td><td class="num">10,918</td><td class="num">11,220</td><td class="num pos">302</td><td class="source-sys">Feeds into EBIT (includes IFRS 16 depr separately)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 6. CAPEX -->
+  <div class="section">
+    <div class="section-header">
+      <h3>6. CAPITAL EXPENDITURE (Detail)</h3>
+      <span>Source: CapEx Tracker / Oracle Projects</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Line Code</th><th>CapEx Category</th><th>Type</th><th>Source System</th>
+        <th class="num">March 2026<br>Actuals</th><th class="num">AOP March<br>2026</th><th class="num">Var<br>(A-B)</th><th>Notes</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-input"><td class="code">CX_GEN</td><td class="label">Generation</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Projects — Generation Portfolio</td><td class="num">3,500</td><td class="num">4,000</td><td class="num neg">(500)</td><td class="source-sys">Capitalised costs on generation assets</td></tr>
+        <tr class="row-input"><td class="code">CX_TX</td><td class="label">Transmission</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Projects — Transmission Portfolio</td><td class="num">1,800</td><td class="num">2,200</td><td class="num neg">(400)</td><td class="source-sys">Transmission lines, towers, substation interconnects</td></tr>
+        <tr class="row-input"><td class="code">CX_DIST</td><td class="label">Distribution</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Projects — Distribution Portfolio</td><td class="num">3,200</td><td class="num">3,800</td><td class="num neg">(600)</td><td class="source-sys">LV/MV network, poles, transformers</td></tr>
+        <tr class="row-input"><td class="code">CX_HURR</td><td class="label">Hurricane Restoration</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Projects — Disaster Recovery WOs</td><td class="num">1,500</td><td class="num">1,800</td><td class="num neg">(300)</td><td class="source-sys">Capitalised restoration costs approved by OUR</td></tr>
+        <tr class="row-input"><td class="code">CX_CUST</td><td class="label">Customer Systems</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Projects — Customer Portfolio</td><td class="num">800</td><td class="num">1,000</td><td class="num neg">(200)</td><td class="source-sys">Smart meters, billing system, customer connections</td></tr>
+        <tr class="row-input"><td class="code">CX_SS</td><td class="label">Substation</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Projects — Substation Portfolio</td><td class="num">700</td><td class="num">400</td><td class="num pos">300</td><td class="source-sys">New substation builds and upgrades</td></tr>
+        <tr class="row-input"><td class="code">CX_LOSS</td><td class="label">Loss Reduction</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Projects — Loss Reduction Programme</td><td class="num">534</td><td class="num">300</td><td class="num pos">234</td><td class="source-sys">Anti-theft, reconductoring, metering upgrades</td></tr>
+        <tr class="row-total"><td class="code">CX_TOTAL</td><td class="label">TOTAL CAPEX</td><td><span style="background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">TOTAL</span></td><td class="formula">= Sum of CX_* lines</td><td class="num">12,034</td><td class="num">13,500</td><td class="num neg">(1,466)</td><td class="source-sys">Reconcile to Cash Flow — Investing activities</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 7. FINANCING -->
+  <div class="section">
+    <div class="section-header">
+      <h3>7. NET FINANCING COST</h3>
+      <span>Source: Treasury / Loan Register / IFRS 16 Lease Schedule</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Line Code</th><th>Description</th><th>Type</th><th>Source System</th>
+        <th class="num">March 2026<br>Actuals</th><th class="num">AOP March<br>2026</th><th class="num">Var</th><th>Notes</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-input"><td class="code">NFC_INT</td><td class="label">Interest Expense on Loans</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL / Treasury Loan Schedule</td><td class="num">4,801</td><td class="num">5,235</td><td class="num pos">434</td><td class="source-sys">Total interest on IDB, CDB, JMMB, Scotia facilities</td></tr>
+        <tr class="row-derived"><td class="code">NFC_LEASE</td><td class="label">IFRS 16 Lease Interest</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">= Sum from fpa_leases interest schedule</td><td class="num">2,952</td><td class="num">2,900</td><td class="num neg">(52)</td><td class="source-sys">Auto-calculated from lease register — effective interest method</td></tr>
+        <tr class="row-derived"><td class="code">NFC</td><td class="label">Total Net Financing Cost</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">= NFC_INT + NFC_LEASE</td><td class="num">7,753</td><td class="num">8,135</td><td class="num pos">382</td><td class="source-sys">Shown net in P&amp;L</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 8. P&L SUMMARY (DERIVED) -->
+  <div class="section">
+    <div class="section-header">
+      <h3>8. P&amp;L SUMMARY (All DERIVED — auto-calculated)</h3>
+      <span>No data entry required — platform builds these from inputs above</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Line Code</th><th>P&amp;L Line</th><th>Type</th><th>Formula</th>
+        <th class="num">March 2026<br>Actuals</th><th class="num">AOP March<br>2026</th><th class="num">Var</th><th>Notes</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-derived"><td class="code">REG_EBITDA</td><td class="label">Regulated EBITDA</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">FUEL_SURP + NONFUEL + OTHER_REV − OPEX</td><td class="num">14,384</td><td class="num">14,935</td><td class="num neg">(551)</td><td></td></tr>
+        <tr class="row-derived"><td class="code">EBITDA</td><td class="label">TOTAL EBITDA</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">REG_EBITDA + PP_CONTRIB + NR_CONTRIB</td><td class="num">19,749</td><td class="num">20,156</td><td class="num neg">(407)</td><td></td></tr>
+        <tr class="row-derived"><td class="code">EBIT</td><td class="label">EBIT</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">EBITDA − DEPN</td><td class="num">8,831</td><td class="num">8,936</td><td class="num neg">(105)</td><td></td></tr>
+        <tr class="row-derived"><td class="code">PRETAX</td><td class="label">Pre-Tax Income</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">EBIT − NFC + OTH_INC</td><td class="num">4,641</td><td class="num">5,447</td><td class="num neg">(806)</td><td></td></tr>
+        <tr class="row-input"><td class="code">TAX</td><td class="label">Income Tax</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — Tax Accounts / Tax Return</td><td class="num">1,547</td><td class="num">1,693</td><td class="num pos">146</td><td class="source-sys">Actual tax provision booked in month; enter POSITIVE</td></tr>
+        <tr class="row-total"><td class="code">NET_INC</td><td class="label">NET INCOME</td><td><span style="background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">TOTAL</span></td><td class="formula">= PRETAX − TAX</td><td class="num">3,094</td><td class="num">3,754</td><td class="num neg">(660)</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 9. BALANCE SHEET -->
+  <div class="section">
+    <div class="section-header">
+      <h3>9. BALANCE SHEET — Month-End Positions</h3>
+      <span>Source: Oracle GL — Trial Balance at Month-End Close</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Line Code</th><th>B/S Line</th><th>Type</th><th>Source / Account Range</th>
+        <th class="num">Mar 2026<br>Actuals</th><th class="num">AOP Mar<br>2026</th><th class="num">Var</th><th>Notes</th>
+      </tr></thead>
+      <tbody>
+        <tr style="background:#f1f5f9"><td colspan="8" style="padding:6px 10px;font-size:11px;font-weight:700;color:#475569">CURRENT ASSETS</td></tr>
+        <tr class="row-input"><td class="code">CASH</td><td class="label">Cash &amp; Short-Term Deposits</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — Cash &amp; Bank Accounts</td><td class="num">53,372</td><td class="num">195,280</td><td class="num neg">(141,908)</td><td class="source-sys">All bank balances at close</td></tr>
+        <tr class="row-input"><td class="code">RCASH</td><td class="label">Restricted Cash (EDF)</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — EDF Reserve Account</td><td class="num">3,100</td><td class="num">3,300</td><td class="num neg">(200)</td><td class="source-sys">Emergency Development Fund — restricted per bond covenants</td></tr>
+        <tr class="row-input"><td class="code">RECV</td><td class="label">Receivables, Net</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle AR — Net Receivables Report</td><td class="num">138,400</td><td class="num">150,680</td><td class="num neg">(12,280)</td><td class="source-sys">Net of provision for bad debts</td></tr>
+        <tr class="row-input"><td class="code">UNBILL</td><td class="label">Unbilled Revenue</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Billing System — Unbilled Accrual</td><td class="num">35,200</td><td class="num">37,607</td><td class="num neg">(2,407)</td><td class="source-sys">Revenue earned but not yet billed at month-end</td></tr>
+        <tr class="row-input"><td class="code">FINV</td><td class="label">Fuel Inventory</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Fuel Management / Oracle Inventory</td><td class="num">7,200</td><td class="num">8,072</td><td class="num neg">(872)</td><td class="source-sys">HFO, diesel, LNG at month-end market value</td></tr>
+        <tr class="row-input"><td class="code">MATLS</td><td class="label">Materials &amp; Supplies</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Inventory — Stores Report</td><td class="num">45,100</td><td class="num">47,989</td><td class="num neg">(2,889)</td><td class="source-sys">Materials in central and district stores</td></tr>
+        <tr class="row-input"><td class="code">INS_PREPD</td><td class="label">Prepaid Insurance</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL / Insurance Schedule</td><td class="num">4,800</td><td class="num">5,100</td><td class="num neg">(300)</td><td class="source-sys">Monthly amortisation of annual premium; enter remaining balance</td></tr>
+        <tr class="row-derived"><td class="code">CUR_A</td><td class="label">Total Current Assets</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">= Sum of current asset lines</td><td class="num">287,172</td><td class="num">466,892</td><td class="num neg">(179,720)</td><td></td></tr>
+        <tr style="background:#f1f5f9"><td colspan="8" style="padding:6px 10px;font-size:11px;font-weight:700;color:#475569">NON-CURRENT ASSETS</td></tr>
+        <tr class="row-input"><td class="code">PPE</td><td class="label">PP&amp;E — Net</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Fixed Assets — Net Book Value</td><td class="num">1,400,000</td><td class="num">1,452,748</td><td class="num neg">(52,748)</td><td class="source-sys">Net book value after accumulated depreciation</td></tr>
+        <tr class="row-input"><td class="code">CWIP</td><td class="label">Construction WIP</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Projects — CWIP Balance</td><td class="num">88,500</td><td class="num">120,000</td><td class="num neg">(31,500)</td><td class="source-sys">Capital projects not yet capitalised</td></tr>
+        <tr class="row-input"><td class="code">EQINV</td><td class="label">Equity Investments (incl. SJPC)</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — Investment Accounts</td><td class="num">46,004</td><td class="num">46,004</td><td class="num zero">—</td><td class="source-sys">SJPC equity stake at cost (generally stable)</td></tr>
+        <tr class="row-input"><td class="code">PENSION</td><td class="label">Pension Asset</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Actuary Report / Oracle GL</td><td class="num">24,000</td><td class="num">24,491</td><td class="num neg">(491)</td><td class="source-sys">Defined benefit pension asset; typically revalued annually</td></tr>
+        <tr class="row-derived"><td class="code">TOT_A</td><td class="label">TOTAL ASSETS</td><td><span style="background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">TOTAL</span></td><td class="formula">= CUR_A + Non-Current Lines</td><td class="num">1,812,211</td><td class="num">2,187,876</td><td class="num neg">(375,665)</td><td></td></tr>
+        <tr style="background:#f1f5f9"><td colspan="8" style="padding:6px 10px;font-size:11px;font-weight:700;color:#475569">LIABILITIES</td></tr>
+        <tr class="row-input"><td class="code">AP</td><td class="label">Accounts Payable &amp; Accruals</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle Payables — AP Aging Report</td><td class="num">215,400</td><td class="num">259,577</td><td class="num pos">44,177</td><td class="source-sys">Trade payables + accrued liabilities</td></tr>
+        <tr class="row-input"><td class="code">LTD</td><td class="label">Long Term Debt (incl. current portion)</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Treasury — Loan Register / Drawdown Schedule</td><td class="num">392,029</td><td class="num">430,000</td><td class="num pos">37,971</td><td class="source-sys">All facilities: IDB, CDB, JMMB, Scotia, etc. Enter TOTAL outstanding</td></tr>
+        <tr class="row-derived"><td class="code">LEASE_NCL</td><td class="label">Lease Liabilities — IFRS 16 (LT)</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">= Sum from fpa_leases liability schedule</td><td class="num">434,658</td><td class="num">464,510</td><td class="num pos">29,852</td><td class="source-sys">Auto-calculated from lease register amortisation</td></tr>
+        <tr class="row-input"><td class="code">EQUITY</td><td class="label">Total Equity</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Oracle GL — Equity Accounts (TB)</td><td class="num">612,245</td><td class="num">849,316</td><td class="num neg">(237,071)</td><td class="source-sys">Share capital + retained earnings + reserves</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 10. CASH FLOW -->
+  <div class="section">
+    <div class="section-header">
+      <h3>10. CASH FLOW STATEMENT</h3>
+      <span>Source: Oracle GL — Cash Flow Report (IAS 7)</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Line Code</th><th>CF Line</th><th>Type</th><th>Notes</th>
+        <th class="num">March 2026<br>Actuals</th><th class="num">AOP March<br>2026</th><th class="num">Var</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-derived"><td class="code">CF_OPS</td><td class="label">Net Cash from Operations</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="source-sys">Net Income + Depreciation ± Working Capital changes</td><td class="num">(12,697)</td><td class="num">—</td><td class="num">—</td></tr>
+        <tr class="row-derived"><td class="code">CF_INV</td><td class="label">Net Cash from Investing</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="source-sys">Primarily CapEx outflows; reconcile to CX_TOTAL</td><td class="num">(12,034)</td><td class="num">—</td><td class="num">—</td></tr>
+        <tr class="row-input"><td class="code">CF_FIN</td><td class="label">Net Cash from Financing</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Treasury — Drawdowns, repayments, dividends</td><td class="num">(11,208)</td><td class="num">—</td><td class="num">—</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- /content -->
+</div><!-- /pane-actuals -->
+
+<!-- ============================================================ BUDGET TAB ============================================================ -->
+<div id="pane-budget" class="tab-pane">
+<div class="content">
+
+  <div class="info-box">
+    <strong>How to use this template (Annual Operating Plan / Budget)</strong>
+    The budget upload covers a full 12-month year. This template shows <strong>one illustrative month (March 2026)</strong> from the AOP_2026 seed data.
+    For a full AOP upload, repeat across all 12 months. <span style="background:#fef3c7;padding:1px 4px;border-radius:2px;font-weight:600">INPUT</span> rows are <strong>driver/assumption-based</strong> —
+    revenue is built from volume × rate assumptions. <span style="background:#dbeafe;padding:1px 4px;border-radius:2px;font-weight:600">DERIVED</span> rows are computed by the model.
+    Unlike actuals, the budget is set once and locked. Changes flow through the LE process, not the AOP.
+  </div>
+
+  <div class="summary-strip">
+    <div class="kpi-card"><div class="kpi-label">AOP EBITDA (Mar)</div><div class="kpi-val">20,156</div><div class="kpi-sub">USD 000</div></div>
+    <div class="kpi-card green"><div class="kpi-label">AOP Net Income (Mar)</div><div class="kpi-val">3,755</div><div class="kpi-sub">USD 000</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">AOP O&amp;M (Mar)</div><div class="kpi-val">14,298</div><div class="kpi-sub">USD 000</div></div>
+    <div class="kpi-card amber"><div class="kpi-label">AOP CapEx (Mar)</div><div class="kpi-val">13,500</div><div class="kpi-sub">USD 000</div></div>
+    <div class="kpi-card"><div class="kpi-label">AOP FX Assumed</div><div class="kpi-val">158.00</div><div class="kpi-sub">J$/USD (budget rate)</div></div>
+    <div class="kpi-card red"><div class="kpi-label">AOP Total Assets</div><div class="kpi-val">2,187,876</div><div class="kpi-sub">USD 000</div></div>
+  </div>
+
+  <!-- BUDGET — Key Differences vs Actuals -->
+  <div class="section">
+    <div class="section-header">
+      <h3>KEY DIFFERENCES: Budget Upload vs. Actuals Upload</h3>
+    </div>
+    <table>
+      <thead><tr><th>Dimension</th><th>Actuals Upload</th><th>Budget Upload (AOP)</th></tr></thead>
+      <tbody>
+        <tr><td class="label">Revenue</td><td>Read directly from Oracle billing system — actual invoiced amounts</td><td><strong>DERIVED</strong> from GWh volume assumptions × tariff rate assumptions. User inputs volumes and rates; revenue is calculated.</td></tr>
+        <tr><td class="label">O&amp;M</td><td>Actual GL amounts from Oracle cost center report</td><td>Budget submitted by each department head; roll up to categories. No GL — budget workbook is source.</td></tr>
+        <tr><td class="label">CapEx</td><td>Actual spend from Oracle Projects (capitalised only)</td><td>Approved project budget from CapEx submission process. Enter by portfolio/category.</td></tr>
+        <tr><td class="label">Balance Sheet</td><td>Oracle Trial Balance at month-end</td><td>Modelled — balance sheet positions derived from operating/capex/financing assumptions. Cash = opening + CF.</td></tr>
+        <tr><td class="label">FX Rate</td><td>Actual billing rate per BOJ</td><td>Budget assumption (fixed for the full year; typically midpoint of BoJ forecast)</td></tr>
+        <tr><td class="label">Depreciation</td><td>Actual FA module run</td><td>Derived from FA register + planned CapEx additions</td></tr>
+        <tr><td class="label">Tax</td><td>Actual provision</td><td>Derived from pre-tax income × effective rate</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- BUDGET VOLUME ASSUMPTIONS -->
+  <div class="section">
+    <div class="section-header">
+      <h3>1. VOLUME &amp; RATE ASSUMPTIONS (Budget Driver Inputs)</h3>
+      <span>These are the primary inputs that flow through to revenue</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Input</th><th>Description</th><th>Type</th><th>AOP Mar 2026<br>Assumption</th><th>Unit</th><th>How Used</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-input"><td class="code">VOL_RT10</td><td class="label">Residential (RT10) Billed GWh</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">185.0</td><td>GWh</td><td>× RT10 tariff rate → Non-Fuel Revenue (RT10)</td></tr>
+        <tr class="row-input"><td class="code">VOL_RT20</td><td class="label">Commercial (RT20) Billed GWh</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">130.0</td><td>GWh</td><td>× RT20 tariff rate → Non-Fuel Revenue (RT20)</td></tr>
+        <tr class="row-input"><td class="code">VOL_RT40</td><td class="label">Industrial (RT40) Billed GWh</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">62.0</td><td>GWh</td><td>× RT40 tariff rate → Non-Fuel Revenue (RT40)</td></tr>
+        <tr class="row-input"><td class="code">VOL_SL</td><td class="label">Street Lighting Billed GWh</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">8.2</td><td>GWh</td><td>× Street lighting rate</td></tr>
+        <tr class="row-derived"><td class="code">BILLED_GWH</td><td class="label">Total Billed GWh</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="num">385.2</td><td>GWh</td><td class="formula">= RT10 + RT20 + RT40 + SL</td></tr>
+        <tr class="row-input"><td class="code">TAR_NF</td><td class="label">Non-Fuel Tariff (Blended)</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">11.68</td><td>J¢/kWh</td><td>OUR-approved rate for budget year</td></tr>
+        <tr class="row-input"><td class="code">TAR_FUEL</td><td class="label">Fuel Tariff Rate</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">5.14</td><td>J¢/kWh</td><td>OUR-approved fuel rate; drives Fuel Revenue</td></tr>
+        <tr class="row-input"><td class="code">FX_BUD</td><td class="label">Budget FX Rate</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">158.00</td><td>J$/USD</td><td>Fixed for full budget year; used for all revenue/cost conversions</td></tr>
+        <tr class="row-input"><td class="code">FUEL_PRICE</td><td class="label">Budgeted Fuel Price</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">85.00</td><td>USD/BBL</td><td>Blended HFO equivalent; drives Fuel Cost assumption</td></tr>
+        <tr class="row-input"><td class="code">HEATRATE_BUD</td><td class="label">Budgeted Heat Rate</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">9,350</td><td>BTU/kWh</td><td>Generation efficiency assumption</td></tr>
+        <tr class="row-input"><td class="code">SYSLOSS_BUD</td><td class="label">Budgeted System Loss</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">26.5%</td><td>%</td><td>Target loss level; drives generation vs billed volume gap</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- BUDGET DERIVED REVENUE -->
+  <div class="section">
+    <div class="section-header">
+      <h3>2. REVENUE (Derived from Volume × Rate Assumptions)</h3>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Line Code</th><th>Revenue Line</th><th>Type</th><th>Formula</th>
+        <th class="num">AOP Mar 2026</th><th>Notes</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-derived"><td class="code">FUEL_REV</td><td class="label">Fuel Revenue</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">BILLED_GWH × TAR_FUEL / FX_BUD</td><td class="num">12,149</td><td></td></tr>
+        <tr class="row-derived"><td class="code">NONFUEL</td><td class="label">Non-Fuel Revenue</td><td><span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">DERIVED</span></td><td class="formula">BILLED_GWH × TAR_NF / FX_BUD</td><td class="num">28,262</td><td></td></tr>
+        <tr class="row-input"><td class="code">IPP_FR</td><td class="label">IPP Fuel Revenue (Budget)</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">IPP Contract Models — Finance Team Estimate</td><td class="num">32,374</td><td>Estimated from contracted IPP capacity × fuel price assumption</td></tr>
+        <tr class="row-input"><td class="code">IPP_NR</td><td class="label">IPP Non-Fuel Revenue (Budget)</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">IPP Contract Schedule</td><td class="num">15,734</td><td>Fixed capacity charge per contract</td></tr>
+        <tr class="row-input"><td class="code">IPP_COST</td><td class="label">Total IPP Cost (Budget)</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">IPP Contract Models</td><td class="num">43,425</td><td>IPP FR + IPP NR (pass-through at gross)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- BUDGET O&M -->
+  <div class="section">
+    <div class="section-header">
+      <h3>3. O&amp;M BUDGET (Department Submissions → FP&amp;A Consolidation)</h3>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Line Code</th><th>O&amp;M Category</th><th>Type</th><th>Budget Basis</th>
+        <th class="num">AOP Mar 2026</th><th class="num">Annual AOP 2026<br>(× 12 proxy)</th><th>Notes</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-input"><td class="code">OM_PAY</td><td class="label">01. Payroll &amp; Salaries</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">HR headcount plan × salary grade</td><td class="num">4,800</td><td class="num">57,600</td><td></td></tr>
+        <tr class="row-input"><td class="code">OM_OT</td><td class="label">02. Overtime</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">HR forecast (% of payroll)</td><td class="num">400</td><td class="num">4,800</td><td></td></tr>
+        <tr class="row-input"><td class="code">OM_BEN</td><td class="label">03. Employee Benefits</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">HR / statutory rates</td><td class="num">1,100</td><td class="num">13,200</td><td></td></tr>
+        <tr class="row-input"><td class="code">OM_DBEN</td><td class="label">04. Discretionary Benefits</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">HR plan</td><td class="num">250</td><td class="num">3,000</td><td></td></tr>
+        <tr class="row-input"><td class="code">OM_TRN</td><td class="label">05. Training</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">L&amp;D plan</td><td class="num">150</td><td class="num">1,800</td><td>Often back-loaded to Q2-Q4</td></tr>
+        <tr class="row-input"><td class="code">OM_3PTY</td><td class="label">06. Third Party Services</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Contract register + new tenders</td><td class="num">2,400</td><td class="num">28,800</td><td>Largest non-payroll category</td></tr>
+        <tr class="row-input"><td class="code">OM_SUP</td><td class="label">07. Supplies</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Operations dept. submission</td><td class="num">750</td><td class="num">9,000</td><td></td></tr>
+        <tr class="row-input"><td class="code">OM_MAT</td><td class="label">08. Materials</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Ops / Engineering submission</td><td class="num">1,400</td><td class="num">16,800</td><td></td></tr>
+        <tr class="row-input"><td class="code">OM_BDR</td><td class="label">09. Billing, Delivery &amp; Recovery</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Revenue Ops submission</td><td class="num">500</td><td class="num">6,000</td><td></td></tr>
+        <tr class="row-input"><td class="code">OM_TECH</td><td class="label">10. Technology &amp; IT</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">IT dept. submission</td><td class="num">900</td><td class="num">10,800</td><td></td></tr>
+        <tr class="row-input"><td class="code">OM_OFF</td><td class="label">11. Office Expenses</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Admin submission</td><td class="num">400</td><td class="num">4,800</td><td></td></tr>
+        <tr class="row-input"><td class="code">OM_ENVR</td><td class="label">12. Environment</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">HSE submission</td><td class="num">300</td><td class="num">3,600</td><td></td></tr>
+        <tr class="row-input"><td class="code">OM_INS</td><td class="label">13. Insurance</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Insurance renewal schedule / broker</td><td class="num">450</td><td class="num">5,400</td><td>Annual renewal; spread monthly</td></tr>
+        <tr class="row-input"><td class="code">OM_MISC</td><td class="label">14. Miscellaneous</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Contingency / finance estimate</td><td class="num">250</td><td class="num">3,000</td><td></td></tr>
+        <tr class="row-input"><td class="code">OM_MGMT</td><td class="label">15. Management Fees</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="source-sys">Marubeni contract</td><td class="num">248</td><td class="num">2,976</td><td>Fixed per contract agreement</td></tr>
+        <tr class="row-total"><td class="code">OPEX</td><td class="label">TOTAL O&amp;M</td><td><span style="background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">TOTAL</span></td><td></td><td class="num">14,298</td><td class="num">171,576</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- BUDGET CAPEX -->
+  <div class="section">
+    <div class="section-header">
+      <h3>4. CAPEX BUDGET (Approved Project List by Portfolio)</h3>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Line Code</th><th>CapEx Portfolio</th><th>Type</th><th>AOP Mar 2026</th><th>Annual AOP 2026</th><th>Budget Basis</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row-input"><td class="code">CX_GEN</td><td class="label">Generation</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">4,000</td><td class="num">48,000</td><td>Approved project budget — board-sanctioned projects</td></tr>
+        <tr class="row-input"><td class="code">CX_TX</td><td class="label">Transmission</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">2,200</td><td class="num">26,400</td><td>Transmission master plan</td></tr>
+        <tr class="row-input"><td class="code">CX_DIST</td><td class="label">Distribution</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">3,800</td><td class="num">45,600</td><td>Reliability improvement programme</td></tr>
+        <tr class="row-input"><td class="code">CX_HURR</td><td class="label">Hurricane Restoration</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">1,800</td><td class="num">21,600</td><td>OUR-approved restoration budget</td></tr>
+        <tr class="row-input"><td class="code">CX_CUST</td><td class="label">Customer Systems</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">1,000</td><td class="num">12,000</td><td>Smart metering, billing system upgrades</td></tr>
+        <tr class="row-input"><td class="code">CX_SS</td><td class="label">Substation</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">400</td><td class="num">4,800</td><td></td></tr>
+        <tr class="row-input"><td class="code">CX_LOSS</td><td class="label">Loss Reduction</td><td><span style="background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">INPUT</span></td><td class="num">300</td><td class="num">3,600</td><td>Anti-theft, reconductoring</td></tr>
+        <tr class="row-total"><td class="code">CX_TOTAL</td><td class="label">TOTAL CAPEX BUDGET</td><td><span style="background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700">TOTAL</span></td><td class="num">13,500</td><td class="num">162,000</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+</div>
+
+<!-- ============================================================ MAPPING TAB ============================================================ -->
+<div id="pane-mapping" class="tab-pane">
+<div class="content">
+
+  <div class="info-box">
+    <strong>Line Code Reference</strong>
+    Full mapping of all <code>fpa_dim_line</code> codes used in the platform, grouped by financial statement.
+    Use these codes when constructing CSV uploads or SQL inserts to <code>fpa_facts</code>.
+  </div>
+
+  <div class="section">
+    <div class="section-header"><h3>P&amp;L Lines</h3><span>statement = 'PL'</span></div>
+    <table>
+      <thead><tr><th>Code</th><th>Name</th><th>Section</th><th>Sign</th><th>Upload?</th></tr></thead>
+      <tbody>
+        <tr><td class="code">FUEL_REV</td><td>Fuel Revenue</td><td>Regulated Business</td><td>Positive</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">FUEL_COST</td><td>Fuel Costs</td><td>Regulated Business</td><td>Positive (stored as cost)</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">FUEL_SURP</td><td>Fuel Surplus/(Penalty)</td><td>Regulated Business</td><td>Positive=surplus</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+        <tr><td class="code">NONFUEL</td><td>Non-Fuel Revenue</td><td>Regulated Business</td><td>Positive</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">OTHER_REV</td><td>Other Operating Revenue</td><td>Regulated Business</td><td>Positive</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">OPEX</td><td>Operating Expense (O&amp;M)</td><td>Regulated Business</td><td>Positive (stored as cost)</td><td><span style="background:#22c55e;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">TOTAL of OM_*</span></td></tr>
+        <tr><td class="code">REG_EBITDA</td><td>Regulated EBITDA</td><td>Regulated Business</td><td>Positive</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+        <tr><td class="code">IPP_FR</td><td>IPP Fuel Revenue</td><td>Purchased Power</td><td>Positive</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">IPP_NR</td><td>IPP Non-Fuel Revenue</td><td>Purchased Power</td><td>Positive</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">IPP_COST</td><td>Fuel &amp; IPP Costs</td><td>Purchased Power</td><td>Positive (cost)</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">PP_CONTRIB</td><td>PP Contribution</td><td>Purchased Power</td><td>Positive=net recovery</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+        <tr><td class="code">NR_REV</td><td>Non-Regulated Revenue</td><td>Non-Regulated</td><td>Positive</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">NR_COST</td><td>Non-Regulated Costs</td><td>Non-Regulated</td><td>Positive (cost)</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">NR_CONTRIB</td><td>Non-Reg Contribution</td><td>Non-Regulated</td><td>Positive</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+        <tr><td class="code">EBITDA</td><td>TOTAL EBITDA</td><td>—</td><td>Positive</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+        <tr><td class="code">DEPN</td><td>Depreciation (Total)</td><td>—</td><td>Positive (reduces EBIT)</td><td><span style="background:#22c55e;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">TOTAL of DEP_*</span></td></tr>
+        <tr><td class="code">EBIT</td><td>EBIT</td><td>—</td><td>Positive</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+        <tr><td class="code">NFC</td><td>Net Financing Cost</td><td>—</td><td>Positive (cost)</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+        <tr><td class="code">OTH_INC</td><td>Other Income/(Expense)</td><td>—</td><td>Positive=income</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">PRETAX</td><td>Pre-Tax Income</td><td>—</td><td>Positive</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+        <tr><td class="code">TAX</td><td>Income Tax</td><td>—</td><td>Positive (expense)</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">NET_INC</td><td>NET INCOME</td><td>—</td><td>Positive</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><h3>Balance Sheet Lines</h3><span>statement = 'BS'</span></div>
+    <table>
+      <thead><tr><th>Code</th><th>Name</th><th>Section</th><th>Upload?</th></tr></thead>
+      <tbody>
+        <tr><td class="code">CASH</td><td>Cash &amp; Short Term Deposits</td><td>Current Assets</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">RCASH</td><td>Restricted Cash (EDF)</td><td>Current Assets</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">RECV</td><td>Receivables, Net</td><td>Current Assets</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">UNBILL</td><td>Unbilled Revenue</td><td>Current Assets</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">FINV</td><td>Fuel Inventory</td><td>Current Assets</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">MATLS</td><td>Materials &amp; Supplies</td><td>Current Assets</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">INS_PREPD</td><td>Prepaid Insurance</td><td>Current Assets</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">CUR_A</td><td>Total Current Assets</td><td>Current Assets</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+        <tr><td class="code">PPE</td><td>PP&amp;E – Net</td><td>Non-Current Assets</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">CWIP</td><td>Construction WIP</td><td>Non-Current Assets</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">EQINV</td><td>Equity Investments (incl. SJPC)</td><td>Non-Current Assets</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">PENSION</td><td>Pension Asset</td><td>Non-Current Assets</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">TOT_A</td><td>TOTAL ASSETS</td><td>—</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+        <tr><td class="code">AP</td><td>Accounts Payable &amp; Accruals</td><td>Current Liabilities</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">CUR_L</td><td>Total Current Liabilities</td><td>Current Liabilities</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+        <tr><td class="code">LTD</td><td>Long Term Debt</td><td>Non-Current Liabilities</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">LEASE_NCL</td><td>Lease Liabilities (IFRS-16) — LT</td><td>Non-Current Liabilities</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+        <tr><td class="code">TOT_L</td><td>TOTAL LIABILITIES</td><td>—</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+        <tr><td class="code">EQUITY</td><td>Total Equity</td><td>Equity</td><td><span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">INPUT</span></td></tr>
+        <tr><td class="code">TOT_LE</td><td>TOTAL LIABILITIES &amp; EQUITY</td><td>—</td><td><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:10px">DERIVED</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- CSV Upload Format -->
+  <div class="section">
+    <div class="section-header"><h3>CSV Upload Format for fpa_facts</h3><span>Use this structure for bulk inserts</span></div>
+    <table>
+      <thead><tr><th>Column</th><th>Type</th><th>Example</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="code">line_id</td><td>text</td><td>FUEL_REV</td><td>Must match <code>fpa_dim_line.code</code> — INPUT rows only</td></tr>
+        <tr><td class="code">version_id</td><td>uuid</td><td>(from fpa_versions)</td><td>Get from <code>SELECT id FROM fpa_versions WHERE code='ACTUALS_2026_03'</code></td></tr>
+        <tr><td class="code">period_id</td><td>integer</td><td>(from fpa_dim_period)</td><td>Get from <code>SELECT id FROM fpa_dim_period WHERE year=2026 AND month=3</code></td></tr>
+        <tr><td class="code">value</td><td>numeric</td><td>12600.00</td><td>USD 000. Costs entered as POSITIVE numbers.</td></tr>
+        <tr><td class="code">source</td><td>text</td><td>actuals_upload</td><td>Tag: 'actuals_upload', 'seed', 'manual', 'aop_upload'</td></tr>
+        <tr><td class="code">note</td><td>text</td><td>Mar 2026 Oracle GL export</td><td>Optional — describe source for audit trail</td></tr>
+      </tbody>
+    </table>
+
+    <div style="padding:16px;background:#f8fafc;border-top:1px solid #e2e8f0">
+      <p style="font-size:12px;font-weight:600;color:#334155;margin-bottom:8px">Sample SQL — Insert March 2026 Actuals Fuel Revenue:</p>
+      <pre style="background:#1e3a5c;color:#d4e2f4;padding:14px;border-radius:6px;font-size:11px;overflow-x:auto;white-space:pre-wrap">INSERT INTO fpa_facts (version_id, line_id, period_id, value, source, note)
+SELECT
+  v.id,
+  'FUEL_REV',
+  p.id,
+  12600.00,
+  'actuals_upload',
+  'March 2026 Actuals — Billing System export'
+FROM fpa_versions v
+CROSS JOIN fpa_dim_period p
+WHERE v.code = 'ACTUALS_2026_03'
+  AND p.year = 2026 AND p.month = 3
+ON CONFLICT (version_id, line_id, period_id) DO UPDATE
+  SET value = EXCLUDED.value,
+      source = EXCLUDED.source,
+      note = EXCLUDED.note,
+      entered_at = now();</pre>
+      <p style="font-size:11px;color:#64748b;margin-top:8px">⚠ Note: fpa_facts currently has no PK constraint on (version_id, line_id, period_id). Add this constraint before running upserts to prevent duplicates.</p>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+
+<script>
+function switchTab(id, el) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('pane-' + id).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>
