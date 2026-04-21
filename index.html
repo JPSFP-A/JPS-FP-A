@@ -178,62 +178,166 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
   font-family:'IBM Plex Sans',sans-serif;letter-spacing:.03em;
 }
 #welcomeScreen .ws-powering span{color:#00aeef;}
-/* ── FLASH REPORT ──────────────────────────────────────── */
+/* ── FLASH REPORT — isolated document styling ───────────── */
+/* Control bar sits in platform theme; document below is always white */
+#pane-rpt-flash{background:#eef1f6 !important;gap:0 !important;}
+.flash-ctrl-bar{
+  background:var(--card);border-bottom:2px solid var(--border);
+  padding:12px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  flex-shrink:0;
+}
 .flash-view-btn{
-  padding:6px 12px;border:none;background:transparent;cursor:pointer;
+  padding:6px 13px;border:none;background:transparent;cursor:pointer;
   font-size:10px;font-weight:700;font-family:var(--sans);color:var(--muted);
   letter-spacing:.04em;text-transform:uppercase;transition:all .15s;
 }
-.flash-view-btn:hover{color:var(--text);}
-.flash-view-btn.on{background:var(--blue);color:#fff;}
+.flash-view-btn:hover{color:var(--text);background:rgba(255,255,255,.06);}
+.flash-view-btn.on{background:#003da5;color:#fff;}
 .flash-sel{
   padding:6px 10px;border-radius:7px;border:1px solid var(--border);
   background:var(--input-bg);color:var(--text);font-size:11px;
   font-family:var(--sans);cursor:pointer;outline:none;
 }
-#flashPLTable th,#flashPLTable td,
-#flashBSTable th,#flashBSTable td,
-#flashMetricsTable th,#flashMetricsTable td{
-  padding:7px 12px;border-bottom:1px solid var(--border);text-align:right;
+/* ── Document area ── */
+#flashDocument{
+  flex:1;overflow-y:auto;padding:20px 24px 32px;
+  display:flex;flex-direction:column;align-items:center;gap:0;
 }
-#flashPLTable th:first-child,#flashPLTable td:first-child,
-#flashBSTable th:first-child,#flashBSTable td:first-child,
-#flashMetricsTable th:first-child,#flashMetricsTable td:first-child{text-align:left;}
-#flashPLTable thead th,#flashBSTable thead th,#flashMetricsTable thead th{
-  background:var(--table-header-bg);color:var(--table-header-text);
-  font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+.flash-page{
+  width:100%;max-width:960px;background:#fff;
+  box-shadow:0 2px 16px rgba(0,0,0,.12);border-radius:4px;
+  overflow:hidden;font-family:'IBM Plex Sans',sans-serif;
 }
-.flash-section-row td{
-  background:var(--card2);font-weight:800;font-size:10px;
-  color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:5px 12px;
-  border-top:2px solid var(--border);
+/* Page header */
+.flash-page-header{
+  background:linear-gradient(135deg,#002d80 0%,#003da5 60%,#0055c8 100%);
+  padding:22px 28px 18px;display:flex;justify-content:space-between;align-items:flex-end;
 }
-.flash-total-row td{
-  background:var(--glo);font-weight:800;border-top:2px solid var(--border);
+.flash-page-header-left .flash-report-title{
+  font-size:20px;font-weight:800;color:#fff;letter-spacing:.01em;line-height:1.2;
 }
-.flash-var-pos{color:var(--green);font-weight:700;}
-.flash-var-neg{color:var(--red);font-weight:700;}
-.flash-kpi-card{
-  background:var(--card);border:1px solid var(--border);border-radius:10px;
-  padding:14px 16px;display:flex;flex-direction:column;gap:4px;
+.flash-page-header-left .flash-report-sub{
+  font-size:11px;color:rgba(255,255,255,.65);margin-top:4px;letter-spacing:.04em;
 }
-.flash-kpi-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
-.flash-kpi-val{font-size:20px;font-weight:800;font-family:var(--mono);color:var(--text);}
-.flash-kpi-sub{font-size:10px;color:var(--muted);}
-.flash-note-item{
-  background:var(--card2);border:1px solid var(--border);border-radius:8px;
-  padding:10px 14px;display:flex;flex-direction:column;gap:4px;
+.flash-page-header-right{text-align:right;}
+.flash-page-header-right .flash-brand{
+  font-size:26px;font-weight:900;color:#fff;letter-spacing:-.01em;font-family:'IBM Plex Mono',monospace;
 }
-.flash-note-meta{font-size:9px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;}
-.flash-note-section{
-  display:inline-block;padding:1px 8px;border-radius:10px;font-size:9px;font-weight:700;
-  background:rgba(74,144,217,.15);color:var(--blue);text-transform:uppercase;letter-spacing:.05em;
+.flash-page-header-right .flash-brand span{color:#00aeef;}
+.flash-page-header-right .flash-date{font-size:10px;color:rgba(255,255,255,.6);margin-top:3px;}
+/* Comparison banner */
+.flash-compare-banner{
+  background:#f0f4f8;border-bottom:1px solid #d8e2ef;
+  padding:10px 28px;display:flex;align-items:center;gap:0;
+  font-size:11px;font-weight:700;
 }
-.flash-note-text{font-size:12px;color:var(--text);line-height:1.5;}
+.flash-ver-pill{
+  padding:5px 14px;border-radius:20px;font-size:10px;font-weight:800;
+  letter-spacing:.05em;text-transform:uppercase;
+}
+.flash-ver-a{background:#003da5;color:#fff;}
+.flash-ver-b{background:#e8eef6;color:#003da5;border:1px solid #b0c4de;}
+.flash-compare-vs{padding:0 12px;color:#8099b8;font-weight:700;}
+.flash-compare-period{margin-left:auto;color:#4a6080;font-size:10px;font-weight:600;}
+/* KPI strip */
+.flash-kpi-strip{
+  display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid #d8e2ef;
+}
+.flash-kpi-cell{
+  padding:14px 18px;border-right:1px solid #d8e2ef;
+}
+.flash-kpi-cell:last-child{border-right:none;}
+.flash-kpi-label{font-size:9px;font-weight:700;color:#6b82a0;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;}
+.flash-kpi-val{font-size:19px;font-weight:800;color:#0d1e3a;font-family:'IBM Plex Mono',monospace;}
+.flash-kpi-var{font-size:10px;margin-top:3px;}
+/* Tables */
+.flash-section-header{
+  padding:8px 28px;background:#f5f7fa;border-top:2px solid #003da5;border-bottom:1px solid #d8e2ef;
+  font-size:10px;font-weight:800;color:#003da5;text-transform:uppercase;letter-spacing:.08em;
+}
+.flash-table{width:100%;border-collapse:collapse;font-size:11.5px;}
+.flash-table th{
+  padding:8px 14px;text-align:right;font-size:9px;font-weight:800;
+  color:#fff;background:#1e3a5f;text-transform:uppercase;letter-spacing:.07em;
+  border-right:1px solid rgba(255,255,255,.1);
+}
+.flash-table th:first-child{text-align:left;min-width:190px;border-radius:0;}
+.flash-table th:last-child{border-right:none;}
+.flash-table td{
+  padding:7px 14px;text-align:right;color:#0d1e3a;
+  border-bottom:1px solid #e8eef5;border-right:1px solid #e8eef5;
+}
+.flash-table td:first-child{text-align:left;color:#1a2f4a;}
+.flash-table td:last-child{border-right:none;}
+.flash-table tr:hover td{background:#f8fafc;}
+.flash-row-section td{
+  background:#f0f4f8 !important;font-weight:800;font-size:10px;
+  color:#5a7090;text-transform:uppercase;letter-spacing:.06em;
+  padding:5px 14px;border-top:1px solid #d8e2ef;
+}
+.flash-row-subtotal td{
+  background:#eef4fb !important;font-weight:800;color:#003da5;
+  border-top:2px solid #003da5 !important;
+}
+.flash-row-total td{
+  background:#003da5 !important;color:#fff !important;font-weight:800;
+  border-top:2px solid #002880 !important;
+}
+.flash-two-col{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #d8e2ef;}
+.flash-two-col > div{border-right:1px solid #d8e2ef;}
+.flash-two-col > div:last-child{border-right:none;}
+/* Variance colouring */
+.fv-pos{color:#059669;font-weight:700;}
+.fv-neg{color:#dc2626;font-weight:700;}
+.fv-neu{color:#6b82a0;}
+/* Notes */
+.flash-notes-area{padding:18px 28px;border-top:1px solid #d8e2ef;}
+.flash-notes-area h3{font-size:11px;font-weight:800;color:#003da5;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;}
+.flash-note-entry{display:flex;gap:10px;margin-bottom:10px;}
+.flash-note-avatar{
+  width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#003da5,#00aeef);
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;
+}
+.flash-note-body{flex:1;background:#f8fafc;border:1px solid #dde5f0;border-radius:8px;padding:10px 14px;}
+.flash-note-meta{font-size:9px;color:#6b82a0;display:flex;gap:10px;flex-wrap:wrap;margin-bottom:5px;}
+.flash-note-author{font-weight:700;color:#1a2f4a;}
+.flash-note-tag{
+  padding:1px 8px;border-radius:10px;background:#e8f0fc;color:#003da5;
+  font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+}
+.flash-note-text{font-size:12px;color:#1a2f4a;line-height:1.55;}
+/* Input area */
+.flash-note-input-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px;}
+.flash-note-input-row select,.flash-note-input-row textarea{
+  font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:#0d1e3a;
+  border:1px solid #c8d8ec;border-radius:7px;background:#fff;outline:none;
+  transition:border-color .2s;
+}
+.flash-note-input-row select{padding:8px 10px;}
+.flash-note-input-row textarea{flex:1;min-width:220px;padding:9px 12px;resize:vertical;}
+.flash-note-input-row select:focus,.flash-note-input-row textarea:focus{border-color:#003da5;}
+/* Loading / empty state */
+.flash-loading{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px 20px;color:#6b82a0;gap:12px;
+}
+.flash-loading .fl-spinner{
+  width:36px;height:36px;border:3px solid #d8e2ef;border-top-color:#003da5;
+  border-radius:50%;animation:fl-spin .7s linear infinite;
+}
+@keyframes fl-spin{to{transform:rotate(360deg)}}
+/* Footer */
+.flash-page-footer{
+  background:#f5f7fa;border-top:1px solid #d8e2ef;
+  padding:10px 28px;display:flex;justify-content:space-between;align-items:center;
+  font-size:9px;color:#8099b8;
+}
+/* Print */
 @media print{
-  .topbar,.tabbar,#welcomeScreen,.flash-view-btn,.flash-sel,button{display:none!important;}
-  #pane-rpt-flash{display:block!important;height:auto!important;overflow:visible!important;}
-  #flashContent{height:auto!important;overflow:visible!important;}
+  .topbar,.tabbar,.flash-ctrl-bar,#welcomeScreen{display:none!important;}
+  #pane-rpt-flash{display:flex!important;height:auto!important;overflow:visible!important;background:#fff!important;}
+  #flashDocument{overflow:visible!important;padding:0!important;}
+  .flash-page{box-shadow:none!important;}
 }
 /* hide app shell until logged in */
 .app-shell{display:none;}
@@ -1430,119 +1534,143 @@ tr.der td{color:var(--teal)}
 <!-- ═══ FLASH REPORT ═══ -->
 <div id="pane-rpt-flash" class="pane">
 
-  <!-- FLASH REPORT TOPBAR -->
-  <div style="background:var(--card);border-bottom:2px solid var(--border);padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-    <div style="flex:1;min-width:200px">
-      <div style="font-size:15px;font-weight:800;color:var(--text);letter-spacing:.01em">📰 Management Flash Report</div>
-      <div style="font-size:10px;color:var(--muted);margin-top:2px">Jamaica Public Service Co. · FP&amp;A · Confidential</div>
+  <!-- ── CONTROL BAR (platform-themed) ── -->
+  <div class="flash-ctrl-bar">
+    <div style="font-size:13px;font-weight:800;color:var(--text);margin-right:6px;white-space:nowrap">📰 Flash Report</div>
+
+    <!-- View toggle -->
+    <div style="display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;flex-shrink:0">
+      <button class="flash-view-btn on" data-view="month"  onclick="flashSetView('month',this)">Month</button>
+      <button class="flash-view-btn"    data-view="qtd"    onclick="flashSetView('qtd',this)">QTD</button>
+      <button class="flash-view-btn"    data-view="ytd"    onclick="flashSetView('ytd',this)">YTD</button>
+      <button class="flash-view-btn"    data-view="annual" onclick="flashSetView('annual',this)">Full Year</button>
     </div>
-    <!-- Period type selector -->
-    <div style="display:flex;align-items:center;gap:6px;">
-      <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">View</span>
-      <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
-        <button class="flash-view-btn on" data-view="month"  onclick="flashSetView('month',this)">Month</button>
-        <button class="flash-view-btn"    data-view="qtd"    onclick="flashSetView('qtd',this)">QTD</button>
-        <button class="flash-view-btn"    data-view="ytd"    onclick="flashSetView('ytd',this)">YTD</button>
-        <button class="flash-view-btn"    data-view="annual" onclick="flashSetView('annual',this)">Full Year</button>
-      </div>
-    </div>
-    <!-- Period picker -->
-    <div style="display:flex;align-items:center;gap:6px;">
-      <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Period</span>
+
+    <!-- Period -->
+    <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+      <span style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Period</span>
       <select id="flashMoA" class="flash-sel" onchange="flashRefresh()">
         <option value="202601">Jan 2026</option>
         <option value="202602">Feb 2026</option>
         <option value="202603" selected>Mar 2026</option>
       </select>
     </div>
-    <!-- Left version -->
-    <div style="display:flex;align-items:center;gap:6px;">
-      <span style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.06em">A</span>
+
+    <!-- Version A -->
+    <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+      <span style="font-size:9px;font-weight:800;color:#fff;background:#003da5;padding:2px 8px;border-radius:10px;letter-spacing:.04em">A</span>
       <select id="flashVerA" class="flash-sel" onchange="flashRefresh()">
-        <option value="">— Select —</option>
+        <option value="">— loading… —</option>
       </select>
     </div>
-    <span style="font-size:12px;font-weight:800;color:var(--muted)">vs</span>
-    <!-- Right version -->
-    <div style="display:flex;align-items:center;gap:6px;">
-      <span style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.06em">B</span>
+
+    <span style="font-size:11px;font-weight:700;color:var(--muted)">vs</span>
+
+    <!-- Version B -->
+    <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+      <span style="font-size:9px;font-weight:800;color:#003da5;background:#e8f0fc;border:1px solid #b0c4de;padding:2px 8px;border-radius:10px;letter-spacing:.04em">B</span>
       <select id="flashVerB" class="flash-sel" onchange="flashRefresh()">
-        <option value="">— Select —</option>
+        <option value="">— loading… —</option>
       </select>
     </div>
-    <!-- Actions -->
-    <div style="display:flex;gap:6px;margin-left:auto;">
-      <button class="btn btn-ghost" style="font-size:10px" onclick="flashExportPDF()" title="Print / Save as PDF">🖨 PDF</button>
-      <button class="btn btn-ghost" style="font-size:10px" onclick="flashExportXLSX()" title="Export to Excel">⬇ Excel</button>
-      <button class="btn btn-teal"  style="font-size:10px" id="flashBackBtn" onclick="flashGoToModel()" title="Return to full model" style="display:none">← Full Model</button>
+
+    <!-- Action buttons -->
+    <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0">
+      <button id="flashBackBtn" class="btn btn-teal" style="font-size:10px;display:none" onclick="flashGoToModel()">← Full Model</button>
+      <button class="btn btn-ghost" style="font-size:10px" onclick="flashExportPDF()">🖨 PDF</button>
+      <button class="btn btn-ghost" style="font-size:10px" onclick="flashExportXLSX()">⬇ Excel</button>
     </div>
   </div>
 
-  <!-- FLASH CONTENT AREA -->
-  <div id="flashContent" style="padding:14px 18px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;height:calc(100vh - 200px)">
+  <!-- ── DOCUMENT AREA ── -->
+  <div id="flashDocument">
+    <div class="flash-page" id="flashPage">
 
-    <!-- KPI STRIP -->
-    <div id="flashKpiRow" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;"></div>
+      <!-- Loading state (shown until data arrives) -->
+      <div id="flashLoadingState" class="flash-loading">
+        <div class="fl-spinner"></div>
+        <div style="font-size:12px;font-weight:600">Loading report data…</div>
+        <div style="font-size:10px">Select Version A and Version B above to compare</div>
+      </div>
 
-    <!-- INCOME STATEMENT TABLE -->
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
-      <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-        <div style="font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.06em">Income Statement</div>
-        <div id="flashColHeaders" style="display:flex;gap:4px;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;"></div>
-      </div>
-      <div style="overflow-x:auto;">
-        <table id="flashPLTable" style="width:100%;border-collapse:collapse;font-size:11px;"></table>
-      </div>
-    </div>
+      <!-- Report content (hidden until loaded) -->
+      <div id="flashReportBody" style="display:none">
 
-    <!-- TWO-COLUMN: BALANCE SHEET + CAPEX/DEBT -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
-        <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.06em">Balance Sheet Highlights</div>
-        <table id="flashBSTable" style="width:100%;border-collapse:collapse;font-size:11px;"></table>
-      </div>
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
-        <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.06em">Key Metrics</div>
-        <table id="flashMetricsTable" style="width:100%;border-collapse:collapse;font-size:11px;"></table>
-      </div>
-    </div>
-
-    <!-- NOTES SECTION -->
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
-      <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-        <div style="font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.06em">📝 Management Notes &amp; Commentary</div>
-        <div style="font-size:9px;color:var(--muted)">Auto-saved · Audit trail below</div>
-      </div>
-      <div style="padding:14px;display:flex;flex-direction:column;gap:10px;">
-        <!-- Section selector + input -->
-        <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
-          <select id="flashNoteSection" class="flash-sel" style="min-width:130px;">
-            <option value="general">General</option>
-            <option value="revenue">Revenue</option>
-            <option value="opex">O&amp;M / OPEX</option>
-            <option value="ebitda">EBITDA</option>
-            <option value="financing">Financing</option>
-            <option value="balance_sheet">Balance Sheet</option>
-            <option value="capex">CapEx</option>
-            <option value="outlook">Outlook</option>
-          </select>
-          <textarea id="flashNoteInput" rows="3"
-            style="flex:1;min-width:220px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:var(--sans);font-size:12px;resize:vertical;outline:none;transition:border-color .2s;"
-            placeholder="Enter commentary for this period… (Ctrl+Enter to save)"
-            onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){flashSaveNote();event.preventDefault();}"></textarea>
-          <button class="btn btn-gold" style="align-self:flex-start" onclick="flashSaveNote()">Save Note</button>
+        <!-- Header -->
+        <div class="flash-page-header">
+          <div class="flash-page-header-left">
+            <div class="flash-report-title">Management Flash Report</div>
+            <div class="flash-report-sub" id="flashReportSubtitle">Jamaica Public Service Co. · FP&amp;A · Confidential</div>
+          </div>
+          <div class="flash-page-header-right">
+            <div class="flash-brand">JPS<span>co</span></div>
+            <div class="flash-date" id="flashHeaderDate"></div>
+          </div>
         </div>
-        <!-- Notes feed -->
-        <div id="flashNotesFeed" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;"></div>
-      </div>
-    </div>
 
-    <!-- FOOTER -->
-    <div style="text-align:center;font-size:9px;color:var(--muted);padding:8px 0;border-top:1px solid var(--border)">
-      CONFIDENTIAL · Jamaica Public Service Co. · FP&amp;A Division · Generated <span id="flashGenTime"></span>
-    </div>
+        <!-- Comparison banner -->
+        <div class="flash-compare-banner">
+          <span class="flash-ver-pill flash-ver-a" id="flashLabelA">Version A</span>
+          <span class="flash-compare-vs">vs</span>
+          <span class="flash-ver-pill flash-ver-b" id="flashLabelB">Version B</span>
+          <span class="flash-compare-period" id="flashLabelPeriod"></span>
+        </div>
 
-  </div><!-- /flashContent -->
+        <!-- KPI strip -->
+        <div class="flash-kpi-strip" id="flashKpiStrip"></div>
+
+        <!-- Income Statement -->
+        <div class="flash-section-header">Income Statement &nbsp;<span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;color:#7090b0">USD $'000</span></div>
+        <div style="overflow-x:auto">
+          <table class="flash-table" id="flashPLTable"></table>
+        </div>
+
+        <!-- Balance Sheet + Metrics -->
+        <div class="flash-two-col">
+          <div>
+            <div class="flash-section-header" style="border-top:none">Balance Sheet Highlights</div>
+            <table class="flash-table" id="flashBSTable"></table>
+          </div>
+          <div>
+            <div class="flash-section-header" style="border-top:none">Key Metrics</div>
+            <table class="flash-table" id="flashMetricsTable"></table>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="flash-notes-area">
+          <h3>📝 Management Commentary</h3>
+          <!-- Input row -->
+          <div class="flash-note-input-row">
+            <select id="flashNoteSection">
+              <option value="general">General</option>
+              <option value="revenue">Revenue</option>
+              <option value="opex">O&amp;M / OPEX</option>
+              <option value="ebitda">EBITDA</option>
+              <option value="financing">Financing</option>
+              <option value="balance_sheet">Balance Sheet</option>
+              <option value="capex">CapEx</option>
+              <option value="outlook">Outlook</option>
+            </select>
+            <textarea id="flashNoteInput" rows="2"
+              placeholder="Add commentary for this period… (Ctrl+Enter to save)"
+              onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){flashSaveNote();event.preventDefault();}"></textarea>
+            <button class="btn btn-gold" style="align-self:flex-start;font-size:11px" onclick="flashSaveNote()">Save</button>
+          </div>
+          <!-- Feed -->
+          <div id="flashNotesFeed"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flash-page-footer">
+          <span>CONFIDENTIAL · Internal Use Only · Jamaica Public Service Co.</span>
+          <span id="flashGenTime"></span>
+        </div>
+
+      </div><!-- /flashReportBody -->
+    </div><!-- /flash-page -->
+  </div><!-- /flashDocument -->
+
 </div><!-- /pane-rpt-flash -->
 
 <!-- ═══ SCENARIOS WORKING ═══ -->
@@ -11748,7 +11876,7 @@ function _restoreState() {
 // _saveState() is called directly inside showPane, setScenario, setPeriod above
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  FLASH REPORT ENGINE
+//  FLASH REPORT ENGINE  v2 — white document, isolated from platform theme
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const FLASH_MONTHS = {
@@ -11757,10 +11885,36 @@ const FLASH_MONTHS = {
   202607:'Jul 2026', 202608:'Aug 2026', 202609:'Sep 2026',
   202610:'Oct 2026', 202611:'Nov 2026', 202612:'Dec 2026'
 };
+const FLASH_MONTH_FULL = {
+  202601:'January 2026', 202602:'February 2026', 202603:'March 2026',
+  202604:'April 2026',   202605:'May 2026',       202606:'June 2026',
+  202607:'July 2026',    202608:'August 2026',    202609:'September 2026',
+  202610:'October 2026', 202611:'November 2026',  202612:'December 2026'
+};
 
-let _flashView      = 'month';   // month | qtd | ytd | annual
-let _flashNotesData = [];        // cached notes from Supabase
-let _flashNoteSaveTimer = null;
+let _flashView      = 'month';
+let _flashNotesData = [];
+let _flashInited    = false;
+
+// ── Show / hide the loading skeleton vs report body ───────────────────────────
+function flashShowLoading(msg) {
+  const ls = document.getElementById('flashLoadingState');
+  const rb = document.getElementById('flashReportBody');
+  if (ls) { ls.style.display = 'flex'; ls.innerHTML = `<div class="fl-spinner"></div><div style="font-size:12px;font-weight:600">${msg||'Loading…'}</div>`; }
+  if (rb) rb.style.display = 'none';
+}
+function flashShowReport() {
+  const ls = document.getElementById('flashLoadingState');
+  const rb = document.getElementById('flashReportBody');
+  if (ls) ls.style.display = 'none';
+  if (rb) rb.style.display = 'block';
+}
+function flashShowEmpty(msg) {
+  const ls = document.getElementById('flashLoadingState');
+  const rb = document.getElementById('flashReportBody');
+  if (ls) { ls.style.display = 'flex'; ls.innerHTML = `<div style="font-size:32px">📰</div><div style="font-size:13px;font-weight:700;color:#1e3a5f">${msg||'Select versions above'}</div><div style="font-size:11px;color:#8099b8">Choose Version A and Version B in the control bar to compare</div>`; }
+  if (rb) rb.style.display = 'none';
+}
 
 // ── Populate version dropdowns ────────────────────────────────────────────────
 function flashPopulateVersions() {
@@ -11846,141 +12000,134 @@ function flashVar(a, b, favorable_when_positive = true) {
   return { html: `${sign}${flashFmt(diff)}<br><span style="font-size:9px">${sign}${pct}%</span>`, cls };
 }
 
-// ── Build KPI strip ───────────────────────────────────────────────────────────
-function flashBuildKpis(factsA, factsB, labelA, labelB) {
-  const el = document.getElementById('flashKpiRow');
+// ── KPI strip (white document) ────────────────────────────────────────────────
+function flashBuildKpisV2(factsA, factsB, labelA, labelB) {
+  const el = document.getElementById('flashKpiStrip');
   if (!el) return;
   const kpis = [
-    { key:'ebitda',  label:'EBITDA',        fav:true },
-    { key:'net_inc', label:'Net Income',     fav:true },
-    { key:'opex',    label:'O&M Expense',    fav:false },
-    { key:'fin_cost',label:'Financing Cost', fav:false },
-    { key:'cash',    label:'Cash',           fav:true, bs:true },
+    { key:'ebitda',   label:'EBITDA',         fav:true  },
+    { key:'net_inc',  label:'Net Income',      fav:true  },
+    { key:'opex',     label:'O&M Expense',     fav:false },
+    { key:'fin_cost', label:'Financing Cost',  fav:false },
+    { key:'cash',     label:'Cash',            fav:true  },
   ];
   el.innerHTML = kpis.map(k => {
     const vA = factsA[k.key] ?? null;
     const vB = factsB[k.key] ?? null;
-    const vr = flashVar(vA, vB, k.fav);
-    return `<div class="flash-kpi-card">
+    const diff = (vA!=null&&vB!=null) ? vA-vB : null;
+    const good = diff==null ? true : k.fav ? diff>=0 : diff<=0;
+    const cls  = diff==null||diff===0 ? 'fv-neu' : good ? 'fv-pos' : 'fv-neg';
+    const arrow = diff==null ? '' : diff>0 ? '▲ ' : '▼ ';
+    const varPct = (diff!=null&&vB&&vB!==0) ? Math.abs(diff/vB*100).toFixed(1)+'%' : '';
+    return `<div class="flash-kpi-cell">
       <div class="flash-kpi-label">${k.label}</div>
-      <div class="flash-kpi-val">${vA != null ? '$'+flashFmt(vA) : '—'}</div>
-      <div class="flash-kpi-sub ${vr.cls}">${vr.html||''} <span style="color:var(--muted)">vs ${labelB}</span></div>
+      <div class="flash-kpi-val">${vA!=null?'$'+flashFmt(vA):'—'}</div>
+      <div class="flash-kpi-var ${cls}">${diff!=null?arrow+flashFmt(Math.abs(diff))+' ('+varPct+')':'—'}</div>
     </div>`;
   }).join('');
 }
 
-// ── P&L table ─────────────────────────────────────────────────────────────────
-function flashBuildPL(factsA, factsB, labelA, labelB) {
+// ── P&L table (white document) ────────────────────────────────────────────────
+function flashBuildPLV2(factsA, factsB, labelA, labelB) {
   const tbl = document.getElementById('flashPLTable');
   if (!tbl) return;
-  const rows = [
+  const defs = [
     { section:'Revenue' },
-    { id:'fuel_rev',  name:'Fuel Revenue',          fav:true },
-    { id:'nonfuel',   name:'Non-Fuel Revenue',       fav:true },
-    { id:'ipp_fr',    name:'IPP Fuel Recovery',      fav:true },
-    { id:'ipp_nr',    name:'IPP Non-Fuel Recovery',  fav:true },
-    { id:'fuel_surp', name:'Fuel Surplus',            fav:true },
-    { subtotal:true, id:'tot_rev', name:'Total Revenue', keys:['fuel_rev','nonfuel','ipp_fr','ipp_nr','fuel_surp'], fav:true },
-    { section:'Costs' },
-    { id:'fuel_cost', name:'Fuel Cost',              fav:false },
-    { id:'ipp_cost',  name:'IPP Cost',               fav:false },
-    { id:'opex',      name:'O&M Expense',            fav:false },
-    { subtotal:true, id:'ebitda', name:'EBITDA',     keys:null, fav:true, bold:true },
-    { section:'Below EBITDA' },
-    { id:'depn',      name:'Depreciation',           fav:false },
-    { id:'ebit',      name:'EBIT',                   fav:true, bold:true },
-    { id:'fin_cost',  name:'Financing Cost',         fav:false },
-    { id:'oth_inc',   name:'Other Income',           fav:true },
-    { id:'pretax',    name:'Pre-Tax Income',         fav:true, bold:true },
-    { id:'tax',       name:'Income Tax',             fav:false },
-    { subtotal:true, id:'net_inc', name:'Net Income', keys:null, fav:true, bold:true },
+    { id:'fuel_rev',  name:'Fuel Revenue',          fav:true,  indent:true },
+    { id:'nonfuel',   name:'Non-Fuel Revenue',       fav:true,  indent:true },
+    { id:'ipp_fr',    name:'IPP Fuel Recovery',      fav:true,  indent:true },
+    { id:'ipp_nr',    name:'IPP Non-Fuel Recovery',  fav:true,  indent:true },
+    { id:'fuel_surp', name:'Fuel Surplus / (Deficit)',fav:true, indent:true },
+    { id:'tot_rev', name:'Total Revenue', keys:['fuel_rev','nonfuel','ipp_fr','ipp_nr','fuel_surp'], fav:true, subtotal:true },
+    { section:'Operating Costs' },
+    { id:'fuel_cost', name:'Fuel Cost',              fav:false, indent:true },
+    { id:'ipp_cost',  name:'IPP Purchase Cost',      fav:false, indent:true },
+    { id:'opex',      name:'O&M Expense',            fav:false, indent:true },
+    { id:'ebitda',    name:'EBITDA',                 fav:true,  subtotal:true },
+    { section:'Non-Operating' },
+    { id:'depn',      name:'Depreciation & Amort.',  fav:false, indent:true },
+    { id:'ebit',      name:'EBIT',                   fav:true,  subtotal:true },
+    { id:'fin_cost',  name:'Financing Cost',         fav:false, indent:true },
+    { id:'oth_inc',   name:'Other Income / (Expense)',fav:true, indent:true },
+    { id:'pretax',    name:'Pre-Tax Income',         fav:true,  subtotal:true },
+    { id:'tax',       name:'Income Tax',             fav:false, indent:true },
+    { id:'net_inc',   name:'Net Income',             fav:true,  total:true },
   ];
-  const hdR = `<tr>
-    <th style="text-align:left;min-width:180px">Line Item</th>
-    <th>${labelA}</th><th>${labelB}</th><th>Variance</th><th>Var %</th>
-  </tr>`;
+  const abbr = s => s.length > 22 ? s.slice(0,20)+'…' : s;
+  const hd = `<tr><th style="min-width:200px">Line Item</th><th>${abbr(labelA)}</th><th>${abbr(labelB)}</th><th>Variance</th><th>Var %</th></tr>`;
   let body = '';
-  rows.forEach(r => {
-    if (r.section) {
-      body += `<tr class="flash-section-row"><td colspan="5">${r.section}</td></tr>`;
-      return;
-    }
+  defs.forEach(r => {
+    if (r.section) { body += `<tr class="flash-row-section"><td colspan="5">${r.section}</td></tr>`; return; }
     let vA = factsA[r.id] ?? null;
     let vB = factsB[r.id] ?? null;
-    if (r.subtotal && r.keys) {
-      vA = r.keys.reduce((s,k) => s + (factsA[k] || 0), 0);
-      vB = r.keys.reduce((s,k) => s + (factsB[k] || 0), 0);
-    }
-    const diff = (vA != null && vB != null) ? vA - vB : null;
-    const pct  = (diff != null && vB && vB !== 0) ? ((diff / Math.abs(vB)) * 100).toFixed(1) : '—';
-    const good = r.fav ? (diff == null || diff >= 0) : (diff == null || diff <= 0);
-    const cls  = diff == null ? '' : diff === 0 ? '' : good ? 'flash-var-pos' : 'flash-var-neg';
-    const sign = diff > 0 ? '+' : '';
-    const weight = r.bold || r.subtotal ? 'font-weight:800;' : '';
-    const rowCls = r.subtotal ? 'flash-total-row' : '';
+    if (r.keys) { vA = r.keys.reduce((s,k)=>s+(factsA[k]||0),0); vB = r.keys.reduce((s,k)=>s+(factsB[k]||0),0); }
+    const diff = (vA!=null&&vB!=null) ? vA-vB : null;
+    const pct  = (diff!=null&&vB&&vB!==0) ? ((diff/Math.abs(vB))*100).toFixed(1) : null;
+    const good = r.fav ? (diff==null||diff>=0) : (diff==null||diff<=0);
+    const cls  = diff==null||diff===0 ? 'fv-neu' : good ? 'fv-pos' : 'fv-neg';
+    const sign = diff>0 ? '+' : '';
+    const rowCls = r.total ? 'flash-row-total' : r.subtotal ? 'flash-row-subtotal' : '';
+    const pad  = r.indent ? 'padding-left:26px' : '';
     body += `<tr class="${rowCls}">
-      <td style="${weight}padding-left:${r.subtotal?'12px':'24px'}">${r.name}</td>
-      <td style="${weight}">${vA != null ? flashFmt(vA) : '—'}</td>
-      <td style="${weight}">${vB != null ? flashFmt(vB) : '—'}</td>
-      <td class="${cls}" style="${weight}">${diff != null ? sign+flashFmt(diff) : '—'}</td>
-      <td class="${cls}" style="font-size:10px;${weight}">${diff != null ? sign+pct+'%' : '—'}</td>
+      <td style="${pad}">${r.name}</td>
+      <td>${vA!=null?flashFmt(vA):'—'}</td>
+      <td>${vB!=null?flashFmt(vB):'—'}</td>
+      <td class="${rowCls?'':cls}">${diff!=null?sign+flashFmt(diff):'—'}</td>
+      <td class="${rowCls?'':cls}" style="font-size:10px">${pct!=null?sign+pct+'%':'—'}</td>
     </tr>`;
   });
-  tbl.innerHTML = `<thead>${hdR}</thead><tbody>${body}</tbody>`;
+  tbl.innerHTML = `<thead>${hd}</thead><tbody>${body}</tbody>`;
 }
 
-// ── Balance Sheet highlights ───────────────────────────────────────────────────
-function flashBuildBS(factsA, factsB, labelA, labelB) {
+// ── Balance Sheet (white document) ────────────────────────────────────────────
+function flashBuildBSV2(factsA, factsB, labelA, labelB) {
   const tbl = document.getElementById('flashBSTable');
   if (!tbl) return;
   const rows = [
-    { id:'cash',   name:'Cash & Equivalents', fav:true },
-    { id:'tot_a',  name:'Total Assets',        fav:true },
-    { id:'equity', name:'Equity',              fav:true },
-    { id:'ltd',    name:'Long-Term Debt',      fav:false },
-    { id:'leases', name:'Lease Liabilities',   fav:false },
+    { id:'cash',   name:'Cash & Equivalents', fav:true  },
+    { id:'tot_a',  name:'Total Assets',        fav:true  },
+    { id:'equity', name:'Shareholders Equity', fav:true  },
+    { id:'ltd',    name:'Long-Term Debt',       fav:false },
+    { id:'leases', name:'Lease Liabilities',    fav:false },
   ];
-  const hd = `<tr><th>Item</th><th>${labelA}</th><th>${labelB}</th><th>Var</th></tr>`;
+  const abbr = s => s.length > 18 ? s.slice(0,16)+'…' : s;
+  const hd = `<tr><th style="min-width:160px">Item</th><th>${abbr(labelA)}</th><th>${abbr(labelB)}</th><th>Var</th></tr>`;
   const body = rows.map(r => {
-    const vA = factsA[r.id] ?? null;
-    const vB = factsB[r.id] ?? null;
-    const vr = flashVar(vA, vB, r.fav);
-    return `<tr>
-      <td>${r.name}</td>
-      <td>${vA != null ? flashFmt(vA) : '—'}</td>
-      <td>${vB != null ? flashFmt(vB) : '—'}</td>
-      <td class="${vr.cls}" style="font-size:10px">${vr.html}</td>
-    </tr>`;
+    const vA=factsA[r.id]??null, vB=factsB[r.id]??null;
+    const diff=(vA!=null&&vB!=null)?vA-vB:null;
+    const good=r.fav?(diff==null||diff>=0):(diff==null||diff<=0);
+    const cls=diff==null||diff===0?'fv-neu':good?'fv-pos':'fv-neg';
+    const sign=diff>0?'+':'';
+    return `<tr><td>${r.name}</td><td>${vA!=null?flashFmt(vA):'—'}</td><td>${vB!=null?flashFmt(vB):'—'}</td><td class="${cls}" style="font-size:10px">${diff!=null?sign+flashFmt(diff):'—'}</td></tr>`;
   }).join('');
   tbl.innerHTML = `<thead>${hd}</thead><tbody>${body}</tbody>`;
 }
 
-// ── Key Metrics ───────────────────────────────────────────────────────────────
-function flashBuildMetrics(factsA, factsB, labelA, labelB) {
+// ── Key Metrics (white document) ──────────────────────────────────────────────
+function flashBuildMetricsV2(factsA, factsB, labelA, labelB) {
   const tbl = document.getElementById('flashMetricsTable');
   if (!tbl) return;
-  const ebitdaA = factsA['ebitda'] || 0,  ebitdaB = factsB['ebitda'] || 0;
-  const revenueA = (factsA['fuel_rev']||0)+(factsA['nonfuel']||0)+(factsA['ipp_fr']||0)+(factsA['ipp_nr']||0);
-  const revenueB = (factsB['fuel_rev']||0)+(factsB['nonfuel']||0)+(factsB['ipp_fr']||0)+(factsB['ipp_nr']||0);
-  const niA = factsA['net_inc'] || 0,      niB = factsB['net_inc'] || 0;
-  const metrics = [
-    { name:'EBITDA Margin', vA: revenueA ? (ebitdaA/revenueA*100).toFixed(1)+'%' : '—',
-                             vB: revenueB ? (ebitdaB/revenueB*100).toFixed(1)+'%' : '—', raw_a: revenueA?ebitdaA/revenueA:null, raw_b: revenueB?ebitdaB/revenueB:null, fav:true },
-    { name:'Net Margin',    vA: revenueA ? (niA/revenueA*100).toFixed(1)+'%' : '—',
-                             vB: revenueB ? (niB/revenueB*100).toFixed(1)+'%' : '—', raw_a: revenueA?niA/revenueA:null, raw_b: revenueB?niB/revenueB:null, fav:true },
-    { name:'Debt/EBITDA',   vA: ebitdaA ? ((factsA['ltd']||0)/ebitdaA).toFixed(2)+'x' : '—',
-                             vB: ebitdaB ? ((factsB['ltd']||0)/ebitdaB).toFixed(2)+'x' : '—', raw_a: ebitdaA?(factsA['ltd']||0)/ebitdaA:null, raw_b: ebitdaB?(factsB['ltd']||0)/ebitdaB:null, fav:false },
-    { name:'Total Revenue', vA:'$'+flashFmt(revenueA), vB:'$'+flashFmt(revenueB), raw_a:revenueA, raw_b:revenueB, fav:true },
-    { name:'IPP Cost',      vA:'$'+flashFmt(factsA['ipp_cost']), vB:'$'+flashFmt(factsB['ipp_cost']), raw_a:factsA['ipp_cost'], raw_b:factsB['ipp_cost'], fav:false },
+  const ebA=factsA['ebitda']||0, ebB=factsB['ebitda']||0;
+  const revA=(factsA['fuel_rev']||0)+(factsA['nonfuel']||0)+(factsA['ipp_fr']||0)+(factsA['ipp_nr']||0);
+  const revB=(factsB['fuel_rev']||0)+(factsB['nonfuel']||0)+(factsB['ipp_fr']||0)+(factsB['ipp_nr']||0);
+  const niA=factsA['net_inc']||0, niB=factsB['net_inc']||0;
+  const fmt1=(n,d)=>n!=null&&!isNaN(n)?n.toFixed(d):'—';
+  const metrics=[
+    {name:'EBITDA Margin %', vA:revA?fmt1(ebA/revA*100,1)+'%':'—', vB:revB?fmt1(ebB/revB*100,1)+'%':'—', raw_a:revA?ebA/revA:null, raw_b:revB?ebB/revB:null, fav:true},
+    {name:'Net Margin %',    vA:revA?fmt1(niA/revA*100,1)+'%':'—', vB:revB?fmt1(niB/revB*100,1)+'%':'—', raw_a:revA?niA/revA:null, raw_b:revB?niB/revB:null, fav:true},
+    {name:'Debt / EBITDA',   vA:ebA?fmt1((factsA['ltd']||0)/ebA,2)+'x':'—', vB:ebB?fmt1((factsB['ltd']||0)/ebB,2)+'x':'—', raw_a:ebA?(factsA['ltd']||0)/ebA:null, raw_b:ebB?(factsB['ltd']||0)/ebB:null, fav:false},
+    {name:'Total Revenue',   vA:'$'+flashFmt(revA), vB:'$'+flashFmt(revB), raw_a:revA, raw_b:revB, fav:true},
+    {name:'IPP Cost',        vA:'$'+flashFmt(factsA['ipp_cost']), vB:'$'+flashFmt(factsB['ipp_cost']), raw_a:factsA['ipp_cost'], raw_b:factsB['ipp_cost'], fav:false},
   ];
-  const hd = `<tr><th>Metric</th><th>${labelA}</th><th>${labelB}</th><th>Δ</th></tr>`;
-  const body = metrics.map(m => {
-    const diff = (m.raw_a != null && m.raw_b != null) ? m.raw_a - m.raw_b : null;
-    const good = diff == null ? true : m.fav ? diff >= 0 : diff <= 0;
-    const cls  = diff == null || diff === 0 ? '' : good ? 'flash-var-pos' : 'flash-var-neg';
-    return `<tr><td>${m.name}</td><td>${m.vA}</td><td>${m.vB}</td><td class="${cls}" style="font-size:10px">${diff!=null?(diff>=0?'▲':'▼'):'—'}</td></tr>`;
+  const abbr = s => s.length > 16 ? s.slice(0,14)+'…' : s;
+  const hd=`<tr><th style="min-width:140px">Metric</th><th>${abbr(labelA)}</th><th>${abbr(labelB)}</th><th>Δ</th></tr>`;
+  const body=metrics.map(m=>{
+    const diff=(m.raw_a!=null&&m.raw_b!=null)?m.raw_a-m.raw_b:null;
+    const good=diff==null?true:m.fav?diff>=0:diff<=0;
+    const cls=diff==null||diff===0?'fv-neu':good?'fv-pos':'fv-neg';
+    return `<tr><td>${m.name}</td><td>${m.vA}</td><td>${m.vB}</td><td class="${cls}">${diff!=null?(diff>0?'▲':'▼'):'—'}</td></tr>`;
   }).join('');
-  tbl.innerHTML = `<thead>${hd}</thead><tbody>${body}</tbody>`;
+  tbl.innerHTML=`<thead>${hd}</thead><tbody>${body}</tbody>`;
 }
 
 // ── Main refresh ──────────────────────────────────────────────────────────────
@@ -11988,6 +12135,10 @@ async function flashRefresh() {
   const periodId = parseInt(document.getElementById('flashMoA')?.value || '202603');
   const verAId   = document.getElementById('flashVerA')?.value || '';
   const verBId   = document.getElementById('flashVerB')?.value || '';
+
+  if (!verAId || !verBId) { flashShowEmpty(); return; }
+
+  flashShowLoading('Loading report data…');
 
   const periodIds = flashPeriodIds(_flashView, periodId);
   const verA = fpa.versions?.find(v => v.id === verAId);
@@ -12000,25 +12151,32 @@ async function flashRefresh() {
     flashFetchFacts(verBId, periodIds),
   ]);
 
-  // Period label for display
-  const viewLabel = { month: FLASH_MONTHS[periodId]||periodId, qtd:'QTD', ytd:'YTD', annual:'FY 2026' }[_flashView];
+  // Period label
+  const periodY = Math.floor(periodId/100);
+  const viewLabel = {
+    month: FLASH_MONTH_FULL[periodId] || String(periodId),
+    qtd:   `Q${Math.ceil((periodId%100)/3)} ${periodY} — QTD`,
+    ytd:   `YTD ${FLASH_MONTHS[periodId]||periodId}`,
+    annual:`Full Year ${periodY}`
+  }[_flashView];
 
-  // Column headers
-  const hdEl = document.getElementById('flashColHeaders');
-  if (hdEl) hdEl.innerHTML = `
-    <span style="color:var(--blue);padding:2px 8px;background:rgba(74,144,217,.1);border-radius:6px">${labelA}</span>
-    <span style="color:var(--muted)">vs</span>
-    <span style="color:var(--amber);padding:2px 8px;background:rgba(251,191,36,.1);border-radius:6px">${labelB}</span>
-    <span style="color:var(--muted);padding:2px 8px">${viewLabel}</span>`;
+  // Update document meta labels
+  const setEl = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
+  const setHTML = (id,v) => { const e=document.getElementById(id); if(e) e.innerHTML=v; };
+  setEl('flashLabelA', labelA);
+  setEl('flashLabelB', labelB);
+  setEl('flashLabelPeriod', viewLabel);
+  setEl('flashReportSubtitle', `Jamaica Public Service Co. · FP&A · ${viewLabel} · Confidential`);
+  setEl('flashHeaderDate', new Date().toLocaleDateString('en-JM',{dateStyle:'long'}));
 
-  flashBuildKpis(factsA, factsB, labelA, labelB);
-  flashBuildPL(factsA, factsB, labelA, labelB);
-  flashBuildBS(factsA, factsB, labelA, labelB);
-  flashBuildMetrics(factsA, factsB, labelA, labelB);
-  flashLoadNotes();
+  flashBuildKpisV2(factsA, factsB, labelA, labelB);
+  flashBuildPLV2(factsA, factsB, labelA, labelB);
+  flashBuildBSV2(factsA, factsB, labelA, labelB);
+  flashBuildMetricsV2(factsA, factsB, labelA, labelB);
+  await flashLoadNotes();
 
-  const gt = document.getElementById('flashGenTime');
-  if (gt) gt.textContent = new Date().toLocaleString('en-JM', {dateStyle:'medium',timeStyle:'short'});
+  setEl('flashGenTime', 'Generated ' + new Date().toLocaleString('en-JM',{dateStyle:'medium',timeStyle:'short'}));
+  flashShowReport();
 }
 
 // ── View toggle ───────────────────────────────────────────────────────────────
@@ -12049,7 +12207,12 @@ function flashInit() {
   // Show/hide Back to Model button based on role
   const backBtn = document.getElementById('flashBackBtn');
   if (backBtn) backBtn.style.display = ['admin','analyst'].includes(currentUser?.role) ? 'inline-flex' : 'none';
-  flashRefresh();
+  // If versions loaded but none selected yet, show empty prompt; otherwise refresh
+  const verA = document.getElementById('flashVerA')?.value;
+  const verB = document.getElementById('flashVerB')?.value;
+  if (!verA || !verB) { flashShowEmpty(); }
+  else { flashRefresh(); }
+  _flashInited = true;
 }
 
 // ── Navigate back to main model ───────────────────────────────────────────────
@@ -12080,30 +12243,22 @@ function flashRenderNotes() {
   const feed = document.getElementById('flashNotesFeed');
   if (!feed) return;
   if (!_flashNotesData.length) {
-    feed.innerHTML = `<div style="font-size:11px;color:var(--muted);text-align:center;padding:18px">No notes for this period yet. Add commentary above.</div>`;
+    feed.innerHTML = `<div style="font-size:11px;color:#8099b8;text-align:center;padding:18px 0">No commentary for this period yet.</div>`;
     return;
   }
-  const sectionColors = {
-    general:'var(--blue)', revenue:'var(--green)', opex:'var(--amber)',
-    ebitda:'var(--teal)', financing:'var(--purple)', balance_sheet:'var(--pink)',
-    capex:'var(--gold)', outlook:'var(--red)'
-  };
   feed.innerHTML = _flashNotesData.map(n => {
-    const dt = new Date(n.entered_at).toLocaleString('en-JM',{dateStyle:'medium',timeStyle:'short'});
+    const dt  = new Date(n.entered_at).toLocaleString('en-JM',{dateStyle:'medium',timeStyle:'short'});
     const upd = n.updated_at ? ` · edited ${new Date(n.updated_at).toLocaleString('en-JM',{timeStyle:'short'})}` : '';
-    const sCol = sectionColors[n.section] || 'var(--blue)';
-    const initials = n.entered_by.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    return `<div class="flash-note-item">
-      <div style="display:flex;align-items:flex-start;gap:10px;">
-        <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--teal));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">${initials}</div>
-        <div style="flex:1;">
-          <div class="flash-note-meta">
-            <span style="font-weight:700;color:var(--text)">${n.entered_by}</span>
-            <span>${dt}${upd}</span>
-            <span class="flash-note-section" style="background:${sCol}22;color:${sCol}">${n.section.replace(/_/g,' ')}</span>
-          </div>
-          <div class="flash-note-text" style="margin-top:6px">${n.note_text.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
+    const initials = (n.entered_by||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<div class="flash-note-entry">
+      <div class="flash-note-avatar">${initials}</div>
+      <div class="flash-note-body">
+        <div class="flash-note-meta">
+          <span class="flash-note-author">${n.entered_by}</span>
+          <span>${dt}${upd}</span>
+          <span class="flash-note-tag">${(n.section||'general').replace(/_/g,' ')}</span>
         </div>
+        <div class="flash-note-text">${(n.note_text||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
       </div>
     </div>`;
   }).join('');
