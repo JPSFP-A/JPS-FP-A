@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JPS FP&A Platform v28.0</title>
+<title>JPS FP&A Platform v30.0</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
@@ -590,6 +590,34 @@ tr.der td{color:var(--teal)}
 .print-section-check:hover { background: var(--card2); }
 .print-section-check input[type=checkbox] { width:14px; height:14px; accent-color: var(--blue); cursor:pointer; }
 
+/* ── RESPONSIVE BREAKPOINTS ───────────────────────── */
+@media (max-width: 1024px) {
+  .cr.c3 { grid-template-columns: 1fr 1fr; }
+  .ag    { grid-template-columns: 1fr; }
+  .ai-layout { grid-template-columns: 1fr; }
+  .comm-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  html { font-size: 11px; }
+  .cr.c2, .cr.c3 { grid-template-columns: 1fr; }
+  .topbar { flex-wrap: wrap; }
+  .tc { overflow-x: auto; flex-wrap: nowrap; }
+  .tabbar { overflow-x: auto; }
+  .main { padding: 8px; }
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+  #dash-kpis { flex-wrap: wrap !important; }
+  .g2 { grid-template-columns: 1fr; }
+  .modal { width: 95vw; max-width: 95vw; }
+  .sg { grid-template-columns: 1fr; }
+  .tscr { max-height: calc(100vh - 220px); }
+  thead th:first-child { min-width: 120px; }
+}
+@media (max-width: 480px) {
+  .brand-s, .brand-n { font-size: 10px; }
+  .kpi-row { grid-template-columns: 1fr; }
+  .btn { padding: 0 7px; font-size: 9px; }
+}
+
 </style>
 </head>
 <body>
@@ -612,7 +640,7 @@ tr.der td{color:var(--teal)}
   </div>
   <div class="pc-footer">
     <span>Jamaica Public Service Company Limited — Confidential</span>
-    <span>FP&amp;A Platform v28 | Internal Use Only</span>
+    <span>FP&amp;A Platform v30 | Internal Use Only</span>
   </div>
 </div>
 
@@ -681,7 +709,7 @@ tr.der td{color:var(--teal)}
       <div class="ws-divider"></div>
       <div class="ws-product">FP&amp;A Cloud<span>Jamaica Public Service Co.</span></div>
     </div>
-    <div class="ws-tagline">Financial Planning &amp; Analysis Platform · v28.0</div>
+    <div class="ws-tagline">Financial Planning &amp; Analysis Platform · v30.0</div>
 
     <!-- Supabase mode: email + password -->
     <div id="loginSbFields" style="display:block">
@@ -729,7 +757,7 @@ tr.der td{color:var(--teal)}
 <div class="topbar">
   <div class="brand">
     <div class="brand-b">JPS</div>
-    <div><div class="brand-n">FP&A Cloud v27.0</div><div class="brand-s" id="brandSub">Jamaica Public Service Co. · Feb 2026 LE</div></div>
+    <div><div class="brand-n">FP&A Cloud v30.0</div><div class="brand-s" id="brandSub">Jamaica Public Service Co. · Mar 2026 LE</div></div>
   </div>
   <div class="sp"><span class="dot"></span>Live · USD $'000</div>
   <div class="tc">
@@ -747,6 +775,7 @@ tr.der td{color:var(--teal)}
         <option>Base Case</option><option>Upside</option><option>Downside</option><option>Management</option>
       </select>
       <span class="sc-p" id="scPill">Base Case</span>
+      <span id="dbStatusBadge" style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.03em;padding:3px 9px;border-radius:10px;border:1px solid rgba(74,100,133,.3);color:var(--muted);background:rgba(0,0,0,.08);margin-left:8px" title="Data source status"><span style="color:#4a6485">●</span> Connecting…</span>
     </div>
     <div class="cg">
       <span class="cl">Theme</span>
@@ -1800,7 +1829,11 @@ tr.der td{color:var(--teal)}
   <div class="tc2">
     <div class="th">
       <div><div class="tt">💱 Lever 3 — Monthly FX Rates (J$/US$) <span class="badge badge-bud">Editable</span></div>
-        <div class="ts">Billing rate used for revenue conversion | Expense rate used for cost conversion | Default: 162.00</div></div>
+        <div class="ts">Teal = Actuals (locked) · Gold = Projections (editable) · Billing rate drives revenue; Expense rate drives costs</div></div>
+      <div class="ta">
+        <span class="cl">Year</span>
+        <select class="sel" id="fxYearSel" style="width:80px"></select>
+      </div>
     </div>
     <div class="tscr"><table><thead id="fxH3"></thead><tbody id="fxB3"></tbody></table></div>
   </div>
@@ -2299,10 +2332,540 @@ function _sbInit() {
   return null;
 }
 
-// Safe wrapper — falls back silently if Supabase unavailable
-async function _sbQ(fn) {
+// Safe wrapper — surfaces errors to user via toast, never swallows silently
+async function _sbQ(fn, { silent = false } = {}) {
   if (!_sb) return null;
-  try { return await fn(_sb); } catch(e) { console.warn('[Supabase] Query error:', e); return null; }
+  try { return await fn(_sb); } catch(e) {
+    console.warn('[Supabase] Query error:', e);
+    if (!silent) toast('DB error: ' + (e.message || 'Unknown error'), 'err');
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  FPA DATA-ACCESS LAYER  (Session 10)
+//  All platform data loads from Supabase at bootstrap.
+//  Hardcoded seed arrays are fallback only (offline mode).
+// ═══════════════════════════════════════════════════════
+const fpa = {
+  // In-memory cache populated by bootstrap()
+  versions: [],              // [{ id, code, kind, year, name, is_locked, ... }]
+  activeVersionId: null,     // currently-selected version (for edits)
+  lines: [],                 // [{ id, code, name, statement, section, ... }]
+  facts: {},                 // facts[versionCode][lineId][periodId] = value
+  assumptions: {},           // assumptions[versionCode][category][key][subKey][YYYYMM] = value
+  leases: [],
+  insurance: [],
+  impairments: [],
+  periods: [],               // [{ id, year, month, ym_label, is_closed }]
+  loadedAt: null,
+  loadError: null,
+
+  // Lookup helpers ----------------------------------------
+  v(code) {
+    return this.versions.find(v => v.code === code);
+  },
+  vid(code) {
+    return this.v(code)?.id || null;
+  },
+  versionsByKind(kind) {
+    return this.versions.filter(v => v.kind === kind);
+  },
+  // Get fact value. (versionCode, lineId, year, month). Returns null if missing.
+  fact(versionCode, lineId, year, month) {
+    const per = year * 100 + month;
+    return this.facts?.[versionCode]?.[lineId]?.[per] ?? null;
+  },
+  // Get annual fact total for a line/version
+  factAnnual(versionCode, lineId, year) {
+    const byLine = this.facts?.[versionCode]?.[lineId];
+    if (!byLine) return null;
+    let sum = 0, any = false;
+    for (let m = 1; m <= 12; m++) {
+      const v = byLine[year * 100 + m];
+      if (v !== undefined) { sum += Number(v); any = true; }
+    }
+    return any ? sum : null;
+  },
+  // Get 12-month array for a line/version/year
+  factMonthly(versionCode, lineId, year) {
+    const byLine = this.facts?.[versionCode]?.[lineId] || {};
+    const out = [];
+    for (let m = 1; m <= 12; m++) out.push(byLine[year * 100 + m] ?? 0);
+    return out;
+  },
+  // Get assumption 12-month array
+  assumpMonthly(versionCode, category, key, subKey, year) {
+    const src = this.assumptions?.[versionCode]?.[category]?.[key]?.[subKey || ''];
+    if (!src) return null;
+    const out = [];
+    for (let m = 1; m <= 12; m++) out.push(src[year * 100 + m] ?? 0);
+    return out;
+  },
+  // Get annual-only (year, month=null) assumption
+  assumpAnnual(versionCode, category, key, subKey, year) {
+    return this.assumptions?.[versionCode]?.[category]?.[key]?.[subKey || '']?.[year * 100] ?? null;
+  },
+};
+
+// ── Load orchestration ────────────────────────────────
+async function fpaBootstrap() {
+  if (!_sb) {
+    fpa.loadError = 'Supabase client not available — using seed data';
+    console.warn('[FPA]', fpa.loadError);
+    _updateDbStatusBadge();
+    return false;
+  }
+  const t0 = performance.now();
+  try {
+    showBootstrapOverlay('Connecting to Supabase...');
+
+    // Parallel fetch everything
+    showBootstrapOverlay('Loading versions & lines...');
+    const [versionsRes, linesRes, periodsRes] = await Promise.all([
+      _sb.from('fpa_versions').select('*').order('code'),
+      _sb.from('fpa_dim_line').select('*').order('statement').order('sort_order'),
+      _sb.from('fpa_dim_period').select('*').order('id'),
+    ]);
+    if (versionsRes.error) throw versionsRes.error;
+    if (linesRes.error)    throw linesRes.error;
+    if (periodsRes.error)  throw periodsRes.error;
+    fpa.versions = versionsRes.data || [];
+    fpa.lines    = linesRes.data || [];
+    fpa.periods  = periodsRes.data || [];
+
+    // Default active version = LE_2026_02
+    fpa.activeVersionId = fpa.vid('LE_2026_02') || fpa.versions[0]?.id;
+
+    showBootstrapOverlay(`Loading ${fpa.versions.length} versions of facts...`);
+    const factsRes = await _sb.from('fpa_v_facts').select('*');
+    if (factsRes.error) throw factsRes.error;
+    fpa.facts = {};
+    (factsRes.data || []).forEach(r => {
+      (fpa.facts[r.version_code] ??= {});
+      (fpa.facts[r.version_code][r.line_id] ??= {});
+      fpa.facts[r.version_code][r.line_id][r.period_id] = Number(r.value);
+    });
+
+    showBootstrapOverlay('Loading assumptions...');
+    const assumpsRes = await _sb.from('fpa_assumptions').select('*, fpa_versions!inner(code)');
+    if (assumpsRes.error) throw assumpsRes.error;
+    fpa.assumptions = {};
+    (assumpsRes.data || []).forEach(r => {
+      const vc = r.fpa_versions.code;
+      const per = r.month ? r.year * 100 + r.month : r.year * 100;
+      (fpa.assumptions[vc] ??= {});
+      (fpa.assumptions[vc][r.category] ??= {});
+      (fpa.assumptions[vc][r.category][r.key] ??= {});
+      (fpa.assumptions[vc][r.category][r.key][r.sub_key || ''] ??= {});
+      fpa.assumptions[vc][r.category][r.key][r.sub_key || ''][per] = Number(r.value_num);
+    });
+
+    showBootstrapOverlay('Loading registers...');
+    const [leasesRes, insRes, impRes] = await Promise.all([
+      _sb.from('fpa_leases').select('*'),
+      _sb.from('fpa_insurance_policies').select('*'),
+      _sb.from('fpa_impairment_events').select('*'),
+    ]);
+    fpa.leases      = leasesRes.data || [];
+    fpa.insurance   = insRes.data || [];
+    fpa.impairments = impRes.data || [];
+
+    fpa.loadedAt = new Date();
+    const ms = Math.round(performance.now() - t0);
+    console.log(`[FPA] Bootstrap complete in ${ms}ms — ${fpa.versions.length} versions, ${fpa.lines.length} lines, ${Object.keys(fpa.facts).length} fact sets`);
+    showBootstrapOverlay(null);  // hide
+
+    // Apply DB data into legacy globals for existing UI compatibility
+    fpaApplyToLegacyGlobals();
+
+    return true;
+  } catch (e) {
+    fpa.loadError = e.message || String(e);
+    console.error('[FPA] Bootstrap failed:', e);
+    showBootstrapOverlay(null);
+    showBootstrapError(fpa.loadError);
+    _updateDbStatusBadge();
+    return false;
+  }
+}
+
+// ── Loading overlay ─────────────────────────────────────
+function showBootstrapOverlay(msg) {
+  let el = document.getElementById('fpaBootstrapOverlay');
+  if (!msg) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'fpaBootstrapOverlay';
+    el.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(6,9,15,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#cdd8f0;font-family:sans-serif;';
+    el.innerHTML = `
+      <div style="width:44px;height:44px;border:3px solid rgba(240,180,41,.2);border-top-color:#f0b429;border-radius:50%;animation:fpaSpin 0.8s linear infinite;margin-bottom:20px"></div>
+      <div id="fpaBootstrapMsg" style="font-size:13px;font-weight:500;letter-spacing:.03em">Loading...</div>
+      <div style="font-size:10px;color:#4a6485;margin-top:8px">JPS FP&A Platform · Supabase</div>
+      <style>@keyframes fpaSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}</style>
+    `;
+    document.body.appendChild(el);
+  }
+  document.getElementById('fpaBootstrapMsg').textContent = msg;
+}
+
+function showBootstrapError(msg) {
+  let el = document.getElementById('fpaBootstrapError');
+  if (el) el.remove();
+  el = document.createElement('div');
+  el.id = 'fpaBootstrapError';
+  el.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:99999;background:#451a1a;border:1px solid #ef4444;border-left:4px solid #ef4444;color:#fecaca;padding:10px 16px;border-radius:6px;font-family:sans-serif;font-size:12px;max-width:600px;box-shadow:0 8px 32px rgba(0,0,0,.5)';
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'font-weight:700;margin-bottom:4px';
+  hdr.textContent = '⚠ Database Connection Issue';
+  const body = document.createElement('div');
+  body.style.cssText = 'font-size:11px;opacity:.85';
+  body.textContent = msg;
+  const note = document.createElement('div');
+  note.style.cssText = 'font-size:10px;margin-top:6px;color:#f87171';
+  note.textContent = 'App is running in offline mode with cached/seed data. Edits will not persist.';
+  const btn = document.createElement('button');
+  btn.textContent = '✕';
+  btn.style.cssText = 'position:absolute;top:6px;right:8px;background:transparent;border:none;color:#fecaca;cursor:pointer;font-size:16px;line-height:1';
+  btn.onclick = () => el.remove();
+  el.append(hdr, body, note, btn);
+  document.body.appendChild(el);
+  setTimeout(() => { const e = document.getElementById('fpaBootstrapError'); if (e) e.style.opacity = '.85'; }, 15000);
+}
+
+// ── Apply DB data to legacy globals ─────────────────────
+// Bridges the new fpa.* layer to the existing UI code that reads
+// plLines, bsLines, tariffTable, volumeTable, etc. — no UI rewrite.
+function fpaApplyToLegacyGlobals() {
+  if (!fpa.versions.length) return;  // no DB data loaded
+
+  // Determine active reporting version. Use LE_2026_02 (latest actuals-blended) for 2026,
+  // HIST_ACTUAL_YYYY for historical years.
+  const yearToVersion = {
+    2022: 'HIST_ACTUAL_2022', 2023: 'HIST_ACTUAL_2023',
+    2024: 'HIST_ACTUAL_2024', 2025: 'HIST_ACTUAL_2025',
+    2026: 'LE_2026_02',
+    2027: 'FORECAST_BASE', 2028: 'FORECAST_BASE',
+    2029: 'FORECAST_BASE', 2030: 'FORECAST_BASE',
+  };
+
+  // ── P&L lines ─────────────────────────────────────
+  try {
+    const plYears = [2022,2023,2024,2025,2026,2027,2028,2029,2030];
+    if (typeof plLines !== 'undefined') {
+      plLines.forEach(ln => {
+        plYears.forEach((y, idx) => {
+          const vCode = yearToVersion[y];
+          const ann = fpa.factAnnual(vCode, ln.id, y);
+          if (ann !== null && !isNaN(ann)) ln.vals[idx] = Math.round(ann);
+        });
+      });
+    }
+  } catch(e) { console.warn('[FPA] plLines bridge:', e); }
+
+  // ── BS lines ──────────────────────────────────────
+  try {
+    const bsYears = [2022,2023,2024,2025,2026,2027,2028,2029,2030];
+    if (typeof bsLines !== 'undefined') {
+      bsLines.forEach(ln => {
+        bsYears.forEach((y, idx) => {
+          const vCode = yearToVersion[y];
+          // BS: take Dec value (or any month — should be same for stocks)
+          const v = fpa.fact(vCode, ln.id, y, 12) ?? fpa.fact(vCode, ln.id, y, 6) ?? fpa.factAnnual(vCode, ln.id, y);
+          // For historical years stored as annual totals at month 12, fact() returns that value — correct
+          // For 2026+ stored monthly as BS carry (same value each month), take month 12 — correct
+          if (v !== null && !isNaN(v)) ln.vals[idx] = Math.round(v);
+        });
+      });
+    }
+  } catch(e) { console.warn('[FPA] bsLines bridge:', e); }
+
+  // ── Tariff, volume, FX — AOP 2026 assumption data ─
+  try {
+    const tariff2026 = fpa.assumptions?.AOP_2026?.tariff || {};
+    if (typeof tariffTable !== 'undefined') {
+      Object.keys(tariff2026).forEach(cls => {
+        if (!tariffTable[cls]) return;
+        Object.keys(tariff2026[cls]).forEach(field => {
+          if (!tariffTable[cls][field]) return; // field not in legacy shape — skip
+          const perMap = tariff2026[cls][field];
+          for (let m = 1; m <= 12; m++) {
+            const v = perMap[202600 + m];
+            if (v !== undefined) tariffTable[cls][field][m-1] = Number(v);
+          }
+        });
+      });
+    }
+  } catch(e) { console.warn('[FPA] tariff bridge:', e); }
+
+  try {
+    const vol2026 = fpa.assumptions?.AOP_2026?.volume || {};
+    if (typeof volumeTable !== 'undefined') {
+      Object.keys(vol2026).forEach(cls => {
+        if (!volumeTable[cls]) return;
+        Object.keys(vol2026[cls]).forEach(field => {
+          const mapped = field === 'cust' ? 'customers' :
+                         (volumeTable[cls][field] !== undefined ? field : null);
+          // v28 uses 'customers' — our DB uses 'cust'. Map.
+          const target = (volumeTable[cls].customers !== undefined && field === 'cust') ? 'customers' : field;
+          if (volumeTable[cls][target] === undefined && volumeTable[cls][target] !== null) return;
+          const perMap = vol2026[cls][field];
+          const arr = volumeTable[cls][target];
+          if (!Array.isArray(arr)) return;
+          for (let m = 1; m <= 12; m++) {
+            const v = perMap[202600 + m];
+            if (v !== undefined) arr[m-1] = Number(v);
+          }
+        });
+      });
+    }
+  } catch(e) { console.warn('[FPA] volume bridge:', e); }
+
+  try {
+    // Bridge FX rates for all years from fpa_assumptions
+    const fxYears = [2026,2027,2028,2029,2030];
+    const versionMap = {2026:'AOP_2026',2027:'FORECAST_BASE',2028:'FORECAST_BASE',2029:'FORECAST_BASE',2030:'FORECAST_BASE'};
+    fxYears.forEach(yr => {
+      const vc = versionMap[yr] || 'FORECAST_BASE';
+      const fxB = fpa.assumpMonthly(vc, 'fx_billing', 'USD_JMD', '', yr);
+      const fxE = fpa.assumpMonthly(vc, 'fx_expense', 'USD_JMD', '', yr);
+      if (fxB && typeof fxTable !== 'undefined') {
+        if (!fxTable.years[yr]) fxTable.years[yr] = {billing:Array(12).fill(162),expense:Array(12).fill(162),source:Array(12).fill('projected')};
+        fxTable.years[yr].billing = fxB;
+        if (yr === 2026) fxTable.billing = fxB;
+      }
+      if (fxE && typeof fxTable !== 'undefined') {
+        if (!fxTable.years[yr]) fxTable.years[yr] = {billing:Array(12).fill(162),expense:Array(12).fill(162),source:Array(12).fill('projected')};
+        fxTable.years[yr].expense = fxE;
+        if (yr === 2026) fxTable.expense = fxE;
+      }
+    });
+  } catch(e) { console.warn('[FPA] fx bridge:', e); }
+
+  // ── Net generation, system loss, peak, fuel price, fuel cost, vom ─
+  try {
+    if (typeof netGenTable !== 'undefined' && netGenTable[2026]) {
+      ['jps_thermal','old_harbour','renewables','ipp'].forEach(g => {
+        const arr = fpa.assumpMonthly('AOP_2026', 'net_gen', g, '', 2026);
+        if (arr) netGenTable[2026][g] = arr;
+      });
+    }
+    if (typeof sysLossTable !== 'undefined') {
+      const sl = fpa.assumpMonthly('AOP_2026', 'sys_loss', 'total', '', 2026);
+      if (sl && sysLossTable[2026]) sysLossTable[2026] = sl;
+    }
+    if (typeof fuelCostByMonth !== 'undefined') {
+      const fc = fpa.assumpMonthly('AOP_2026', 'fuel_cost_monthly', 'total', '', 2026);
+      if (fc) fuelCostByMonth[2026] = fc;
+    }
+    if (typeof vomCostByMonth !== 'undefined') {
+      const vm = fpa.assumpMonthly('AOP_2026', 'vom_cost', 'total', '', 2026);
+      if (vm) vomCostByMonth[2026] = vm;
+    }
+    if (typeof peakDemandMW !== 'undefined') {
+      const pm = fpa.assumpMonthly('AOP_2026', 'peak_demand', 'system', '', 2026);
+      if (pm) peakDemandMW[2026] = pm;
+    }
+    if (typeof fuelPriceTable !== 'undefined' && fuelPriceTable[2026]) {
+      ['hfo','lng','ado'].forEach(f => {
+        const arr = fpa.assumpMonthly('AOP_2026', 'fuel_price', f, '', 2026);
+        if (arr) fuelPriceTable[2026][f] = arr;
+      });
+    }
+  } catch(e) { console.warn('[FPA] generation bridge:', e); }
+
+  // ── Leases, insurance, impairments ───────────────
+  try {
+    if (typeof ifrs16Leases !== 'undefined' && fpa.leases.length) {
+      const mapped = fpa.leases.map((l, i) => ({
+        id: l.id || `L${i}`,
+        name: l.name,
+        counterparty: l.counterparty,
+        description: l.description || '',
+        category: l.category,
+        type: l.lease_type,
+        treatment: l.treatment,
+        commencementDate: l.commencement_date,
+        expiryDate: l.expiry_date,
+        extensionOption: l.extension_option,
+        extensionMonths: l.extension_months,
+        currency: l.currency,
+        monthlyPayment: Number(l.monthly_payment) || 0,
+        interestRate: Number(l.interest_rate) || 0,
+        rouAssetOpening: Number(l.rou_opening) || 0,
+        liabilityOpening: Number(l.liab_opening) || 0,
+      }));
+      ifrs16Leases.length = 0;
+      mapped.forEach(l => ifrs16Leases.push(l));
+    }
+    if (typeof insurancePolicies !== 'undefined' && fpa.insurance.length) {
+      const mapped = fpa.insurance.map((p, i) => ({
+        id: p.id || `INS${i}`,
+        name: p.name,
+        currency: p.currency,
+        annualPremium: Number(p.annual_premium) || 0,
+        paymentSchedule: p.payment_months || [],
+        paymentAmounts: (p.payment_amounts || []).map(Number),
+      }));
+      insurancePolicies.length = 0;
+      mapped.forEach(p => insurancePolicies.push(p));
+    }
+    if (typeof impairmentEvents !== 'undefined' && fpa.impairments.length) {
+      const mapped = fpa.impairments.map((e, i) => ({
+        id: e.id || `IMP${i}`,
+        name: e.name,
+        description: e.description || '',
+        eventDate: e.event_date,
+        chargeAmount: Number(e.charge_amount) || 0,
+        reversalAmount: Number(e.reversal_amount) || 0,
+        trigger: e.trigger_type,
+        isReversible: e.is_reversible,
+        relatedInsuranceId: e.related_insurance_id,
+        affectsYears: e.affects_years || [],
+      }));
+      impairmentEvents.length = 0;
+      mapped.forEach(ev => impairmentEvents.push(ev));
+    }
+  } catch(e) { console.warn('[FPA] registers bridge:', e); }
+
+  console.log('[FPA] Legacy globals hydrated from DB');
+}
+
+// ── Bridge O&M / CapEx / Collections / Depreciation ───
+// These use v28 row-ID conventions that differ slightly from DB line IDs:
+//   DB:  om_payroll, om_overtime, ...        v28: payroll, overtime, ...
+//   DB:  coll_billing, coll_cr_rt10, ...     v28: billing, cr_rt10, ...
+//   DB:  cx_gen, cx_tx, ...                  v28: cx_gen, cx_tx, ... (match)
+function fpaApplyOMToLegacy() {
+  if (!fpa.versions.length) return;
+  try {
+    const omSrc = fpa.assumptions?.AOP_2026?.om_row || {};
+    if (typeof omRows === 'undefined') return;
+    const dbIdToLegacy = {
+      om_payroll:'payroll',  om_overtime:'overtime',   om_benefits:'benefits',
+      om_disc_ben:'disc_ben',om_training:'training',   om_thirdpty:'thirdpty',
+      om_supplies:'supplies',om_materials:'materials', om_bdr:'bdr',
+      om_tech:'tech',        om_office:'office',       om_transport:'transport',
+      om_misc:'misc',        om_insurance:'insurance', om_building:'building',
+      om_advert:'advert',    om_bad_debt:'bad_debt',
+    };
+    [2026,2027,2028,2029,2030].forEach(yr => {
+      if (!omRows[yr]) return;
+      Object.entries(dbIdToLegacy).forEach(([dbId, legacyId]) => {
+        const row = omRows[yr].find(r => r.id === legacyId);
+        if (!row) return;
+        // Monthly values
+        const monthMap = omSrc[dbId]?.value || {};
+        for (let m = 1; m <= 12; m++) {
+          const v = monthMap[2026 * 100 + m];
+          if (v !== undefined && v !== null) row.vals[m-1] = Number(v);
+        }
+        // Cash lag (annual metadata)
+        const lag = omSrc[dbId]?.cashLag?.[2026 * 100];
+        if (lag !== undefined && lag !== null) row.cashLag = Number(lag);
+      });
+    });
+  } catch(e) { console.warn('[FPA] om bridge:', e); }
+}
+
+function fpaApplyCapexToLegacy() {
+  if (!fpa.versions.length) return;
+  try {
+    const cxSrc = fpa.assumptions?.AOP_2026?.capex_row || {};
+    if (typeof capexRows === 'undefined') return;
+    [2026,2027,2028,2029,2030].forEach(yr => {
+      if (!capexRows[yr]) return;
+      capexRows[yr].forEach(row => {
+        const monthMap = cxSrc[row.id]?.value || {};
+        let updated = false;
+        for (let m = 1; m <= 12; m++) {
+          const v = monthMap[2026 * 100 + m];
+          if (v !== undefined && v !== null) { row.vals[m-1] = Number(v); updated = true; }
+        }
+        // Metadata is stored in meta JSONB — we stored it in the category assumption meta column.
+        // To keep the bridge simple, preserve v28 payLag/tLag/dYrs from seed defaults.
+      });
+    });
+  } catch(e) { console.warn('[FPA] capex bridge:', e); }
+}
+
+function fpaApplyCollToLegacy() {
+  if (!fpa.versions.length) return;
+  try {
+    const collSrc = fpa.assumptions?.AOP_2026?.coll_row || {};
+    if (typeof collRows === 'undefined') return;
+    const dbIdToLegacy = {
+      coll_billing:'billing', coll_cr_rt10:'cr_rt10', coll_cr_rt20:'cr_rt20',
+      coll_cr_rt40:'cr_rt40', coll_blended:'blended', coll_prior:'prior',
+      coll_gcr:'gcr',         coll_receipts:'receipts', coll_dso:'dso',
+    };
+    [2026,2027,2028,2029,2030].forEach(yr => {
+      if (!collRows[yr]) return;
+      Object.entries(dbIdToLegacy).forEach(([dbId, legacyId]) => {
+        const row = collRows[yr].find(r => r.id === legacyId);
+        if (!row || !row.vals) return;   // skip derived rows (null vals)
+        const monthMap = collSrc[dbId]?.value || {};
+        for (let m = 1; m <= 12; m++) {
+          const v = monthMap[2026 * 100 + m];
+          if (v !== undefined && v !== null) row.vals[m-1] = Number(v);
+        }
+      });
+    });
+  } catch(e) { console.warn('[FPA] coll bridge:', e); }
+}
+
+function fpaApplyDepToLegacy() {
+  if (!fpa.versions.length) return;
+  try {
+    const depSrc = fpa.assumptions?.AOP_2026?.dep_comp || {};
+    if (typeof depreciationComponents === 'undefined' || !depreciationComponents[2026]) return;
+    const dbIdToLegacy = {
+      dep_fa:'faRegister',  dep_sjpc:'sjpc',           dep_leases:'otherLeases',
+      dep_capex:'capexTransfers', dep_spares:'capitalSpares',
+      dep_decomm:'decommissioning', dep_meters:'strandedMeters',
+      dep_lights:'strandedLights',  dep_impair:'impairment',
+    };
+    Object.entries(dbIdToLegacy).forEach(([dbId, legacyKey]) => {
+      const monthMap = depSrc[dbId]?.value || {};
+      if (!depreciationComponents[2026][legacyKey]) return;
+      for (let m = 1; m <= 12; m++) {
+        const v = monthMap[2026 * 100 + m];
+        if (v !== undefined && v !== null) depreciationComponents[2026][legacyKey][m-1] = Number(v);
+      }
+    });
+  } catch(e) { console.warn('[FPA] dep bridge:', e); }
+}
+
+// Extended bridge — call after initial apply so all globals are in sync.
+const _origFpaApply = fpaApplyToLegacyGlobals;
+fpaApplyToLegacyGlobals = function() {
+  _origFpaApply();
+  fpaApplyOMToLegacy();
+  fpaApplyCapexToLegacy();
+  fpaApplyCollToLegacy();
+  fpaApplyDepToLegacy();
+  _updateDbStatusBadge();
+};
+
+// ── DB status badge ─────────────────────────────────────
+function _updateDbStatusBadge() {
+  const el = document.getElementById('dbStatusBadge');
+  if (!el) return;
+  if (fpa.loadedAt && fpa.versions.length > 0) {
+    el.innerHTML = '<span style="color:#10b981">●</span> DB Live';
+    el.title = `${fpa.versions.length} versions · ${fpa.lines.length} lines · loaded ${fpa.loadedAt.toLocaleTimeString()}`;
+    el.style.color = 'var(--green)';
+    el.style.borderColor = 'rgba(16,185,129,.3)';
+  } else if (fpa.loadError) {
+    el.innerHTML = '<span style="color:#f59e0b">●</span> Offline';
+    el.title = `DB error — running on seed data. ${fpa.loadError}`;
+    el.style.color = 'var(--amber)';
+    el.style.borderColor = 'rgba(245,158,11,.3)';
+  } else {
+    el.innerHTML = '<span style="color:#4a6485">●</span> No DB';
+    el.title = 'Supabase disabled';
+    el.style.color = 'var(--muted)';
+  }
 }
 
 // ── Supabase Realtime channel ────────────────────────
@@ -2351,6 +2914,18 @@ function _sbStartRealtime() {
       toast(`🔄 ${payload.user} updated ${payload.changeType||'data'}`, 'ok');
     }
   });
+
+  // Postgres changes — live DB updates from any session
+  _sbChannel
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'fpa_facts' }, () => {
+      fpaBootstrap().then(()=>{ refreshAll(); toast('📡 Facts updated from database','ok'); });
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'fpa_assumptions' }, () => {
+      fpaBootstrap().then(()=>{ refreshAll(); toast('📡 Assumptions updated from database','ok'); });
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'fpa_versions' }, () => {
+      fpaBootstrap().then(()=>refreshAll());
+    });
 
   _sbChannel.subscribe(async (status) => {
     if (status === 'SUBSCRIBED') {
@@ -2543,6 +3118,18 @@ function buildSupabaseSettings() {
             placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
           <div style="font-size:9px;color:var(--muted);margin-top:3px">From Supabase Dashboard → Settings → API → Project API keys → anon / public</div>
         </div>
+        <div class="fi" style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
+          <label>✦ Claude API Key <span style="color:var(--purple);font-weight:700">(AI Commentary)</span></label>
+          <input type="password" id="claudeApiKey" value="${localStorage.getItem('jps_claude_key')||''}"
+            style="width:100%;font-family:var(--mono);font-size:11px"
+            placeholder="sk-ant-api03-..."
+            oninput="localStorage.setItem('jps_claude_key',this.value);_claudeKey=this.value;toast('Claude key saved','ok')">
+          <div style="font-size:9px;color:var(--muted);margin-top:3px">From console.anthropic.com → API Keys. Stored locally in your browser only — never sent to any server except api.anthropic.com.</div>
+          <div style="margin-top:6px;display:flex;gap:6px">
+            <button class="btn btn-ghost" style="font-size:9px;background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.3);color:#c4b5fd" onclick="testClaudeKey()">🧪 Test Key</button>
+            <span id="claudeKeyStatus" style="font-size:9px;display:flex;align-items:center;color:var(--muted)"></span>
+          </div>
+        </div>
         <div style="grid-column:1/-1;display:flex;align-items:center;gap:8px">
           <label class="print-section-check" style="gap:8px">
             <input type="checkbox" id="sbEnabled" ${_sbConfig.enabled?'checked':''}>
@@ -2561,8 +3148,12 @@ function buildSupabaseSettings() {
         <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:10px">
           <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:8px">CLOUD ACTIONS</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-ghost" style="font-size:10px" onclick="_sbLoadActuals().then(()=>{refreshAll();toast('Actuals synced from cloud','ok')})">⬇ Pull Actuals</button>
-            <button class="btn btn-ghost" style="font-size:10px" onclick="_sbLoadScenarios().then(()=>{buildScPanel();toast('Scenarios synced','ok')})">⬇ Pull Scenarios</button>
+            <button class="btn btn-ghost" style="font-size:10px" id="btnPullActuals" onclick="
+              const b=this;b.disabled=true;b.textContent='⏳ Syncing…';
+              _sbLoadActuals().then(()=>{refreshAll();toast('Actuals synced from cloud','ok');}).catch(e=>toast('Sync failed: '+e.message,'err')).finally(()=>{b.disabled=false;b.textContent='⬇ Pull Actuals';})">⬇ Pull Actuals</button>
+            <button class="btn btn-ghost" style="font-size:10px" id="btnPullScenarios" onclick="
+              const b=this;b.disabled=true;b.textContent='⏳ Syncing…';
+              _sbLoadScenarios().then(()=>{buildScPanel();toast('Scenarios synced','ok');}).catch(e=>toast('Sync failed: '+e.message,'err')).finally(()=>{b.disabled=false;b.textContent='⬇ Pull Scenarios';})">⬇ Pull Scenarios</button>
             <button class="btn btn-ghost" style="font-size:10px;color:var(--red)" onclick="if(confirm('Sign out?'))doLogout()">⎋ Sign Out</button>
           </div>
         </div>` : ''}
@@ -2751,6 +3342,11 @@ async function doLogin() {
   setTimeout(() => { ws.style.display = 'none'; }, 460);
   const shell = document.getElementById('appShell');
   shell.classList.add('visible');
+
+  // Initialize Supabase client first, then bootstrap data from DB
+  if (_sbConfig.enabled && _sbConfig.anonKey && !_sb) _sbInit();
+  await fpaBootstrap();   // loads DB into fpa.* and hydrates legacy globals
+
   _initPlatform();
   auditLog('login', 'session', null, { name, role: currentUser.role });
   setTimeout(async () => {
@@ -2984,7 +3580,10 @@ const fmtN=v=>{if(v===null||v===undefined||isNaN(v))return'<span class="dim">–
 const fmtV=v=>{if(!v&&v!==0)return'<span class="dim">–</span>';const n=Math.round(Math.abs(v)).toLocaleString();return v>=0?`<span class="pos">▲${n}</span>`:`<span class="neg">▼(${n})</span>`;};
 const fmtP=v=>{if(!v&&v!==0||isNaN(v))return'<span class="dim">–</span>';const s=(Math.abs(v)*100).toFixed(1)+'%';return v>=0?`<span class="pos">${s}</span>`:`<span class="neg">(${s})</span>`;};
 const sumArr=a=>(a||[]).reduce((s,x)=>s+(x||0),0);
-const toast=(msg,t='i')=>{const el=document.getElementById('toast');el.textContent=(t==='ok'?'✅ ':t==='w'?'⚠️ ':'ℹ️ ')+msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3000);};
+const toast=(msg,t='i')=>{const el=document.getElementById('toast');el.textContent=(t==='ok'?'✅ ':t==='w'?'⚠️ ':t==='err'?'❌ ':'ℹ️ ')+msg;el.className='show';el.style.borderColor=t==='err'?'var(--red)':t==='w'?'var(--amber)':'var(--b2)';clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),4000);};
+// Debounce helper — prevents chart rebuild storms on rapid edits
+function _debounce(fn,ms=120){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
+const refreshAllDebounced=_debounce(()=>refreshAll(),150);
 let charts={};
 const mkChart=(id,cfg)=>{
   if(charts[id]){try{charts[id].destroy();}catch(e){} delete charts[id];}
@@ -6217,7 +6816,17 @@ function buildOMTable(){
   buildOMKpis(); buildOMCharts();
 }
 
-function updOMRow(inp,yr){yr=yr||selectedOMYear;const id=inp.dataset.row,mo=parseInt(inp.dataset.mo),v=parseFloat(inp.value.replace(/,/g,''))||0;const r=getOMRows(yr).find(x=>x.id===id);if(r&&r.vals){const old=r.vals[mo];r.vals[mo]=v;auditLog('om-edit',`O&M · ${r.id||id} · ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo]} ${yr}`,old,v);}buildOMTable();toast('O&M updated → Cash flow recalculated','ok');}
+function updOMRow(inp,yr){
+  yr=yr||selectedOMYear;
+  const id=inp.dataset.row,mo=parseInt(inp.dataset.mo);
+  const raw=parseFloat(inp.value.replace(/,/g,''));
+  if(isNaN(raw)||raw<0||raw>9999999){inp.style.borderColor='var(--red)';toast('Enter a valid positive number (US$000)','err');return;}
+  inp.style.borderColor='';
+  const v=raw;
+  const r=getOMRows(yr).find(x=>x.id===id);
+  if(r&&r.vals){const old=r.vals[mo];r.vals[mo]=v;auditLog('om-edit',`O&M · ${r.id||id} · ${MONTHS[mo]} ${yr}`,old,v);}
+  buildOMTable();toast('O&M updated → Cash flow recalculated','ok');
+}
 function updOMGrowth(id,val,yr){
   yr=yr||selectedOMYear;
   if(yr===2026){toast('Growth rate applies to 2027-2030 only','w');return;}
@@ -6282,7 +6891,17 @@ function buildCxDepn(yr){
   document.getElementById('depnH').innerHTML=`<tr><th style="text-align:left;min-width:220px">Component</th>${MONTHS.map(m=>`<th class="ac">${m}</th>`).join('')}<th class="ac">Total</th></tr>`;
   document.getElementById('depnB').innerHTML=`<tr class="tr"><td><strong>→ Total Regular Depreciation (${yr})</strong></td>${depArr.map(v=>`<td class="gld"><strong>${fmtN(Math.round(v/1000))}</strong></td>`).join('')}<td class="gld"><strong>${fmtN(Math.round(depArr.reduce((s,v)=>s+v,0)/1000))}</strong></td></tr>`;
 }
-function updCxRow(inp,yr){yr=yr||selectedCapexYear;const id=inp.dataset.row,mo=parseInt(inp.dataset.mo),v=parseFloat(inp.value.replace(/,/g,''))||0;const r=getCxRows(yr).find(x=>x.id===id);if(r&&r.vals){const old=r.vals[mo];r.vals[mo]=v;auditLog('capex-edit',`CapEx · ${r.id||id} · ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo]} ${yr}`,old,v);}buildCapexTable();toast('CapEx updated → Transfer & Cash schedules recalculated','ok');}
+function updCxRow(inp,yr){
+  yr=yr||selectedCapexYear;
+  const id=inp.dataset.row,mo=parseInt(inp.dataset.mo);
+  const raw=parseFloat(inp.value.replace(/,/g,''));
+  if(isNaN(raw)||raw<0||raw>9999999){inp.style.borderColor='var(--red)';toast('Enter a valid positive number (US$000)','err');return;}
+  inp.style.borderColor='';
+  const v=raw;
+  const r=getCxRows(yr).find(x=>x.id===id);
+  if(r&&r.vals){const old=r.vals[mo];r.vals[mo]=v;auditLog('capex-edit',`CapEx · ${r.id||id} · ${MONTHS[mo]} ${yr}`,old,v);}
+  buildCapexTable();toast('CapEx updated → Transfer & Cash schedules recalculated','ok');
+}
 function updCxMeta(id,f,v,yr){yr=yr||selectedCapexYear;const r=getCxRows(yr).find(x=>x.id===id);if(r)r[f]=parseInt(v)||0;buildCapexTable();}
 function updCxGrowth(id,val,yr){
   yr=yr||selectedCapexYear;
@@ -6352,13 +6971,24 @@ function buildCollImpact(yr){
   const dso=rows.find(r=>r.id==='dso')?.vals||[];
   const ar=MONTHS.map((_,i)=>Math.round((bill[i]||0)/fxR*(1-(blR[i]||94)/100)));
   document.getElementById('collIH').innerHTML=`<tr><th style="text-align:left;min-width:220px">Metric</th>${MONTHS.map(m=>`<th class="ac">${m}</th>`).join('')}<th class="ac">Total/Avg</th></tr>`;
-  [[`Billings (J$'000)`,bill,false,false],['Blended Rate %',blR,true,false],['→ Cash Receipts (US$000)',rec,false,true],['AR Balance (US$000)',ar,false,false],['DSO (days)',dso,false,false,true]].map(([n,v,pct,strong,days])=>`
-    <tr class="${strong?'tr':''}"><td style="padding-left:10px;color:${strong?'var(--gold)':'var(--teal)'}">${strong?'':''}<strong>${n}</strong></td>
+  const collIRows = [[`Billings (J$'000)`,bill,false,false],['Blended Rate %',blR,true,false],['→ Cash Receipts (US$000)',rec,false,true],['AR Balance (US$000)',ar,false,false],['DSO (days)',dso,false,false,true]];
+  document.getElementById('collIB').innerHTML = collIRows.map(([n,v,pct,strong,days])=>`
+    <tr class="${strong?'tr':''}"><td style="padding-left:10px;color:${strong?'var(--gold)':'var(--teal)'}"><strong>${n}</strong></td>
     ${(v||[]).map(x=>`<td class="der">${pct?x?.toFixed(1)+'%':days?Math.round(x||0)+'d':fmtN(x)}</td>`).join('')}
     <td class="der">${pct?((v||[]).reduce((a,b)=>a+b,0)/12).toFixed(1)+'%':days?Math.round((v||[]).reduce((a,b)=>a+b,0)/12)+'d':fmtN((v||[]).reduce((a,b)=>a+b,0))}</td></tr>`
-  ).forEach((h,i)=>document.getElementById('collIB').innerHTML=(i===0?'':document.getElementById('collIB').innerHTML)+h);
+  ).join('');
 }
-function updCollRow(inp,yr){yr=yr||selectedCollYear;const id=inp.dataset.row,mo=parseInt(inp.dataset.mo),v=parseFloat(inp.value.replace(/,/g,''))||0;const r=getCollRows(yr).find(x=>x.id===id);if(r&&r.vals){const old=r.vals[mo];r.vals[mo]=v;auditLog('coll-edit',`Collections · ${r.id||id} · ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo]} ${yr}`,old,v);}computeAll(yr);buildCollTable();toast('Collections updated','ok');}
+function updCollRow(inp,yr){
+  yr=yr||selectedCollYear;
+  const id=inp.dataset.row,mo=parseInt(inp.dataset.mo);
+  const raw=parseFloat(inp.value.replace(/,/g,''));
+  if(isNaN(raw)||raw<-999999||raw>9999999){inp.style.borderColor='var(--red)';toast('Enter a valid number','err');return;}
+  inp.style.borderColor='';
+  const v=raw;
+  const r=getCollRows(yr).find(x=>x.id===id);
+  if(r&&r.vals){const old=r.vals[mo];r.vals[mo]=v;auditLog('coll-edit',`Collections · ${r.id||id} · ${MONTHS[mo]} ${yr}`,old,v);}
+  computeAll(yr);buildCollTable();toast('Collections updated','ok');
+}
 function buildCollWF(yr){
   yr=yr||selectedCollYear;
   const rows=getCollRows(yr);
@@ -6595,21 +7225,42 @@ function buildDashKpis(){
       </div>
     </div>`;
   } else {
+    const annRevLE2=582000, ebitdaPct=((e26/annRevLE2)*100).toFixed(1);
+    const ebitLine=plLines.find(l=>l.id==='ebitda'), ebitLine2=plLines.find(l=>l.id==='ebit');
+    const ebit26=ebitLine2?Math.round(ebitLine2.vals[4]*(1+(sc?.eb||0)/100)):null;
+    const opMarginPct=ebit26!=null?((ebit26/annRevLE2)*100).toFixed(1):null;
+    const avgFxCur=(fxTable.years[2026]?.billing.reduce((s,v)=>s+v,0)/12).toFixed(2);
     html+=noActCard('Revenue','var(--blue)',582);
     html+=noActCard('EBITDA','var(--green)',e26);
     html+=`<div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);flex:1 1 155px;min-width:0">
       <div style="background:var(--gold);padding:5px 10px">
-        <span style="color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em">EBITDA%</span>
+        <span style="color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em">Margins</span>
       </div>
-      <div style="flex:1;padding:8px 10px">
-        <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">2026 Annual LE</div>
-        <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--text)">${((e26/582000)*100).toFixed(1)}%</div>
+      <div style="flex:1;padding:8px 10px;display:flex;flex-direction:column;gap:4px">
+        <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">2026 Annual LE</div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:9px;color:var(--muted)">EBITDA%</span>
+          <span style="font-size:15px;font-weight:800;font-family:var(--mono);color:var(--text)">${ebitdaPct}%</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:9px;color:var(--muted)">Op Margin%</span>
+          <span style="font-size:13px;font-weight:700;font-family:var(--mono);color:var(--teal)">${opMarginPct!=null?opMarginPct+'%':'–'}</span>
+        </div>
       </div>
     </div>`;
     html+=noActCard('Net Income','var(--purple)',n26);
     html+=noActCard('OPEX (O&M)','var(--red)',sumArr(getOMTotal(2026)));
     html+=noActCard('CapEx','var(--teal)',annCapexLE);
-    html+=noActCard('Cash','var(--green)',annCashLE);
+    html+=`<div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);flex:1 1 155px;min-width:0">
+      <div style="background:var(--teal);padding:5px 10px">
+        <span style="color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em">Avg FX Rate</span>
+      </div>
+      <div style="flex:1;padding:8px 10px">
+        <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">2026 J$/US$ (billing avg)</div>
+        <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--text)">J$${avgFxCur}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px">Jan actual–Mar actual · Apr+ projected</div>
+      </div>
+    </div>`;
   }
   document.getElementById('dash-kpis').innerHTML=html;
 
@@ -6879,62 +7530,104 @@ Key Files Loaded:
 Respond as a professional utility sector FP&A analyst. Be concise, specific, and reference the source data files where relevant.`;
 }
 
-async function callAI(userMsg){
-  const typing=document.getElementById('aiTyping');
-  typing.classList.add('show');
-  try{
-    const response=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:1000,
-        system:getFinancialContext(),
-        messages:[{role:'user',content:userMsg}]
-      })
-    });
-    const data=await response.json();
-    const text=data.content?.map(c=>c.text||'').join('')||'I could not generate a response. Please try again.';
-    typing.classList.remove('show');
-    addBotMsg(text.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>'));
-  }catch(e){
-    typing.classList.remove('show');
-    addBotMsg('⚠️ Unable to connect to AI service. Please check your internet connection and try again. Error: '+e.message);
-    toast('AI service unavailable','w');
+// ── Claude AI helpers ────────────────────────────────────────────────────────
+let _claudeKey = localStorage.getItem('jps_claude_key') || '';
+const _CLAUDE_MODEL = 'claude-sonnet-4-6';
+
+function getClaudeKey() {
+  _claudeKey = localStorage.getItem('jps_claude_key') || _claudeKey || '';
+  return _claudeKey;
+}
+
+async function _claudeFetch(system, userContent, maxTokens = 1000) {
+  const key = getClaudeKey();
+  if (!key) throw new Error('No Claude API key. Add it in Admin → Settings → Claude API Key.');
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: _CLAUDE_MODEL,
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: 'user', content: userContent }]
+    })
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `API error ${resp.status}`);
+  }
+  const data = await resp.json();
+  return data.content?.map(c => c.text || '').join('') || '';
+}
+
+async function testClaudeKey() {
+  const statusEl = document.getElementById('claudeKeyStatus');
+  if (statusEl) statusEl.textContent = '⏳ Testing…';
+  try {
+    const txt = await _claudeFetch('You are a helpful assistant.', 'Reply with exactly: OK', 50);
+    if (statusEl) { statusEl.textContent = '✅ Key valid · Model: ' + _CLAUDE_MODEL; statusEl.style.color = 'var(--green)'; }
+    toast('Claude API key is valid!', 'ok');
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = '❌ ' + e.message; statusEl.style.color = 'var(--red)'; }
+    toast('Key test failed: ' + e.message, 'err');
   }
 }
 
-async function generateExecSummary(){
+async function callAI(userMsg) {
+  const typing = document.getElementById('aiTyping');
+  typing.classList.add('show');
+  try {
+    const text = await _claudeFetch(getFinancialContext(), userMsg, 1000);
+    typing.classList.remove('show');
+    addBotMsg(text.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>'));
+  } catch(e) {
+    typing.classList.remove('show');
+    const hint = e.message.includes('API key') ? ' Go to Admin → Settings to add your Claude key.' : '';
+    addBotMsg('⚠️ ' + e.message + hint);
+    toast(e.message.includes('API key') ? 'Add Claude API key in Admin → Settings' : 'AI error: ' + e.message, 'err');
+  }
+}
+
+const _fmtAI = t => t.replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+const _aiErr = (el, e) => { el.innerHTML=`<em style="color:var(--red)">⚠️ ${e.message}${e.message.includes('API key')?' — Add key in Admin → Settings.':''}</em>`; };
+
+async function generateExecSummary() {
   const btn=document.getElementById('execSpinner'); btn.classList.add('show');
-  document.getElementById('execComm').innerHTML='<em style="color:var(--muted)">Generating executive commentary...</em>';
-  try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:getFinancialContext(),messages:[{role:'user',content:'Draft a professional executive commentary for the February 2026 Latest Estimate. Structure it with: (1) Overview, (2) Revenue performance, (3) Operating costs, (4) EBITDA and Net Income, (5) Capital programme and depreciation, (6) Cash position, (7) Outlook. Use HTML for formatting with <strong> tags and <br> line breaks. Keep it board-level concise. Reference specific source files.'}]})});
-    const data=await resp.json();
-    const txt=data.content?.map(c=>c.text||'').join('')||'';
-    document.getElementById('execComm').innerHTML=txt.replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
-  }catch(e){document.getElementById('execComm').innerHTML='<em style="color:var(--red)">Unable to generate. Check connection.</em>';}
+  const el=document.getElementById('execComm');
+  el.innerHTML='<em style="color:var(--muted)">Generating executive commentary…</em>';
+  try {
+    const txt = await _claudeFetch(getFinancialContext(),
+      'Draft a professional executive commentary for the March 2026 Latest Estimate. Structure: (1) Overview, (2) Revenue performance, (3) Operating costs, (4) EBITDA and Net Income, (5) Capital programme and depreciation, (6) Cash position, (7) Outlook. Use <strong> tags and <br> breaks. Board-level, concise, specific numbers.', 1000);
+    el.innerHTML = _fmtAI(txt);
+  } catch(e) { _aiErr(el, e); toast(e.message,'err'); }
   btn.classList.remove('show');
 }
 
-async function generateVarComm(){
+async function generateVarComm() {
   const btn=document.getElementById('varSpinner'); btn.classList.add('show');
-  document.getElementById('varComm').innerHTML='<em style="color:var(--muted)">Generating variance commentary...</em>';
-  try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,system:getFinancialContext(),messages:[{role:'user',content:'Write a concise variance commentary: 2026 Budget vs 2025 Actuals. Focus on the key drivers for EBITDA (+$15.9M/+7%), Net Income (+$25.2M/+126%), depreciation improvement (-$19.3M), and O&M movement. Use specific numbers. Reference source files. 3-4 paragraphs.'}]})});
-    const data=await resp.json();
-    document.getElementById('varComm').innerHTML=(data.content?.map(c=>c.text||'').join('')||'').replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
-  }catch(e){document.getElementById('varComm').innerHTML='<em style="color:var(--red)">Unable to generate.</em>';}
+  const el=document.getElementById('varComm');
+  el.innerHTML='<em style="color:var(--muted)">Generating variance commentary…</em>';
+  try {
+    const txt = await _claudeFetch(getFinancialContext(),
+      'Write a concise variance commentary: 2026 Budget vs 2025 Actuals. Key drivers: EBITDA (+$15.9M/+7%), Net Income (+$25.2M/+126%), depreciation (-$19.3M), O&M movement. Specific numbers. 3-4 paragraphs.', 800);
+    el.innerHTML = _fmtAI(txt);
+  } catch(e) { _aiErr(el, e); toast(e.message,'err'); }
   btn.classList.remove('show');
 }
 
-async function generateOutlook(){
+async function generateOutlook() {
   const btn=document.getElementById('outlSpinner'); btn.classList.add('show');
-  document.getElementById('outlComm').innerHTML='<em style="color:var(--muted)">Generating outlook...</em>';
-  try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,system:getFinancialContext(),messages:[{role:'user',content:`Provide a forecast outlook for JPS for 2027-2028 based on the ${activeSc} scenario. Cover: EBITDA trajectory, key risks (fuel prices, FX, demand), CapEx programme completion, and Hurricane Melissa restoration impact. 3-4 paragraphs.`}]})});
-    const data=await resp.json();
-    document.getElementById('outlComm').innerHTML=(data.content?.map(c=>c.text||'').join('')||'').replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
-  }catch(e){document.getElementById('outlComm').innerHTML='<em style="color:var(--red)">Unable to generate.</em>';}
+  const el=document.getElementById('outlComm');
+  el.innerHTML='<em style="color:var(--muted)">Generating outlook…</em>';
+  try {
+    const txt = await _claudeFetch(getFinancialContext(),
+      `Forecast outlook for JPS 2027-2028 under the ${activeSc} scenario. Cover: EBITDA trajectory, key risks (fuel, FX, demand), CapEx programme, Hurricane Melissa restoration. 3-4 paragraphs.`, 800);
+    el.innerHTML = _fmtAI(txt);
+  } catch(e) { _aiErr(el, e); toast(e.message,'err'); }
   btn.classList.remove('show');
 }
 
@@ -7473,10 +8166,45 @@ let tariffTable = {
 const _tariffBaseline = JSON.parse(JSON.stringify(tariffTable));
 
 // LEVER 3 — fxTable: monthly billing and expense FX rates (J$/US$)
+// Multi-year structure: years[yr].billing/expense = 12-element arrays
+// source[mo] = 'actual' (locked, from Supabase) | 'projected' (editable)
 let fxTable = {
-  billing: MONTHS.map(()=>162.00),
-  expense: MONTHS.map(()=>162.00),
+  // 2026 slices kept as top-level for backward compat with revenue engine
+  billing: [157.50,158.10,158.20,158.80,159.50,160.20,161.00,161.80,162.60,163.40,164.20,165.00],
+  expense: [157.50,158.10,158.20,158.80,159.50,160.20,161.00,161.80,162.60,163.40,164.20,165.00],
+  years: {
+    2026: {
+      billing: [157.50,158.10,158.20,158.80,159.50,160.20,161.00,161.80,162.60,163.40,164.20,165.00],
+      expense: [157.50,158.10,158.20,158.80,159.50,160.20,161.00,161.80,162.60,163.40,164.20,165.00],
+      source:  ['actual','actual','actual','projected','projected','projected','projected','projected','projected','projected','projected','projected'],
+    },
+    2027: {
+      billing: [165.80,166.60,167.40,168.20,169.00,169.80,170.60,171.40,172.20,173.00,173.80,174.60],
+      expense: [165.80,166.60,167.40,168.20,169.00,169.80,170.60,171.40,172.20,173.00,173.80,174.60],
+      source:  Array(12).fill('projected'),
+    },
+    2028: {
+      billing: [175.40,176.20,177.00,177.80,178.60,179.40,180.20,181.00,181.80,182.60,183.40,184.20],
+      expense: [175.40,176.20,177.00,177.80,178.60,179.40,180.20,181.00,181.80,182.60,183.40,184.20],
+      source:  Array(12).fill('projected'),
+    },
+    2029: {
+      billing: [185.00,185.80,186.60,187.40,188.20,189.00,189.80,190.60,191.40,192.20,193.00,193.80],
+      expense: [185.00,185.80,186.60,187.40,188.20,189.00,189.80,190.60,191.40,192.20,193.00,193.80],
+      source:  Array(12).fill('projected'),
+    },
+    2030: {
+      billing: [194.60,195.40,196.20,197.00,197.80,198.60,199.40,200.20,201.00,201.80,202.60,203.40],
+      expense: [194.60,195.40,196.20,197.00,197.80,198.60,199.40,200.20,201.00,201.80,202.60,203.40],
+      source:  Array(12).fill('projected'),
+    },
+  },
 };
+// Helper: get FX rate for any year+month combination
+function getFxRate(yr, mo, type='billing') {
+  return fxTable.years[yr]?.[type]?.[mo] || fxTable[type]?.[mo] || 162;
+}
+let selectedFxYear = 2026;
 
 // Fuel revenue by month (derived from plLines fuel_rev annual 2026 = $146,369K / 12, seasonally adjusted)
 const fuelRevByMonth = [10200, 9800, 11000, 11500, 12400, 13200, 13000, 13500, 12800, 12500, 12200, 14269];
@@ -7821,24 +8549,56 @@ function updVol3(inp) { auditLog('vol-edit',`Volume · ${inp.dataset?.cls||''} �
   buildRevKpis3(); buildRevBridgeChart(); buildRevTrendChart(); buildRevClassTable(); buildRevDerived();
 }
 
-// ── FX Table ──────────────────────────────────────────────────────────────────
+// ── FX Table — multi-year with actuals vs projections ────────────────────────
 function buildFxTable3() {
+  const yr = selectedFxYear;
+  const yrData = fxTable.years[yr] || fxTable.years[2026];
+  const avgBill = (yrData.billing.reduce((s,v)=>s+v,0)/12).toFixed(2);
+  const avgExp  = (yrData.expense.reduce((s,v)=>s+v,0)/12).toFixed(2);
+  // Year selector
+  const yrSel = document.getElementById('fxYearSel');
+  if(yrSel && !yrSel._built){
+    yrSel._built=true;
+    [2026,2027,2028,2029,2030].forEach(y=>{
+      const o=document.createElement('option'); o.value=y; o.textContent=y; yrSel.appendChild(o);
+    });
+    yrSel.value=yr;
+    yrSel.onchange=()=>{selectedFxYear=parseInt(yrSel.value);buildFxTable3();};
+  } else if(yrSel) yrSel.value=yr;
   document.getElementById('fxH3').innerHTML=`<tr>
-    <th style="text-align:left;min-width:100px">Month</th>
+    <th style="text-align:left;min-width:130px">Month</th>
+    <th style="text-align:center;width:80px">Source</th>
     <th class="bc">Billing Rate (J$/US$)</th>
     <th class="bc">Expense Rate (J$/US$)</th>
   </tr>`;
-  document.getElementById('fxB3').innerHTML = MONTHS.map((m,i)=>`<tr>
-    <td style="padding-left:12px;font-weight:700">${m} 2026</td>
-    <td><input class="ei" style="width:80px" value="${fxTable.billing[i].toFixed(2)}" data-type="billing" data-mo="${i}" oninput="updFx3(this)" onfocus="this.select()"></td>
-    <td><input class="ei" style="width:80px" value="${fxTable.expense[i].toFixed(2)}" data-type="expense" data-mo="${i}" oninput="updFx3(this)" onfocus="this.select()"></td>
-  </tr>`).join('');
+  document.getElementById('fxB3').innerHTML = MONTHS.map((m,i)=>{
+    const src = yrData.source?.[i]||'projected';
+    const isAct = src==='actual';
+    const srcBadge = isAct
+      ? `<span style="background:rgba(6,182,212,.15);color:var(--teal);padding:1px 6px;border-radius:8px;font-size:8px;font-weight:700">ACTUAL</span>`
+      : `<span style="background:rgba(240,180,41,.1);color:var(--gold);padding:1px 6px;border-radius:8px;font-size:8px;font-weight:700">PROJ</span>`;
+    const inpStyle = isAct ? 'background:rgba(6,182,212,.08);color:var(--teal);border-color:rgba(6,182,212,.3);cursor:not-allowed' : '';
+    return `<tr>
+      <td style="padding-left:12px;font-weight:700">${m} ${yr}</td>
+      <td style="text-align:center">${srcBadge}</td>
+      <td><input class="ei" style="width:80px;${inpStyle}" value="${yrData.billing[i].toFixed(2)}" data-type="billing" data-mo="${i}" data-yr="${yr}" ${isAct?'readonly':''} oninput="updFx3(this)" onfocus="this.select()"></td>
+      <td><input class="ei" style="width:80px;${inpStyle}" value="${yrData.expense[i].toFixed(2)}" data-type="expense" data-mo="${i}" data-yr="${yr}" ${isAct?'readonly':''} oninput="updFx3(this)" onfocus="this.select()"></td>
+    </tr>`;
+  }).join('') +
+  `<tr class="tr"><td colspan="2" style="padding-left:12px"><strong>Annual Average</strong></td>
+    <td class="gld"><strong>${avgBill}</strong></td><td class="gld"><strong>${avgExp}</strong></td></tr>`;
 }
 
-function updFx3(inp) { auditLog('fx-edit',`FX Rate · month ${inp.dataset?.mo||''}`,null,inp.value);
-  const type = inp.dataset.type, mo = parseInt(inp.dataset.mo);
-  const v = parseFloat(inp.value)||162;
-  fxTable[type][mo] = v;
+function updFx3(inp) {
+  const type = inp.dataset.type, mo = parseInt(inp.dataset.mo), yr = parseInt(inp.dataset.yr)||selectedFxYear;
+  const v = parseFloat(inp.value);
+  if(isNaN(v)||v<50||v>500){toast('FX rate must be between 50 and 500 J$/US$','err');inp.style.borderColor='var(--red)';return;}
+  inp.style.borderColor='';
+  auditLog('fx-edit',`FX Rate · ${MONTHS[mo]} ${yr} · ${type}`,fxTable.years[yr]?.[type]?.[mo],v);
+  if(!fxTable.years[yr]) fxTable.years[yr]={billing:Array(12).fill(162),expense:Array(12).fill(162),source:Array(12).fill('projected')};
+  fxTable.years[yr][type][mo] = v;
+  // Keep 2026 top-level slice in sync for revenue engine
+  if(yr===2026) fxTable[type][mo] = v;
   buildRevKpis3(); buildRevBridgeChart(); buildRevTrendChart(); buildRevClassTable(); buildRevDerived();
   toast('FX updated → Revenue recalculated','ok');
 }
