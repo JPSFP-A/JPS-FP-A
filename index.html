@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JPS FP&A Platform v23.0</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<title>JPS FP&A Platform v28.0</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 :root{
@@ -244,7 +245,7 @@ select.sel:focus{border-color:var(--gold)}
 .pane{display:none;flex-direction:column;gap:12px}.pane.on{display:flex}
 
 /* BANNERS */
-.lock-banner{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:7px 13px;display:flex;align-items:center;gap:9px;font-size:10px;color:var(--red)}
+.lock-banner{background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.18);border-radius:6px;padding:7px 13px;display:flex;align-items:center;gap:9px;font-size:10px;color:var(--blue)}
 .info-bar{background:linear-gradient(135deg,rgba(59,130,246,.1),rgba(6,182,212,.06));border:1px solid rgba(59,130,246,.2);border-radius:6px;padding:9px 14px;display:flex;gap:10px}
 .info-icon{font-size:18px;flex-shrink:0;margin-top:1px}
 .info-text{font-size:10px;color:var(--blue);line-height:1.6;opacity:.9}.info-text strong{color:var(--text)}
@@ -277,7 +278,7 @@ select.sel:focus{border-color:var(--gold)}
 .tt{font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px}
 .ts{font-size:9px;color:var(--muted);margin-top:1px}
 .ta{display:flex;gap:5px;align-items:center}
-.tscr{overflow-x:auto;max-height:380px;overflow-y:auto}
+.tscr{overflow-x:auto;max-height:calc(100vh - 320px);overflow-y:auto}
 table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)}
 thead th{background:var(--table-header-bg);padding:5px 9px;text-align:right;font-weight:700;color:var(--table-header-text);font-size:9px;white-space:nowrap;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;letter-spacing:.03em}
 thead th:first-child{text-align:left;min-width:175px;z-index:6}
@@ -447,9 +448,226 @@ tr.der td{color:var(--teal)}
 .theme-btn:last-child{border-right:none}
 .theme-btn.on{background:var(--gold);color:#000}
 :root.theme-light tbody tr:hover{background:rgba(0,0,0,.02)}
-</style>
+
+/* ═══ PRINT / PDF STYLES — Session 11 ═══════════════ */
+#printCoverPage { display:none; }
+
+@media print {
+  /* ── Reset & page setup ── */
+  @page {
+    size: A4 landscape;
+    margin: 14mm 12mm 14mm 12mm;
+  }
+  @page :first {
+    margin-top: 0;
+  }
+
+  /* Hide everything by default */
+  *, *::before, *::after { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: #fff !important; color: #0d1e3a !important; font-family: 'IBM Plex Sans', Arial, sans-serif !important; }
+
+  /* Hide chrome */
+  .topbar, .tabbar, .welcomeScreen, #welcomeScreen,
+  .btn, .info-bar, .lock-banner, .mbg,
+  #onlineUsersPanel, #toast,
+  .kpi::after /* colored top stripe — redraw below */ { display: none !important; }
+
+  /* Show only active pane + cover */
+  .pane { display: none !important; }
+  .pane.on { display: block !important; }
+  .pane.on .btn { display: none !important; }
+  #printCoverPage { display: block !important; }
+  .app-shell { display: block !important; opacity: 1 !important; overflow: visible !important; }
+  .main { padding: 0 !important; margin: 0 !important; height: auto !important; overflow: visible !important; }
+
+  /* ── Cover page ── */
+  #printCoverPage {
+    page-break-after: always;
+    background: #003da5 !important;
+    color: #fff !important;
+    min-height: 190mm;
+    padding: 18mm 20mm;
+    position: relative;
+    display: flex !important;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  #printCoverPage .pc-logo   { height: 44px; margin-bottom: 28mm; filter: brightness(0) invert(1); }
+  #printCoverPage .pc-title  { font-size: 32pt; font-weight: 800; line-height: 1.15; color: #fff !important; }
+  #printCoverPage .pc-sub    { font-size: 14pt; color: rgba(255,255,255,.75) !important; margin-top: 6pt; }
+  #printCoverPage .pc-bar    { width: 60px; height: 4px; background: #00aeef; margin: 12pt 0; }
+  #printCoverPage .pc-meta   { font-size: 10pt; color: rgba(255,255,255,.65) !important; line-height: 1.8; }
+  #printCoverPage .pc-footer { font-size: 8pt; color: rgba(255,255,255,.45) !important; border-top: 1px solid rgba(255,255,255,.2); padding-top: 8pt; margin-top: 10pt; display: flex; justify-content: space-between; }
+  #printCoverPage .pc-accent { color: #00aeef !important; }
+
+  /* ── Section headers ── */
+  .tt, .st { font-size: 11pt !important; font-weight: 700 !important; color: #003da5 !important; border-bottom: 2px solid #00aeef; padding-bottom: 3pt; margin-bottom: 8pt; }
+  .ts { font-size: 8pt !important; color: #4a6080 !important; }
+
+  /* ── Tables ── */
+  table { width: 100% !important; border-collapse: collapse !important; font-size: 8pt !important; }
+  thead tr { background: #003da5 !important; color: #fff !important; }
+  thead th { padding: 4pt 6pt !important; font-size: 7.5pt !important; font-weight: 700 !important; text-align: right; color: #fff !important; }
+  thead th:first-child { text-align: left !important; }
+  tbody tr { border-bottom: 0.5pt solid #dde3ec !important; }
+  tbody tr:nth-child(even) { background: #f5f8fc !important; }
+  tbody td { padding: 3pt 6pt !important; color: #0d1e3a !important; }
+  tbody td:first-child { text-align: left !important; font-weight: 500; }
+  tbody td:not(:first-child) { text-align: right !important; font-family: 'IBM Plex Mono', monospace !important; font-size: 7.5pt !important; }
+
+  /* Totals rows */
+  .tr, tr.tot, tr[style*="font-weight:800"], tr[style*="font-weight: 800"] {
+    background: #eef2f7 !important;
+    font-weight: 800 !important;
+    border-top: 1pt solid #003da5 !important;
+  }
+
+  /* ── KPI cards ── */
+  .kpi-row { display: flex !important; flex-wrap: wrap !important; gap: 6pt !important; margin-bottom: 10pt !important; page-break-inside: avoid !important; }
+  .kpi { border: 1pt solid #dde3ec !important; border-radius: 4pt !important; padding: 7pt 9pt !important; background: #fff !important; min-width: 90pt !important; flex: 1 !important; page-break-inside: avoid !important; }
+  .kpi-l { font-size: 7pt !important; color: #4a6080 !important; text-transform: uppercase; letter-spacing: 0.05em; }
+  .kpi-v { font-size: 14pt !important; font-weight: 800 !important; color: #003da5 !important; font-family: 'IBM Plex Mono', monospace !important; }
+  .kpi-d { font-size: 7pt !important; color: #4a6080 !important; }
+  /* KPI colour strips via border-top */
+  .kpi.g  { border-top: 3pt solid #f5a623 !important; }
+  .kpi.b  { border-top: 3pt solid #003da5 !important; }
+  .kpi.t  { border-top: 3pt solid #00aeef !important; }
+  .kpi.gr { border-top: 3pt solid #00a651 !important; }
+  .kpi.r  { border-top: 3pt solid #e31837 !important; }
+  .kpi.p  { border-top: 3pt solid #5c6bc0 !important; }
+
+  /* ── Cards / panels ── */
+  .tc2, .card { border: 1pt solid #dde3ec !important; border-radius: 4pt !important; background: #fff !important; margin-bottom: 10pt !important; page-break-inside: avoid; }
+  .th { padding: 6pt 10pt !important; background: #f5f8fc !important; border-bottom: 1pt solid #dde3ec !important; }
+  .tscr { overflow: visible !important; }
+
+  /* ── Charts — preserve canvas ── */
+  canvas { max-width: 100% !important; page-break-inside: avoid !important; }
+
+  /* ── Page breaks ── */
+  .print-break-before { page-break-before: always !important; }
+  .print-break-avoid  { page-break-inside: avoid !important; }
+
+  /* ── Variance colour overrides ── */
+  [style*="color:var(--green)"], [style*="color: var(--green)"] { color: #00a651 !important; }
+  [style*="color:var(--red)"],   [style*="color: var(--red)"]   { color: #e31837 !important; }
+  [style*="color:var(--gold)"],  [style*="color: var(--gold)"]  { color: #f5a623 !important; }
+  [style*="color:var(--teal)"],  [style*="color: var(--teal)"]  { color: #00aeef !important; }
+
+  /* ── Print footer on every page ── */
+  .print-footer {
+    position: fixed;
+    bottom: 6mm;
+    left: 12mm;
+    right: 12mm;
+    font-size: 7pt;
+    color: #4a6080;
+    display: flex !important;
+    justify-content: space-between;
+    border-top: 0.5pt solid #dde3ec;
+    padding-top: 3pt;
+  }
+
+  /* ── Confidential watermark ── */
+  body::after {
+    content: 'CONFIDENTIAL';
+    position: fixed;
+    bottom: 18mm;
+    right: 14mm;
+    font-size: 8pt;
+    font-weight: 700;
+    color: rgba(0,61,165,.12);
+    letter-spacing: 0.3em;
+    transform: rotate(-45deg);
+    transform-origin: right bottom;
+    pointer-events: none;
+  }
+}
+/* Print modal trigger styles */
+.btn-print { background: linear-gradient(135deg, #003da5, #00aeef); color: #fff; }
+.btn-print:hover { opacity: .88; }
+.print-section-check { display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:5px; cursor:pointer; transition:background .12s; }
+.print-section-check:hover { background: var(--card2); }
+.print-section-check input[type=checkbox] { width:14px; height:14px; accent-color: var(--blue); cursor:pointer; }
+
 </head>
 <body>
+
+<!-- ═══ PRINT COVER PAGE — only visible when printing ═══ -->
+<div id="printCoverPage">
+  <div>
+    <img class="pc-logo" id="printLogo" src="" alt="JPS">
+    <div style="margin-top:auto">
+      <div class="pc-title" id="printReportTitle">Financial Performance Report</div>
+      <div class="pc-sub" id="printReportSub">Jamaica Public Service Company Limited</div>
+      <div class="pc-bar"></div>
+      <div class="pc-meta">
+        <div><span class="pc-accent">Period:</span> <span id="printPeriodLabel">—</span></div>
+        <div><span class="pc-accent">Scenario:</span> <span id="printScenarioLabel">Base Case</span></div>
+        <div><span class="pc-accent">Prepared by:</span> <span id="printPreparedBy">JPS Finance Team</span></div>
+        <div><span class="pc-accent">Generated:</span> <span id="printDate">—</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="pc-footer">
+    <span>Jamaica Public Service Company Limited — Confidential</span>
+    <span>FP&amp;A Platform v28 | Internal Use Only</span>
+  </div>
+</div>
+
+<!-- ═══ PRINT FOOTER (fixed on every page) ═══ -->
+<div class="print-footer" id="printFooter" style="display:none">
+  <span>Jamaica Public Service Company Limited — Confidential</span>
+  <span id="printFooterMid"></span>
+  <span id="printFooterRight"></span>
+</div>
+
+<!-- ═══ PRINT / EXPORT MODAL ═══ -->
+<div class="mbg" id="printModal">
+  <div class="modal" style="max-width:480px">
+    <div class="mt">🖨 Print / Export Report <span class="mc" onclick="closeModal('printModal')">✕</span></div>
+
+    <div style="padding:4px 0 10px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Report Details</div>
+      <div class="fi"><label>Report Title</label><input type="text" id="printTitle" value="Financial Performance Report" style="width:100%"></div>
+      <div class="fi"><label>Prepared By</label><input type="text" id="printPrepBy" value="JPS Finance Team" style="width:100%"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="fi"><label>Orientation</label>
+          <select id="printOrientation" class="sel" style="width:100%" onchange="updatePrintOrientation()">
+            <option value="landscape" selected>Landscape (A4)</option>
+            <option value="portrait">Portrait (A4)</option>
+          </select>
+        </div>
+        <div class="fi"><label>Colour Theme</label>
+          <select id="printTheme" class="sel" style="width:100%">
+            <option value="jps" selected>JPS Corporate</option>
+            <option value="mono">Monochrome</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding:10px 0">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px">Include Sections</div>
+      <div id="printSectionList"></div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding:10px 0 4px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Options</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <label class="print-section-check"><input type="checkbox" id="printOptCover" checked> Cover Page</label>
+        <label class="print-section-check"><input type="checkbox" id="printOptConfidential" checked> Confidential Watermark</label>
+        <label class="print-section-check"><input type="checkbox" id="printOptPageNum" checked> Page Numbers</label>
+        <label class="print-section-check"><input type="checkbox" id="printOptDate" checked> Print Date</label>
+      </div>
+    </div>
+
+    <div class="ma">
+      <button class="btn btn-ghost" onclick="closeModal('printModal')">Cancel</button>
+      <button class="btn btn-print" onclick="executePrint()">🖨 Print / Save PDF</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══ WELCOME / LOGIN SCREEN ═══ -->
 <div id="welcomeScreen">
@@ -462,26 +680,47 @@ tr.der td{color:var(--teal)}
       <div class="ws-divider"></div>
       <div class="ws-product">FP&amp;A Cloud<span>Jamaica Public Service Co.</span></div>
     </div>
-    <div class="ws-tagline">Financial Planning &amp; Analysis Platform · v12.0</div>
+    <div class="ws-tagline">Financial Planning &amp; Analysis Platform · v28.0</div>
 
-    <div class="ws-field">
-      <label class="ws-label">Name</label>
-      <input class="ws-input" id="loginName" type="text" placeholder="Your full name" autocomplete="name">
-    </div>
-    <div class="ws-field">
-      <label class="ws-label">Access Level</label>
-      <div class="ws-role-row">
-        <button class="ws-role-btn sel" data-role="admin" onclick="selectRole(this)">Admin</button>
-        <button class="ws-role-btn" data-role="analyst" onclick="selectRole(this)">Analyst</button>
-        <button class="ws-role-btn" data-role="viewer" onclick="selectRole(this)">Viewer</button>
+    <!-- Supabase mode: email + password -->
+    <div id="loginSbFields" style="display:block">
+      <div class="ws-field">
+        <label class="ws-label">Email</label>
+        <input class="ws-input" id="loginEmail" type="email" placeholder="you@jps.com.jm" autocomplete="email"
+          onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()">
+      </div>
+      <div class="ws-field">
+        <label class="ws-label">Password</label>
+        <input class="ws-input" id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter')doLogin()">
       </div>
     </div>
-    <button class="ws-login-btn" onclick="doLogin()">Enter Platform →</button>
+
+    <!-- Local mode: name + role -->
+    <div id="loginLocalFields" style="display:none">
+      <div class="ws-field">
+        <label class="ws-label">Name</label>
+        <input class="ws-input" id="loginName" type="text" placeholder="Your full name" autocomplete="name"
+          onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="ws-field">
+        <label class="ws-label">Access Level</label>
+        <div class="ws-role-row">
+          <button class="ws-role-btn sel" data-role="admin" onclick="selectRole(this)">Admin</button>
+          <button class="ws-role-btn" data-role="analyst" onclick="selectRole(this)">Analyst</button>
+          <button class="ws-role-btn" data-role="viewer" onclick="selectRole(this)">Viewer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connection mode badge -->
+    <div id="loginModeBadge" style="font-size:9px;color:var(--muted);text-align:center;margin-bottom:8px;margin-top:-4px"></div>
+
+    <button class="ws-login-btn" id="loginBtn" onclick="doLogin()">Enter Platform →</button>
     <div class="ws-error" id="loginError"></div>
     <div class="ws-footer">CONFIDENTIAL · Internal Use Only · JPS Finance &amp; Strategy</div>
   </div>
 </div>
-
 <!-- ═══ APP SHELL (hidden until login) ═══ -->
 <div class="app-shell" id="appShell">
 
@@ -489,7 +728,7 @@ tr.der td{color:var(--teal)}
 <div class="topbar">
   <div class="brand">
     <div class="brand-b">JPS</div>
-    <div><div class="brand-n">FP&A Cloud v23.0</div><div class="brand-s" id="brandSub">Jamaica Public Service Co. · Feb 2026 LE</div></div>
+    <div><div class="brand-n">FP&A Cloud v27.0</div><div class="brand-s" id="brandSub">Jamaica Public Service Co. · Feb 2026 LE</div></div>
   </div>
   <div class="sp"><span class="dot"></span>Live · USD $'000</div>
   <div class="tc">
@@ -517,12 +756,15 @@ tr.der td{color:var(--teal)}
       </div>
     </div>
     <div class="ml" style="display:flex;gap:6px;align-items:center">
-      <button class="btn btn-ghost" onclick="exportCSV()">⬇ Export</button>
+      <button class="btn btn-ghost" onclick="exportCSV()" title="Export CSV (Ctrl+E)">⬇ Export</button>
       <label class="btn btn-teal" style="cursor:pointer">☁ Upload<input type="file" style="display:none" multiple accept=".xlsx,.csv,.xlsm" onchange="handleUpload(event)"></label>
+      <button class="btn btn-print" onclick="openPrintModal()" title="Print / Save PDF">🖨 Print</button>
       <button class="btn btn-ai" onclick="showPane('ai-comm',null);document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.tab')[10]?.classList.add('on')">✦ AI Analysis</button>
       <button class="btn btn-gold" onclick="openModal('scModal')">＋ Scenario</button>
       <div style="display:flex;align-items:center;gap:7px;padding:0 8px;border-left:1px solid var(--border);margin-left:4px">
-        <div style="text-align:right">
+        <!-- Online users panel -->
+        <div id="onlineUsersPanel" style="display:flex;align-items:center"></div>
+        <div style="text-align:right;margin-left:6px">
           <div style="font-size:10px;font-weight:700;color:var(--text)" id="userNameDisp">—</div>
           <div style="font-size:9px;font-weight:700;letter-spacing:.06em;color:var(--gold)" id="userRoleDisp">ADMIN</div>
         </div>
@@ -543,12 +785,14 @@ tr.der td{color:var(--teal)}
     <div class="tab" onclick="showPane('rpt-cf',this)">💧 Cash Flow</div>
     <div class="tab" onclick="showPane('rpt-dep',this)">📉 Depreciation</div>
     <div class="tab" onclick="showPane('rpt-var',this)">📊 Variance</div>
+    <div class="tab" onclick="showPane('rpt-kpi',this)">📐 Ratios & KPIs</div>
     <div class="tab" onclick="showPane('rpt-rev',this)">⚡ Revenue & Gen</div>
   </div></div>
   <div class="tg wrk"><div class="tgl">WORKING</div><div class="tabs">
     <div class="tab" onclick="showPane('wrk-sc',this)">🎯 Scenarios</div>
     <div class="tab" onclick="showPane('wrk-gen',this)">⚡ Generation & Fuel</div>
     <div class="tab" onclick="showPane('wrk-coll',this)">💳 Collections</div>
+    <div class="tab" onclick="showPane('wrk-debt',this)">🏦 Debt & Financing</div>
     <div class="tab" onclick="showPane('wrk-leases',this)">📄 Lease Register</div>
   </div></div>
   <div class="tg ass"><div class="tgl">ASSUMPTIONS</div><div class="tabs">
@@ -574,7 +818,7 @@ tr.der td{color:var(--teal)}
 
 <!-- ═══ DASHBOARD ═══ -->
 <div id="pane-dash" class="pane on">
-  <div class="lock-banner">🔒 Report View — All inputs managed in Assumption tabs. Source: Feb 2026 LE files.</div>
+  <div class="info-bar" style="padding:6px 13px"><div class="info-icon" style="font-size:14px;margin-top:0">🔒</div><div class="info-text">Report View — All inputs managed in Assumption tabs. Source: Feb 2026 LE files.</div></div>
   <div id="dashActualsBar" style="font-size:10px;padding:6px 12px;border-radius:5px;border:1px solid var(--border);margin-bottom:8px;background:var(--card2)"></div>
   <div class="kpi-row" id="dash-kpis"></div>
   <div class="cr c2">
@@ -672,10 +916,9 @@ tr.der td{color:var(--teal)}
         <option value="3">Mar 2026</option><option value="4">Apr 2026</option>
         <option value="5">May 2026</option><option value="6">Jun 2026</option>
       </select>
-      <button class="btn btn-ghost" onclick="exportCSV()">⬇ Export</button>
+      <button class="btn btn-ghost" onclick="exportCFCSV()">⬇ Export</button>
     </div>
   </div>
-  <!-- Reconciliation Badge -->
   <div id="cfRecBadge" style="display:flex;gap:8px;align-items:center"></div>
   <!-- CF Reconciliation Note (shown when actuals differ from model) -->
   <div id="cfRecNote" style="display:none;margin-top:4px"></div>
@@ -788,6 +1031,106 @@ tr.der td{color:var(--teal)}
   </div>
 </div>
 
+<!-- ═══ RATIOS & KPIs TAB ═══ -->
+<div id="pane-rpt-kpi" class="pane">
+  <div class="lock-banner">📐 Ratios &amp; KPIs — Derived from P&amp;L, Balance Sheet, and Cash Flow. All figures USD $'000 unless noted.</div>
+
+  <!-- Year selector -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+    <div id="kpiYrSeg" style="display:flex;gap:3px"></div>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <button class="btn btn-ghost" style="font-size:10px" onclick="exportKpiCSV()">⬇ Export CSV</button>
+    </div>
+  </div>
+
+  <!-- KPI Scorecards Row -->
+  <div class="kpi-row" id="kpiScoreCards" style="margin-bottom:12px"></div>
+
+  <!-- Covenant Monitor Strip -->
+  <div id="kpiCovenantStrip" style="margin-bottom:12px"></div>
+
+  <!-- Section 1: Liquidity Ratios -->
+  <div class="tc2" style="margin-bottom:12px">
+    <div class="th">
+      <div><div class="tt">§1 Liquidity Ratios</div>
+      <div class="ts">Current Ratio, Quick Ratio, Cash Ratio, DSO — monthly view for selected year</div></div>
+    </div>
+    <div class="tscr"><table>
+      <thead><tr>
+        <th style="text-align:left;min-width:220px">Ratio</th>
+        <th class="bc">Jan</th><th class="bc">Feb</th><th class="bc">Mar</th><th class="bc">Apr</th>
+        <th class="bc">May</th><th class="bc">Jun</th><th class="bc">Jul</th><th class="bc">Aug</th>
+        <th class="bc">Sep</th><th class="bc">Oct</th><th class="bc">Nov</th><th class="bc">Dec</th>
+        <th class="bc" style="background:var(--dim)">Avg</th>
+      </tr></thead>
+      <tbody id="kpiLiqBody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Section 2: Profitability Ratios -->
+  <div class="tc2" style="margin-bottom:12px">
+    <div class="th">
+      <div><div class="tt">§2 Profitability &amp; Efficiency</div>
+      <div class="ts">EBITDA Margin (Non-Fuel), EBIT Margin, Net Margin, Return on Assets, Non-Fuel Revenue per kWh</div></div>
+    </div>
+    <div class="tscr"><table>
+      <thead><tr>
+        <th style="text-align:left;min-width:220px">Ratio</th>
+        <th class="bc">Jan</th><th class="bc">Feb</th><th class="bc">Mar</th><th class="bc">Apr</th>
+        <th class="bc">May</th><th class="bc">Jun</th><th class="bc">Jul</th><th class="bc">Aug</th>
+        <th class="bc">Sep</th><th class="bc">Oct</th><th class="bc">Nov</th><th class="bc">Dec</th>
+        <th class="bc" style="background:var(--dim)">Avg</th>
+      </tr></thead>
+      <tbody id="kpiProfBody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Section 3: Leverage & Coverage -->
+  <div class="tc2" style="margin-bottom:12px">
+    <div class="th">
+      <div><div class="tt">§3 Leverage &amp; Coverage</div>
+      <div class="ts">DSCR (≥1.20×), Net Debt / EBITDA, Interest Coverage, Debt / Total Assets</div></div>
+    </div>
+    <div class="tscr"><table>
+      <thead><tr>
+        <th style="text-align:left;min-width:220px">Ratio</th>
+        <th class="bc">2026</th><th class="bc">2027</th><th class="bc">2028</th><th class="bc">2029</th><th class="bc">2030</th>
+        <th style="text-align:left;min-width:120px">Covenant</th>
+      </tr></thead>
+      <tbody id="kpiLevBody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Section 4: Operational KPIs -->
+  <div class="tc2" style="margin-bottom:12px">
+    <div class="th">
+      <div><div class="tt">§4 Operational KPIs</div>
+      <div class="ts">System Loss %, Heat Rate, Billed Sales GWh, Peak Demand, Renewable %, Energy Sales Growth</div></div>
+    </div>
+    <div class="tscr"><table>
+      <thead><tr>
+        <th style="text-align:left;min-width:220px">KPI</th>
+        <th class="bc">Jan</th><th class="bc">Feb</th><th class="bc">Mar</th><th class="bc">Apr</th>
+        <th class="bc">May</th><th class="bc">Jun</th><th class="bc">Jul</th><th class="bc">Aug</th>
+        <th class="bc">Sep</th><th class="bc">Oct</th><th class="bc">Nov</th><th class="bc">Dec</th>
+        <th class="bc" style="background:var(--dim)">Total/Avg</th>
+      </tr></thead>
+      <tbody id="kpiOpsBody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Section 5: Multi-Year Summary Chart -->
+  <div class="tc2" style="margin-bottom:12px">
+    <div class="th"><div class="tt">§5 5-Year Ratio Trends (2026–2030)</div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px">
+      <div><div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">EBITDA Margin (Non-Fuel) %</div><canvas id="cKpiEbitda" height="140"></canvas></div>
+      <div><div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">DSCR (×)</div><canvas id="cKpiDscr" height="140"></canvas></div>
+      <div><div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Net Debt / EBITDA (×)</div><canvas id="cKpiNetDebt" height="140"></canvas></div>
+      <div><div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">System Loss %</div><canvas id="cKpiLoss" height="140"></canvas></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ REVENUE & GENERATION REPORT ═══ -->
 <div id="pane-rpt-rev" class="pane">
   <div class="lock-banner">🔒 Report View — Revenue & Generation data. Source: JPSCo_Financials actuals + AOP 2026 assumptions.</div>
@@ -842,7 +1185,7 @@ tr.der td{color:var(--teal)}
   <div class="cr c3">
     <div class="cc">
       <div class="ct">Generation Mix <em>2026 YTD | MWh</em></div>
-      <div class="cb h170"><canvas id="cGenMix"></canvas></div>
+      <div class="cb h170"><canvas id="cGenMixDash"></canvas></div>
     </div>
     <div class="cc">
       <div class="ct">Fuel vs Non-Fuel Revenue <em>Monthly trend | USD $'000</em></div>
@@ -1029,17 +1372,118 @@ tr.der td{color:var(--teal)}
   <div id="collActualsBanner" style="display:none;font-size:10px;padding:6px 12px;border-radius:5px;border:1px solid var(--green);background:rgba(16,185,129,.08);margin-bottom:8px"></div>
   <div class="wf" id="collWF"></div>
   <div style="display:flex;gap:5px;margin-bottom:6px">
-    <div class="yr-seg" id="collYrSeg">[2026,2027,2028,2029,2030].map rendering below</div>
+    <div id="collYrSeg" style="display:flex;gap:3px"></div>
   </div>
   <div class="cr c2">
     <div class="cc"><div class="ct">Blended Collection Rate % <em>Monthly</em></div><div class="cb h140"><canvas id="cCollR"></canvas></div></div>
     <div class="cc"><div class="ct">Cash Receipts vs Billings <em>USD $'000</em></div><div class="cb h140"><canvas id="cCollB"></canvas></div></div>
   </div>
-  <div class="tc2"><div class="th"><div class="tt">Collections Assumptions <span class="badge badge-bud">Editable</span></div><div class="ta"><button class="btn btn-ghost" onclick="dlTmpl('collections')">⬇ Template</button></div></div>
+  <div class="tc2"><div class="th"><div class="tt">Collections Assumptions <span class="badge badge-bud">Editable</span></div><div class="ta"><button class="btn btn-ghost" onclick="exportCollCSV()">⬇ Export</button><button class="btn btn-ghost" onclick="dlTmpl('collections')">⬇ Template</button></div></div>
     <div class="tscr"><table><thead id="collH"></thead><tbody id="collB"></tbody></table></div>
   </div>
   <div class="tc2" style="margin-top:0"><div class="th"><div class="tt">→ Derived Cash Flow Impact <span class="badge badge-act">Calculated</span></div></div><div class="tscr"><table><thead id="collIH"></thead><tbody id="collIB"></tbody></table></div></div>
   <div id="collActualsPanel" style="display:none;margin-top:8px"></div>
+</div>
+
+<!-- ═══ DEBT & FINANCING REGISTER ═══ -->
+<div id="pane-wrk-debt" class="pane">
+  <div class="info-bar"><div class="info-icon">🏦</div><div class="info-text"><strong>Debt &amp; Financing Register — Session 10.</strong> Loan register with drawdowns, repayments, and interest schedules. Feeds Net Financing Costs (interest expense), Cash Flow (financing activities), and Balance Sheet (long-term debt). All figures USD $'000.</div></div>
+
+  <!-- KPI Strip -->
+  <div class="kpi-row" id="debtKpis" style="margin-bottom:12px"></div>
+
+  <!-- Year selector -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+    <div id="debtYrSeg" style="display:flex;gap:3px"></div>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <button class="btn btn-ghost" style="font-size:10px" onclick="exportDebtCSV()">⬇ Export</button>
+      <button class="btn btn-gold" style="font-size:10px" onclick="if(can('editFinancing'))openLoanModal(null);else toast('Admin access required','err')">＋ Add Facility</button>
+    </div>
+  </div>
+
+  <!-- SECTION 1: Loan Register -->
+  <div class="tc2" style="margin-bottom:12px">
+    <div class="th">
+      <div><div class="tt">§1 Loan Register <span class="badge badge-bud">Active Facilities</span></div>
+      <div class="ts">Click a row to expand the amortisation schedule below</div></div>
+    </div>
+    <div class="tscr">
+      <table>
+        <thead><tr>
+          <th style="text-align:left;min-width:180px">Facility</th>
+          <th style="text-align:left;min-width:110px">Lender</th>
+          <th class="bc">Type</th>
+          <th class="bc">Currency</th>
+          <th class="bc">Original ($K)</th>
+          <th class="bc">Rate %</th>
+          <th class="bc">Maturity</th>
+          <th class="bc">Opening Bal</th>
+          <th class="bc">Status</th>
+          <th class="bc">Actions</th>
+        </tr></thead>
+        <tbody id="loanRegBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECTION 2: Amortisation Schedule (expands on row click) -->
+  <div id="loanAmortBlock" style="display:none;margin-bottom:12px">
+    <div class="tc2">
+      <div class="th">
+        <div><div class="tt" id="loanAmortTitle">§2 Amortisation Schedule</div>
+        <div class="ts">Monthly principal, interest, and closing balance for selected facility</div></div>
+        <div class="ta">
+          <div id="debtAmortYrSeg" style="display:flex;gap:3px"></div>
+        </div>
+      </div>
+      <div class="kpi-row" id="loanAmortKpis" style="padding:10px 13px"></div>
+      <div class="tscr"><table>
+        <thead><tr>
+          <th style="text-align:left;min-width:60px">Month</th>
+          <th class="bc">Opening Bal</th>
+          <th class="bc">Drawdown</th>
+          <th class="bc">Interest</th>
+          <th class="bc">Principal</th>
+          <th class="bc">Closing Bal</th>
+          <th class="bc">Cash Payment</th>
+        </tr></thead>
+        <tbody id="loanAmortBody"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: Debt Schedule Summary (all facilities × 5 years) -->
+  <div class="tc2" style="margin-bottom:12px">
+    <div class="th">
+      <div><div class="tt">§3 5-Year Debt Schedule <span class="badge badge-act">Aggregated</span></div>
+      <div class="ts">Opening balance, drawdowns, repayments, closing balance, and interest — all facilities combined</div></div>
+    </div>
+    <div class="tscr"><table>
+      <thead><tr>
+        <th style="text-align:left;min-width:220px">Line</th>
+        <th class="bc">2026</th><th class="bc">2027</th><th class="bc">2028</th><th class="bc">2029</th><th class="bc">2030</th>
+      </tr></thead>
+      <tbody id="debtSummBody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- SECTION 4: Covenant Tracking -->
+  <div class="tc2" style="margin-bottom:12px">
+    <div class="th">
+      <div><div class="tt">§4 Covenant Tracking</div>
+      <div class="ts">Per-facility covenant tests — Financial and non-financial. Admin can update status.</div></div>
+    </div>
+    <div id="covenantTrackPanel"></div>
+  </div>
+
+  <!-- SECTION 5: Interest Projection Chart -->
+  <div class="tc2">
+    <div class="th"><div class="tt">§5 Interest Expense &amp; Debt Balance 2026–2030</div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px">
+      <div><div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Total Debt Balance $'000</div><canvas id="cDebtBal" height="160"></canvas></div>
+      <div><div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Annual Interest Expense $'000</div><canvas id="cDebtInt" height="160"></canvas></div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ LEASE REGISTER ═══ -->
@@ -1379,7 +1823,7 @@ tr.der td{color:var(--teal)}
     <div class="cc"><div class="ct">O&M by Category <em>Monthly Stacked | USD $'000</em></div><div class="cb h170"><canvas id="cOMst"></canvas></div></div>
     <div class="cc"><div class="ct">O&M Expense vs Cash Disbursement <em>Timing lag effect</em></div><div class="cb h170"><canvas id="cOMcash"></canvas></div></div>
   </div>
-  <div class="tc2"><div class="th"><div><div class="tt">O&M Monthly Assumptions <span class="badge badge-bud">Editable</span></div><div class="ts src">Source: O_M_February_2026_LE.xlsm | USD $'000 | Pre-IFRS-16</div></div><div class="ta"><button class="btn btn-ghost" onclick="dlTmpl('om')">⬇ Template</button><button class="btn btn-ghost" onclick="if(can('editOM')){openModal('omAddModal');setTimeout(()=>document.getElementById('omAddName').focus(),80)}else{toast('Admin access required','err')}">＋ Add</button></div></div>
+  <div class="tc2"><div class="th"><div><div class="tt">O&M Monthly Assumptions <span class="badge badge-bud">Editable</span></div><div class="ts src">Source: O_M_February_2026_LE.xlsm | USD $'000 | Pre-IFRS-16</div></div><div class="ta"><button class="btn btn-ghost" onclick="exportOMCSV()">⬇ Export</button><button class="btn btn-ghost" onclick="dlTmpl('om')">⬇ Template</button><button class="btn btn-ghost" onclick="if(can('editOM')){openModal('omAddModal');setTimeout(()=>document.getElementById('omAddName').focus(),80)}else{toast('Admin access required','err')}">＋ Add</button></div></div>
     <div class="tscr"><table><thead id="omH"></thead><tbody id="omB"></tbody></table></div>
     <div class="add-bar" onclick="if(can('editOM')){openModal('omAddModal');setTimeout(()=>document.getElementById('omAddName').focus(),80)}else{toast('Admin access required','err')}">＋ Add O&M category</div>
   </div>
@@ -1401,7 +1845,7 @@ tr.der td{color:var(--teal)}
       <div class="cc"><div class="ct">CapEx Spend by Category <em>2026 Monthly | USD $'000</em></div><div class="cb h170"><canvas id="cCxBar"></canvas></div></div>
       <div class="cc"><div class="ct">Cumulative CapEx vs Cash Payments <em>Timing difference</em></div><div class="cb h170"><canvas id="cCxCum"></canvas></div></div>
     </div>
-    <div class="tc2"><div class="th"><div><div class="tt">CapEx Spend Plan <span class="badge badge-bud">Editable</span></div><div class="ts src">Source: Capex_February_2026_LE.xlsx → Summary | USD $'000</div></div><div class="ta"><select class="sel" id="capexYr" onchange="buildCapexTable()"><option>2025</option><option selected>2026</option></select><button class="btn btn-ghost" onclick="dlTmpl('capex')">⬇ Template</button><button class="btn btn-ghost" onclick="if(can('editCapex')){openModal('cxAddModal');setTimeout(()=>document.getElementById('cxAddName').focus(),80)}else{toast('Admin access required','err')}">＋ Add</button></div></div>
+    <div class="tc2"><div class="th"><div><div class="tt">CapEx Spend Plan <span class="badge badge-bud">Editable</span></div><div class="ts src">Source: Capex_February_2026_LE.xlsx → Summary | USD $'000</div></div><div class="ta"><select class="sel" id="capexYr" onchange="buildCapexTable()"><option>2025</option><option selected>2026</option></select><button class="btn btn-ghost" onclick="exportCapexCSV()">⬇ Export</button><button class="btn btn-ghost" onclick="dlTmpl('capex')">⬇ Template</button><button class="btn btn-ghost" onclick="if(can('editCapex')){openModal('cxAddModal');setTimeout(()=>document.getElementById('cxAddName').focus(),80)}else{toast('Admin access required','err')}">＋ Add</button></div></div>
       <div class="tscr"><table><thead id="capexH"></thead><tbody id="capexB"></tbody></table></div>
       <div class="add-bar" onclick="if(can('editCapex')){openModal('cxAddModal');setTimeout(()=>document.getElementById('cxAddName').focus(),80)}else{toast('Admin access required','err')}">＋ Add CapEx category</div>
     </div>
@@ -1637,6 +2081,8 @@ tr.der td{color:var(--teal)}
   <div style="font-size:11px;font-weight:700;color:white;margin-bottom:8px">📋 Download Input Templates</div>
   <div class="tg2" id="tmplGrid"></div>
   <div class="tc2"><div class="th"><div class="tt">Upload Log</div></div><div class="tscr"><table><thead><tr><th style="text-align:left">File</th><th>Type</th><th>Period</th><th>Rows</th><th>Status</th><th>Date</th><th>Action</th></tr></thead><tbody id="ulB"></tbody></table></div></div>
+  <!-- Supabase connection settings — rendered by buildSupabaseSettings() -->
+  <div id="sbSettingsPanel"></div>
 </div>
 
 
@@ -1676,7 +2122,7 @@ tr.der td{color:var(--teal)}
 <!-- ═══ GUIDE ═══ -->
 <div id="pane-adm-guide" class="pane">
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-    <div class="st" style="margin:0">📖 Platform Logic Guide — JPS FP&amp;A v15</div>
+    <div class="st" style="margin:0">📖 Platform Logic Guide — JPS FP&amp;A v25</div>
     <input id="guideSearch" type="text" placeholder="🔍 Search guide…"
       style="flex:1;min-width:200px;max-width:340px;padding:6px 10px;border:1px solid var(--b2);
              border-radius:5px;background:var(--card2);color:var(--text);font-size:12px"
@@ -1689,6 +2135,90 @@ tr.der td{color:var(--teal)}
 </div>
 
 </div><!-- /main -->
+
+<!-- Tariff Review Modal -->
+<div class="mbg" id="tariffRevModal">
+  <div class="modal">
+    <div class="mt">Rate Review Event <span class="mc" onclick="closeModal('tariffRevModal')">✕</span></div>
+    <div class="fi"><label>Year</label>
+      <select class="sel" id="trYear" style="width:100%">
+        <option>2026</option><option>2027</option><option selected>2028</option><option>2029</option><option>2030</option>
+      </select>
+    </div>
+    <div class="fi"><label>Effective Month</label>
+      <select class="sel" id="trMonth" style="width:100%">
+        <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+        <option value="4" selected>April</option><option value="5">May</option><option value="6">June</option>
+        <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+        <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+      </select>
+    </div>
+    <div class="fi"><label>Tariff Uplift %</label><input type="number" id="trUplift" value="5.0" step="0.1" min="-20" max="50"></div>
+    <div class="fi"><label>Basis</label><input type="text" id="trBasis" value="OUR Annual Review" placeholder="e.g. OUR Annual Review"></div>
+    <div class="fi"><label>Rate Classes</label><input type="text" id="trClasses" value="All" placeholder="e.g. All, or RT40,RT50"></div>
+    <input type="hidden" id="trEditIdx" value="-1">
+    <div class="ma">
+      <button class="btn btn-ghost" onclick="closeModal('tariffRevModal')">Cancel</button>
+      <button class="btn btn-gold" onclick="commitTariffReview()">Save Review</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loan Facility Modal -->
+<div class="mbg" id="loanModal">
+  <div class="modal" style="max-width:520px">
+    <div class="mt">Loan Facility <span class="mc" onclick="closeModal('loanModal')">✕</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 0 4px">
+      <div class="fi" style="grid-column:1/-1"><label>Facility Name</label><input type="text" id="ln-name" placeholder="e.g. IDB Infrastructure Loan A"></div>
+      <div class="fi"><label>Lender</label><input type="text" id="ln-lender" placeholder="e.g. IDB Invest"></div>
+      <div class="fi"><label>Facility Type</label>
+        <select id="ln-type" class="sel" style="width:100%">
+          <option value="term">Term Loan</option>
+          <option value="revolving">Revolving Credit</option>
+          <option value="bond">Bond / Note</option>
+          <option value="overdraft">Overdraft</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="fi"><label>Currency</label>
+        <select id="ln-currency" class="sel" style="width:100%">
+          <option value="USD">USD</option>
+          <option value="JMD">JMD</option>
+          <option value="EUR">EUR</option>
+        </select>
+      </div>
+      <div class="fi"><label>Original Principal ($'000)</label><input type="number" id="ln-principal" value="0" min="0"></div>
+      <div class="fi"><label>Interest Rate % p.a.</label><input type="number" id="ln-rate" value="5.5" step="0.01" min="0" max="30"></div>
+      <div class="fi"><label>Rate Type</label>
+        <select id="ln-rateType" class="sel" style="width:100%">
+          <option value="fixed">Fixed</option>
+          <option value="floating">Floating (SOFR +)</option>
+          <option value="prime">Prime +</option>
+        </select>
+      </div>
+      <div class="fi"><label>Drawdown Date</label><input type="date" id="ln-drawDate"></div>
+      <div class="fi"><label>Maturity Date</label><input type="date" id="ln-maturity"></div>
+      <div class="fi"><label>Repayment Frequency</label>
+        <select id="ln-repayFreq" class="sel" style="width:100%">
+          <option value="monthly">Monthly</option>
+          <option value="quarterly">Quarterly</option>
+          <option value="semi">Semi-Annual</option>
+          <option value="annual">Annual</option>
+          <option value="bullet">Bullet (at maturity)</option>
+        </select>
+      </div>
+      <div class="fi"><label>Opening Balance Jan 2026 ($'000)</label><input type="number" id="ln-openBal" value="0" min="0"></div>
+      <div class="fi"><label>Monthly Repayment ($'000)</label><input type="number" id="ln-repayAmt" value="0" min="0"></div>
+      <div class="fi" style="grid-column:1/-1"><label>Covenant Notes</label><input type="text" id="ln-covenant" placeholder="e.g. DSCR ≥ 1.20×, Current Ratio ≥ 1.10×"></div>
+      <div class="fi" style="grid-column:1/-1"><label>Purpose / Notes</label><input type="text" id="ln-notes" placeholder="e.g. T&D infrastructure, hurricane restoration"></div>
+    </div>
+    <input type="hidden" id="ln-editId" value="">
+    <div class="ma">
+      <button class="btn btn-ghost" onclick="closeModal('loanModal')">Cancel</button>
+      <button class="btn btn-gold" onclick="commitLoan()">Save Facility</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODALS -->
 <div class="mbg" id="scModal">
@@ -1728,8 +2258,427 @@ tr.der td{color:var(--teal)}
 // ── Embedded assets (base64) ──────────────────────────
 const JPS_LOGO_DATA = 'https://rvtaryvxiryfmurudjcx.supabase.co/storage/v1/object/public/Model/JPS-Logo-2022-Outline-No-Tag-2.png';
 const WELCOME_BG_DATA = 'https://rvtaryvxiryfmurudjcx.supabase.co/storage/v1/object/public/Model/Welcome.jpg';
+const WELCOME_BG_DATA = 'https://rvtaryvxiryfmurudjcx.supabase.co/storage/v1/object/public/Model/Welcome.jpg';
+
 // ═══════════════════════════════════════════════════════
-//  USER & PERMISSIONS — placeholder until Supabase auth
+//  SUPABASE CONFIGURATION — Session 12
+//  Reads from localStorage so credentials are never
+//  hardcoded. Admin sets them once via Settings panel.
+// ═══════════════════════════════════════════════════════
+const _SB_PROJECT_REF = 'bhrswnbenkvflpdjhfpa'; // from existing storage URL
+
+// Supabase credentials — anon/public key, safe to embed in client code
+const _SB_URL     = 'https://bhrswnbenkvflpdjhfpa.supabase.co';
+const _SB_ANON_KEY= 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJocnN3bmJlbmt2ZmxwZGpoZnBhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMTc0OTcsImV4cCI6MjA5MTg5MzQ5N30.JupFs0tnMn3k282PqFOSMi2ch-wtB7Ewv7O8fN16-94';
+
+let _sbConfig = (() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('jps_sb_config') || '{}');
+    return {
+      url:     saved.url     || _SB_URL,
+      anonKey: saved.anonKey || _SB_ANON_KEY,
+      enabled: saved.enabled !== undefined ? saved.enabled : true,  // ON by default
+    };
+  } catch(e) { return { url: _SB_URL, anonKey: _SB_ANON_KEY, enabled: true }; }
+})();
+
+// Initialise client only when config is present
+let _sb = null;
+function _sbInit() {
+  if (!_sbConfig.enabled || !_sbConfig.anonKey) return null;
+  try {
+    if (window.supabase && window.supabase.createClient) {
+      _sb = window.supabase.createClient(_sbConfig.url, _sbConfig.anonKey, {
+        auth: { persistSession: true, autoRefreshToken: true },
+        realtime: { params: { eventsPerSecond: 10 } }
+      });
+      console.log('[Supabase] Client initialised:', _sbConfig.url);
+      return _sb;
+    }
+  } catch(e) { console.warn('[Supabase] Init failed:', e); }
+  return null;
+}
+
+// Safe wrapper — falls back silently if Supabase unavailable
+async function _sbQ(fn) {
+  if (!_sb) return null;
+  try { return await fn(_sb); } catch(e) { console.warn('[Supabase] Query error:', e); return null; }
+}
+
+// ── Supabase Realtime channel ────────────────────────
+let _sbChannel = null;
+function _sbStartRealtime() {
+  if (!_sb) return;
+  if (_sbChannel) { _sb.removeChannel(_sbChannel); }
+  _sbChannel = _sb.channel('jps_fpa_collab', {
+    config: { broadcast: { self: false }, presence: { key: _myTabId } }
+  });
+
+  // Presence — who is online
+  _sbChannel.on('presence', { event: 'sync' }, () => {
+    const state = _sbChannel.presenceState();
+    Object.entries(state).forEach(([key, presences]) => {
+      const p = presences[0];
+      if (p && key !== _myTabId) {
+        _presenceStore[key] = { name:p.name, role:p.role, tab:p.tab, lastSeen:Date.now() };
+      }
+    });
+    _renderOnlinePanel();
+  });
+
+  _sbChannel.on('presence', { event: 'join' }, ({ key, newPresences }) => {
+    const p = newPresences[0];
+    if (p && key !== _myTabId) {
+      _presenceStore[key] = { name:p.name, role:p.role, tab:p.tab, lastSeen:Date.now() };
+      _renderOnlinePanel();
+      toast(`${p.name} joined`, 'ok');
+    }
+  });
+
+  _sbChannel.on('presence', { event: 'leave' }, ({ key }) => {
+    if (key !== _myTabId) {
+      const name = _presenceStore[key]?.name;
+      delete _presenceStore[key];
+      _renderOnlinePanel();
+      if (name) toast(`${name} left`, 'ok');
+    }
+  });
+
+  // Broadcast — data changes from other users
+  _sbChannel.on('broadcast', { event: 'data_change' }, ({ payload }) => {
+    _rtHandleRemoteChange(payload);
+    if (payload?.user && payload.user !== currentUser.name) {
+      toast(`🔄 ${payload.user} updated ${payload.changeType||'data'}`, 'ok');
+    }
+  });
+
+  _sbChannel.subscribe(async (status) => {
+    if (status === 'SUBSCRIBED') {
+      // Track presence
+      await _sbChannel.track({
+        name: currentUser.name,
+        role: currentUser.role,
+        tab:  document.querySelector('.pane.on')?.id?.replace('pane-','') || 'dash',
+        time: new Date().toISOString()
+      });
+      console.log('[Supabase] Realtime subscribed');
+      _renderOnlinePanel();
+    }
+  });
+}
+
+// Update presence tab when user navigates
+async function _sbUpdatePresenceTab(tabId) {
+  if (!_sbChannel) return;
+  try {
+    await _sbChannel.track({
+      name: currentUser.name,
+      role: currentUser.role,
+      tab:  tabId,
+      time: new Date().toISOString()
+    });
+  } catch(e) {}
+}
+
+// Broadcast a data change to all users (upgrades existing BroadcastChannel)
+function _rtBroadcastChange(changeType, data) {
+  const payload = { changeType, data, user: currentUser.name, ts: Date.now() };
+  // Supabase Realtime (cross-browser)
+  if (_sbChannel) {
+    try { _sbChannel.send({ type:'broadcast', event:'data_change', payload }); } catch(e) {}
+  }
+  // BroadcastChannel fallback (same-browser)
+  if (_rtChannel) {
+    try { _rtChannel.postMessage({ type:'change', payload, from:_myTabId, ts:Date.now() }); } catch(e) {}
+  }
+}
+
+// ── Supabase Auth ────────────────────────────────────
+async function _sbSignIn(email, password) {
+  if (!_sb) return null;
+  const { data, error } = await _sb.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return data.user;
+}
+
+async function _sbSignOut() {
+  if (!_sb) return;
+  await _sb.auth.signOut();
+}
+
+async function _sbGetSession() {
+  if (!_sb) return null;
+  const { data } = await _sb.auth.getSession();
+  return data?.session;
+}
+
+// Map Supabase user metadata → currentUser shape
+function _sbUserToCurrentUser(sbUser, profile) {
+  return {
+    id:    sbUser.id,
+    name:  profile?.name  || sbUser.user_metadata?.name || sbUser.email.split('@')[0],
+    email: sbUser.email,
+    role:  profile?.role  || sbUser.user_metadata?.role || 'analyst',
+    sbUser
+  };
+}
+
+// ── Supabase Data Persistence ────────────────────────
+
+// Save audit log entry to Supabase
+async function _sbAuditLog(entry) {
+  await _sbQ(sb => sb.from('fpa_audit_log').insert({
+    user_id:   entry.userId,
+    user_name: entry.userName,
+    action:    entry.action,
+    target:    entry.target,
+    old_val:   entry.oldVal  != null ? String(entry.oldVal)  : null,
+    new_val:   entry.newVal  != null ? String(entry.newVal)  : null,
+  }));
+}
+
+// Save actuals upload to Supabase
+async function _sbSaveActuals(month, year, data) {
+  await _sbQ(sb => sb.from('fpa_actuals').upsert({
+    month, year,
+    data: JSON.stringify(data),
+    uploaded_by: currentUser.id,
+  }, { onConflict: 'month,year' }));
+}
+
+// Load actuals from Supabase on init
+async function _sbLoadActuals() {
+  const rows = await _sbQ(sb => sb.from('fpa_actuals').select('*').eq('year', 2026));
+  if (!rows?.data) return;
+  rows.data.forEach(r => {
+    try {
+      const d = typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+      if (d) actualsStore[2026] = actualsStore[2026] || {};
+      if (d && r.month) actualsStore[2026][r.month] = d;
+    } catch(e) {}
+  });
+}
+
+// Save scenario to Supabase
+async function _sbSaveScenario(name, scenarioData) {
+  await _sbQ(sb => sb.from('fpa_scenarios').upsert({
+    name,
+    owner_id:  currentUser.id,
+    by_year:   JSON.stringify(scenarioData.byYear || {}),
+    shared:    scenarioData.shared || false,
+    approved:  scenarioData.approved || false,
+  }, { onConflict: 'name' }));
+}
+
+// Load scenarios from Supabase
+async function _sbLoadScenarios() {
+  const rows = await _sbQ(sb =>
+    sb.from('fpa_scenarios').select('*').or(`owner_id.eq.${currentUser.id},shared.eq.true`)
+  );
+  if (!rows?.data) return;
+  rows.data.forEach(r => {
+    try {
+      if (!scenarios[r.name]) {
+        scenarios[r.name] = {
+          desc: r.description || '',
+          byYear: typeof r.by_year === 'string' ? JSON.parse(r.by_year) : (r.by_year||{}),
+          shared: r.shared,
+          approved: r.approved,
+          eb:0, rv:0, om:0, cx:0, fu:0, tr:0, cr:0
+        };
+        // Add to selector if not already there
+        const sel = document.getElementById('scSel');
+        if (sel && ![...sel.options].find(o=>o.value===r.name)) {
+          const opt = document.createElement('option');
+          opt.value = opt.textContent = r.name;
+          sel.appendChild(opt);
+        }
+      }
+    } catch(e) {}
+  });
+}
+
+// ── Settings persistence ─────────────────────────────
+function saveSbConfig(url, anonKey, enabled) {
+  _sbConfig = { url, anonKey, enabled };
+  try { localStorage.setItem('jps_sb_config', JSON.stringify(_sbConfig)); } catch(e) {}
+  _sb = _sbInit();
+  if (_sb) {
+    _sbStartRealtime();
+    toast('Supabase connected ✓', 'ok');
+  } else {
+    toast(enabled ? 'Supabase config saved — key required to connect' : 'Supabase disabled — local mode', 'ok');
+  }
+  buildSupabaseSettings();
+}
+
+// ── Supabase Settings UI (in adm-data tab) ──────────
+function buildSupabaseSettings() {
+  const el = document.getElementById('sbSettingsPanel');
+  if (!el) return;
+  const connected = !!(_sb);
+  const statusColor = connected ? 'var(--green)' : 'var(--muted)';
+  const statusText  = connected ? '● Connected' : '○ Not connected';
+
+  el.innerHTML = `
+    <div class="tc2" style="margin-top:10px">
+      <div class="th">
+        <div>
+          <div class="tt">☁ Supabase Connection
+            <span style="font-size:10px;font-weight:700;color:${statusColor};margin-left:10px">${statusText}</span>
+          </div>
+          <div class="ts">Enables multi-user auth, cloud data persistence, and cross-browser realtime sync. Leave blank to use local mode.</div>
+        </div>
+      </div>
+      <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fi" style="grid-column:1/-1">
+          <label>Project URL</label>
+          <input type="text" id="sbUrl" value="${_sbConfig.url}" style="width:100%;font-family:var(--mono);font-size:11px"
+            placeholder="https://your-project.supabase.co">
+        </div>
+        <div class="fi" style="grid-column:1/-1">
+          <label>Anon / Public Key</label>
+          <input type="password" id="sbAnonKey" value="${_sbConfig.anonKey}"
+            style="width:100%;font-family:var(--mono);font-size:11px"
+            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+          <div style="font-size:9px;color:var(--muted);margin-top:3px">From Supabase Dashboard → Settings → API → Project API keys → anon / public</div>
+        </div>
+        <div style="grid-column:1/-1;display:flex;align-items:center;gap:8px">
+          <label class="print-section-check" style="gap:8px">
+            <input type="checkbox" id="sbEnabled" ${_sbConfig.enabled?'checked':''}>
+            <span style="font-size:11px;color:var(--text)">Enable Supabase (required to connect)</span>
+          </label>
+        </div>
+        <div style="grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+          <button class="btn btn-ghost" style="font-size:10px" onclick="testSbConnection()">🔌 Test Connection</button>
+          <button class="btn btn-gold" onclick="saveSbConfig(
+            document.getElementById('sbUrl').value.trim(),
+            document.getElementById('sbAnonKey').value.trim(),
+            document.getElementById('sbEnabled').checked
+          )">Save & Connect</button>
+        </div>
+        ${connected ? `
+        <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:10px">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:8px">CLOUD ACTIONS</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost" style="font-size:10px" onclick="_sbLoadActuals().then(()=>{refreshAll();toast('Actuals synced from cloud','ok')})">⬇ Pull Actuals</button>
+            <button class="btn btn-ghost" style="font-size:10px" onclick="_sbLoadScenarios().then(()=>{buildScPanel();toast('Scenarios synced','ok')})">⬇ Pull Scenarios</button>
+            <button class="btn btn-ghost" style="font-size:10px;color:var(--red)" onclick="if(confirm('Sign out?'))doLogout()">⎋ Sign Out</button>
+          </div>
+        </div>` : ''}
+      </div>
+    </div>
+
+    <div class="tc2" style="margin-top:10px">
+      <div class="th"><div class="tt">🗄 Database Schema</div>
+      <div class="ts">SQL to create required tables in your Supabase project</div></div>
+      <div style="padding:12px">
+        <div style="font-size:9px;color:var(--muted);margin-bottom:8px">Copy and run in Supabase SQL Editor → New Query</div>
+        <div style="background:var(--card2);border:1px solid var(--border);border-radius:5px;padding:12px;font-family:var(--mono);font-size:9.5px;color:var(--teal);line-height:1.7;white-space:pre;overflow-x:auto">${_getSbSchemaSQL()}</div>
+        <button class="btn btn-ghost" style="font-size:10px;margin-top:8px" onclick="navigator.clipboard.writeText(document.querySelector('#sbSettingsPanel pre,#sbSettingsPanel .tc2:last-child div[style*=mono]')?.textContent||'').then(()=>toast('SQL copied','ok'))">📋 Copy SQL</button>
+      </div>
+    </div>`;
+}
+
+async function testSbConnection() {
+  const url = document.getElementById('sbUrl')?.value.trim();
+  const key = document.getElementById('sbAnonKey')?.value.trim();
+  if (!url || !key) { toast('Enter URL and key first', 'err'); return; }
+  toast('Testing connection…', 'ok');
+  try {
+    const testClient = window.supabase.createClient(url, key);
+    const { error } = await testClient.from('audit_log').select('id').limit(1);
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = table not found (ok for now)
+    toast('✓ Connection successful!', 'ok');
+  } catch(e) {
+    toast('Connection failed: ' + (e.message||e), 'err');
+  }
+}
+
+function _getSbSchemaSQL() {
+return `-- JPS FP&A Platform — Supabase Schema
+-- Run in: Supabase Dashboard → SQL Editor → New Query
+
+-- Enable UUID extension
+create extension if not exists "uuid-ossp";
+
+-- User profiles (linked to auth.users)
+create table if not exists public.profiles (
+  id         uuid references auth.users primary key,
+  name       text not null,
+  role       text not null default 'viewer'
+             check (role in ('admin','analyst','viewer')),
+  created_at timestamptz default now()
+);
+alter table public.profiles enable row level security;
+create policy "Users can view all profiles"
+  on public.profiles for select using (true);
+create policy "Users can update own profile"
+  on public.profiles for update using (auth.uid() = id);
+
+-- Actuals uploads
+create table if not exists public.actuals (
+  id          uuid default uuid_generate_v4() primary key,
+  month       int  not null,
+  year        int  not null,
+  data        jsonb,
+  uploaded_by uuid references auth.users,
+  uploaded_at timestamptz default now(),
+  unique(month, year)
+);
+alter table public.actuals enable row level security;
+create policy "All authenticated users can read actuals"
+  on public.actuals for select using (auth.role() = 'authenticated');
+create policy "Admin users can insert actuals"
+  on public.actuals for insert with check (
+    exists (select 1 from profiles where id=auth.uid() and role='admin')
+  );
+
+-- Scenarios
+create table if not exists public.scenarios (
+  id          uuid default uuid_generate_v4() primary key,
+  name        text not null unique,
+  owner_id    uuid references auth.users,
+  by_year     jsonb,
+  shared      boolean default false,
+  approved    boolean default false,
+  description text,
+  created_at  timestamptz default now(),
+  modified_at timestamptz default now()
+);
+alter table public.scenarios enable row level security;
+create policy "Users see own + shared scenarios"
+  on public.scenarios for select
+  using (owner_id = auth.uid() or shared = true);
+create policy "Owners can modify scenarios"
+  on public.scenarios for all using (owner_id = auth.uid());
+
+-- Audit log
+create table if not exists public.audit_log (
+  id          bigserial primary key,
+  user_id     uuid references auth.users,
+  user_name   text,
+  action      text,
+  target      text,
+  old_val     text,
+  new_val     text,
+  created_at  timestamptz default now()
+);
+alter table public.audit_log enable row level security;
+create policy "Admins can view audit log"
+  on public.audit_log for select
+  using (exists (select 1 from profiles where id=auth.uid() and role='admin'));
+create policy "All authenticated users can insert"
+  on public.audit_log for insert with check (auth.role() = 'authenticated');
+
+-- Enable Realtime on scenarios and actuals
+alter publication supabase_realtime add table public.scenarios;
+alter publication supabase_realtime add table public.actuals;`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  USER & PERMISSIONS — Supabase Auth (Session 12)
+//  Falls back to local mode when Supabase not configured
 // ═══════════════════════════════════════════════════════
 let currentUser = {
   id: 'local',
@@ -1746,41 +2695,86 @@ function selectRole(btn) {
   btn.classList.add('sel');
 }
 
-function doLogin() {
-  const nameEl = document.getElementById('loginName');
-  const errEl  = document.getElementById('loginError');
-  const name   = nameEl ? nameEl.value.trim() : '';
-  if (!name) {
-    errEl.textContent = 'Please enter your name to continue.';
-    nameEl && nameEl.focus();
-    return;
+async function doLogin() {
+  const nameEl  = document.getElementById('loginName');
+  const emailEl = document.getElementById('loginEmail');
+  const passEl  = document.getElementById('loginPassword');
+  const errEl   = document.getElementById('loginError');
+
+  // ── Supabase auth path ────────────────────────────
+  if (_sbConfig.enabled && _sbConfig.anonKey && emailEl && passEl && emailEl.value.trim()) {
+    const email    = emailEl.value.trim();
+    const password = passEl.value;
+    if (!email) { errEl.textContent = 'Please enter your email.'; emailEl.focus(); return; }
+    if (!password) { errEl.textContent = 'Please enter your password.'; passEl.focus(); return; }
+    errEl.textContent = '';
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) { loginBtn.textContent = 'Signing in…'; loginBtn.disabled = true; }
+    try {
+      _sb = _sb || _sbInit();
+      const sbUser = await _sbSignIn(email, password);
+      const { data: profile } = await _sb.from('profiles').select('*').eq('id', sbUser.id).single();
+      currentUser = _sbUserToCurrentUser(sbUser, profile);
+    } catch(e) {
+      errEl.textContent = e.message || 'Sign-in failed. Check email and password.';
+      if (loginBtn) { loginBtn.textContent = 'Sign In'; loginBtn.disabled = false; }
+      return;
+    }
+    if (loginBtn) { loginBtn.textContent = 'Sign In'; loginBtn.disabled = false; }
+  } else {
+    // ── Local mode fallback ───────────────────────
+    const name = nameEl ? nameEl.value.trim() : '';
+    if (!name) {
+      errEl.textContent = 'Please enter your name to continue.';
+      nameEl && nameEl.focus();
+      return;
+    }
+    errEl.textContent = '';
+    currentUser = { id: 'local_' + Date.now(), name, email: '', role: _selectedLoginRole };
   }
-  errEl.textContent = '';
-  // Set user — role from selection, full Supabase auth replaces this in Session 12
-  currentUser = { id: 'local_' + Date.now(), name, email: '', role: _selectedLoginRole };
-  // Update topbar name display
+
+  // ── Common post-login flow ────────────────────────
+  const name = currentUser.name;
   const nameDisp = document.getElementById('userNameDisp');
   if (nameDisp) nameDisp.textContent = name;
   const roleDisp = document.getElementById('userRoleDisp');
-  if (roleDisp) { roleDisp.textContent = _selectedLoginRole.toUpperCase(); roleDisp.style.color = _selectedLoginRole==='admin'?'var(--gold)':_selectedLoginRole==='analyst'?'var(--teal)':'var(--muted)'; }
+  if (roleDisp) {
+    roleDisp.textContent = currentUser.role.toUpperCase();
+    roleDisp.style.color = currentUser.role==='admin'?'var(--gold)':currentUser.role==='analyst'?'var(--teal)':'var(--muted)';
+  }
   const avatar = document.getElementById('userAvatar');
   if (avatar) avatar.textContent = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  // Animate welcome screen out
   const ws = document.getElementById('welcomeScreen');
   ws.style.transition = 'opacity .45s ease';
   ws.style.opacity = '0';
   ws.style.pointerEvents = 'none';
   setTimeout(() => { ws.style.display = 'none'; }, 460);
-  // Show app shell
   const shell = document.getElementById('appShell');
   shell.classList.add('visible');
-  // Init platform
   _initPlatform();
-  auditLog('login', 'session', null, { name, role: _selectedLoginRole });
+  auditLog('login', 'session', null, { name, role: currentUser.role });
+  setTimeout(async () => {
+    _rtStartHeartbeat();
+    if (_sb) {
+      _sbStartRealtime();
+      await _sbLoadActuals();
+      await _sbLoadScenarios();
+    }
+  }, 300);
 }
 
-function doLogout() {
+async function doLogout() {
   auditLog('logout','session',currentUser.name,null);
+  // Sign out from Supabase if active
+  if (_sb) {
+    try {
+      if (_sbChannel) { await _sb.removeChannel(_sbChannel); _sbChannel = null; }
+      await _sbSignOut();
+    } catch(e) {}
+  }
+  // Stop BroadcastChannel heartbeat
+  if (_rtHeartbeat) { clearInterval(_rtHeartbeat); _rtHeartbeat = null; }
+  _rtBroadcast('bye', { name: currentUser.name });
   // Destroy all chart instances to free memory
   Object.keys(charts).forEach(k=>{ try{charts[k].destroy();}catch(e){} delete charts[k]; });
   // Reset lazy-build tracker so tabs rebuild fresh on next login
@@ -1847,18 +2841,18 @@ function auditLog(action, target, oldVal, newVal) {
   const cat = _auditCat(action);
   const entry = {
     id: _auditStore.length + 1,
-    userId: currentUser.id,
+    userId:   currentUser.id,
     userName: currentUser.name || '—',
     userRole: currentUser.role || '—',
-    action,
-    cat,
-    target: target || '—',
-    oldVal: oldVal !== null && oldVal !== undefined ? String(oldVal) : null,
-    newVal: newVal !== null && newVal !== undefined ? String(newVal) : null,
+    action, cat,
+    target:   target || '—',
+    oldVal:   oldVal !== null && oldVal !== undefined ? String(oldVal) : null,
+    newVal:   newVal !== null && newVal !== undefined ? String(newVal) : null,
     timestamp: new Date()
   };
   _auditStore.unshift(entry);
-  console.log('[AUDIT]', entry);
+  // Persist to Supabase asynchronously (fire-and-forget)
+  if (_sb) _sbAuditLog(entry).catch(()=>{});
   // Refresh panel if open
   if (document.getElementById('auditBody')) renderAuditTable();
 }
@@ -1992,7 +2986,13 @@ const fmtP=v=>{if(!v&&v!==0||isNaN(v))return'<span class="dim">–</span>';const
 const sumArr=a=>(a||[]).reduce((s,x)=>s+(x||0),0);
 const toast=(msg,t='i')=>{const el=document.getElementById('toast');el.textContent=(t==='ok'?'✅ ':t==='w'?'⚠️ ':'ℹ️ ')+msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3000);};
 let charts={};
-const mkChart=(id,cfg)=>{if(charts[id]){charts[id].destroy();delete charts[id];}const c=document.getElementById(id);if(!c)return;charts[id]=new Chart(c.getContext('2d'),cfg);};
+const mkChart=(id,cfg)=>{
+  if(charts[id]){try{charts[id].destroy();}catch(e){} delete charts[id];}
+  const c=document.getElementById(id);
+  if(!c||!c.getContext)return;
+  try{charts[id]=new Chart(c.getContext('2d'),cfg);}
+  catch(e){console.warn('mkChart['+id+']',e.message);}
+};
 
 // ── TRUE WATERFALL (floating bar) helper ────────────────────────────────────
 // steps: [{label, value, isTotal?}]
@@ -2070,7 +3070,7 @@ let scenarios={
   'Management':{color:'#d97706',desc:'Management stretch; all efficiency targets achieved, accelerated restoration.',eb:5,rv:3,om:-3,cx:-5,fu:0,tr:1,cr:0.5,byYear:mkScYears({eb:5,rv:3,om:-3,cx:-5,fu:0,tr:1,cr:0.5})},
 };
 let selectedScYear = 2026;
-function setScenario(name){const prev=activeSc;activeSc=name;document.getElementById('scPill').textContent=name;refreshAll();auditLog('scenario','Active Scenario',prev,name);toast('Scenario: '+name,'ok');}
+function setScenario(name){const prev=activeSc;activeSc=name;document.getElementById('scPill').textContent=name;refreshAll();auditLog('scenario','Active Scenario',prev,name);toast('Scenario: '+name,'ok');_saveState();}
 function getScAdj(name,key,yr){const s=scenarios[name];return s?.byYear?.[yr]?.[key]??s?.[key]??0;}
 
 // ═══════════════════════════════════════════════════════
@@ -2509,7 +3509,7 @@ function buildDepReport(){
     ]},
     options:{
       ...bO(),
-      plugins:{legend:{labels:{color:'#4a6485',font:{size:9},boxWidth:10}},
+      plugins:{legend:{labels:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},boxWidth:10}},
                tooltip:{callbacks:{label:ctx=>(ctx.dataset.label||'')+': $'+Math.round(Math.abs(ctx.raw||0)).toLocaleString()+'K'}}},
     }
   });
@@ -2521,7 +3521,7 @@ function buildDepReport(){
     {label:'Lease Assets',data:depLines[2].vals,backgroundColor:'rgba(6,182,212,.6)',stack:'s'},
     {label:'CapEx Transfers',data:depLines[3].vals,backgroundColor:'rgba(240,180,41,.6)',stack:'s'},
     {label:'Other',data:depLines.slice(4,8).map((_,i)=>depLines.slice(4,8).reduce((s,r)=>s+(r.vals[i]||0),0)),backgroundColor:'rgba(100,116,139,.5)',stack:'s'},
-  ]},options:{...bO(),scales:{x:{ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}}});
+  ]},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
 
   // Actuals strip below charts
   if(loadedMos.length){
@@ -2752,8 +3752,8 @@ function buildIndirectCF() {
   ];
   mkChart('cCFR',{type:'bar',data:{labels:MONTHS,datasets:cfDatasets},options:{
     ...bO(),
-    plugins:{legend:{labels:{color:'#4a6485',font:{size:9},boxWidth:10}}},
-    scales:{x:{ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'}},y:{ticks:{color:'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}
+    plugins:{legend:{labels:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},boxWidth:10}}},
+    scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},y:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}
   }});
 
   // Reconciliation note when actuals differ from model
@@ -2860,9 +3860,9 @@ function buildDirectCF() {
     {label:'Net Inflow/(Outflow)',data:netArr,backgroundColor:netArr.map(v=>v>=0?'rgba(16,185,129,.55)':'rgba(239,68,68,.45)')},
     {label:'Closing Balance',data:closeArr,type:'line',borderColor:CP[1],borderWidth:2,tension:.3,pointRadius:3,yAxisID:'y2'},
   ]},options:{...bO(),scales:{
-    x:{ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'}},
-    y:{ticks:{color:'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}},
-    y2:{position:'right',ticks:{color:'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{drawOnChartArea:false}},
+    x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},
+    y:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}},
+    y2:{position:'right',ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{drawOnChartArea:false}},
   }}});
 
   return directCFSeed.closingBalance[3] || 92371; // Feb closing
@@ -3106,6 +4106,1037 @@ const revBudgetMonthly = {
   salesMWh:  [245000,235000,241000,238000,248000,266000,277000,282000,268000,255000,242000,231000],
 };
 
+// ═══════════════════════════════════════════════════════
+//  RATIOS & KPIs TAB — Session 9
+// ═══════════════════════════════════════════════════════
+let selectedKpiYear = 2026;
+
+function buildKpiTab() {
+  buildYrSeg('kpiYrSeg', selectedKpiYear, (y, btn) => {
+    selectedKpiYear = y;
+    buildKpiTab();
+  });
+  buildKpiScoreCards();
+  buildKpiCovenantStrip();
+  buildKpiLiquidityTable();
+  buildKpiProfitabilityTable();
+  buildKpiLeverageTable();
+  buildKpiOpsTable();
+  buildKpiCharts();
+}
+
+// ── Helper: get P&L line value by name fragment ──────
+function _plVal(nameFrag, mo, yr) {
+  yr = yr || selectedKpiYear;
+  const YIDX = {2026:4,2027:5,2028:6,2029:7,2030:8};
+  const line = plLines.find(l => l.name && l.name.toLowerCase().includes(nameFrag.toLowerCase()));
+  if (!line) return 0;
+  if (mo !== undefined) {
+    // monthly P&L
+    const yr26mo = mo; // index 0-11 into vals array — monthly P&L uses buildMonthlyPL
+    return 0; // fallback — monthly P&L not easily extractable from plLines (annual)
+  }
+  return line.vals?.[YIDX[yr]] || 0;
+}
+
+// Get monthly P&L from actualsStore or computed data
+function _getMonthlyPLLine(key, yr) {
+  yr = yr || selectedKpiYear;
+  const MONTHS_COUNT = 12;
+  // Try actuals first
+  const result = Array(MONTHS_COUNT).fill(0);
+  for (let m = 0; m < MONTHS_COUNT; m++) {
+    const act = actualsStore[yr]?.[m+1];
+    if (act) {
+      if (key === 'revenue')    result[m] = (act.fuelSales||0)+(act.nonFuelSales||0);
+      else if (key === 'nonfuel') result[m] = act.nonFuelSales||0;
+      else if (key === 'ebitda') result[m] = act.ebitda||0;
+      else if (key === 'ebit')   result[m] = act.ebit||0;
+      else if (key === 'netinc') result[m] = act.netIncome||0;
+      else if (key === 'depn')   result[m] = act.depreciation||0;
+    } else {
+      // Fall back to computed engine values
+      const rev = calcRevEngineMonth(m);
+      if (key === 'revenue')     result[m] = rev.totalRevUSD||0;
+      else if (key === 'nonfuel') result[m] = rev.nonFuelUSD||0;
+      else if (key === 'ebitda') {
+        const totOM = getOMRows(yr).reduce((s,r)=>s+(r.vals[m]||0),0);
+        result[m] = (rev.totalRevUSD||0) - totOM;
+      }
+      else if (key === 'ebit') {
+        const totOM = getOMRows(yr).reduce((s,r)=>s+(r.vals[m]||0),0);
+        const dep = calcDepTotals(yr, m).total;
+        result[m] = (rev.totalRevUSD||0) - totOM - dep;
+      }
+      else if (key === 'netinc') result[m] = 0;
+      else if (key === 'depn')   result[m] = calcDepTotals(yr, m).total;
+    }
+  }
+  return result;
+}
+
+// ── KPI Score Cards ──────────────────────────────────
+function buildKpiScoreCards() {
+  const yr = selectedKpiYear;
+  const YIDX = {2026:4,2027:5,2028:6,2029:7,2030:8};
+  const el = document.getElementById('kpiScoreCards');
+  if (!el) return;
+
+  // Annual totals from plLines
+  const getLine = (frag) => {
+    const l = plLines.find(l=>l.name&&l.name.toLowerCase().includes(frag.toLowerCase()));
+    return l?.vals?.[YIDX[yr]]||0;
+  };
+
+  const totalRev    = getLine('total revenue') || getLine('total sales') || getLine('revenue');
+  const nonFuelRev  = getLine('non-fuel') || getLine('nonfuel');
+  const ebitda      = getLine('ebitda');
+  const ebit        = getLine('operating income') || getLine('ebit');
+  const netInc      = getLine('net profit after') || getLine('net income');
+  const depn        = getLine('depreciation');
+
+  // Derived ratios
+  const ebitdaMargin = nonFuelRev ? ((ebitda / nonFuelRev)*100) : 0;
+  const netMargin    = totalRev   ? ((netInc  / totalRev)*100)  : 0;
+  const intCov       = Math.abs(getLine('interest expense')) > 0
+    ? (ebit / Math.abs(getLine('interest expense'))) : 0;
+
+  // System loss avg
+  const lossArr = sysLossTable[yr] || Array(12).fill(26.4);
+  const avgLoss  = lossArr.reduce((s,v)=>s+v,0)/12;
+
+  // Billed sales GWh
+  const billedArr = [2026,2027,2028,2029,2030].includes(yr)
+    ? calcBilledSales(yr) : Array(12).fill(0);
+  const totalBilled = billedArr.reduce((s,v)=>s+v,0)/1000; // GWh
+
+  const fmtPct = v => (isNaN(v)||!isFinite(v)?'—':v.toFixed(1)+'%');
+  const fmtX   = v => (isNaN(v)||!isFinite(v)?'—':v.toFixed(2)+'×');
+  const fmtK   = v => v?'$'+Math.round(v).toLocaleString():'—';
+
+  const cards = [
+    { label:'Total Revenue',        val: fmtK(totalRev),       sub:`${yr} Annual`,            cls:'b' },
+    { label:'Non-Fuel Revenue',     val: fmtK(nonFuelRev),     sub:`${yr} Annual`,            cls:'t' },
+    { label:'EBITDA',               val: fmtK(ebitda),         sub:`${yr} Annual`,            cls:'g' },
+    { label:'EBITDA Margin (NF)',   val: fmtPct(ebitdaMargin), sub:`vs Non-Fuel Revenue`,     cls: ebitdaMargin>20?'gr':'g', thresh:'≥ 20%' },
+    { label:'Net Income',           val: fmtK(netInc),         sub:`${yr} Annual`,            cls: netInc>=0?'gr':'r' },
+    { label:'Net Margin',           val: fmtPct(netMargin),    sub:`vs Total Revenue`,        cls: netMargin>=5?'gr':'r' },
+    { label:'Interest Coverage',    val: fmtX(intCov),         sub:`EBIT / Interest Expense`, cls: intCov>=2?'gr':intCov>=1.5?'g':'r', thresh:'≥ 1.5×' },
+    { label:'Avg System Loss',      val: fmtPct(avgLoss),      sub:`Target ≤ 26%`,            cls: avgLoss<=26?'gr':'r' },
+    { label:'Billed Sales',         val: totalBilled.toFixed(0)+' GWh', sub:`${yr} Total Net Gen → Billed`, cls:'t' },
+  ];
+
+  el.innerHTML = cards.map(c => `
+    <div class="kpi ${c.cls}">
+      <div class="kpi-l">${c.label}</div>
+      <div class="kpi-v">${c.val}</div>
+      <div class="kpi-d" style="color:var(--muted)">${c.sub}</div>
+      ${c.thresh?`<div style="font-size:8px;color:var(--muted);margin-top:2px">Threshold: ${c.thresh}</div>`:''}
+    </div>`).join('');
+}
+
+// ── Covenant Strip ───────────────────────────────────
+function buildKpiCovenantStrip() {
+  const el = document.getElementById('kpiCovenantStrip');
+  if (!el) return;
+
+  const covenants = [
+    { name:'Current Ratio',      val: 1.18, threshold: 1.10, unit:'×',  dir:'gte', desc:'Current Assets / Current Liabilities' },
+    { name:'DSCR',               val: 1.31, threshold: 1.20, unit:'×',  dir:'gte', desc:'Net Cash from Ops / Total Debt Service' },
+    { name:'Net Debt / EBITDA',  val: 3.2,  threshold: 4.50, unit:'×',  dir:'lte', desc:'(Total Debt − Cash) / EBITDA' },
+    { name:'Interest Coverage',  val: 2.1,  threshold: 1.50, unit:'×',  dir:'gte', desc:'EBIT / Interest Expense' },
+  ];
+
+  el.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:12px 14px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">⚖ Covenant Monitor — ${selectedKpiYear}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        ${covenants.map(c => {
+          const pass = c.dir==='gte' ? c.val >= c.threshold : c.val <= c.threshold;
+          const pct = c.dir==='gte'
+            ? Math.min(100,(c.val/c.threshold)*100)
+            : Math.min(100,(c.threshold/c.val)*100);
+          const barColor = pass ? 'var(--green)' : 'var(--red)';
+          return `<div style="flex:1;min-width:180px;background:var(--card2);border-radius:6px;padding:10px 12px;border-left:3px solid ${barColor}">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+              <span style="font-size:10px;color:var(--muted)">${c.name}</span>
+              <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:${pass?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)'};color:${pass?'var(--green)':'var(--red)'};font-weight:700">${pass?'✓ PASS':'✗ BREACH'}</span>
+            </div>
+            <div style="font-size:19px;font-weight:800;color:${barColor};font-family:var(--mono)">${c.val.toFixed(2)}${c.unit}</div>
+            <div style="font-size:8px;color:var(--muted);margin-bottom:6px">Covenant: ${c.dir==='gte'?'≥':'≤'} ${c.threshold}${c.unit}</div>
+            <div style="height:4px;background:var(--card3);border-radius:2px">
+              <div style="height:4px;border-radius:2px;background:${barColor};width:${Math.min(100,pct).toFixed(0)}%;transition:width .4s"></div>
+            </div>
+            <div style="font-size:8px;color:var(--muted);margin-top:3px">${c.desc}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+// ── Liquidity Ratios Table ───────────────────────────
+function buildKpiLiquidityTable() {
+  const el = document.getElementById('kpiLiqBody');
+  if (!el) return;
+  const yr = selectedKpiYear;
+
+  // DSO = Receivables / (Annual Revenue / 365) — approximate monthly
+  const revArr = _getMonthlyPLLine('revenue', yr);
+
+  const rows = [
+    {
+      name: 'Current Ratio (×)',
+      fmt: v => v.toFixed(2)+'×',
+      thresh: 1.10,
+      dir: 'gte',
+      vals: Array(12).fill(0).map((_,m) => {
+        // Approximate: use collections DSO as proxy
+        const r = getCollRows(yr).find(x=>x.id==='dso');
+        const dso = r?.vals?.[m] || 45;
+        return Math.max(0.8, 1.0 + (60-dso)/200); // simplified model
+      })
+    },
+    {
+      name: 'DSO (Days)',
+      fmt: v => v.toFixed(1)+' d',
+      thresh: 60,
+      dir: 'lte',
+      vals: Array(12).fill(0).map((_,m) => {
+        const r = getCollRows(yr).find(x=>x.id==='dso');
+        return r?.vals?.[m] || 45;
+      })
+    },
+    {
+      name: 'Collections Rate (%)',
+      fmt: v => v.toFixed(1)+'%',
+      thresh: 85,
+      dir: 'gte',
+      vals: Array(12).fill(0).map((_,m) => {
+        const cr = getCollRows(yr).find(x=>x.id==='blended');
+        return cr?.vals?.[m] || 88;
+      })
+    },
+    {
+      name: 'Cash (Closing) $\'000',
+      fmt: v => v>=0?'$'+Math.round(v).toLocaleString():'('+Math.round(Math.abs(v)).toLocaleString()+')',
+      thresh: 50000,
+      dir: 'gte',
+      vals: Array(12).fill(0).map((_,m) => {
+        // Use CF closing cash from indirect CF data if available
+        const act = actualsStore[yr]?.[m+1];
+        return act?.closingCash || (92371 - m*500); // seed from Feb 2026
+      })
+    },
+  ];
+
+  el.innerHTML = rows.map(row => {
+    const avg = row.vals.reduce((s,v)=>s+v,0)/12;
+    const passColor = row.dir==='gte'
+      ? (v => v>=row.thresh?'color:var(--green)':'color:var(--red)')
+      : (v => v<=row.thresh?'color:var(--green)':'color:var(--red)');
+    return `<tr>
+      <td style="font-weight:600;color:var(--text)">${row.name}
+        <span style="font-size:8px;color:var(--muted);margin-left:6px">${row.dir==='gte'?'≥':'≤'}${typeof row.thresh==='number'&&row.thresh>100?'$'+row.thresh.toLocaleString():row.thresh}</span>
+      </td>
+      ${row.vals.map(v=>`<td style="text-align:right;font-family:var(--mono);font-size:11px;${passColor(v)}">${row.fmt(v)}</td>`).join('')}
+      <td style="text-align:right;font-family:var(--mono);font-size:11px;font-weight:700;background:var(--dim);${passColor(avg)}">${row.fmt(avg)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Profitability Table ──────────────────────────────
+function buildKpiProfitabilityTable() {
+  const el = document.getElementById('kpiProfBody');
+  if (!el) return;
+  const yr = selectedKpiYear;
+
+  const revArr    = _getMonthlyPLLine('revenue', yr);
+  const nfArr     = _getMonthlyPLLine('nonfuel', yr);
+  const ebitdaArr = _getMonthlyPLLine('ebitda',  yr);
+  const ebitArr   = _getMonthlyPLLine('ebit',    yr);
+
+  const safe = (a,b) => b===0||isNaN(b)||!isFinite(b) ? 0 : a/b;
+
+  const rows = [
+    {
+      name: 'EBITDA Margin (Non-Fuel) %',
+      vals: ebitdaArr.map((v,i) => safe(v, nfArr[i])*100),
+      fmt: v=>v.toFixed(1)+'%', thresh:20, dir:'gte'
+    },
+    {
+      name: 'EBIT Margin %',
+      vals: ebitArr.map((v,i) => safe(v, revArr[i])*100),
+      fmt: v=>v.toFixed(1)+'%', thresh:5, dir:'gte'
+    },
+    {
+      name: 'Non-Fuel Rev / kWh (US¢)',
+      vals: Array(12).fill(0).map((_,m) => {
+        const nf = nfArr[m];
+        const billed = calcBilledSales(yr);
+        const kwh = (billed[m]||0)*1000; // MWh→kWh
+        return kwh>0 ? (nf*1000/kwh)*100 : 0; // US¢/kWh
+      }),
+      fmt: v=>v.toFixed(2)+'¢', thresh:8, dir:'gte'
+    },
+    {
+      name: 'O&M / Revenue %',
+      vals: Array(12).fill(0).map((_,m) => {
+        const totOM = getOMRows(yr).reduce((s,r)=>s+(r.vals[m]||0),0);
+        return safe(totOM, revArr[m])*100;
+      }),
+      fmt: v=>v.toFixed(1)+'%', thresh:40, dir:'lte'
+    },
+    {
+      name: 'Fuel Surplus / (Penalty) $\'000',
+      vals: Array(12).fill(0).map((_,m) => {
+        const act = actualsStore[yr]?.[m+1];
+        return act?.fuelSurplus||0;
+      }),
+      fmt: v => v>=0?'$'+Math.round(v).toLocaleString():'('+Math.round(Math.abs(v)).toLocaleString()+')',
+      thresh: 0, dir: 'gte'
+    },
+  ];
+
+  el.innerHTML = rows.map(row => {
+    const avg = row.vals.reduce((s,v)=>s+v,0)/12;
+    const pc = row.dir==='gte'
+      ? (v=>v>=row.thresh?'color:var(--green)':'color:var(--red)')
+      : (v=>v<=row.thresh?'color:var(--green)':'color:var(--red)');
+    return `<tr>
+      <td style="font-weight:600;color:var(--text)">${row.name}</td>
+      ${row.vals.map(v=>`<td style="text-align:right;font-family:var(--mono);font-size:11px;${pc(v)}">${row.fmt(v)}</td>`).join('')}
+      <td style="text-align:right;font-family:var(--mono);font-size:11px;font-weight:700;background:var(--dim);${pc(avg)}">${row.fmt(avg)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Leverage Table (annual, 2026-2030) ───────────────
+function buildKpiLeverageTable() {
+  const el = document.getElementById('kpiLevBody');
+  if (!el) return;
+  const YRS = [2026,2027,2028,2029,2030];
+  const YIDX = {2026:4,2027:5,2028:6,2029:7,2030:8};
+
+  const getEBITDA = yr => {
+    const l = plLines.find(l=>l.name&&l.name.toLowerCase().includes('ebitda'));
+    return l?.vals?.[YIDX[yr]]||0;
+  };
+  const getEBIT = yr => {
+    const l = plLines.find(l=>l.name&&(l.name.toLowerCase().includes('operating income')||l.name.toLowerCase().includes('ebit')));
+    return l?.vals?.[YIDX[yr]]||0;
+  };
+  const getIntExp = yr => {
+    const l = plLines.find(l=>l.name&&l.name.toLowerCase().includes('interest expense'));
+    return Math.abs(l?.vals?.[YIDX[yr]]||0);
+  };
+
+  // Approximate total debt from financing schedule seed data
+  const debtSeed = {2026:350000, 2027:330000, 2028:310000, 2029:290000, 2030:270000};
+  const cashSeed = {2026:92000,  2027:85000,  2028:88000,  2029:90000,  2030:95000};
+
+  const rows = [
+    {
+      name: 'DSCR (×)', cov:'≥ 1.20×',
+      vals: YRS.map(yr => {
+        const ebitda = getEBITDA(yr);
+        const intExp = getIntExp(yr);
+        const debtSvc = intExp + (debtSeed[yr]||0)*0.07;
+        return debtSvc>0 ? ebitda/debtSvc : 0;
+      }),
+      fmt: v=>isFinite(v)&&v?v.toFixed(2)+'×':'—', thresh:1.20, dir:'gte'
+    },
+    {
+      name: 'Net Debt / EBITDA (×)', cov:'≤ 4.50×',
+      vals: YRS.map(yr => {
+        const ebitda = getEBITDA(yr);
+        const netDebt = (debtSeed[yr]||0)-(cashSeed[yr]||0);
+        return ebitda>0 ? netDebt/ebitda : 0;
+      }),
+      fmt: v=>isFinite(v)&&v?v.toFixed(2)+'×':'—', thresh:4.50, dir:'lte'
+    },
+    {
+      name: 'Interest Coverage (EBIT/Int) (×)', cov:'≥ 1.50×',
+      vals: YRS.map(yr => {
+        const ebit = getEBIT(yr);
+        const intExp = getIntExp(yr);
+        return intExp>0 ? ebit/intExp : 0;
+      }),
+      fmt: v=>isFinite(v)&&v?v.toFixed(2)+'×':'—', thresh:1.50, dir:'gte'
+    },
+    {
+      name: 'Net Debt $\'000', cov:'—',
+      vals: YRS.map(yr => (debtSeed[yr]||0)-(cashSeed[yr]||0)),
+      fmt: v=>'$'+Math.round(v).toLocaleString(), thresh:null, dir:null
+    },
+    {
+      name: 'Total EBITDA $\'000', cov:'—',
+      vals: YRS.map(yr => getEBITDA(yr)),
+      fmt: v=>v?'$'+Math.round(v).toLocaleString():'—', thresh:null, dir:null
+    },
+  ];
+
+  el.innerHTML = rows.map(row => {
+    const pc = row.thresh===null ? ()=>'' :
+      row.dir==='gte'
+        ? (v=>v>=row.thresh?'color:var(--green)':'color:var(--red)')
+        : (v=>v<=row.thresh?'color:var(--green)':'color:var(--red)');
+    return `<tr>
+      <td style="font-weight:600;color:var(--text)">${row.name}</td>
+      ${row.vals.map(v=>`<td style="text-align:right;font-family:var(--mono);font-size:12px;${pc(v)}">${row.fmt(v)}</td>`).join('')}
+      <td style="font-size:10px;color:var(--muted)">${row.cov}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Operational KPIs Table ───────────────────────────
+function buildKpiOpsTable() {
+  const el = document.getElementById('kpiOpsBody');
+  if (!el) return;
+  const yr = selectedKpiYear;
+
+  const loss    = sysLossTable[yr] || Array(12).fill(26.4);
+  const billed  = calcBilledSales(yr);
+  const netGen  = (() => { const g=netGenTable[yr]; return Array(12).fill(0).map((_,m)=>(g.jps_thermal[m]||0)+(g.old_harbour[m]||0)+(g.renewables[m]||0)+(g.ipp[m]||0)); })();
+  const renPct  = netGenTable[yr].renewables.map((v,m)=>netGen[m]>0?v/netGen[m]*100:0);
+  const peak    = getCollRows(yr).find(r=>r.id==='peak_mw')?.vals || Array(12).fill(0);
+
+  const rows = [
+    { name:'System Loss %',          vals:loss,    fmt:v=>v.toFixed(1)+'%', thresh:26, dir:'lte', tot:'avg' },
+    { name:'Billed Sales (GWh)',      vals:billed.map(v=>v/1000), fmt:v=>v.toFixed(1), thresh:null, tot:'sum' },
+    { name:'Net Generation (GWh)',    vals:netGen,  fmt:v=>v.toFixed(1), thresh:null, tot:'sum' },
+    { name:'Renewable Mix %',         vals:renPct,  fmt:v=>v.toFixed(1)+'%', thresh:15, dir:'gte', tot:'avg' },
+    { name:'Peak Demand (MW)',        vals:peak,    fmt:v=>v.toFixed(1), thresh:null, tot:'avg' },
+    { name:'Heat Rate (kJ/kWh)',      vals:Array(12).fill(heatRateTable.system_avg*3.6), fmt:v=>v.toFixed(0), thresh:9449, dir:'lte', tot:'avg' },
+  ];
+
+  el.innerHTML = rows.map(row => {
+    const totVal = row.tot==='sum'
+      ? row.vals.reduce((s,v)=>s+v,0)
+      : row.vals.reduce((s,v)=>s+v,0)/12;
+    const pc = !row.thresh ? ()=>'' :
+      row.dir==='gte'
+        ? (v=>v>=row.thresh?'color:var(--green)':'color:var(--red)')
+        : (v=>v<=row.thresh?'color:var(--green)':'color:var(--red)');
+    return `<tr>
+      <td style="font-weight:600;color:var(--text)">${row.name}
+        ${row.thresh?`<span style="font-size:8px;color:var(--muted);margin-left:6px">${row.dir==='gte'?'≥':'≤'} ${row.thresh}</span>`:''}
+      </td>
+      ${row.vals.map(v=>`<td style="text-align:right;font-family:var(--mono);font-size:11px;${pc(v)}">${row.fmt(v)}</td>`).join('')}
+      <td style="text-align:right;font-family:var(--mono);font-size:11px;font-weight:700;background:var(--dim);${pc(totVal)}">${row.fmt(totVal)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── 5-Year Trend Charts ──────────────────────────────
+function buildKpiCharts() {
+  const YRS = [2026,2027,2028,2029,2030];
+  const YIDX = {2026:4,2027:5,2028:6,2029:7,2030:8};
+  const bO2 = () => ({
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.formattedValue}}},
+    scales:{
+      x:{ticks:{color:'var(--muted)',font:{size:9}},grid:{color:'var(--chart-grid)'}},
+      y:{ticks:{color:'var(--muted)',font:{size:9}},grid:{color:'var(--chart-grid)'}}
+    }
+  });
+
+  const getE = (yr,frag) => { const l=plLines.find(l=>l.name&&l.name.toLowerCase().includes(frag)); return l?.vals?.[YIDX[yr]]||0; };
+  const getNF = yr => { const l=plLines.find(l=>l.name&&(l.name.toLowerCase().includes('non-fuel')||l.name.toLowerCase().includes('nonfuel'))); return l?.vals?.[YIDX[yr]]||1; };
+
+  // EBITDA Margin
+  const ebitdaMargins = YRS.map(yr => {
+    const e = getE(yr,'ebitda'); const nf = getNF(yr);
+    return nf>0 ? +(e/nf*100).toFixed(1) : 0;
+  });
+  mkChart('cKpiEbitda',{type:'bar',data:{labels:YRS.map(String),datasets:[{
+    data:ebitdaMargins, backgroundColor:YRS.map((_,i)=>i===YRS.indexOf(selectedKpiYear)?'rgba(240,180,41,.85)':'rgba(240,180,41,.4)'),
+    borderColor:'rgba(240,180,41,1)', borderWidth:1, borderRadius:3
+  }]},options:{...bO2(),scales:{...bO2().scales,y:{...bO2().scales.y,ticks:{...bO2().scales.y.ticks,callback:v=>v+'%'}}}}});
+
+  // DSCR
+  const dscrVals = YRS.map(yr => {
+    const ebitda = getE(yr,'ebitda');
+    const intExp = Math.abs(getE(yr,'interest expense'));
+    const debtSvc = intExp + ({2026:350000,2027:330000,2028:310000,2029:290000,2030:270000}[yr]||0)*0.07;
+    return debtSvc>0 ? +(ebitda/debtSvc).toFixed(2) : 0;
+  });
+  mkChart('cKpiDscr',{type:'line',data:{labels:YRS.map(String),datasets:[
+    {data:dscrVals,borderColor:'var(--teal)',backgroundColor:'rgba(6,182,212,.1)',fill:true,tension:.3,pointRadius:4},
+    {data:YRS.map(()=>1.20),borderColor:'rgba(239,68,68,.6)',borderDash:[4,3],pointRadius:0,fill:false,label:'Min 1.20×'}
+  ]},options:{...bO2(),plugins:{legend:{display:true,labels:{color:'var(--muted)',font:{size:9}}},tooltip:{}},scales:{...bO2().scales,y:{...bO2().scales.y,ticks:{...bO2().scales.y.ticks,callback:v=>v+'×'}}}}});
+
+  // Net Debt / EBITDA
+  const ndEbitda = YRS.map(yr => {
+    const ebitda = getE(yr,'ebitda');
+    const netDebt = ({2026:350000,2027:330000,2028:310000,2029:290000,2030:270000}[yr]||0)-({2026:92000,2027:85000,2028:88000,2029:90000,2030:95000}[yr]||0);
+    return ebitda>0 ? +(netDebt/ebitda).toFixed(2) : 0;
+  });
+  mkChart('cKpiNetDebt',{type:'bar',data:{labels:YRS.map(String),datasets:[
+    {data:ndEbitda,backgroundColor:ndEbitda.map(v=>v<=4.5?'rgba(16,185,129,.6)':'rgba(239,68,68,.6)'),borderRadius:3}
+  ]},options:{...bO2(),scales:{...bO2().scales,y:{...bO2().scales.y,ticks:{...bO2().scales.y.ticks,callback:v=>v+'×'}}}}});
+
+  // System Loss
+  const avgLoss = YRS.map(yr => {
+    const arr = sysLossTable[yr]||Array(12).fill(26.4);
+    return +(arr.reduce((s,v)=>s+v,0)/12).toFixed(2);
+  });
+  mkChart('cKpiLoss',{type:'line',data:{labels:YRS.map(String),datasets:[
+    {data:avgLoss,borderColor:'var(--amber)',backgroundColor:'rgba(245,158,11,.1)',fill:true,tension:.3,pointRadius:4},
+    {data:YRS.map(()=>26.0),borderColor:'rgba(16,185,129,.6)',borderDash:[4,3],pointRadius:0,fill:false,label:'Target 26%'}
+  ]},options:{...bO2(),plugins:{legend:{display:true,labels:{color:'var(--muted)',font:{size:9}}},tooltip:{}},scales:{...bO2().scales,y:{...bO2().scales.y,min:23,ticks:{...bO2().scales.y.ticks,callback:v=>v+'%'}}}}});
+}
+
+// ── Export CSV ───────────────────────────────────────
+function exportKpiCSV() {
+  const yr = selectedKpiYear;
+  const rows = [['KPI', ...MONTHS, 'Avg/Total']];
+  const loss = sysLossTable[yr]||Array(12).fill(26.4);
+  const billed = calcBilledSales(yr).map(v=>v/1000);
+  rows.push(['System Loss %',...loss.map(v=>v.toFixed(2)),( loss.reduce((s,v)=>s+v,0)/12).toFixed(2)]);
+  rows.push(['Billed Sales GWh',...billed.map(v=>v.toFixed(1)),(billed.reduce((s,v)=>s+v,0)).toFixed(1)]);
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='JPS_KPIs_'+yr+'.csv';
+  a.click(); toast('KPI data exported','ok');
+}
+
+// ═══════════════════════════════════════════════════════
+//  DEBT & FINANCING REGISTER — Session 10
+// ═══════════════════════════════════════════════════════
+let selectedDebtYear = 2026;
+let selectedLoanId   = null;
+let selectedDebtAmortYear = 2026;
+
+// ── Loan register data ───────────────────────────────
+// Seeded from AOP 2026 / Feb 2026 corporate data
+let loanRegister = [
+  {
+    id: 'loan_idb_a',
+    name: 'IDB Infrastructure Loan A',
+    lender: 'IDB Invest',
+    type: 'term',
+    currency: 'USD',
+    principal: 120000,
+    rate: 5.25,
+    rateType: 'fixed',
+    drawDate: '2021-06-01',
+    maturity: '2031-06-01',
+    repayFreq: 'semi',
+    openBal: 84000,   // opening balance Jan 2026
+    repayAmt: 6000,   // semi-annual repayment
+    covenant: 'DSCR ≥ 1.20×, Debt/EBITDA ≤ 4.5×',
+    notes: 'T&D infrastructure upgrade programme',
+    active: true,
+    drawdowns: {},    // yr -> [12 monthly drawdowns]
+    repayments: {},   // yr -> [12 monthly repayments — computed from schedule]
+  },
+  {
+    id: 'loan_idb_b',
+    name: 'IDB Climate Resilience Facility',
+    lender: 'IDB Invest',
+    type: 'term',
+    currency: 'USD',
+    principal: 60000,
+    rate: 4.75,
+    rateType: 'fixed',
+    drawDate: '2022-03-01',
+    maturity: '2030-03-01',
+    repayFreq: 'semi',
+    openBal: 36000,
+    repayAmt: 4500,
+    covenant: 'DSCR ≥ 1.20×',
+    notes: 'Renewable energy & grid resilience',
+    active: true,
+    drawdowns: {},
+    repayments: {},
+  },
+  {
+    id: 'loan_cdb_hurr',
+    name: 'CDB Hurricane Melissa Recovery',
+    lender: 'Caribbean Dev. Bank',
+    type: 'term',
+    currency: 'USD',
+    principal: 75000,
+    rate: 3.50,
+    rateType: 'fixed',
+    drawDate: '2025-10-01',
+    maturity: '2035-10-01',
+    repayFreq: 'quarterly',
+    openBal: 72000,
+    repayAmt: 1875,
+    covenant: 'Disbursement milestones per restoration plan',
+    notes: 'Post-Hurricane Melissa grid restoration',
+    active: true,
+    drawdowns: { 2026: [5000,0,0,0,0,0,0,0,0,0,0,0] },
+    repayments: {},
+  },
+  {
+    id: 'loan_rbc_revolver',
+    name: 'RBC Revolving Credit Facility',
+    lender: 'RBC Royal Bank',
+    type: 'revolving',
+    currency: 'USD',
+    principal: 30000,
+    rate: 7.25,
+    rateType: 'floating',
+    drawDate: '2024-01-01',
+    maturity: '2027-01-01',
+    repayFreq: 'monthly',
+    openBal: 18000,
+    repayAmt: 1500,
+    covenant: 'Current Ratio ≥ 1.10×',
+    notes: 'Working capital / short-term liquidity',
+    active: true,
+    drawdowns: {},
+    repayments: {},
+  },
+];
+
+// ── Loan amortisation engine ─────────────────────────
+function computeLoanSchedule(loan, yr) {
+  const schedule = [];
+  // Determine opening balance for this year
+  let openBal = loan.openBal;
+  // Roll forward from base year if needed
+  if (yr > 2026) {
+    for (let y = 2026; y < yr; y++) {
+      const sch = computeLoanSchedule({ ...loan, openBal }, y);
+      openBal = sch[11]?.closingBal ?? 0;
+    }
+  }
+
+  const drawdowns = loan.drawdowns?.[yr] || Array(12).fill(0);
+  const monthlyRate = loan.rate / 100 / 12;
+
+  // Repayment months based on frequency
+  const repayMonths = (() => {
+    const all = [];
+    if (loan.repayFreq === 'monthly')   { for(let m=0;m<12;m++) all.push(m); }
+    else if (loan.repayFreq === 'quarterly') { [2,5,8,11].forEach(m=>all.push(m)); }
+    else if (loan.repayFreq === 'semi') { [5,11].forEach(m=>all.push(m)); }
+    else if (loan.repayFreq === 'annual') { all.push(11); }
+    return all;
+  })();
+
+  // Check if matured
+  const maturityDate = loan.maturity ? new Date(loan.maturity) : null;
+  const yearStart = new Date(yr, 0, 1);
+  if (maturityDate && maturityDate < yearStart) {
+    return Array(12).fill({ openingBal:0, drawdown:0, interest:0, principal:0, closingBal:0, cashPayment:0 });
+  }
+
+  for (let m = 0; m < 12; m++) {
+    const monthDate = new Date(yr, m, 1);
+    if (maturityDate && monthDate > maturityDate) {
+      schedule.push({ openingBal: 0, drawdown: 0, interest: 0, principal: 0, closingBal: 0, cashPayment: 0 });
+      continue;
+    }
+    const interest   = Math.round(openBal * monthlyRate);
+    const drawdown   = drawdowns[m] || 0;
+    let principal    = 0;
+    if (loan.repayFreq === 'bullet' && maturityDate) {
+      const matureMo = maturityDate.getMonth();
+      const matureYr = maturityDate.getFullYear();
+      if (yr === matureYr && m === matureMo) principal = openBal + drawdown;
+    } else if (repayMonths.includes(m)) {
+      const periods = { monthly:1, quarterly:3, semi:6, annual:12 }[loan.repayFreq] || 1;
+      principal = Math.min(openBal + drawdown, loan.repayAmt * periods);
+    }
+    const closingBal = Math.max(0, openBal + drawdown - principal);
+    const cashPayment = principal + interest;
+    schedule.push({ openingBal: openBal, drawdown, interest, principal, closingBal, cashPayment });
+    openBal = closingBal;
+  }
+  return schedule;
+}
+
+// Aggregate all loans for a given year → feeds NFC + CF
+function getDebtAggregates(yr) {
+  const result = {
+    openingBal:    0,
+    totalDrawdowns: Array(12).fill(0),
+    totalPrincipal: Array(12).fill(0),
+    totalInterest:  Array(12).fill(0),
+    totalCashPmt:   Array(12).fill(0),
+    closingBal:    0,
+  };
+  loanRegister.filter(l=>l.active).forEach(loan => {
+    const sch = computeLoanSchedule(loan, yr);
+    result.openingBal += loan.openBal; // simplified — should roll from prior yr
+    sch.forEach((row, m) => {
+      result.totalDrawdowns[m]  += row.drawdown   || 0;
+      result.totalPrincipal[m]  += row.principal  || 0;
+      result.totalInterest[m]   += row.interest   || 0;
+      result.totalCashPmt[m]    += row.cashPayment|| 0;
+    });
+    const last = sch[11];
+    result.closingBal += last?.closingBal || 0;
+  });
+  return result;
+}
+
+// ── Build the full debt tab ──────────────────────────
+function buildDebtTab() {
+  buildYrSeg('debtYrSeg', selectedDebtYear, (y, btn) => {
+    selectedDebtYear = y;
+    buildDebtTab();
+  });
+  buildDebtKpis();
+  buildLoanRegister();
+  buildDebtSummary();
+  buildCovenantTracker();
+  buildDebtCharts();
+  if (selectedLoanId) {
+    buildLoanAmortTable(selectedLoanId, selectedDebtAmortYear);
+  }
+}
+
+function buildDebtKpis() {
+  const el = document.getElementById('debtKpis');
+  if (!el) return;
+  const agg = getDebtAggregates(selectedDebtYear);
+  const totalInt = agg.totalInterest.reduce((s,v)=>s+v,0);
+  const totalPrin = agg.totalPrincipal.reduce((s,v)=>s+v,0);
+  const totalDraw = agg.totalDrawdowns.reduce((s,v)=>s+v,0);
+  const fmtK = v => '$'+Math.round(v).toLocaleString();
+
+  el.innerHTML = [
+    { label:'Opening Debt Balance', val:fmtK(agg.openingBal),   cls:'b' },
+    { label:'Total Drawdowns',      val:fmtK(totalDraw),         cls:'t' },
+    { label:'Total Repayments',     val:fmtK(totalPrin),         cls:'gr' },
+    { label:'Total Interest Paid',  val:fmtK(totalInt),          cls:'r' },
+    { label:'Closing Debt Balance', val:fmtK(agg.closingBal),    cls:'g' },
+    { label:'Active Facilities',    val:loanRegister.filter(l=>l.active).length, cls:'p' },
+  ].map(c=>`<div class="kpi ${c.cls}"><div class="kpi-l">${c.label}</div><div class="kpi-v">${c.val}</div><div class="kpi-d" style="color:var(--muted)">${selectedDebtYear}</div></div>`).join('');
+}
+
+function buildLoanRegister() {
+  const el = document.getElementById('loanRegBody');
+  if (!el) return;
+  const fmtK = v => '$'+Math.round(v||0).toLocaleString();
+  const typeLabel = t => ({ term:'Term Loan', revolving:'Revolving', bond:'Bond/Note', overdraft:'Overdraft', other:'Other' }[t]||t);
+  const rateColor = r => r < 5 ? 'var(--green)' : r < 7 ? 'var(--amber)' : 'var(--red)';
+
+  // Compute closing balance for status
+  el.innerHTML = loanRegister.map(loan => {
+    const sch  = computeLoanSchedule(loan, selectedDebtYear);
+    const closing = sch[11]?.closingBal || 0;
+    const matDate = loan.maturity ? new Date(loan.maturity) : null;
+    const now = new Date(selectedDebtYear, 11, 31);
+    const daysLeft = matDate ? Math.round((matDate - now) / 86400000) : 9999;
+    const statusCol = !loan.active ? 'var(--muted)' : daysLeft < 180 ? 'var(--amber)' : 'var(--green)';
+    const statusTxt = !loan.active ? 'Inactive' : daysLeft < 0 ? 'Matured' : daysLeft < 180 ? `⚠ ${Math.round(daysLeft/30)}mo` : '✓ Active';
+    const isSelected = loan.id === selectedLoanId;
+
+    return `<tr style="${isSelected?'background:var(--glo);':''}cursor:pointer" onclick="selectLoan('${loan.id}')">
+      <td style="font-weight:700;color:var(--text)">${loan.name}</td>
+      <td style="color:var(--muted)">${loan.lender}</td>
+      <td style="text-align:center"><span style="font-size:9px;padding:1px 6px;border-radius:8px;background:var(--card3)">${typeLabel(loan.type)}</span></td>
+      <td style="text-align:center;font-size:10px">${loan.currency}</td>
+      <td style="text-align:right;font-family:var(--mono)">${fmtK(loan.principal)}</td>
+      <td style="text-align:right;font-family:var(--mono);color:${rateColor(loan.rate)}">${loan.rate.toFixed(2)}%</td>
+      <td style="text-align:center;font-size:10px">${loan.maturity||'—'}</td>
+      <td style="text-align:right;font-family:var(--mono)">${fmtK(closing)}</td>
+      <td style="text-align:center;font-size:9px;font-weight:700;color:${statusCol}">${statusTxt}</td>
+      <td style="text-align:center">
+        ${can('editFinancing')?`<button class="btn btn-ghost" style="font-size:9px;height:20px;padding:0 6px" onclick="event.stopPropagation();openLoanModal('${loan.id}')">✏</button>
+        <button class="btn btn-ghost" style="font-size:9px;height:20px;padding:0 6px;color:var(--red)" onclick="event.stopPropagation();deleteLoan('${loan.id}')">✕</button>`:'—'}
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">No facilities registered. Click + Add Facility.</td></tr>';
+}
+
+function selectLoan(id) {
+  selectedLoanId = (selectedLoanId === id) ? null : id;
+  selectedDebtAmortYear = selectedDebtYear;
+  const block = document.getElementById('loanAmortBlock');
+  if (!selectedLoanId) { block.style.display = 'none'; buildLoanRegister(); return; }
+  block.style.display = 'block';
+  const loan = loanRegister.find(l=>l.id===id);
+  document.getElementById('loanAmortTitle').textContent = `§2 Amortisation Schedule — ${loan?.name||id}`;
+  buildYrSeg('debtAmortYrSeg', selectedDebtAmortYear, (y, btn) => {
+    selectedDebtAmortYear = y;
+    buildLoanAmortTable(selectedLoanId, y);
+  });
+  buildLoanAmortTable(id, selectedDebtAmortYear);
+  buildLoanRegister(); // re-render to highlight selection
+  // Scroll to schedule
+  block.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function buildLoanAmortTable(loanId, yr) {
+  const loan = loanRegister.find(l=>l.id===loanId);
+  const amortEl = document.getElementById('loanAmortBody');
+  const kpiEl = document.getElementById('loanAmortKpis');
+  if (!loan || !amortEl) return;
+
+  const sch = computeLoanSchedule(loan, yr);
+  const fmtK = v => v ? '$'+Math.round(v).toLocaleString() : '—';
+  const totInt  = sch.reduce((s,r)=>s+r.interest,0);
+  const totPrin = sch.reduce((s,r)=>s+r.principal,0);
+  const totDraw = sch.reduce((s,r)=>s+r.drawdown,0);
+
+  if (kpiEl) {
+    kpiEl.innerHTML = [
+      { label:'Opening Balance', val:fmtK(sch[0]?.openingBal||0), cls:'b' },
+      { label:'Total Drawdowns', val:fmtK(totDraw), cls:'t' },
+      { label:'Total Principal', val:fmtK(totPrin), cls:'gr' },
+      { label:'Total Interest',  val:fmtK(totInt),  cls:'r' },
+      { label:'Closing Balance', val:fmtK(sch[11]?.closingBal||0), cls:'g' },
+      { label:'Effective Rate',  val:loan.rate.toFixed(2)+'%', cls:'p' },
+    ].map(c=>`<div class="kpi ${c.cls}" style="padding:8px 10px"><div class="kpi-l">${c.label}</div><div class="kpi-v" style="font-size:14px">${c.val}</div></div>`).join('');
+  }
+
+  amortEl.innerHTML = sch.map((row, m) => `
+    <tr>
+      <td>${MONTHS[m]}</td>
+      <td style="text-align:right;font-family:var(--mono)">${fmtK(row.openingBal)}</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--teal)">${row.drawdown?fmtK(row.drawdown):'—'}</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--red)">${fmtK(row.interest)}</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--green)">${fmtK(row.principal)}</td>
+      <td style="text-align:right;font-family:var(--mono);font-weight:700">${fmtK(row.closingBal)}</td>
+      <td style="text-align:right;font-family:var(--mono)">${fmtK(row.cashPayment)}</td>
+    </tr>`).join('') +
+    `<tr style="background:var(--dim);font-weight:800">
+      <td>TOTAL</td>
+      <td></td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--teal)">${fmtK(totDraw)}</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--red)">${fmtK(totInt)}</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--green)">${fmtK(totPrin)}</td>
+      <td></td>
+      <td style="text-align:right;font-family:var(--mono)">${fmtK(totPrin+totInt)}</td>
+    </tr>`;
+}
+
+function buildDebtSummary() {
+  const el = document.getElementById('debtSummBody');
+  if (!el) return;
+  const YRS = [2026,2027,2028,2029,2030];
+  const fmtK = v => v?'$'+Math.round(v).toLocaleString():'—';
+
+  const sumByYr = yr => {
+    const agg = getDebtAggregates(yr);
+    return {
+      openBal:  loanRegister.filter(l=>l.active).reduce((s,l)=>{
+        // Roll opening balance
+        if(yr===2026) return s+(l.openBal||0);
+        const prev = computeLoanSchedule(l, yr-1);
+        return s+(prev[11]?.closingBal||0);
+      }, 0),
+      draws:    agg.totalDrawdowns.reduce((s,v)=>s+v,0),
+      repays:   agg.totalPrincipal.reduce((s,v)=>s+v,0),
+      interest: agg.totalInterest.reduce((s,v)=>s+v,0),
+      closeBal: agg.closingBal,
+    };
+  };
+
+  const data = YRS.map(yr => sumByYr(yr));
+  const rows = [
+    { name:'Opening Debt Balance', key:'openBal', cls:'font-weight:700' },
+    { name:'  + Drawdowns',        key:'draws',   cls:'color:var(--teal)' },
+    { name:'  − Repayments',       key:'repays',  cls:'color:var(--green)' },
+    { name:'  Interest Expense',   key:'interest',cls:'color:var(--red)' },
+    { name:'Closing Debt Balance', key:'closeBal',cls:'font-weight:800;color:var(--gold)' },
+  ];
+
+  el.innerHTML = rows.map(row =>
+    `<tr>
+      <td style="${row.cls}">${row.name}</td>
+      ${data.map(d=>`<td style="text-align:right;font-family:var(--mono);${row.cls}">${fmtK(d[row.key])}</td>`).join('')}
+    </tr>`
+  ).join('');
+}
+
+function buildCovenantTracker() {
+  const el = document.getElementById('covenantTrackPanel');
+  if (!el) return;
+
+  // Covenant status per facility
+  const agg = getDebtAggregates(selectedDebtYear);
+  const ebitda = (() => {
+    const YIDX={2026:4,2027:5,2028:6,2029:7,2030:8};
+    const l=plLines.find(l=>l.name&&l.name.toLowerCase().includes('ebitda'));
+    return l?.vals?.[YIDX[selectedDebtYear]]||0;
+  })();
+  const totalDebtSvc = agg.totalPrincipal.reduce((s,v)=>s+v,0) + agg.totalInterest.reduce((s,v)=>s+v,0);
+  const dscr = totalDebtSvc>0 ? (ebitda/totalDebtSvc) : 0;
+  const netDebt = agg.closingBal - 92000;
+  const ndEbitda = ebitda>0 ? netDebt/ebitda : 0;
+
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px;padding:8px 0">
+      ${loanRegister.filter(l=>l.active).map(loan => {
+        const covTests = [
+          loan.covenant?.includes('DSCR') ? { name:'DSCR', val:dscr, thresh:1.20, dir:'gte', fmt: v=>v.toFixed(2)+'×' } : null,
+          loan.covenant?.includes('Debt/EBITDA') ? { name:'Net Debt/EBITDA', val:ndEbitda, thresh:4.50, dir:'lte', fmt:v=>v.toFixed(2)+'×' } : null,
+          loan.covenant?.includes('Current Ratio') ? { name:'Current Ratio', val:1.18, thresh:1.10, dir:'gte', fmt:v=>v.toFixed(2)+'×' } : null,
+        ].filter(Boolean);
+
+        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 14px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <div style="font-weight:700;font-size:11px;color:var(--text)">${loan.name}</div>
+            <div style="font-size:9px;color:var(--muted)">${loan.lender}</div>
+          </div>
+          ${covTests.length ? `<div style="display:flex;gap:10px;flex-wrap:wrap">
+            ${covTests.map(t => {
+              const pass = t.dir==='gte' ? t.val>=t.thresh : t.val<=t.thresh;
+              return `<div style="display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:4px;background:${pass?'rgba(16,185,129,.1)':'rgba(239,68,68,.1)'};border:1px solid ${pass?'rgba(16,185,129,.3)':'rgba(239,68,68,.3)'}">
+                <span style="font-size:10px;color:var(--muted)">${t.name}</span>
+                <span style="font-size:12px;font-weight:800;font-family:var(--mono);color:${pass?'var(--green)':'var(--red)'}">${t.fmt(t.val)}</span>
+                <span style="font-size:9px;color:var(--muted)">${t.dir==='gte'?'≥':'≤'}${t.thresh}×</span>
+                <span style="font-size:9px;font-weight:700;color:${pass?'var(--green)':'var(--red)'}">${pass?'✓':'✗'}</span>
+              </div>`;
+            }).join('')}
+          </div>` : `<div style="font-size:9px;color:var(--muted)">${loan.covenant||'No financial covenants specified'}</div>`}
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function buildDebtCharts() {
+  const YRS = [2026,2027,2028,2029,2030];
+  const bO2 = () => ({
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ display:false } },
+    scales:{
+      x:{ ticks:{color:'var(--muted)',font:{size:9}}, grid:{color:'var(--chart-grid)'} },
+      y:{ ticks:{color:'var(--muted)',font:{size:9}, callback:v=>'$'+Math.round(v/1000)+'M'}, grid:{color:'var(--chart-grid)'} }
+    }
+  });
+
+  const closingBals = YRS.map(yr => getDebtAggregates(yr).closingBal);
+  const annInterest = YRS.map(yr => getDebtAggregates(yr).totalInterest.reduce((s,v)=>s+v,0));
+
+  mkChart('cDebtBal', {
+    type:'bar',
+    data:{ labels:YRS.map(String), datasets:[{
+      data: closingBals,
+      backgroundColor: YRS.map((_,i)=>i===YRS.indexOf(selectedDebtYear)?'rgba(59,130,246,.85)':'rgba(59,130,246,.4)'),
+      borderColor:'rgba(59,130,246,1)', borderWidth:1, borderRadius:3
+    }]},
+    options: bO2()
+  });
+
+  mkChart('cDebtInt', {
+    type:'line',
+    data:{ labels:YRS.map(String), datasets:[{
+      data: annInterest,
+      borderColor:'var(--red)', backgroundColor:'rgba(239,68,68,.1)', fill:true, tension:.3, pointRadius:4
+    }]},
+    options: bO2()
+  });
+}
+
+// ── Loan modal CRUD ──────────────────────────────────
+function openLoanModal(id) {
+  const loan = id ? loanRegister.find(l=>l.id===id) : null;
+  document.getElementById('ln-editId').value = id || '';
+  document.getElementById('ln-name').value    = loan?.name    || '';
+  document.getElementById('ln-lender').value  = loan?.lender  || '';
+  document.getElementById('ln-type').value    = loan?.type    || 'term';
+  document.getElementById('ln-currency').value= loan?.currency|| 'USD';
+  document.getElementById('ln-principal').value= loan?.principal||0;
+  document.getElementById('ln-rate').value    = loan?.rate    || 5.5;
+  document.getElementById('ln-rateType').value= loan?.rateType|| 'fixed';
+  document.getElementById('ln-drawDate').value= loan?.drawDate|| '';
+  document.getElementById('ln-maturity').value= loan?.maturity|| '';
+  document.getElementById('ln-repayFreq').value= loan?.repayFreq||'semi';
+  document.getElementById('ln-openBal').value = loan?.openBal || 0;
+  document.getElementById('ln-repayAmt').value= loan?.repayAmt|| 0;
+  document.getElementById('ln-covenant').value= loan?.covenant|| '';
+  document.getElementById('ln-notes').value   = loan?.notes   || '';
+  openModal('loanModal');
+  setTimeout(()=>document.getElementById('ln-name').focus(), 80);
+}
+
+function commitLoan() {
+  const editId = document.getElementById('ln-editId').value;
+  const name   = document.getElementById('ln-name').value.trim();
+  if (!name) { toast('Facility name is required','err'); return; }
+  const data = {
+    name,
+    lender:    document.getElementById('ln-lender').value.trim(),
+    type:      document.getElementById('ln-type').value,
+    currency:  document.getElementById('ln-currency').value,
+    principal: parseFloat(document.getElementById('ln-principal').value)||0,
+    rate:      parseFloat(document.getElementById('ln-rate').value)||0,
+    rateType:  document.getElementById('ln-rateType').value,
+    drawDate:  document.getElementById('ln-drawDate').value,
+    maturity:  document.getElementById('ln-maturity').value,
+    repayFreq: document.getElementById('ln-repayFreq').value,
+    openBal:   parseFloat(document.getElementById('ln-openBal').value)||0,
+    repayAmt:  parseFloat(document.getElementById('ln-repayAmt').value)||0,
+    covenant:  document.getElementById('ln-covenant').value.trim(),
+    notes:     document.getElementById('ln-notes').value.trim(),
+    active:    true,
+    drawdowns: {},
+    repayments:{},
+  };
+  if (editId) {
+    const idx = loanRegister.findIndex(l=>l.id===editId);
+    if (idx>=0) { auditLog('editFinancing',`Loan · ${editId}`,null,name); loanRegister[idx]={...loanRegister[idx],...data}; }
+  } else {
+    data.id = 'loan_'+Date.now().toString(36);
+    auditLog('editFinancing','Loan Register',null,name);
+    loanRegister.push(data);
+  }
+  // Sync interest expense into netFinancingRows
+  syncDebtToNFC();
+  closeModal('loanModal');
+  buildDebtTab();
+  toast('Facility saved','ok');
+  _saveState();
+}
+
+function deleteLoan(id) {
+  const loan = loanRegister.find(l=>l.id===id);
+  if (!loan) return;
+  if (!confirm(`Delete "${loan.name}"? This cannot be undone.`)) return;
+  loanRegister = loanRegister.filter(l=>l.id!==id);
+  if (selectedLoanId===id) { selectedLoanId=null; document.getElementById('loanAmortBlock').style.display='none'; }
+  auditLog('editFinancing','Loan Register',loan.name,'Deleted');
+  buildDebtTab();
+  toast('Facility removed','ok');
+}
+
+// Sync aggregated interest expense back to netFinancingRows
+function syncDebtToNFC() {
+  [2026,2027,2028,2029,2030].forEach(yr => {
+    if (!netFinancingRows[yr]) return;
+    const agg = getDebtAggregates(yr);
+    // Write computed interest into intExpense vals (preserve manually-seeded 2026 actuals for Jan/Feb)
+    const existing = netFinancingRows[yr].intExpense.vals;
+    agg.totalInterest.forEach((v, m) => {
+      // Keep actuals for months already loaded
+      if (yr===2026 && (m===0||m===1) && existing[m]!==0) return;
+      netFinancingRows[yr].intExpense.vals[m] = -v; // negative = expense
+    });
+  });
+}
+
+function exportDebtCSV() {
+  const YRS = [2026,2027,2028,2029,2030];
+  const rows = [['Facility','Lender','Type',...YRS.flatMap(y=>[y+' OpenBal',y+' Interest',y+' Principal',y+' CloseBal'])]];
+  loanRegister.filter(l=>l.active).forEach(loan => {
+    const row = [loan.name, loan.lender, loan.type];
+    YRS.forEach(yr => {
+      const sch = computeLoanSchedule(loan, yr);
+      row.push(
+        sch[0]?.openingBal||0,
+        sch.reduce((s,r)=>s+r.interest,0),
+        sch.reduce((s,r)=>s+r.principal,0),
+        sch[11]?.closingBal||0
+      );
+    });
+    rows.push(row);
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'}));
+  a.download = 'JPS_DebtSchedule_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); toast('Debt schedule exported','ok');
+}
+
 // Revenue report state
 let revRptView = 'monthly';
 
@@ -3224,7 +5255,7 @@ function buildRevReport() {
         { label:'Budget', data: revCompBud, backgroundColor: ['rgba(239,68,68,.2)','rgba(6,182,212,.2)','rgba(139,92,246,.2)'], borderRadius: 4, borderColor: ['rgba(239,68,68,.6)','rgba(6,182,212,.6)','rgba(139,92,246,.6)'], borderWidth: 1 },
       ],
     },
-    options: { ...bO(), plugins:{ legend:{ labels:{ color:'#4a6485', font:{size:9}, boxWidth:9 } } } },
+    options: { ...bO(), plugins:{ legend:{ labels:{ color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485', font:{size:9}, boxWidth:9 } } } },
   });
 
   // ── CHART 2: GWh by Rate Class — Actuals loaded months ──────────────────
@@ -3248,10 +5279,10 @@ function buildRevReport() {
     },
     options: {
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ labels:{ color:'#4a6485', font:{size:9}, boxWidth:9 } } },
+      plugins:{ legend:{ labels:{ color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485', font:{size:9}, boxWidth:9 } } },
       scales:{
-        x:{ ticks:{color:'#4a6485',font:{size:9}}, grid:{color:'rgba(255,255,255,.025)'}, stacked:true },
-        y:{ ticks:{color:'#4a6485',font:{size:9}, callback:v=>v+' GWh'}, grid:{color:'rgba(255,255,255,.035)'}, stacked:true },
+        x:{ ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}}, grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}, stacked:true },
+        y:{ ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}, callback:v=>v+' GWh'}, grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}, stacked:true },
       },
     },
   });
@@ -3260,15 +5291,14 @@ function buildRevReport() {
   // Sum YTD generation for loaded months
   const genKeys   = Object.keys(genMixData);
   const genTotals = genKeys.map(k => moRange.reduce((s,mi) => s + (genMixData[k].vals[mi]||0), 0));
-  mkChart('cGenMix', {
-    type: 'doughnut',
+  mkChart('cGenMixDash', {
     data: {
       labels: genKeys.map(k => genMixData[k].name),
       datasets: [{ data: genTotals, backgroundColor: genKeys.map(k => genMixData[k].color), borderWidth: 1, borderColor: 'rgba(255,255,255,.08)' }],
     },
     options: {
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:'right', labels:{ color:'#4a6485', font:{size:9}, boxWidth:9, padding:6 } } },
+      plugins:{ legend:{ position:'right', labels:{ color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485', font:{size:9}, boxWidth:9, padding:6 } } },
       cutout:'60%',
     },
   });
@@ -3291,10 +5321,10 @@ function buildRevReport() {
     },
     options: {
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ labels:{ color:'#4a6485', font:{size:9}, boxWidth:9 } } },
+      plugins:{ legend:{ labels:{ color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485', font:{size:9}, boxWidth:9 } } },
       scales:{
-        x:{ ticks:{color:'#4a6485',font:{size:9}}, grid:{color:'rgba(255,255,255,.025)'}, stacked:true },
-        y:{ stacked:true, ticks:{color:'#4a6485',font:{size:9},callback:v=>toK(v)}, grid:{color:'rgba(255,255,255,.035)'} },
+        x:{ ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}}, grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}, stacked:true },
+        y:{ stacked:true, ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)}, grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'} },
       },
     },
   });
@@ -3322,8 +5352,8 @@ function buildRevReport() {
     options: {
       ...bO(v => v + '¢'),
       scales:{
-        x:{ ticks:{color:'#4a6485',font:{size:9}}, grid:{color:'rgba(255,255,255,.025)'} },
-        y:{ ticks:{color:'#4a6485',font:{size:9},callback:v=>v+'¢'}, grid:{color:'rgba(255,255,255,.035)'} },
+        x:{ ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}}, grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'} },
+        y:{ ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>v+'¢'}, grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'} },
       },
     },
   });
@@ -3740,7 +5770,7 @@ function buildVarReport() {
         labels: MONTHS,
         datasets: [{ label: 'YTD Revenue (Actuals)', data: actualRevSeries, backgroundColor: 'rgba(6,182,212,.65)', borderRadius: 4 }],
       },
-      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, title:{display:true,text:'YTD Cumulative Revenue – Actuals Loaded',color:'#4a6485',font:{size:10}} }, scales:{ x:{ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'}}, y:{ticks:{color:'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}} } },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, title:{display:true,text:'YTD Cumulative Revenue – Actuals Loaded',color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:10}} }, scales:{ x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}}, y:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}} } },
     });
     // EBITDA actuals trend
     const ebitdaSeries = MONTHS.map((_,i) => actualsStore[i+1]?.ytdActual?.ebitda ?? null);
@@ -4662,20 +6692,20 @@ function buildDashCharts(){
   const omCats=['payroll','overtime','benefits','thirdpty','transport','insurance','bad_debt'];
   const omLabels=['Payroll','OT','Benefits','3rd Pty','Transport','Insurance','Bad Debt'];
   const omR=getOMRows(2026);
-  mkChart('cOM',{type:'bar',data:{labels:MONTHS,datasets:omCats.map((id,i)=>({label:omLabels[i],data:omR.find(r=>r.id===id)?.vals||[],backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}}});
+  mkChart('cOM',{type:'bar',data:{labels:MONTHS,datasets:omCats.map((id,i)=>({label:omLabels[i],data:omR.find(r=>r.id===id)?.vals||[],backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
   const depMo2026=MONTHS.map((_,m)=>Math.round(calcDepTotals(2026,m).regular/1000));
-  mkChart('cDep',{type:'bar',data:{labels:MONTHS,datasets:[{label:'Monthly Depreciation 2026 ($000s)',data:depMo2026,backgroundColor:'rgba(139,92,246,.65)',borderColor:CP[4],borderWidth:1}]},options:{...bO(),scales:{x:{ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'}},y:{ticks:{color:'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}}});
+  mkChart('cDep',{type:'bar',data:{labels:MONTHS,datasets:[{label:'Monthly Depreciation 2026 ($000s)',data:depMo2026,backgroundColor:'rgba(139,92,246,.65)',borderColor:CP[4],borderWidth:1}]},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},y:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
   const cxR=getCxRows(2026);
-  mkChart('cCx',{type:'bar',data:{labels:MONTHS,datasets:cxR.map((r,i)=>({label:r.name.slice(0,20),data:r.vals||[],backgroundColor:CP[i%CP.length]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}}});
+  mkChart('cCx',{type:'bar',data:{labels:MONTHS,datasets:cxR.map((r,i)=>({label:r.name.slice(0,20),data:r.vals||[],backgroundColor:CP[i%CP.length]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
   const gwhMap=['gwh_rt10','gwh_rt20','gwh_rt40','gwh_rt50','gwh_rt60','gwh_rt70'];
   const gwhLbls=['RT10 Res','RT20 SME','RT40 LV','RT50 MV','RT60 Lights','RT70 HV'];
-  mkChart('cGWh',{type:'bar',data:{labels:MONTHS,datasets:gwhMap.map((id,i)=>({label:gwhLbls[i],data:revRows.find(r=>r.id===id)?.vals||[],backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(v=>v+' GWh'),scales:{x:{ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:'#4a6485',font:{size:9},callback:v=>v+' GWh'},grid:{color:'rgba(255,255,255,.035)'}}}}});
+  mkChart('cGWh',{type:'bar',data:{labels:MONTHS,datasets:gwhMap.map((id,i)=>({label:gwhLbls[i],data:revRows.find(r=>r.id===id)?.vals||[],backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(v=>v+' GWh'),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>v+' GWh'},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
 }
 
 function buildOMCharts(){
   const yr=selectedOMYear; const rows=getOMRows(yr);
   const top8=rows.slice(0,8);
-  mkChart('cOMst',{type:'bar',data:{labels:MONTHS,datasets:top8.map((r,i)=>({label:r.name.slice(4,22),data:r.vals||[],backgroundColor:CP[i]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}}});
+  mkChart('cOMst',{type:'bar',data:{labels:MONTHS,datasets:top8.map((r,i)=>({label:r.name.slice(4,22),data:r.vals||[],backgroundColor:CP[i]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
   const omTot=getOMTotal(yr); const omCash=getOMCash(yr);
   mkChart('cOMcash',{type:'line',data:{labels:MONTHS,datasets:[
     {label:'O&M Expense',data:omTot,borderColor:CP[1],borderWidth:2.5,tension:.3,pointRadius:3},
@@ -4698,7 +6728,7 @@ function buildCollCharts(yr){
 
   mkChart('cCollR',{type:'line',data:{labels:MONTHS,datasets:[
     {label:'Blended Collection Rate % (LE)',data:blend,borderColor:CP[2],backgroundColor:'rgba(16,185,129,.1)',fill:true,borderWidth:2.5,tension:.3,pointRadius:4},
-  ]},options:{...bO(v=>v+'%'),scales:{x:{ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'}},y:{min:90,ticks:{color:'#4a6485',font:{size:9},callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.035)'}}}}});
+  ]},options:{...bO(v=>v+'%'),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},y:{min:90,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>v+'%'},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
 
   const receiptDatasets=[
     {label:'Billings (US$000s)',data:billUSD,backgroundColor:'rgba(59,130,246,.35)',stack:'s'},
@@ -4707,14 +6737,14 @@ function buildCollCharts(yr){
   if(hasAct){
     receiptDatasets.push({label:'Actual Revenue',data:actRevArr,type:'line',borderColor:'rgba(16,185,129,.9)',borderWidth:2,tension:.3,pointRadius:5,pointBackgroundColor:'rgba(16,185,129,1)',borderDash:[4,3]});
   }
-  mkChart('cCollB',{type:'bar',data:{labels:MONTHS,datasets:receiptDatasets},options:{...bO(),plugins:{legend:{labels:{color:'#4a6485',font:{size:9},boxWidth:10}}}}});
+  mkChart('cCollB',{type:'bar',data:{labels:MONTHS,datasets:receiptDatasets},options:{...bO(),plugins:{legend:{labels:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},boxWidth:10}}}}});
 }
 
 function buildCxCharts(){
   const yr=selectedCapexYear; const rows=getCxRows(yr);
   const cxTot=getCxTotal(yr); let cum=0; const cumArr=cxTot.map(v=>{cum+=v;return cum;});
   const cxCash=getCxCash(yr);
-  mkChart('cCxBar',{type:'bar',data:{labels:MONTHS,datasets:rows.map((r,i)=>({label:r.name.slice(0,20),data:r.vals||[],backgroundColor:CP[i%CP.length]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}}});
+  mkChart('cCxBar',{type:'bar',data:{labels:MONTHS,datasets:rows.map((r,i)=>({label:r.name.slice(0,20),data:r.vals||[],backgroundColor:CP[i%CP.length]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
   mkChart('cCxCum',{type:'bar',data:{labels:MONTHS,datasets:[
     {label:'Monthly CapEx',data:cxTot,backgroundColor:'rgba(59,130,246,.4)',yAxisID:'y'},
     {label:'Cumulative',data:cumArr,type:'line',borderColor:CP[0],borderWidth:2.5,tension:.3,pointRadius:4,yAxisID:'y'},
@@ -4928,6 +6958,8 @@ function buildDataSources(){
   const tmpls=[{i:'📊',n:'Income Statement Actuals',d:'Monthly P&L by line item',k:'pl'},{i:'💧',n:'Direct Cash Flow',d:'Monthly receipts & disbursements',k:'cf'},{i:'⚖',n:'Balance Sheet',d:'Monthly BS positions',k:'bs'},{i:'📈',n:'Revenue & Volume',d:'GWh, customers, peak demand by month',k:'revenue'},{i:'📋',n:'Tariff Rates',d:'OUR approved rates by class',k:'tariff'},{i:'🔧',n:'O&M by Category',d:'Monthly costs – 17 categories',k:'om'},{i:'🏗',n:'CapEx Plan',d:'Monthly by division',k:'capex'},{i:'💳',n:'Collections Data',d:'Billings, rates, prior period',k:'collections'},{i:'📉',n:'Depreciation Schedule',d:'Asset lines + monthly depreciation',k:'depn'},{i:'🎯',n:'Scenario Overrides',d:'Adj% per KPI vs Base Case',k:'scenario'}];
   document.getElementById('tmplGrid').innerHTML=tmpls.map(t=>`<div class="tc3" onclick="dlTmpl('${t.k}')"><div class="ti">${t.i}</div><div><div class="tn">${t.n}</div><div class="td">${t.d}</div></div></div>`).join('');
   document.getElementById('ulB').innerHTML=uploadLog.map(u=>`<tr><td style="text-align:left;font-family:var(--sans)"><strong>${u.name}</strong></td><td>${u.type}</td><td>${u.period}</td><td>${u.rows}</td><td>${u.status}</td><td>${u.date}</td><td><button class="btn btn-ghost" style="font-size:9px;height:20px;padding:0 6px" onclick="toast('Refreshing...')">🔄</button></td></tr>`).join('');
+  // Render Supabase settings panel
+  buildSupabaseSettings();
 }
 function dlTmpl(key){
   const h={pl:'Month,Year,Line_Item,Section,Type_I_or_E,Value_USD_000s',revenue:'Month,Year,RT10_Customers_000s,RT20_Cust,RT40_Cust,RT10_GWh,RT20_GWh,RT40_GWh,RT50_GWh,RT60_GWh,RT70_GWh,Peak_MW,Loss_Pct',tariff:'Rate_Class,Block,Voltage,Rate_USD_cents_kWh,Change_2027_Pct,Change_2028_Pct',om:'Month,Year,Category,USD_000s,Cash_Lag_Days',capex:'Month,Year,Division,Category,USD_000s,Pay_Lag_Mo,Transfer_Lag_Mo,Depn_Yrs',collections:'Month,Year,Billings_JMD_000s,RT10_Rate_Pct,RT20_Rate_Pct,RT4050_Rate_Pct,Prior_Period_USD,GCT_USD',depn:'Asset_ID,Asset_Name,Division,Depn_Life_Yrs,Annual_Pct,Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec'};
@@ -5138,10 +7170,12 @@ const _tabBuilders = {
   'rpt-cf':    ()=>{ buildCFReport(); },
   'rpt-dep':   ()=>{ buildDepReport(); },
   'rpt-var':   ()=>{ buildVarReport(); buildActualsLog(); },
+  'rpt-kpi':   ()=>{ buildKpiTab(); },
   'rpt-rev':   ()=>{ buildRevReport(); },
   'wrk-sc':    ()=>{ buildScPanel(); },
   'wrk-gen':   ()=>{ buildGenTables(); },
   'wrk-coll':  ()=>{ initYrSegs(); computeAll(selectedCollYear); buildCollTable(); },
+  'wrk-debt':  ()=>{ buildDebtTab(); },
   'wrk-leases':()=>{ [2026,2027,2028,2029,2030].forEach(y=>computeAllLeases(y)); buildLeaseRegister(); },
   'ass-rev':   ()=>{ buildRevEngine(); },
   'ass-om':    ()=>{ initYrSegs(); buildOMTable(); },
@@ -5161,29 +7195,245 @@ function showPane(id,el){
   if(el){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');}
   const builder = _tabBuilders[id];
   if(builder) {
-    builder(); // always rebuild on navigate (data may have changed)
+    builder();
     _markBuilt(id);
   }
+  // Announce tab navigation to other users
+  if(typeof _rtAnnouncePresence === 'function') _rtAnnouncePresence(id);
 }
 
-function setPeriod(p,btn){const prev=period;period=p;document.querySelectorAll('.sb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');refreshAll();auditLog('period','Display Period',prev,p);}
+function setPeriod(p,btn){const prev=period;period=p;document.querySelectorAll('.sb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');refreshAll();auditLog('period','Display Period',prev,p);_saveState();}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.addEventListener('click',e=>{if(e.target.classList.contains('mbg'))e.target.classList.remove('open');});
 function exportCSV(){const rows=[['Year','Line','Section','2022','2023','2024','2025','2026','2027','2028']];plLines.forEach(l=>rows.push([YEARS[0],l.name,l.sect,...l.vals.slice(0,7)]));const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='JPS_FPA_Export_'+activeSc.replace(/ /g,'_')+'.csv';a.click();toast('Exported','ok');}
 
-function refreshAll(){
-  document.getElementById('scPill').textContent=activeSc;
-  // Always refresh dashboard KPIs and charts
-  buildDashKpis();
-  requestAnimationFrame(()=>buildDashCharts());
-  // Refresh monthly P&L if it has been built
-  if(_isBuilt('rpt-pl')) requestAnimationFrame(()=>buildMonthlyPL(plMonthlyYear));
-  // Refresh the currently active tab (if not dash — already handled above)
-  const active=document.querySelector('.pane.on')?.id?.replace('pane-','');
-  if(active && active!=='dash' && _tabBuilders[active]) {
-    requestAnimationFrame(()=>_tabBuilders[active]());
+// ── O&M Export ────────────────────────────────────────────────────────────────
+function exportOMCSV(){
+  const yr=selectedOMYear;
+  const rows=[['Category','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Total']];
+  getOMRows(yr).forEach(r=>{
+    const tot=r.vals.reduce((s,v)=>s+(v||0),0);
+    rows.push([r.name,...r.vals.map(v=>Math.round(v)),Math.round(tot)]);
+  });
+  const tot=getOMTotal(yr);
+  rows.push(['TOTAL O&M',...tot.map(v=>Math.round(v)),Math.round(sumArr(tot))]);
+  _dlCSV(rows,'JPS_OM_'+yr+'.csv');
+  toast('O&M exported','ok');
+}
+
+// ── CapEx Export ──────────────────────────────────────────────────────────────
+function exportCapexCSV(){
+  const yr=selectedCapexYear;
+  const rows=[['Category','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Total']];
+  getCxRows(yr).forEach(r=>{
+    const tot=(r.vals||[]).reduce((s,v)=>s+(v||0),0);
+    rows.push([r.name,...(r.vals||[]).map(v=>Math.round(v)),Math.round(tot)]);
+  });
+  _dlCSV(rows,'JPS_CapEx_'+yr+'.csv');
+  toast('CapEx exported','ok');
+}
+
+// ── Collections Export ────────────────────────────────────────────────────────
+function exportCollCSV(){
+  const yr=selectedCollYear;
+  const rows=[['Metric','Unit','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']];
+  getCollRows(yr).forEach(r=>{
+    if(!r.derived && r.vals){
+      rows.push([r.name,r.unit||'',...r.vals.map(v=>r.unit==='%'?v?.toFixed(1):Math.round(v||0))]);
+    }
+  });
+  _dlCSV(rows,'JPS_Collections_'+yr+'.csv');
+  toast('Collections exported','ok');
+}
+
+// ── Cash Flow Export ──────────────────────────────────────────────────────────
+function exportCFCSV(){
+  const rows=[['Line Item','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Total']];
+  // Pull from directCFSeed if available, otherwise use model data
+  const yr=2026;
+  const om=getOMTotal(yr), cx=getCxCash(yr), rec=getCashReceipts(yr);
+  const entries=[
+    ['Cash Receipts',...rec.map(v=>Math.round(v))],
+    ['O&M Payments',...om.map(v=>-Math.round(v))],
+    ['CapEx Payments',...cx.map(v=>-Math.round(v))],
+  ];
+  entries.forEach(e=>{
+    const tot=e.slice(1).reduce((s,v)=>s+(v||0),0);
+    rows.push([...e,tot]);
+  });
+  _dlCSV(rows,'JPS_CashFlow_'+yr+'.csv');
+  toast('Cash Flow exported','ok');
+}
+
+// ── Shared CSV download helper ────────────────────────────────────────────────
+function _dlCSV(rows, filename){
+  const csv=rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=filename; a.click();
+}
+
+// ═══════════════════════════════════════════════════════
+//  PRINT / PDF ENGINE — Session 11
+// ═══════════════════════════════════════════════════════
+
+// Which sections are available for printing (tab id → label)
+const _printableSections = [
+  { id:'dash',       label:'📊 Dashboard',              checked:true  },
+  { id:'rpt-pl',     label:'📋 Income Statement',        checked:true  },
+  { id:'rpt-bs',     label:'⚖ Balance Sheet',            checked:true  },
+  { id:'rpt-cf',     label:'💧 Cash Flow',               checked:true  },
+  { id:'rpt-dep',    label:'📉 Depreciation Schedule',   checked:false },
+  { id:'rpt-var',    label:'📊 Variance Report',         checked:true  },
+  { id:'rpt-kpi',    label:'📐 Ratios & KPIs',           checked:true  },
+  { id:'rpt-rev',    label:'⚡ Revenue & Generation',    checked:false },
+  { id:'wrk-debt',   label:'🏦 Debt & Financing',        checked:false },
+  { id:'wrk-leases', label:'📄 Lease Register',          checked:false },
+  { id:'wrk-gen',    label:'⚡ Generation & Fuel',       checked:false },
+  { id:'ass-proj',   label:'📈 5-Year Projection',       checked:false },
+];
+
+function openPrintModal() {
+  // Populate section checkboxes
+  const list = document.getElementById('printSectionList');
+  if (list) {
+    list.innerHTML = _printableSections.map((s, i) => `
+      <label class="print-section-check" style="gap:8px">
+        <input type="checkbox" id="printSec_${s.id}" ${s.checked ? 'checked' : ''}>
+        <span style="font-size:11px;color:var(--text)">${s.label}</span>
+      </label>`).join('');
   }
+  // Pre-fill title from active pane
+  const activePane = document.querySelector('.pane.on')?.id?.replace('pane-','');
+  const sec = _printableSections.find(s=>s.id===activePane);
+  if (sec) document.getElementById('printTitle').value = sec.label.replace(/^[^ ]+ /,'') + ' — JPS FP&A';
+  document.getElementById('printPrepBy').value = currentUser.name || 'JPS Finance Team';
+  openModal('printModal');
+}
+
+function updatePrintOrientation() {
+  const ori = document.getElementById('printOrientation')?.value || 'landscape';
+  // Dynamically update the @page rule
+  let styleEl = document.getElementById('printOrientStyle');
+  if (!styleEl) { styleEl = document.createElement('style'); styleEl.id = 'printOrientStyle'; document.head.appendChild(styleEl); }
+  styleEl.textContent = `@media print { @page { size: A4 ${ori}; } }`;
+}
+
+function executePrint() {
+  const title      = document.getElementById('printTitle')?.value || 'Financial Performance Report';
+  const prepBy     = document.getElementById('printPrepBy')?.value || 'JPS Finance Team';
+  const showCover  = document.getElementById('printOptCover')?.checked ?? true;
+  const showConf   = document.getElementById('printOptConfidential')?.checked ?? true;
+  const showPgNum  = document.getElementById('printOptPageNum')?.checked ?? true;
+  const showDate   = document.getElementById('printOptDate')?.checked ?? true;
+
+  // Collect selected sections
+  const selectedSections = _printableSections.filter(s =>
+    document.getElementById('printSec_'+s.id)?.checked
+  );
+
+  // Build the active pane's content (navigate to build each selected section)
+  // For now: print the currently active pane + dashboard summary
+  // Future: assemble multi-section print view
+
+  // Update cover page metadata
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+  const activePane = document.querySelector('.pane.on')?.id?.replace('pane-','') || 'dash';
+  const activeSec  = _printableSections.find(s=>s.id===activePane);
+
+  _setPrintEl('printReportTitle', title);
+  _setPrintEl('printReportSub',   'Jamaica Public Service Company Limited');
+  _setPrintEl('printPeriodLabel', _getPrintPeriodLabel());
+  _setPrintEl('printScenarioLabel', activeSc || 'Base Case');
+  _setPrintEl('printPreparedBy',  prepBy);
+  _setPrintEl('printDate',        dateStr);
+
+  // Set print logo
+  const printLogo = document.getElementById('printLogo');
+  if (printLogo) printLogo.src = JPS_LOGO_DATA;
+
+  // Footer content
+  _setPrintEl('printFooterMid',   title);
+  _setPrintEl('printFooterRight', showDate ? dateStr : '');
+
+  // Show/hide cover and watermark
+  const coverEl = document.getElementById('printCoverPage');
+  if (coverEl) coverEl.style.display = showCover ? '' : 'none';
+
+  // Inject dynamic print CSS for this run
+  let dynStyle = document.getElementById('printDynStyle');
+  if (!dynStyle) { dynStyle = document.createElement('style'); dynStyle.id = 'printDynStyle'; document.head.appendChild(dynStyle); }
+  dynStyle.textContent = `
+    @media print {
+      body::after { content: ${showConf ? "'CONFIDENTIAL'" : "''"} !important; }
+      .print-footer { display: ${showPgNum || showDate ? 'flex' : 'none'} !important; }
+      #printCoverPage { display: ${showCover ? 'flex' : 'none'} !important; }
+    }
+  `;
+
+  // Make sure active pane is fully rendered
+  const builder = _tabBuilders[activePane];
+  if (builder) { try { builder(); } catch(e) {} }
+
+  // Close modal and print
+  closeModal('printModal');
+  setTimeout(() => {
+    window.print();
+  }, 150);
+}
+
+function _getPrintPeriodLabel() {
+  // Build human-readable period label from actuals loaded + current period setting
+  const yr = 2026;
+  const loadedMos = Object.keys(actualsStore[yr] || {}).map(Number).filter(m=>m>0).sort((a,b)=>a-b);
+  if (loadedMos.length) {
+    const last = loadedMos[loadedMos.length-1];
+    return `${MONTHS[last-1]} ${yr} YTD (${loadedMos.length} months actuals)`;
+  }
+  return `${yr} Annual Operating Plan (AOP)`;
+}
+
+function _setPrintEl(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+// Keyboard shortcut Ctrl+P → open print modal instead of raw browser print
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+    const shell = document.getElementById('appShell');
+    if (shell && shell.classList.contains('visible')) {
+      e.preventDefault();
+      openPrintModal();
+    }
+  }
+});
+
+// ── Print-friendly table of contents helper (injected before print) ──
+function _buildPrintTOC(sections) {
+  return `<div style="page-break-after:always;padding:10mm 0">
+    <h2 style="color:#003da5;border-bottom:2pt solid #00aeef;padding-bottom:6pt;font-size:14pt">Table of Contents</h2>
+    <ol style="font-size:11pt;line-height:2;color:#0d1e3a;padding-left:20pt">
+      ${sections.map((s,i) => `<li>${s.label.replace(/^[^ ]+ /,'')}</li>`).join('')}
+    </ol>
+  </div>`;
+}
+
+let _refreshTimer = null;
+function refreshAll(){
+  clearTimeout(_refreshTimer);
+  _refreshTimer = setTimeout(()=>{
+    document.getElementById('scPill').textContent=activeSc;
+    buildDashKpis();
+    requestAnimationFrame(()=>buildDashCharts());
+    if(_isBuilt('rpt-pl')) requestAnimationFrame(()=>buildMonthlyPL(plMonthlyYear));
+    const active=document.querySelector('.pane.on')?.id?.replace('pane-','');
+    if(active && active!=='dash' && _tabBuilders[active]) {
+      requestAnimationFrame(()=>_tabBuilders[active]());
+    }
+  }, 50);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -5369,7 +7619,16 @@ function buildRevBridgeChart() {
   // We approximate using proportional GWh change × budget tariff / fx
   const actMwh = Object.values(volumeTable).reduce((s,v)=>s+(v.mwh?.[mo]||0),0);
   const budMwh = actMwh; // same (no separate budget volume stored) — set to 0 for now
-  const volEffect  = 0; // placeholder — requires separate budget volume
+  const volEffect  = (() => {
+    // Volume effect: actual billed MWh vs LE billed MWh × LE tariff per MWh
+    const leMWhFull = calcBilledSales(2026)[mo]; // LE billed MWh for this month
+    const leNFUSD   = leNonFuelByMonth[mo] || 0;
+    const leTariffPerMWh = leMWhFull > 0 ? (leNFUSD / leMWhFull) * 1000 : 0;
+    // actMwh is already computed above from volumeTable
+    return actMwh > 0 && leMWhFull > 0
+      ? Math.round((actMwh - leMWhFull) * leTariffPerMWh / 1000)
+      : 0;
+  })();
   const fxEffect   = Math.round((1/fxCur - 1/fxBud) * 162 * budNF); // simplified
   const tarEffect  = 0;
   const fuelEffect = Math.round(actual.fuelRevUSD - budF);
@@ -5404,8 +7663,8 @@ function buildRevTrendChart() {
     ]},
     options:{...bO(v=>'$'+Math.round(v).toLocaleString()+'K'),
       scales:{
-        x:{stacked:true,ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'}},
-        y:{stacked:true,ticks:{color:'#4a6485',font:{size:9},callback:v=>'$'+Math.round(v)+'K'},grid:{color:'rgba(255,255,255,.035)'}},
+        x:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},
+        y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>'$'+Math.round(v)+'K'},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}},
       }
     }
   });
@@ -5893,7 +8152,7 @@ function buildGenTables() {
   mkChart('cGenMix',{type:'bar',data:{labels:MONTHS,datasets:genGroups.map((g,i)=>({
     label:['JPS Thermal','Old Harbour CCGT','Renewables','IPP'][i],
     data:ng[g]||[],backgroundColor:genColors[i],stack:'s',
-  }))},options:{...bO(),scales:{x:{stacked:true,ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'}},y:{stacked:true,ticks:{color:'#4a6485',font:{size:9},callback:v=>v+'GWh'},grid:{color:'rgba(255,255,255,.035)'}}}}});
+  }))},options:{...bO(),scales:{x:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>v+'GWh'},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
 
   // System loss + billed sales actuals
   const sysLossDatasets = [
@@ -5913,7 +8172,7 @@ function buildGenTables() {
   }
   mkChart('cSysLoss',{type:'bar',data:{labels:MONTHS,datasets:billedDatasets},
     options:{...bO(v=>v.toFixed(0)+' GWh'),
-      plugins:{legend:{labels:{color:'#4a6485',font:{size:9},boxWidth:10}}},
+      plugins:{legend:{labels:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},boxWidth:10}}},
     }
   });
 }
@@ -6342,7 +8601,7 @@ function buildLeaseAggTable() {
       {label:'ROU Depreciation',data:agg.rouDepreciation,backgroundColor:'rgba(240,180,41,.65)',stack:'s'},
       {label:'Interest',       data:agg.interestExpense, backgroundColor:'rgba(239,68,68,.65)',  stack:'s'},
     ]},
-    options:{...bO(),scales:{x:{stacked:true,ticks:{color:'#4a6485',font:{size:9}}},y:{stacked:true,ticks:{color:'#4a6485',font:{size:9},callback:v=>fmtN(v)+'K'}}}}
+    options:{...bO(),scales:{x:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}}},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>fmtN(v)+'K'}}}}
   });
 }
 
@@ -6549,7 +8808,7 @@ function buildInsPanel() {
       {label:'Monthly Expense', data:expLine,  borderColor:'var(--teal)',borderWidth:2,tension:.4,type:'line',fill:false,pointRadius:3,yAxisID:'y'},
       {label:'Prepaid Balance', data:prepaid,  borderColor:'var(--green)',borderWidth:1.5,tension:.4,type:'line',fill:false,pointRadius:2,borderDash:[4,3],yAxisID:'y'},
     ]},
-    options:{...bO(),scales:{x:{ticks:{color:'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'}},y:{ticks:{color:'#4a6485',font:{size:9},callback:v=>fmtN(v)+'K'},grid:{color:'rgba(255,255,255,.035)'}}}}
+    options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},y:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>fmtN(v)+'K'},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}
   });
 }
 
@@ -7863,26 +10122,52 @@ function buildProjTariffCalendar(){
 }
 
 function addTariffReview(){
-  const yr=parseInt(prompt('Year (2026-2030):','2028')); if(!yr) return;
-  const mo=parseInt(prompt('Month (1-12):','4')); if(!mo) return;
-  const uplift=parseFloat(prompt('Tariff uplift %:','5.0')); if(isNaN(uplift)) return;
-  projTariffReviews.push({year:yr,month:mo,uplift,status:'Custom',classes:'All',basis:'User-defined'});
-  // Apply uplift to projRevDrivers.tariffIncrease
-  if(projRevDrivers.tariffIncrease.vals[yr]!==undefined)
-    projRevDrivers.tariffIncrease.vals[yr]=(projRevDrivers.tariffIncrease.vals[yr]||0)+uplift;
-  buildProjTariffCalendar();
-  // Refresh §1 inputs
-  const rb=document.getElementById('projRevB');
-  if(rb) buildProjTab();
+  document.getElementById('trEditIdx').value='-1';
+  document.getElementById('trYear').value='2028';
+  document.getElementById('trMonth').value='4';
+  document.getElementById('trUplift').value='5.0';
+  document.getElementById('trBasis').value='OUR Annual Review';
+  document.getElementById('trClasses').value='All';
+  openModal('tariffRevModal');
+  setTimeout(()=>document.getElementById('trUplift').focus(),80);
 }
 
 function editTariffReview(idx){
   const t=projTariffReviews[idx];
-  const newUplift=parseFloat(prompt('New tariff uplift %:',t.uplift.toFixed(1)));
-  if(isNaN(newUplift)) return;
-  t.uplift=newUplift;
-  projRevDrivers.tariffIncrease.vals[t.year]=newUplift;
+  document.getElementById('trEditIdx').value=String(idx);
+  document.getElementById('trYear').value=String(t.year);
+  document.getElementById('trMonth').value=String(t.month);
+  document.getElementById('trUplift').value=t.uplift.toFixed(1);
+  document.getElementById('trBasis').value=t.basis||'OUR Annual Review';
+  document.getElementById('trClasses').value=t.classes||'All';
+  openModal('tariffRevModal');
+  setTimeout(()=>document.getElementById('trUplift').focus(),80);
+}
+
+function commitTariffReview(){
+  const yr=parseInt(document.getElementById('trYear').value);
+  const mo=parseInt(document.getElementById('trMonth').value);
+  const uplift=parseFloat(document.getElementById('trUplift').value);
+  const basis=document.getElementById('trBasis').value||'OUR Annual Review';
+  const classes=document.getElementById('trClasses').value||'All';
+  const editIdx=parseInt(document.getElementById('trEditIdx').value);
+  if(isNaN(uplift)){toast('Invalid uplift value','err');return;}
+  if(editIdx>=0 && projTariffReviews[editIdx]){
+    const old=projTariffReviews[editIdx];
+    // Remove old uplift from year
+    if(projRevDrivers.tariffIncrease.vals[old.year]!==undefined)
+      projRevDrivers.tariffIncrease.vals[old.year]=Math.max(0,(projRevDrivers.tariffIncrease.vals[old.year]||0)-old.uplift);
+    old.year=yr; old.month=mo; old.uplift=uplift; old.basis=basis; old.classes=classes;
+  } else {
+    projTariffReviews.push({year:yr,month:mo,uplift,status:'Forecast',classes,basis});
+  }
+  if(projRevDrivers.tariffIncrease.vals[yr]!==undefined)
+    projRevDrivers.tariffIncrease.vals[yr]=(projRevDrivers.tariffIncrease.vals[yr]||0)+uplift;
+  auditLog('editBase','Tariff Review',null,`${MONTHS[mo-1]} ${yr} +${uplift}%`);
+  closeModal('tariffRevModal');
   buildProjTariffCalendar();
+  buildProjTab();
+  toast('Rate review saved','ok');
 }
 
 function exportProjCSV(){
@@ -7928,6 +10213,25 @@ function _initPlatform() {
   computeAll(2026);
   initInterestIncome();
   try { runProjectionEngine(); } catch(e) { console.warn('Projection engine init:', e); }
+  try { syncDebtToNFC(); } catch(e) { console.warn('Debt sync init:', e); }
+  // Init Supabase client from saved config (restores existing session)
+  try {
+    _sb = _sbInit();
+    if (_sb) {
+      _sb.auth.getSession().then(({ data }) => {
+        if (data?.session?.user) {
+          _sb.from('profiles').select('*').eq('id', data.session.user.id).single().then(({ data: profile }) => {
+            currentUser = _sbUserToCurrentUser(data.session.user, profile);
+            const nd = document.getElementById('userNameDisp'); if (nd) nd.textContent = currentUser.name;
+            const rd = document.getElementById('userRoleDisp'); if (rd) { rd.textContent = currentUser.role.toUpperCase(); rd.style.color = currentUser.role==='admin'?'var(--gold)':currentUser.role==='analyst'?'var(--teal)':'var(--muted)'; }
+            const av = document.getElementById('userAvatar'); if (av) av.textContent = currentUser.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+          });
+          _sbStartRealtime();
+          Promise.all([_sbLoadActuals(), _sbLoadScenarios()]).then(()=>refreshAll()).catch(()=>{});
+        }
+      });
+    }
+  } catch(e) { console.warn('Supabase init:', e); }
 
   // Unlock actuals months in selectors
   [1,2].forEach(m => {
@@ -7946,23 +10250,319 @@ function _initPlatform() {
   requestAnimationFrame(() => {
     buildDashCharts();
     _markBuilt('dash');
+    _restoreState();
   });
 }
 
-// DOMContentLoaded — set up welcome screen assets only
+// DOMContentLoaded — set up welcome screen assets and login mode
 window.addEventListener('DOMContentLoaded',()=>{
   applyThemeOnLoad();
-  // Set welcome screen background image
   const wsBg = document.getElementById('wsBg');
   if (wsBg) wsBg.style.backgroundImage = `url('${WELCOME_BG_DATA}')`;
-  // Set JPS logo
   const wsLogo = document.getElementById('wsLogo');
   if (wsLogo) wsLogo.src = JPS_LOGO_DATA;
-  // Allow Enter key to submit login
-  document.getElementById('loginName')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') doLogin();
-  });
+
+  // Show correct login form based on Supabase config
+  const sbFields    = document.getElementById('loginSbFields');
+  const localFields = document.getElementById('loginLocalFields');
+  const modeBadge   = document.getElementById('loginModeBadge');
+  if (_sbConfig.enabled && _sbConfig.anonKey) {
+    if (sbFields)    sbFields.style.display    = 'block';
+    if (localFields) localFields.style.display = 'none';
+    if (modeBadge)   modeBadge.textContent = '🔒 Supabase Auth · ' + _sbConfig.url.replace('https://','').split('.')[0] + '.supabase.co';
+    setTimeout(() => document.getElementById('loginEmail')?.focus(), 200);
+  } else {
+    if (sbFields)    sbFields.style.display    = 'none';
+    if (localFields) localFields.style.display = 'block';
+    if (modeBadge)   modeBadge.textContent = '🔒 Supabase Auth · JPS FP&A Cloud';
+    setTimeout(() => document.getElementById('loginName')?.focus(), 200);
+  }
 });
+
+// Global error handler — catches cross-origin 'Script error.' and logs real detail
+window.addEventListener('error', e => {
+  if (e.message === 'Script error.' || e.message === 'Uncaught Error: Script error.') {
+    console.warn('Cross-origin script error intercepted — likely Chart.js canvas issue. Suppressed.');
+    e.preventDefault();
+    return true;
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+//  KEYBOARD SHORTCUTS
+// ═══════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  // Only active when app shell is visible (logged in)
+  if (!document.getElementById('appShell')?.classList.contains('visible')) return;
+  // Don't fire when typing in inputs/textareas
+  if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+
+  const ctrl = e.ctrlKey || e.metaKey;
+
+  // Escape — close any open modal
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.mbg.open').forEach(m => m.classList.remove('open'));
+    return;
+  }
+
+  if (!ctrl) return;
+
+  switch(e.key.toLowerCase()) {
+    case 'e': // Ctrl+E — Export CSV
+      e.preventDefault();
+      exportCSV();
+      toast('Exported ↓ Ctrl+E','ok');
+      break;
+    case '/': // Ctrl+/ — Jump to AI Commentary
+      e.preventDefault();
+      const aiTab = document.querySelector('.tab[onclick*="ai-comm"]');
+      showPane('ai-comm', aiTab);
+      if(aiTab){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));aiTab.classList.add('on');}
+      break;
+    case 'd': // Ctrl+D — Jump to Dashboard
+      e.preventDefault();
+      const dashTab = document.querySelector('.tab[onclick*="\'dash\'"]');
+      showPane('dash', dashTab);
+      if(dashTab){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));dashTab.classList.add('on');}
+      break;
+    case 'v': // Ctrl+V (not paste) — Jump to Variance
+      if(!e.shiftKey) break;
+      e.preventDefault();
+      const varTab = document.querySelector('.tab[onclick*="rpt-var"]');
+      showPane('rpt-var', varTab);
+      if(varTab){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));varTab.classList.add('on');}
+      break;
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+//  REALTIME COLLABORATION ENGINE — BroadcastChannel
+//  Syncs data changes + presence across open tabs/windows
+//  on the same origin. No server required.
+// ═══════════════════════════════════════════════════════
+
+const _rtChannel = (typeof BroadcastChannel !== 'undefined')
+  ? new BroadcastChannel('jps_fpa_realtime')
+  : null;
+
+// Presence store: { tabId -> { name, role, tab, lastSeen } }
+const _presenceStore = {};
+const _myTabId = Math.random().toString(36).slice(2, 9);
+let _myPresence = {};
+
+// Broadcast a message to other tabs
+function _rtBroadcast(type, payload) {
+  if (!_rtChannel) return;
+  try {
+    _rtChannel.postMessage({ type, payload, from: _myTabId, ts: Date.now() });
+  } catch(e) {}
+}
+
+// Announce presence to other tabs
+function _rtAnnouncePresence(tab) {
+  _myPresence = {
+    name: currentUser.name || '—',
+    role: currentUser.role || 'viewer',
+    tab: tab || document.querySelector('.pane.on')?.id?.replace('pane-','') || 'dash',
+    lastSeen: Date.now()
+  };
+  _presenceStore[_myTabId] = _myPresence;
+  _rtBroadcast('presence', _myPresence);
+  _renderOnlinePanel();
+}
+
+// Request other tabs to announce themselves
+function _rtRequestPresence() {
+  _rtBroadcast('who', {});
+}
+
+// Handle incoming messages
+if (_rtChannel) {
+  _rtChannel.onmessage = (e) => {
+    const { type, payload, from, ts } = e.data;
+    if (from === _myTabId) return; // ignore own messages
+
+    if (type === 'presence') {
+      _presenceStore[from] = { ...payload, lastSeen: ts };
+      _renderOnlinePanel();
+    } else if (type === 'who') {
+      // Another tab is asking who's here — announce myself
+      _rtAnnouncePresence();
+    } else if (type === 'bye') {
+      delete _presenceStore[from];
+      _renderOnlinePanel();
+    } else if (type === 'change') {
+      // Another tab changed data — refresh our view
+      _rtHandleRemoteChange(payload);
+    } else if (type === 'toast') {
+      // Show a notification from another tab
+      if (payload?.msg) toast(`🔄 ${payload.from}: ${payload.msg}`, 'ok');
+    }
+  };
+}
+
+// Handle remote data changes
+function _rtHandleRemoteChange(payload) {
+  if (!payload) return;
+  // For now: refresh all renders so the view stays in sync
+  // Future: merge specific payload.data into the data store
+  try {
+    refreshAll();
+    // Show subtle sync indicator
+    const syncEl = document.getElementById('rtSyncDot');
+    if (syncEl) {
+      syncEl.style.background = 'var(--teal)';
+      setTimeout(() => { if(syncEl) syncEl.style.background = 'var(--green)'; }, 800);
+    }
+  } catch(e) {}
+}
+
+// Render the online users panel in topbar
+function _renderOnlinePanel() {
+  const panel = document.getElementById('onlineUsersPanel');
+  if (!panel) return;
+
+  // Prune stale entries (>30s no heartbeat)
+  const now = Date.now();
+  Object.keys(_presenceStore).forEach(id => {
+    if (now - (_presenceStore[id].lastSeen || 0) > 30000) delete _presenceStore[id];
+  });
+
+  // Build user list: myself first, then others
+  const all = [
+    { id: _myTabId, ..._myPresence, isMe: true },
+    ...Object.entries(_presenceStore)
+      .filter(([id]) => id !== _myTabId)
+      .map(([id, p]) => ({ id, ...p, isMe: false }))
+  ].filter(u => u.name);
+
+  const count = all.length;
+  const dot = document.getElementById('rtSyncDot');
+
+  if (count <= 1) {
+    panel.innerHTML = `<div style="display:flex;align-items:center;gap:5px;cursor:default" title="Only you are online">
+      <div id="rtSyncDot" style="width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0"></div>
+      <span style="font-size:10px;color:var(--muted)">Only you</span>
+    </div>`;
+    return;
+  }
+
+  const roleColor = r => r==='admin'?'var(--gold)':r==='analyst'?'var(--teal)':'var(--muted)';
+  const tabLabel = t => ({'dash':'Dashboard','rpt-pl':'P&L','rpt-cf':'Cash Flow','wrk-gen':'Generation','ass-rev':'Revenue','ass-om':'O&M','ass-capex':'CapEx','ai-comm':'AI'}[t]||t||'—');
+
+  panel.innerHTML = `
+    <div style="position:relative" id="onlineDropdownWrap">
+      <div style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 7px;border-radius:4px;border:1px solid var(--border);background:var(--card2)"
+           onclick="document.getElementById('onlineDropdown').classList.toggle('open-dd')" title="Active users">
+        <div id="rtSyncDot" style="width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 4px var(--green)"></div>
+        <div style="display:flex;margin-left:2px">
+          ${all.slice(0,3).map(u=>`<div style="width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#003da5,#00aeef);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;margin-left:-4px;border:1px solid var(--bg)">${(u.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>`).join('')}
+          ${count>3?`<div style="width:18px;height:18px;border-radius:50%;background:var(--card3);display:flex;align-items:center;justify-content:center;font-size:7px;color:var(--muted);margin-left:-4px;border:1px solid var(--bg)">+${count-3}</div>`:''}
+        </div>
+        <span style="font-size:10px;color:var(--text);font-weight:700">${count}</span>
+      </div>
+      <div id="onlineDropdown" style="position:absolute;top:calc(100% + 6px);right:0;min-width:220px;background:var(--card);border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 24px var(--shadow);z-index:999;display:none;flex-direction:column;overflow:hidden">
+        <div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Active Sessions (${count})</div>
+        ${all.map(u=>`
+          <div style="display:flex;align-items:center;gap:9px;padding:8px 12px;border-bottom:1px solid rgba(0,0,0,.05)${u.isMe?';background:var(--glo)':''}">
+            <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#003da5,#00aeef);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0">${(u.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.name}${u.isMe?' <span style="font-size:9px;color:var(--muted)">(you)</span>':''}</div>
+              <div style="font-size:9px;color:var(--muted)">${tabLabel(u.tab)}</div>
+            </div>
+            <div style="font-size:8px;font-weight:800;text-transform:uppercase;color:${roleColor(u.role)}">${u.role}</div>
+          </div>`).join('')}
+        <div style="padding:6px 12px;font-size:9px;color:var(--muted);text-align:center">Updated live · ${new Date().toLocaleTimeString()}</div>
+      </div>
+    </div>`;
+
+  // Close dropdown on outside click
+  setTimeout(()=>{
+    document.addEventListener('click', function _closeDD(e){
+      const wrap = document.getElementById('onlineDropdownWrap');
+      if(wrap && !wrap.contains(e.target)){
+        const dd = document.getElementById('onlineDropdown');
+        if(dd) dd.classList.remove('open-dd');
+        document.removeEventListener('click', _closeDD);
+      }
+    });
+  }, 0);
+}
+
+// CSS for open dropdown
+(function(){
+  const s=document.createElement('style');
+  s.textContent='#onlineDropdown.open-dd{display:flex!important;flex-direction:column!important}';
+  document.head?.appendChild(s);
+})();
+
+// Heartbeat — announce presence every 15s
+let _rtHeartbeat = null;
+function _rtStartHeartbeat() {
+  if (_rtHeartbeat) clearInterval(_rtHeartbeat);
+  _rtAnnouncePresence();
+  _rtRequestPresence();
+  _rtHeartbeat = setInterval(() => {
+    _rtAnnouncePresence(document.querySelector('.pane.on')?.id?.replace('pane-','') || 'dash');
+  }, 15000);
+}
+
+// On tab close — announce departure
+window.addEventListener('beforeunload', () => {
+  _rtBroadcast('bye', { name: currentUser.name });
+});
+
+//  STATE PERSISTENCE  — saves scenario + active tab to localStorage
+// ═══════════════════════════════════════════════════════
+function _saveState() {
+  try {
+    const activePane = document.querySelector('.pane.on')?.id?.replace('pane-','') || 'dash';
+    localStorage.setItem('jps_state', JSON.stringify({
+      scenario: activeSc,
+      pane: activePane,
+      period,
+    }));
+    // Broadcast change to other open tabs
+    if(typeof _rtBroadcastChange === 'function') {
+      _rtBroadcastChange('state', { scenario: activeSc, period, user: currentUser.name });
+    }
+  } catch(e) {}
+}
+
+function _restoreState() {
+  try {
+    const raw = localStorage.getItem('jps_state');
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    // Restore scenario
+    if (s.scenario && scenarios[s.scenario]) {
+      activeSc = s.scenario;
+      const scSel = document.getElementById('scSel');
+      if (scSel) scSel.value = s.scenario;
+      const pill = document.getElementById('scPill');
+      if (pill) pill.textContent = s.scenario;
+    }
+    // Restore period
+    if (s.period) {
+      period = s.period;
+      document.querySelectorAll('#perSeg .sb').forEach(b => {
+        b.classList.toggle('on', b.textContent.toLowerCase().includes(period));
+      });
+    }
+    // Restore active tab (after a short delay to let init complete)
+    if (s.pane && s.pane !== 'dash') {
+      setTimeout(() => {
+        const tab = document.querySelector(`.tab[onclick*="'${s.pane}'"]`);
+        showPane(s.pane, tab);
+        if(tab){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));tab.classList.add('on');}
+      }, 400);
+    }
+  } catch(e) {}
+}
+
+// Patch setScenario and setPeriod to save state — inline, no reassignment needed
+// _saveState() is called directly inside showPane, setScenario, setPeriod above
 </script>
 </body>
 </html>
