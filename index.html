@@ -160,12 +160,81 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
   text-align:center;margin-top:20px;font-size:9px;
   color:rgba(255,255,255,.25);letter-spacing:.05em;
 }
+#welcomeScreen .ws-dest-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;
+  padding:12px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.06);color:rgba(255,255,255,.55);
+  font-size:10px;font-weight:700;cursor:pointer;text-align:center;
+  font-family:'IBM Plex Sans',sans-serif;letter-spacing:.04em;text-transform:uppercase;
+  transition:all .18s;
+}
+#welcomeScreen .ws-dest-btn:hover{border-color:rgba(255,255,255,.4);color:#fff;background:rgba(255,255,255,.1);}
+#welcomeScreen .ws-dest-btn.sel{
+  background:rgba(0,61,165,.55);border-color:#00aeef;color:#fff;box-shadow:0 0 12px rgba(0,174,239,.2);
+}
 #welcomeScreen .ws-powering{
   position:absolute;top:18px;right:24px;z-index:3;
   font-size:11px;font-weight:700;color:rgba(255,255,255,.6);
   font-family:'IBM Plex Sans',sans-serif;letter-spacing:.03em;
 }
 #welcomeScreen .ws-powering span{color:#00aeef;}
+/* ── FLASH REPORT ──────────────────────────────────────── */
+.flash-view-btn{
+  padding:6px 12px;border:none;background:transparent;cursor:pointer;
+  font-size:10px;font-weight:700;font-family:var(--sans);color:var(--muted);
+  letter-spacing:.04em;text-transform:uppercase;transition:all .15s;
+}
+.flash-view-btn:hover{color:var(--text);}
+.flash-view-btn.on{background:var(--blue);color:#fff;}
+.flash-sel{
+  padding:6px 10px;border-radius:7px;border:1px solid var(--border);
+  background:var(--input-bg);color:var(--text);font-size:11px;
+  font-family:var(--sans);cursor:pointer;outline:none;
+}
+#flashPLTable th,#flashPLTable td,
+#flashBSTable th,#flashBSTable td,
+#flashMetricsTable th,#flashMetricsTable td{
+  padding:7px 12px;border-bottom:1px solid var(--border);text-align:right;
+}
+#flashPLTable th:first-child,#flashPLTable td:first-child,
+#flashBSTable th:first-child,#flashBSTable td:first-child,
+#flashMetricsTable th:first-child,#flashMetricsTable td:first-child{text-align:left;}
+#flashPLTable thead th,#flashBSTable thead th,#flashMetricsTable thead th{
+  background:var(--table-header-bg);color:var(--table-header-text);
+  font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+}
+.flash-section-row td{
+  background:var(--card2);font-weight:800;font-size:10px;
+  color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:5px 12px;
+  border-top:2px solid var(--border);
+}
+.flash-total-row td{
+  background:var(--glo);font-weight:800;border-top:2px solid var(--border);
+}
+.flash-var-pos{color:var(--green);font-weight:700;}
+.flash-var-neg{color:var(--red);font-weight:700;}
+.flash-kpi-card{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:14px 16px;display:flex;flex-direction:column;gap:4px;
+}
+.flash-kpi-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+.flash-kpi-val{font-size:20px;font-weight:800;font-family:var(--mono);color:var(--text);}
+.flash-kpi-sub{font-size:10px;color:var(--muted);}
+.flash-note-item{
+  background:var(--card2);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;display:flex;flex-direction:column;gap:4px;
+}
+.flash-note-meta{font-size:9px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;}
+.flash-note-section{
+  display:inline-block;padding:1px 8px;border-radius:10px;font-size:9px;font-weight:700;
+  background:rgba(74,144,217,.15);color:var(--blue);text-transform:uppercase;letter-spacing:.05em;
+}
+.flash-note-text{font-size:12px;color:var(--text);line-height:1.5;}
+@media print{
+  .topbar,.tabbar,#welcomeScreen,.flash-view-btn,.flash-sel,button{display:none!important;}
+  #pane-rpt-flash{display:block!important;height:auto!important;overflow:visible!important;}
+  #flashContent{height:auto!important;overflow:visible!important;}
+}
 /* hide app shell until logged in */
 .app-shell{display:none;}
 .app-shell.visible{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
@@ -711,6 +780,16 @@ tr.der td{color:var(--teal)}
     </div>
     <div class="ws-tagline">Financial Planning &amp; Analysis Platform · v30.0</div>
 
+    <!-- Quick-access: Flash Report pre-selection -->
+    <div id="wsDestRow" style="display:flex;gap:8px;margin-bottom:20px;">
+      <button class="ws-dest-btn sel" data-dest="platform" onclick="selectDest(this)">
+        <span style="font-size:16px">📊</span><span>Full Platform</span>
+      </button>
+      <button class="ws-dest-btn" data-dest="flash" onclick="selectDest(this)">
+        <span style="font-size:16px">⚡</span><span>Flash Report</span>
+      </button>
+    </div>
+
     <!-- Supabase mode: email + password -->
     <div id="loginSbFields" style="display:block">
       <div class="ws-field">
@@ -817,6 +896,7 @@ tr.der td{color:var(--teal)}
     <div class="tab" onclick="showPane('rpt-var',this)">📊 Variance</div>
     <div class="tab" onclick="showPane('rpt-kpi',this)">📐 Ratios & KPIs</div>
     <div class="tab" onclick="showPane('rpt-rev',this)">⚡ Revenue & Gen</div>
+    <div class="tab" onclick="showPane('rpt-flash',this)">📰 Flash Report</div>
   </div></div>
   <div class="tg wrk"><div class="tgl">WORKING</div><div class="tabs">
     <div class="tab" onclick="showPane('wrk-sc',this)">🎯 Scenarios</div>
@@ -1346,6 +1426,124 @@ tr.der td{color:var(--teal)}
     <div style="padding:10px 14px" id="projTariffPanel"></div>
   </div>
 </div>
+
+<!-- ═══ FLASH REPORT ═══ -->
+<div id="pane-rpt-flash" class="pane">
+
+  <!-- FLASH REPORT TOPBAR -->
+  <div style="background:var(--card);border-bottom:2px solid var(--border);padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:200px">
+      <div style="font-size:15px;font-weight:800;color:var(--text);letter-spacing:.01em">📰 Management Flash Report</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px">Jamaica Public Service Co. · FP&amp;A · Confidential</div>
+    </div>
+    <!-- Period type selector -->
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">View</span>
+      <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <button class="flash-view-btn on" data-view="month"  onclick="flashSetView('month',this)">Month</button>
+        <button class="flash-view-btn"    data-view="qtd"    onclick="flashSetView('qtd',this)">QTD</button>
+        <button class="flash-view-btn"    data-view="ytd"    onclick="flashSetView('ytd',this)">YTD</button>
+        <button class="flash-view-btn"    data-view="annual" onclick="flashSetView('annual',this)">Full Year</button>
+      </div>
+    </div>
+    <!-- Period picker -->
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Period</span>
+      <select id="flashMoA" class="flash-sel" onchange="flashRefresh()">
+        <option value="202601">Jan 2026</option>
+        <option value="202602">Feb 2026</option>
+        <option value="202603" selected>Mar 2026</option>
+      </select>
+    </div>
+    <!-- Left version -->
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.06em">A</span>
+      <select id="flashVerA" class="flash-sel" onchange="flashRefresh()">
+        <option value="">— Select —</option>
+      </select>
+    </div>
+    <span style="font-size:12px;font-weight:800;color:var(--muted)">vs</span>
+    <!-- Right version -->
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.06em">B</span>
+      <select id="flashVerB" class="flash-sel" onchange="flashRefresh()">
+        <option value="">— Select —</option>
+      </select>
+    </div>
+    <!-- Actions -->
+    <div style="display:flex;gap:6px;margin-left:auto;">
+      <button class="btn btn-ghost" style="font-size:10px" onclick="flashExportPDF()" title="Print / Save as PDF">🖨 PDF</button>
+      <button class="btn btn-ghost" style="font-size:10px" onclick="flashExportXLSX()" title="Export to Excel">⬇ Excel</button>
+      <button class="btn btn-teal"  style="font-size:10px" id="flashBackBtn" onclick="flashGoToModel()" title="Return to full model" style="display:none">← Full Model</button>
+    </div>
+  </div>
+
+  <!-- FLASH CONTENT AREA -->
+  <div id="flashContent" style="padding:14px 18px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;height:calc(100vh - 200px)">
+
+    <!-- KPI STRIP -->
+    <div id="flashKpiRow" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;"></div>
+
+    <!-- INCOME STATEMENT TABLE -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.06em">Income Statement</div>
+        <div id="flashColHeaders" style="display:flex;gap:4px;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;"></div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="flashPLTable" style="width:100%;border-collapse:collapse;font-size:11px;"></table>
+      </div>
+    </div>
+
+    <!-- TWO-COLUMN: BALANCE SHEET + CAPEX/DEBT -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.06em">Balance Sheet Highlights</div>
+        <table id="flashBSTable" style="width:100%;border-collapse:collapse;font-size:11px;"></table>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.06em">Key Metrics</div>
+        <table id="flashMetricsTable" style="width:100%;border-collapse:collapse;font-size:11px;"></table>
+      </div>
+    </div>
+
+    <!-- NOTES SECTION -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.06em">📝 Management Notes &amp; Commentary</div>
+        <div style="font-size:9px;color:var(--muted)">Auto-saved · Audit trail below</div>
+      </div>
+      <div style="padding:14px;display:flex;flex-direction:column;gap:10px;">
+        <!-- Section selector + input -->
+        <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
+          <select id="flashNoteSection" class="flash-sel" style="min-width:130px;">
+            <option value="general">General</option>
+            <option value="revenue">Revenue</option>
+            <option value="opex">O&amp;M / OPEX</option>
+            <option value="ebitda">EBITDA</option>
+            <option value="financing">Financing</option>
+            <option value="balance_sheet">Balance Sheet</option>
+            <option value="capex">CapEx</option>
+            <option value="outlook">Outlook</option>
+          </select>
+          <textarea id="flashNoteInput" rows="3"
+            style="flex:1;min-width:220px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:var(--sans);font-size:12px;resize:vertical;outline:none;transition:border-color .2s;"
+            placeholder="Enter commentary for this period… (Ctrl+Enter to save)"
+            onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){flashSaveNote();event.preventDefault();}"></textarea>
+          <button class="btn btn-gold" style="align-self:flex-start" onclick="flashSaveNote()">Save Note</button>
+        </div>
+        <!-- Notes feed -->
+        <div id="flashNotesFeed" style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div style="text-align:center;font-size:9px;color:var(--muted);padding:8px 0;border-top:1px solid var(--border)">
+      CONFIDENTIAL · Jamaica Public Service Co. · FP&amp;A Division · Generated <span id="flashGenTime"></span>
+    </div>
+
+  </div><!-- /flashContent -->
+</div><!-- /pane-rpt-flash -->
 
 <!-- ═══ SCENARIOS WORKING ═══ -->
 <div id="pane-wrk-sc" class="pane">
@@ -3340,6 +3538,13 @@ let currentUser = {
 };
 
 let _selectedLoginRole = 'admin';
+let _loginDestination  = 'platform'; // 'platform' | 'flash'
+
+function selectDest(btn) {
+  _loginDestination = btn.dataset.dest;
+  document.querySelectorAll('.ws-dest-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+}
 
 function selectRole(btn) {
   _selectedLoginRole = btn.dataset.role;
@@ -3409,6 +3614,15 @@ async function doLogin() {
   await fpaBootstrap();   // loads DB into fpa.* and hydrates legacy globals
 
   _initPlatform();
+
+  // Route to Flash Report if selected on login screen
+  if (_loginDestination === 'flash') {
+    const flashTab = document.querySelector('.tab[onclick*="rpt-flash"]');
+    showPane('rpt-flash', flashTab);
+    if (flashTab) { document.querySelectorAll('.tab').forEach(t => t.classList.remove('on')); flashTab.classList.add('on'); }
+    setTimeout(() => flashInit(), 400);
+  }
+
   auditLog('login', 'session', null, { name, role: currentUser.role });
   setTimeout(async () => {
     _rtStartHeartbeat();
@@ -8099,6 +8313,7 @@ function showPane(id,el){
     builder();
     _markBuilt(id);
   }
+  if(id === 'rpt-flash') { setTimeout(() => flashInit(), 100); }
   // Announce tab navigation to other users
   if(typeof _rtAnnouncePresence === 'function') _rtAnnouncePresence(id);
 }
@@ -11531,6 +11746,443 @@ function _restoreState() {
 
 // Patch setScenario and setPeriod to save state — inline, no reassignment needed
 // _saveState() is called directly inside showPane, setScenario, setPeriod above
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FLASH REPORT ENGINE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const FLASH_MONTHS = {
+  202601:'Jan 2026', 202602:'Feb 2026', 202603:'Mar 2026',
+  202604:'Apr 2026', 202605:'May 2026', 202606:'Jun 2026',
+  202607:'Jul 2026', 202608:'Aug 2026', 202609:'Sep 2026',
+  202610:'Oct 2026', 202611:'Nov 2026', 202612:'Dec 2026'
+};
+
+let _flashView      = 'month';   // month | qtd | ytd | annual
+let _flashNotesData = [];        // cached notes from Supabase
+let _flashNoteSaveTimer = null;
+
+// ── Populate version dropdowns ────────────────────────────────────────────────
+function flashPopulateVersions() {
+  const selA = document.getElementById('flashVerA');
+  const selB = document.getElementById('flashVerB');
+  if (!selA || !selB) return;
+  const savedA = selA.value, savedB = selB.value;
+  selA.innerHTML = '<option value="">— Select A —</option>';
+  selB.innerHTML = '<option value="">— Select B —</option>';
+  if (!fpa.versions || !fpa.versions.length) return;
+  // Sort: ACTUAL first, then BUDGET, then LE/FORECAST, then others
+  const order = { ACTUAL:0, BUDGET:1, LE:2, FORECAST:3, SCENARIO:4 };
+  const sorted = [...fpa.versions].sort((a,b) => {
+    const oa = order[a.kind] ?? 9, ob = order[b.kind] ?? 9;
+    return oa !== ob ? oa - ob : a.name.localeCompare(b.name);
+  });
+  sorted.forEach(v => {
+    const lbl = `[${v.kind}] ${v.name}`;
+    selA.insertAdjacentHTML('beforeend', `<option value="${v.id}">${lbl}</option>`);
+    selB.insertAdjacentHTML('beforeend', `<option value="${v.id}">${lbl}</option>`);
+  });
+  // Default: A = latest ACTUAL for current period, B = BUDGET or LE
+  if (!savedA) {
+    const periodId = parseInt(document.getElementById('flashMoA')?.value || '202603');
+    const actuals = sorted.filter(v => v.kind === 'ACTUAL' && v.period_id === periodId);
+    const budget  = sorted.find(v => v.kind === 'BUDGET');
+    const le      = sorted.find(v => v.kind === 'LE');
+    if (actuals.length) selA.value = actuals[0].id;
+    if (budget) selB.value = budget.id;
+    else if (le) selB.value = le.id;
+  } else {
+    selA.value = savedA;
+    selB.value = savedB;
+  }
+}
+
+// ── Aggregate facts for a version over a set of period IDs ───────────────────
+async function flashFetchFacts(versionId, periodIds) {
+  if (!_sb || !versionId || !periodIds.length) return {};
+  const { data, error } = await _sb
+    .from('fpa_facts')
+    .select('line_id, period_id, value')
+    .eq('version_id', versionId)
+    .in('period_id', periodIds);
+  if (error || !data) return {};
+  // Aggregate: sum across periods for each line
+  const agg = {};
+  data.forEach(r => {
+    agg[r.line_id] = (agg[r.line_id] || 0) + parseFloat(r.value || 0);
+  });
+  return agg;
+}
+
+// ── Determine which period_ids to use based on view + anchor month ───────────
+function flashPeriodIds(view, anchorPeriodId) {
+  const y = Math.floor(anchorPeriodId / 100);
+  const m = anchorPeriodId % 100;
+  if (view === 'month')  return [anchorPeriodId];
+  if (view === 'annual') return Array.from({length:12}, (_,i) => y*100+(i+1));
+  if (view === 'ytd')    return Array.from({length:m},  (_,i) => y*100+(i+1));
+  if (view === 'qtd') {
+    const qStart = m <= 3 ? 1 : m <= 6 ? 4 : m <= 9 ? 7 : 10;
+    return Array.from({length: m - qStart + 1}, (_,i) => y*100+(qStart+i));
+  }
+  return [anchorPeriodId];
+}
+
+// ── Render a currency value ───────────────────────────────────────────────────
+function flashFmt(v) {
+  if (v == null || isNaN(v)) return '—';
+  const abs = Math.abs(Math.round(v));
+  return v < 0 ? `(${abs.toLocaleString()})` : abs.toLocaleString();
+}
+
+// ── Variance cell ─────────────────────────────────────────────────────────────
+function flashVar(a, b, favorable_when_positive = true) {
+  if (a == null || b == null || isNaN(a) || isNaN(b)) return { html:'—', cls:'' };
+  const diff = a - b;
+  const pct  = b !== 0 ? ((diff / Math.abs(b)) * 100).toFixed(1) : '—';
+  const good = favorable_when_positive ? diff >= 0 : diff <= 0;
+  const cls  = diff === 0 ? '' : good ? 'flash-var-pos' : 'flash-var-neg';
+  const sign = diff > 0 ? '+' : '';
+  return { html: `${sign}${flashFmt(diff)}<br><span style="font-size:9px">${sign}${pct}%</span>`, cls };
+}
+
+// ── Build KPI strip ───────────────────────────────────────────────────────────
+function flashBuildKpis(factsA, factsB, labelA, labelB) {
+  const el = document.getElementById('flashKpiRow');
+  if (!el) return;
+  const kpis = [
+    { key:'ebitda',  label:'EBITDA',        fav:true },
+    { key:'net_inc', label:'Net Income',     fav:true },
+    { key:'opex',    label:'O&M Expense',    fav:false },
+    { key:'fin_cost',label:'Financing Cost', fav:false },
+    { key:'cash',    label:'Cash',           fav:true, bs:true },
+  ];
+  el.innerHTML = kpis.map(k => {
+    const vA = factsA[k.key] ?? null;
+    const vB = factsB[k.key] ?? null;
+    const vr = flashVar(vA, vB, k.fav);
+    return `<div class="flash-kpi-card">
+      <div class="flash-kpi-label">${k.label}</div>
+      <div class="flash-kpi-val">${vA != null ? '$'+flashFmt(vA) : '—'}</div>
+      <div class="flash-kpi-sub ${vr.cls}">${vr.html||''} <span style="color:var(--muted)">vs ${labelB}</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ── P&L table ─────────────────────────────────────────────────────────────────
+function flashBuildPL(factsA, factsB, labelA, labelB) {
+  const tbl = document.getElementById('flashPLTable');
+  if (!tbl) return;
+  const rows = [
+    { section:'Revenue' },
+    { id:'fuel_rev',  name:'Fuel Revenue',          fav:true },
+    { id:'nonfuel',   name:'Non-Fuel Revenue',       fav:true },
+    { id:'ipp_fr',    name:'IPP Fuel Recovery',      fav:true },
+    { id:'ipp_nr',    name:'IPP Non-Fuel Recovery',  fav:true },
+    { id:'fuel_surp', name:'Fuel Surplus',            fav:true },
+    { subtotal:true, id:'tot_rev', name:'Total Revenue', keys:['fuel_rev','nonfuel','ipp_fr','ipp_nr','fuel_surp'], fav:true },
+    { section:'Costs' },
+    { id:'fuel_cost', name:'Fuel Cost',              fav:false },
+    { id:'ipp_cost',  name:'IPP Cost',               fav:false },
+    { id:'opex',      name:'O&M Expense',            fav:false },
+    { subtotal:true, id:'ebitda', name:'EBITDA',     keys:null, fav:true, bold:true },
+    { section:'Below EBITDA' },
+    { id:'depn',      name:'Depreciation',           fav:false },
+    { id:'ebit',      name:'EBIT',                   fav:true, bold:true },
+    { id:'fin_cost',  name:'Financing Cost',         fav:false },
+    { id:'oth_inc',   name:'Other Income',           fav:true },
+    { id:'pretax',    name:'Pre-Tax Income',         fav:true, bold:true },
+    { id:'tax',       name:'Income Tax',             fav:false },
+    { subtotal:true, id:'net_inc', name:'Net Income', keys:null, fav:true, bold:true },
+  ];
+  const hdR = `<tr>
+    <th style="text-align:left;min-width:180px">Line Item</th>
+    <th>${labelA}</th><th>${labelB}</th><th>Variance</th><th>Var %</th>
+  </tr>`;
+  let body = '';
+  rows.forEach(r => {
+    if (r.section) {
+      body += `<tr class="flash-section-row"><td colspan="5">${r.section}</td></tr>`;
+      return;
+    }
+    let vA = factsA[r.id] ?? null;
+    let vB = factsB[r.id] ?? null;
+    if (r.subtotal && r.keys) {
+      vA = r.keys.reduce((s,k) => s + (factsA[k] || 0), 0);
+      vB = r.keys.reduce((s,k) => s + (factsB[k] || 0), 0);
+    }
+    const diff = (vA != null && vB != null) ? vA - vB : null;
+    const pct  = (diff != null && vB && vB !== 0) ? ((diff / Math.abs(vB)) * 100).toFixed(1) : '—';
+    const good = r.fav ? (diff == null || diff >= 0) : (diff == null || diff <= 0);
+    const cls  = diff == null ? '' : diff === 0 ? '' : good ? 'flash-var-pos' : 'flash-var-neg';
+    const sign = diff > 0 ? '+' : '';
+    const weight = r.bold || r.subtotal ? 'font-weight:800;' : '';
+    const rowCls = r.subtotal ? 'flash-total-row' : '';
+    body += `<tr class="${rowCls}">
+      <td style="${weight}padding-left:${r.subtotal?'12px':'24px'}">${r.name}</td>
+      <td style="${weight}">${vA != null ? flashFmt(vA) : '—'}</td>
+      <td style="${weight}">${vB != null ? flashFmt(vB) : '—'}</td>
+      <td class="${cls}" style="${weight}">${diff != null ? sign+flashFmt(diff) : '—'}</td>
+      <td class="${cls}" style="font-size:10px;${weight}">${diff != null ? sign+pct+'%' : '—'}</td>
+    </tr>`;
+  });
+  tbl.innerHTML = `<thead>${hdR}</thead><tbody>${body}</tbody>`;
+}
+
+// ── Balance Sheet highlights ───────────────────────────────────────────────────
+function flashBuildBS(factsA, factsB, labelA, labelB) {
+  const tbl = document.getElementById('flashBSTable');
+  if (!tbl) return;
+  const rows = [
+    { id:'cash',   name:'Cash & Equivalents', fav:true },
+    { id:'tot_a',  name:'Total Assets',        fav:true },
+    { id:'equity', name:'Equity',              fav:true },
+    { id:'ltd',    name:'Long-Term Debt',      fav:false },
+    { id:'leases', name:'Lease Liabilities',   fav:false },
+  ];
+  const hd = `<tr><th>Item</th><th>${labelA}</th><th>${labelB}</th><th>Var</th></tr>`;
+  const body = rows.map(r => {
+    const vA = factsA[r.id] ?? null;
+    const vB = factsB[r.id] ?? null;
+    const vr = flashVar(vA, vB, r.fav);
+    return `<tr>
+      <td>${r.name}</td>
+      <td>${vA != null ? flashFmt(vA) : '—'}</td>
+      <td>${vB != null ? flashFmt(vB) : '—'}</td>
+      <td class="${vr.cls}" style="font-size:10px">${vr.html}</td>
+    </tr>`;
+  }).join('');
+  tbl.innerHTML = `<thead>${hd}</thead><tbody>${body}</tbody>`;
+}
+
+// ── Key Metrics ───────────────────────────────────────────────────────────────
+function flashBuildMetrics(factsA, factsB, labelA, labelB) {
+  const tbl = document.getElementById('flashMetricsTable');
+  if (!tbl) return;
+  const ebitdaA = factsA['ebitda'] || 0,  ebitdaB = factsB['ebitda'] || 0;
+  const revenueA = (factsA['fuel_rev']||0)+(factsA['nonfuel']||0)+(factsA['ipp_fr']||0)+(factsA['ipp_nr']||0);
+  const revenueB = (factsB['fuel_rev']||0)+(factsB['nonfuel']||0)+(factsB['ipp_fr']||0)+(factsB['ipp_nr']||0);
+  const niA = factsA['net_inc'] || 0,      niB = factsB['net_inc'] || 0;
+  const metrics = [
+    { name:'EBITDA Margin', vA: revenueA ? (ebitdaA/revenueA*100).toFixed(1)+'%' : '—',
+                             vB: revenueB ? (ebitdaB/revenueB*100).toFixed(1)+'%' : '—', raw_a: revenueA?ebitdaA/revenueA:null, raw_b: revenueB?ebitdaB/revenueB:null, fav:true },
+    { name:'Net Margin',    vA: revenueA ? (niA/revenueA*100).toFixed(1)+'%' : '—',
+                             vB: revenueB ? (niB/revenueB*100).toFixed(1)+'%' : '—', raw_a: revenueA?niA/revenueA:null, raw_b: revenueB?niB/revenueB:null, fav:true },
+    { name:'Debt/EBITDA',   vA: ebitdaA ? ((factsA['ltd']||0)/ebitdaA).toFixed(2)+'x' : '—',
+                             vB: ebitdaB ? ((factsB['ltd']||0)/ebitdaB).toFixed(2)+'x' : '—', raw_a: ebitdaA?(factsA['ltd']||0)/ebitdaA:null, raw_b: ebitdaB?(factsB['ltd']||0)/ebitdaB:null, fav:false },
+    { name:'Total Revenue', vA:'$'+flashFmt(revenueA), vB:'$'+flashFmt(revenueB), raw_a:revenueA, raw_b:revenueB, fav:true },
+    { name:'IPP Cost',      vA:'$'+flashFmt(factsA['ipp_cost']), vB:'$'+flashFmt(factsB['ipp_cost']), raw_a:factsA['ipp_cost'], raw_b:factsB['ipp_cost'], fav:false },
+  ];
+  const hd = `<tr><th>Metric</th><th>${labelA}</th><th>${labelB}</th><th>Δ</th></tr>`;
+  const body = metrics.map(m => {
+    const diff = (m.raw_a != null && m.raw_b != null) ? m.raw_a - m.raw_b : null;
+    const good = diff == null ? true : m.fav ? diff >= 0 : diff <= 0;
+    const cls  = diff == null || diff === 0 ? '' : good ? 'flash-var-pos' : 'flash-var-neg';
+    return `<tr><td>${m.name}</td><td>${m.vA}</td><td>${m.vB}</td><td class="${cls}" style="font-size:10px">${diff!=null?(diff>=0?'▲':'▼'):'—'}</td></tr>`;
+  }).join('');
+  tbl.innerHTML = `<thead>${hd}</thead><tbody>${body}</tbody>`;
+}
+
+// ── Main refresh ──────────────────────────────────────────────────────────────
+async function flashRefresh() {
+  const periodId = parseInt(document.getElementById('flashMoA')?.value || '202603');
+  const verAId   = document.getElementById('flashVerA')?.value || '';
+  const verBId   = document.getElementById('flashVerB')?.value || '';
+
+  const periodIds = flashPeriodIds(_flashView, periodId);
+  const verA = fpa.versions?.find(v => v.id === verAId);
+  const verB = fpa.versions?.find(v => v.id === verBId);
+  const labelA = verA ? verA.name : 'Version A';
+  const labelB = verB ? verB.name : 'Version B';
+
+  const [factsA, factsB] = await Promise.all([
+    flashFetchFacts(verAId, periodIds),
+    flashFetchFacts(verBId, periodIds),
+  ]);
+
+  // Period label for display
+  const viewLabel = { month: FLASH_MONTHS[periodId]||periodId, qtd:'QTD', ytd:'YTD', annual:'FY 2026' }[_flashView];
+
+  // Column headers
+  const hdEl = document.getElementById('flashColHeaders');
+  if (hdEl) hdEl.innerHTML = `
+    <span style="color:var(--blue);padding:2px 8px;background:rgba(74,144,217,.1);border-radius:6px">${labelA}</span>
+    <span style="color:var(--muted)">vs</span>
+    <span style="color:var(--amber);padding:2px 8px;background:rgba(251,191,36,.1);border-radius:6px">${labelB}</span>
+    <span style="color:var(--muted);padding:2px 8px">${viewLabel}</span>`;
+
+  flashBuildKpis(factsA, factsB, labelA, labelB);
+  flashBuildPL(factsA, factsB, labelA, labelB);
+  flashBuildBS(factsA, factsB, labelA, labelB);
+  flashBuildMetrics(factsA, factsB, labelA, labelB);
+  flashLoadNotes();
+
+  const gt = document.getElementById('flashGenTime');
+  if (gt) gt.textContent = new Date().toLocaleString('en-JM', {dateStyle:'medium',timeStyle:'short'});
+}
+
+// ── View toggle ───────────────────────────────────────────────────────────────
+function flashSetView(view, btn) {
+  _flashView = view;
+  document.querySelectorAll('.flash-view-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  flashRefresh();
+}
+
+// ── Init (called on tab open) ─────────────────────────────────────────────────
+function flashInit() {
+  // Populate period options from fpa_dim_period closed periods
+  const moSel = document.getElementById('flashMoA');
+  if (moSel && fpa.periods) {
+    moSel.innerHTML = '';
+    const closed = fpa.periods.filter(p => p.year === 2026 && p.is_closed);
+    if (!closed.length) {
+      moSel.innerHTML = '<option value="202603">Mar 2026</option>';
+    } else {
+      closed.forEach(p => {
+        const lbl = new Date(p.year, p.month-1).toLocaleString('en-JM',{month:'short',year:'numeric'});
+        moSel.insertAdjacentHTML('beforeend', `<option value="${p.id}" ${p.id===202603?'selected':''}>${lbl}</option>`);
+      });
+    }
+  }
+  flashPopulateVersions();
+  // Show/hide Back to Model button based on role
+  const backBtn = document.getElementById('flashBackBtn');
+  if (backBtn) backBtn.style.display = ['admin','analyst'].includes(currentUser?.role) ? 'inline-flex' : 'none';
+  flashRefresh();
+}
+
+// ── Navigate back to main model ───────────────────────────────────────────────
+function flashGoToModel() {
+  const dashTab = document.querySelector('.tab[onclick*="\'dash\'"]');
+  showPane('dash', dashTab);
+  if (dashTab) { document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on')); dashTab.classList.add('on'); }
+}
+
+// ── Notes: load from Supabase ─────────────────────────────────────────────────
+async function flashLoadNotes() {
+  if (!_sb) return;
+  const periodId = document.getElementById('flashMoA')?.value || '202603';
+  const y = Math.floor(parseInt(periodId)/100), m = parseInt(periodId)%100;
+  const rptPeriod = `${y}-${String(m).padStart(2,'0')}`;
+  const { data, error } = await _sb
+    .from('fpa_flash_notes')
+    .select('*')
+    .eq('report_period', rptPeriod)
+    .eq('is_deleted', false)
+    .order('entered_at', { ascending: false });
+  _flashNotesData = error ? [] : (data || []);
+  flashRenderNotes();
+}
+
+// ── Notes: render feed ─────────────────────────────────────────────────────────
+function flashRenderNotes() {
+  const feed = document.getElementById('flashNotesFeed');
+  if (!feed) return;
+  if (!_flashNotesData.length) {
+    feed.innerHTML = `<div style="font-size:11px;color:var(--muted);text-align:center;padding:18px">No notes for this period yet. Add commentary above.</div>`;
+    return;
+  }
+  const sectionColors = {
+    general:'var(--blue)', revenue:'var(--green)', opex:'var(--amber)',
+    ebitda:'var(--teal)', financing:'var(--purple)', balance_sheet:'var(--pink)',
+    capex:'var(--gold)', outlook:'var(--red)'
+  };
+  feed.innerHTML = _flashNotesData.map(n => {
+    const dt = new Date(n.entered_at).toLocaleString('en-JM',{dateStyle:'medium',timeStyle:'short'});
+    const upd = n.updated_at ? ` · edited ${new Date(n.updated_at).toLocaleString('en-JM',{timeStyle:'short'})}` : '';
+    const sCol = sectionColors[n.section] || 'var(--blue)';
+    const initials = n.entered_by.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<div class="flash-note-item">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--teal));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0">${initials}</div>
+        <div style="flex:1;">
+          <div class="flash-note-meta">
+            <span style="font-weight:700;color:var(--text)">${n.entered_by}</span>
+            <span>${dt}${upd}</span>
+            <span class="flash-note-section" style="background:${sCol}22;color:${sCol}">${n.section.replace(/_/g,' ')}</span>
+          </div>
+          <div class="flash-note-text" style="margin-top:6px">${n.note_text.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Notes: save new note ───────────────────────────────────────────────────────
+async function flashSaveNote() {
+  if (!_sb) { toast('No database connection','err'); return; }
+  const noteText = (document.getElementById('flashNoteInput')?.value || '').trim();
+  if (!noteText) { toast('Please enter a note first','err'); return; }
+  const section   = document.getElementById('flashNoteSection')?.value || 'general';
+  const periodId  = document.getElementById('flashMoA')?.value || '202603';
+  const y = Math.floor(parseInt(periodId)/100), m = parseInt(periodId)%100;
+  const rptPeriod = `${y}-${String(m).padStart(2,'0')}`;
+  const { error } = await _sb.from('fpa_flash_notes').insert({
+    report_period: rptPeriod,
+    section,
+    note_text: noteText,
+    entered_by: currentUser?.name || 'Unknown',
+  });
+  if (error) { toast('Save failed: '+error.message, 'err'); return; }
+  document.getElementById('flashNoteInput').value = '';
+  toast('Note saved','ok');
+  await flashLoadNotes();
+}
+
+// ── Export PDF ────────────────────────────────────────────────────────────────
+function flashExportPDF() {
+  const title = document.title;
+  const periodId = document.getElementById('flashMoA')?.value || '202603';
+  const y = Math.floor(parseInt(periodId)/100), m = parseInt(periodId)%100;
+  document.title = `JPS Flash Report ${FLASH_MONTHS[periodId]||periodId}`;
+  window.print();
+  document.title = title;
+  toast('Print dialog opened — save as PDF','ok');
+}
+
+// ── Export Excel ──────────────────────────────────────────────────────────────
+function flashExportXLSX() {
+  if (typeof XLSX === 'undefined') { toast('XLSX library not loaded','err'); return; }
+  const periodId = document.getElementById('flashMoA')?.value || '202603';
+  const verAId   = document.getElementById('flashVerA')?.value || '';
+  const verBId   = document.getElementById('flashVerB')?.value || '';
+  const verA = fpa.versions?.find(v => v.id === verAId);
+  const verB = fpa.versions?.find(v => v.id === verBId);
+  const labelA = verA?.name || 'Version A';
+  const labelB = verB?.name || 'Version B';
+
+  // Grab table data from DOM
+  const plTbl = document.getElementById('flashPLTable');
+  const bsTbl = document.getElementById('flashBSTable');
+  const rows = [];
+  rows.push(['JPS Management Flash Report — ' + (FLASH_MONTHS[periodId]||periodId)]);
+  rows.push([]);
+  rows.push(['INCOME STATEMENT']);
+  if (plTbl) {
+    plTbl.querySelectorAll('tr').forEach(tr => {
+      rows.push([...tr.querySelectorAll('th,td')].map(c => c.innerText.replace(/\n/g,' ')));
+    });
+  }
+  rows.push([]);
+  rows.push(['BALANCE SHEET HIGHLIGHTS']);
+  if (bsTbl) {
+    bsTbl.querySelectorAll('tr').forEach(tr => {
+      rows.push([...tr.querySelectorAll('th,td')].map(c => c.innerText.replace(/\n/g,' ')));
+    });
+  }
+  rows.push([]);
+  rows.push(['NOTES']);
+  _flashNotesData.forEach(n => {
+    rows.push([n.entered_at, n.entered_by, n.section, n.note_text]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Flash Report');
+  XLSX.writeFile(wb, `JPS_Flash_${FLASH_MONTHS[periodId]||periodId}_${labelA}_vs_${labelB}.xlsx`.replace(/[\s/]/g,'_'));
+  toast('Excel exported','ok');
+}
 </script>
 </body>
 </html>
