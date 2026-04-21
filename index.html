@@ -7548,6 +7548,7 @@ async function _claudeFetch(system, userContent, maxTokens = 1000) {
       'Content-Type': 'application/json',
       'x-api-key': key,
       'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
       model: _CLAUDE_MODEL,
