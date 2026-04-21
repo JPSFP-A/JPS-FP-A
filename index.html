@@ -10,15 +10,15 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 :root{
-  --bg:#06090f;--s1:#0a1020;--s2:#0e1628;--card:#121e32;--card2:#172438;--card3:#1c2d44;
-  --border:#1a2d48;--b2:#213654;
-  --gold:#f0b429;--glo:rgba(240,180,41,.15);--blue:#3b82f6;--teal:#06b6d4;
-  --green:#10b981;--red:#ef4444;--amber:#f59e0b;--purple:#8b5cf6;--pink:#ec4899;
-  --text:#cdd8f0;--muted:#4a6485;--dim:#1d3050;
+  --bg:#08111f;--s1:#0d1a2e;--s2:#111f35;--card:#162030;--card2:#1b293d;--card3:#203248;
+  --border:#1e3350;--b2:#28415e;
+  --gold:#f0b429;--glo:rgba(240,180,41,.13);--blue:#4a90d9;--teal:#22d3ee;
+  --green:#34d399;--red:#f87171;--amber:#fbbf24;--purple:#a78bfa;--pink:#f472b6;
+  --text:#d4e2f4;--muted:#7da0c4;--dim:#3d5f80;
   --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
-  --chart-grid:rgba(255,255,255,.035);--shadow:rgba(0,0,0,.4);
-  --input-bg:#172438;--input-text:#cdd8f0;
-  --table-header-bg:#0e1628;--table-header-text:#cdd8f0;
+  --chart-grid:rgba(255,255,255,.045);--shadow:rgba(0,0,0,.45);
+  --input-bg:#1b293d;--input-text:#d4e2f4;
+  --table-header-bg:#0d1a2e;--table-header-text:#d4e2f4;
 }
 /* LIGHT THEME */
 :root.theme-light{
@@ -2116,6 +2116,8 @@ tr.der td{color:var(--teal)}
   </div>
   <div style="font-size:11px;font-weight:700;color:white;margin-bottom:8px">📋 Download Input Templates</div>
   <div class="tg2" id="tmplGrid"></div>
+  <!-- Period Status — rendered by buildPeriodStatusPanel() -->
+  <div id="periodStatusPanel" style="margin-bottom:12px"></div>
   <div class="tc2"><div class="th"><div class="tt">Upload Log</div></div><div class="tscr"><table><thead><tr><th style="text-align:left">File</th><th>Type</th><th>Period</th><th>Rows</th><th>Status</th><th>Date</th><th>Action</th></tr></thead><tbody id="ulB"></tbody></table></div></div>
   <!-- Supabase connection settings — rendered by buildSupabaseSettings() -->
   <div id="sbSettingsPanel"></div>
@@ -2407,6 +2409,15 @@ const fpa = {
   // Get annual-only (year, month=null) assumption
   assumpAnnual(versionCode, category, key, subKey, year) {
     return this.assumptions?.[versionCode]?.[category]?.[key]?.[subKey || '']?.[year * 100] ?? null;
+  },
+  // Returns true if the period is marked is_closed in fpa_dim_period
+  isPeriodClosed(year, month) {
+    return this.periods.some(p => p.year === year && p.month === month && p.is_closed);
+  },
+  // Returns the latest open (not closed) month for a year, or null if all closed/none
+  latestClosedMonth(year) {
+    const closed = this.periods.filter(p => p.year === year && p.is_closed).map(p => p.month);
+    return closed.length ? Math.max(...closed) : 0;
   },
 };
 
@@ -3087,6 +3098,54 @@ function saveSbConfig(url, anonKey, enabled) {
     toast(enabled ? 'Supabase config saved — key required to connect' : 'Supabase disabled — local mode', 'ok');
   }
   buildSupabaseSettings();
+}
+
+// ── Period Status Panel (in adm-data tab) ────────────
+function buildPeriodStatusPanel() {
+  const el = document.getElementById('periodStatusPanel');
+  if (!el) return;
+
+  const year = 2026;
+  const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const latestClosed = fpa.latestClosedMonth(year);
+  const hasDB = fpa.periods.length > 0;
+
+  const cells = mn.map((m, i) => {
+    const mo = i + 1;
+    const closed = fpa.isPeriodClosed(year, mo);
+    const hasActuals = actualsStore[year]?.[mo] != null;
+    const isNext = !closed && mo === latestClosed + 1;
+
+    let bg, label, icon;
+    if (closed && hasActuals)    { bg='rgba(52,211,153,.12)'; label='Actuals Loaded'; icon='✅'; }
+    else if (closed)             { bg='rgba(52,211,153,.07)'; label='Closed'; icon='🔒'; }
+    else if (isNext)             { bg='rgba(251,191,36,.10)'; label='Next Upload'; icon='⬆'; }
+    else                         { bg='rgba(125,160,196,.06)'; label='Open — LE'; icon='📋'; }
+
+    return `<div style="text-align:center;padding:8px 4px;border-radius:6px;background:${bg};border:1px solid ${closed?'rgba(52,211,153,.2)':isNext?'rgba(251,191,36,.25)':'var(--border)'}">
+      <div style="font-size:14px">${icon}</div>
+      <div style="font-size:10px;font-weight:700;color:var(--text);margin:2px 0">${m}</div>
+      <div style="font-size:9px;color:var(--muted)">${label}</div>
+    </div>`;
+  });
+
+  el.innerHTML = `
+    <div class="tc2" style="margin-bottom:0">
+      <div class="th">
+        <div>
+          <div class="tt">📅 2026 Period Status
+            <span class="badge" style="background:${hasDB?'rgba(52,211,153,.15)':'rgba(125,160,196,.1)'};color:${hasDB?'var(--green)':'var(--muted)'}">
+              ${hasDB ? `${latestClosed} month${latestClosed!==1?'s':''} closed` : 'DB not loaded'}
+            </span>
+          </div>
+          <div class="ts">🔒 Closed = actuals locked · ⬆ Next = upload actuals file · 📋 Open = LE editable</div>
+        </div>
+        <div class="ta">
+          <button class="btn btn-ghost" style="font-size:10px" onclick="showPane('adm-data',null);document.getElementById('dz').scrollIntoView({behavior:'smooth'})">⬆ Upload Actuals</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:5px;padding:12px">${cells.join('')}</div>
+    </div>`;
 }
 
 // ── Supabase Settings UI (in adm-data tab) ──────────
@@ -6821,6 +6880,7 @@ function buildOMTable(){
 function updOMRow(inp,yr){
   yr=yr||selectedOMYear;
   const id=inp.dataset.row,mo=parseInt(inp.dataset.mo);
+  if(fpa.isPeriodClosed(yr,mo+1)){inp.value=inp.defaultValue||inp.value;toast(`${MONTHS[mo]} ${yr} is a closed period — actuals are locked`,'w');return;}
   const raw=parseFloat(inp.value.replace(/,/g,''));
   if(isNaN(raw)||raw<0||raw>9999999){inp.style.borderColor='var(--red)';toast('Enter a valid positive number (US$000)','err');return;}
   inp.style.borderColor='';
@@ -6896,6 +6956,7 @@ function buildCxDepn(yr){
 function updCxRow(inp,yr){
   yr=yr||selectedCapexYear;
   const id=inp.dataset.row,mo=parseInt(inp.dataset.mo);
+  if(fpa.isPeriodClosed(yr,mo+1)){inp.value=inp.defaultValue||inp.value;toast(`${MONTHS[mo]} ${yr} is a closed period — actuals are locked`,'w');return;}
   const raw=parseFloat(inp.value.replace(/,/g,''));
   if(isNaN(raw)||raw<0||raw>9999999){inp.style.borderColor='var(--red)';toast('Enter a valid positive number (US$000)','err');return;}
   inp.style.borderColor='';
@@ -7765,7 +7826,8 @@ function buildDataSources(){
   const tmpls=[{i:'📊',n:'Income Statement Actuals',d:'Monthly P&L by line item',k:'pl'},{i:'💧',n:'Direct Cash Flow',d:'Monthly receipts & disbursements',k:'cf'},{i:'⚖',n:'Balance Sheet',d:'Monthly BS positions',k:'bs'},{i:'📈',n:'Revenue & Volume',d:'GWh, customers, peak demand by month',k:'revenue'},{i:'📋',n:'Tariff Rates',d:'OUR approved rates by class',k:'tariff'},{i:'🔧',n:'O&M by Category',d:'Monthly costs – 17 categories',k:'om'},{i:'🏗',n:'CapEx Plan',d:'Monthly by division',k:'capex'},{i:'💳',n:'Collections Data',d:'Billings, rates, prior period',k:'collections'},{i:'📉',n:'Depreciation Schedule',d:'Asset lines + monthly depreciation',k:'depn'},{i:'🎯',n:'Scenario Overrides',d:'Adj% per KPI vs Base Case',k:'scenario'}];
   document.getElementById('tmplGrid').innerHTML=tmpls.map(t=>`<div class="tc3" onclick="dlTmpl('${t.k}')"><div class="ti">${t.i}</div><div><div class="tn">${t.n}</div><div class="td">${t.d}</div></div></div>`).join('');
   document.getElementById('ulB').innerHTML=uploadLog.map(u=>`<tr><td style="text-align:left;font-family:var(--sans)"><strong>${u.name}</strong></td><td>${u.type}</td><td>${u.period}</td><td>${u.rows}</td><td>${u.status}</td><td>${u.date}</td><td><button class="btn btn-ghost" style="font-size:9px;height:20px;padding:0 6px" onclick="toast('Refreshing...')">🔄</button></td></tr>`).join('');
-  // Render Supabase settings panel
+  // Render period status + Supabase settings panels
+  buildPeriodStatusPanel();
   buildSupabaseSettings();
 }
 function dlTmpl(key){
@@ -7867,18 +7929,50 @@ ROU Depreciation = Opening ROU ÷ total months</div>
       <p>Adjustments per year 2026–2030: eb (EBITDA%), rv (Revenue%), om (O&M%), cx (CapEx%), fu (Fuel%), tr (Tariff%), cr (Collection rate%)</p>
       <p>Base Case always present, cannot be deleted. All scenarios are relative to Base Case.</p>
       <p>Year-aware: a tariff increase scenario can show 0% in 2026, +5% in 2027, +3% in 2028.</p>`},
-    {n:'14. Actuals Upload',c:'var(--green)',body:`
-      <p>File: JPSCo_Financials_MM-YY.xlsx (one per month). 11 sheets — platform reads 8.</p>
-      <p>Uploaded months are locked (no manual edit). Net Generation and Fuel Costs override the LE values for that month. Re-upload to unlock.</p>`},
-    {n:'15. Themes & Permissions',c:'var(--muted)',body:`
-      <p><strong>3 Themes:</strong> ☾ Dark | ☀ Light | ⚡ JPS Corporate (navy #003DA5, cyan #00AEEF)</p>
-      <p><strong>Colour conventions:</strong> Teal = derived/read-only | Amber = impairment/warning | Green = favourable | Red = adverse</p>
-      <p><strong>3 Roles:</strong> Admin (full) | Analyst (own scenarios + view) | Viewer (read-only)</p>`},
-    {n:'16. Cloud Migration Plan',c:'var(--muted)',body:`
-      <p><strong>Target:</strong> Supabase (PostgreSQL + Auth + Realtime) + Vercel hosting</p>
-      <p><strong>What changes:</strong> currentUser → Supabase Auth | All data objects → Supabase tables | can() → JWT-based permissions</p>
-      <p><strong>Tables:</strong> users, actuals, scenarios, assumptions, leases, insurance, audit_log</p>
-      <p><strong>What stays:</strong> All calculation logic, all UI, all chart rendering, all permission logic structure.</p>`},
+    {n:'14. Actuals Upload & Period Locking',c:'var(--green)',body:`
+      <p><strong>File format:</strong> JPSCo_Financials_MM-YY.xlsx — one file per month, 11 sheets (platform reads 8: P&L, CF, BS, Revenue, Volume, O&M, CapEx, Collections).</p>
+      <p><strong>How to upload:</strong> Admin → ☁ Data Sources → drag file onto the drop zone or click Browse. The platform auto-detects the month from the filename.</p>
+      <p><strong>Period locking:</strong> Once a month is uploaded its <code>is_closed</code> flag is set in <code>fpa_dim_period</code>. Closed months:</p>
+      <ul style="margin:4px 0 8px 16px">
+        <li>Show as 🔒 in the Period Status grid (Admin → Data Sources)</li>
+        <li>Block manual edits on O&M, CapEx, and Revenue cells for that month</li>
+        <li>Override LE values in all reports with the uploaded actuals</li>
+      </ul>
+      <p><strong>To re-upload / correct actuals:</strong> Upload a corrected file for the same month — the upsert overwrites the previous data and keeps the period locked.</p>
+      <p><strong>FX rates:</strong> Jan–Mar 2026 are locked as actuals (teal, read-only). Apr onwards are projected (gold, editable). All years 2027–2030 default to projected. Update actuals monthly in <code>fpa_assumptions</code> under category <code>fx_billing</code> / <code>fx_expense</code>.</p>
+      <p><strong>Net Generation &amp; Fuel Costs</strong> override LE values for the uploaded month; all downstream calculations (IPP cost, fuel revenue lag, heat rate) update automatically.</p>`},
+    {n:'15. Themes, Permissions & AI Key',c:'var(--muted)',body:`
+      <p><strong>3 Themes:</strong> ☾ Dark (default) | ☀ Light | ⚡ JPS Corporate (navy #003DA5, cyan #00AEEF)</p>
+      <p><strong>Colour conventions:</strong> Teal = derived/read-only cell | Amber = impairment/warning | Green = favourable variance | Red = adverse variance</p>
+      <p><strong>3 Roles:</strong> Admin (full edit + settings) | Analyst (own scenarios + LE edit) | Viewer (read-only, no inputs)</p>
+      <p><strong>Claude AI Key setup:</strong> Admin → ☁ Data Sources → scroll to ✦ Claude API Key → paste key from <em>console.anthropic.com</em> → click 🧪 Test Key. The key is stored in your browser's localStorage only — it never leaves your device.</p>
+      <p><strong>AI Commentary</strong> is rate-limited to your Anthropic account tier. Keys are per-browser; each user needs their own.</p>`},
+    {n:'16. Live Infrastructure',c:'var(--teal)',body:`
+      <p><strong>Database:</strong> Supabase project <code>JPS_sales_forecast</code> (us-west-2) — PostgreSQL + Realtime + RLS</p>
+      <p><strong>Hosting:</strong> Vercel → <code>jps-fp-a.vercel.app</code> — auto-deploys on every push to GitHub main branch</p>
+      <p><strong>Repo:</strong> GitHub org <code>JPSFP-A</code> / repo <code>JPS-FP-A</code> (public) — single file <code>index.html</code></p>
+      <p><strong>Realtime sync:</strong> Changes to <code>fpa_facts</code>, <code>fpa_assumptions</code>, and <code>fpa_versions</code> by any user trigger an automatic refresh for all connected sessions via Supabase Realtime postgres_changes.</p>
+      <p><strong>17 active tables:</strong></p>
+      <div class="gf">fpa_versions · fpa_dim_line · fpa_dim_period · fpa_facts · fpa_assumptions
+fpa_leases · fpa_insurance_policies · fpa_impairment_events
+fpa_uploads · fpa_audit_log · dashboard_state · profiles
+jps_actuals (33K rows) · jps_budget (1.1K rows) — separate app, read-only here</div>
+      <p><strong>Data not yet in DB</strong> (still hardcoded, planned migration): O&M category definitions, CapEx category definitions, tariff tables, volume tables.</p>`},
+    {n:'17. Glossary',c:'var(--gold)',body:`
+      <p><strong>LE</strong> — Latest Estimate. The rolling re-forecast blending YTD actuals with forward projections. Feb 2026 LE is the current base.</p>
+      <p><strong>AOP</strong> — Annual Operating Plan. The approved budget set at year start. Used as the benchmark for variances.</p>
+      <p><strong>EBITDA</strong> — Earnings Before Interest, Tax, Depreciation &amp; Amortisation. Core operational profitability metric.</p>
+      <p><strong>NPAT / NPBT</strong> — Net Profit After Tax / Before Tax.</p>
+      <p><strong>OUR</strong> — Office of Utilities Regulation. Sets JPS tariff rates and approves fuel-cost pass-throughs.</p>
+      <p><strong>IPP</strong> — Independent Power Producer. Third-party generators (SJPC, JEP, JPPC, WKPP). Costs split: cash payment + IFRS-16 lease credit.</p>
+      <p><strong>IFRS 16</strong> — Accounting standard for leases. Replaces operating lease expense with ROU depreciation + interest. JPS applies to IPP PPAs and property/vehicle leases.</p>
+      <p><strong>ROU</strong> — Right-of-Use asset. The capitalised value of a lease on the balance sheet.</p>
+      <p><strong>DSO</strong> — Days Sales Outstanding. (Closing Receivables ÷ Monthly Billing) × 30. Measures collection efficiency.</p>
+      <p><strong>DSCR</strong> — Debt Service Coverage Ratio. EBITDA ÷ Total Debt Service. Covenant minimum: 1.20×.</p>
+      <p><strong>FX G/(L)</strong> — Foreign Exchange Gain/Loss. (Actual Rate − Budget Rate) × Net USD Position.</p>
+      <p><strong>VOM</strong> — Variable O&M. Fuel-linked operating cost per kWh for thermal generation.</p>
+      <p><strong>CWIP</strong> — Capital Work in Progress. CapEx spend not yet transferred to Fixed Assets.</p>
+      <p><strong>IAS 36</strong> — Impairment of Assets. Impairment charges always shown as a separate amber line; never combined with depreciation.</p>`},
   ];
   if(!document.getElementById('guideStyle')){
     const s=document.createElement('style');
