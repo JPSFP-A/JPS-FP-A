@@ -273,6 +273,16 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
   color:#fff;background:#1e3a5f;text-transform:uppercase;letter-spacing:.07em;
   border-right:1px solid rgba(255,255,255,.1);
 }
+/* Flash 3-way Month+YTD column headers */
+.flash-col-hdr-mo{background:#1e3a5f!important;color:#fff!important;font-size:9px!important;letter-spacing:.04em;text-align:center!important}
+.flash-col-hdr-ytd{background:#2d5016!important;color:#fff!important;font-size:9px!important;letter-spacing:.04em;text-align:center!important}
+.flash-col-group th{font-size:9px;font-weight:700}
+.flash-var-pos{color:#059669!important;font-size:10px}
+.flash-var-neg{color:#dc2626!important;font-size:10px}
+.flash-var-pos small,.flash-var-neg small{display:block;font-size:8px;opacity:.8}
+/* Budget/LE columns slightly muted */
+.flash-col-bud{color:#5570a0!important}
+.flash-col-le{color:#3d7a4a!important}
 .flash-table th:first-child{text-align:left;min-width:190px;border-radius:0;}
 .flash-table th:last-child{border-right:none;}
 .flash-table td{
@@ -349,7 +359,15 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
   .topbar,.tabbar,.flash-ctrl-bar,#welcomeScreen{display:none!important;}
   #pane-rpt-flash{display:flex!important;height:auto!important;overflow:visible!important;background:#fff!important;}
   #flashDocument{overflow:visible!important;padding:0!important;}
-  .flash-page{box-shadow:none!important;}
+  .flash-page{box-shadow:none!important;max-width:100%!important;}
+  /* Flash-specific: show report body, hide generic cover */
+  body.printing-flash #printCoverPage{display:none!important;}
+  body.printing-flash #flashReportBody{display:block!important;}
+  body.printing-flash #flashLoadingState{display:none!important;}
+  body.printing-flash .flash-notes-area{page-break-inside:avoid;}
+  /* Ensure flash tables print with color */
+  .flash-table thead th{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  .flash-row-total td{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
 }
 /* hide app shell until logged in */
 .app-shell{display:none;}
@@ -1550,40 +1568,29 @@ tr.der td{color:var(--teal)}
   <div class="flash-ctrl-bar">
 
     <!-- JPS Logo -->
-    <img id="flashCtrlLogo" src="" alt="JPS" style="height:32px;object-fit:contain;flex-shrink:0;margin-right:4px">
-
-    <!-- View toggle -->
-    <div style="display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;flex-shrink:0">
-      <button class="flash-view-btn on" data-view="month"  onclick="flashSetView('month',this)">Month</button>
-      <button class="flash-view-btn"    data-view="qtd"    onclick="flashSetView('qtd',this)">QTD</button>
-      <button class="flash-view-btn"    data-view="ytd"    onclick="flashSetView('ytd',this)">YTD</button>
-      <button class="flash-view-btn"    data-view="annual" onclick="flashSetView('annual',this)">Full Year</button>
-    </div>
+    <img id="flashCtrlLogo" src="" alt="JPS" style="height:32px;object-fit:contain;flex-shrink:0;margin-right:8px">
 
     <!-- Period navigation -->
     <div style="display:flex;align-items:center;gap:2px;flex-shrink:0;border:1px solid var(--border);border-radius:7px;overflow:hidden">
-      <button class="flash-view-btn" onclick="flashNavPeriod(-1)" title="Previous period" style="padding:6px 10px">◀</button>
-      <span id="flashPeriodLabel" style="font-size:11px;font-weight:700;color:var(--text);padding:0 10px;white-space:nowrap">Mar 2026</span>
-      <button class="flash-view-btn" onclick="flashNavPeriod(+1)" title="Next period" style="padding:6px 10px">▶</button>
+      <button class="flash-view-btn" onclick="flashNavPeriod(-1)" title="Previous month" style="padding:6px 10px">◀</button>
+      <select id="flashMoPicker" class="flash-sel" onchange="flashOnPeriodChange()" style="border:none;border-radius:0;height:32px;min-width:130px;font-weight:700">
+        <option value="">— select month —</option>
+      </select>
+      <button class="flash-view-btn" onclick="flashNavPeriod(+1)" title="Next month" style="padding:6px 10px">▶</button>
     </div>
 
-    <!-- Version A -->
+    <!-- LE Version -->
     <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
-      <span style="font-size:9px;font-weight:800;color:#fff;background:#003da5;padding:3px 9px;border-radius:10px;white-space:nowrap">A · Actual</span>
-      <select id="flashVerA" class="flash-sel" onchange="flashOnVersionChange('A')" style="min-width:160px">
+      <span style="font-size:9px;font-weight:800;color:#003da5;background:#e8f0fc;border:1px solid #b0c4de;padding:3px 9px;border-radius:10px;white-space:nowrap">LE Version</span>
+      <select id="flashLEPicker" class="flash-sel" onchange="flashRefresh()" style="min-width:150px">
         <option value="">— loading… —</option>
       </select>
     </div>
 
-    <span style="font-size:11px;font-weight:700;color:var(--muted);flex-shrink:0">vs</span>
-
-    <!-- Version B -->
-    <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
-      <span style="font-size:9px;font-weight:800;color:#003da5;background:#e8f0fc;border:1px solid #b0c4de;padding:3px 9px;border-radius:10px;white-space:nowrap">B · Budget/LE</span>
-      <select id="flashVerB" class="flash-sel" onchange="flashRefresh()" style="min-width:160px">
-        <option value="">— loading… —</option>
-      </select>
-    </div>
+    <!-- hidden legacy selects kept for notes compatibility -->
+    <input type="hidden" id="flashMoA" value="202603">
+    <input type="hidden" id="flashVerA" value="">
+    <input type="hidden" id="flashVerB" value="">
 
     <!-- Actions -->
     <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0">
@@ -1620,11 +1627,14 @@ tr.der td{color:var(--teal)}
         </div>
 
         <!-- ── COMPARISON BANNER ── -->
-        <div class="flash-compare-banner">
+        <div class="flash-compare-banner" style="flex-wrap:wrap;gap:6px">
           <span class="flash-ver-pill flash-ver-a" id="flashLabelA">Actuals</span>
           <span class="flash-compare-vs">vs</span>
           <span class="flash-ver-pill flash-ver-b" id="flashLabelB">Budget</span>
+          <span class="flash-compare-vs">vs</span>
+          <span class="flash-ver-pill" id="flashLabelLE" style="background:#e8f8ef;color:#166534;border:1px solid #bbf7d0">LE</span>
           <span class="flash-compare-period" id="flashLabelPeriod"></span>
+          <span style="font-size:9px;color:#8099b8;margin-left:4px">· Month &amp; YTD comparison · USD $'000</span>
         </div>
 
         <!-- ── KPI STRIP ── -->
@@ -6458,16 +6468,17 @@ function buildRevReport() {
     { cls:'RT20 – SME/Comm.',    act: isYTD ? actData?.rate20 : data?.rev?.rate20, budPct:0.22 },
     { cls:'RT40 – LV Ind.',      act: isYTD ? actData?.rate40 : data?.rev?.rate40, budPct:0.21 },
     { cls:'RT50 – MV Ind.',      act: isYTD ? actData?.rate50 : data?.rev?.rate50, budPct:0.14 },
-    { cls:'RT60/70 – Other',     act: null,                                         budPct:0.05 },
+    { cls:'RT60 – Streetlights', act: isYTD ? actData?.rate60 : data?.rev?.rate60, budPct:0.03 },
+    { cls:'RT70 – LV/HV Large',  act: isYTD ? actData?.rate70 : data?.rev?.rate70, budPct:0.02 },
   ];
-  const totalActRC = (rateClsData.slice(0,4).reduce((s,r)=>s+(r.act||0),0));
+  const totalActRC = (rateClsData.reduce((s,r)=>s+(r.act||0),0));
   document.getElementById('rateClsH').innerHTML = `<tr><th style="text-align:left">Rate Class</th><th class="ac">Revenue ($000)</th><th class="ac">Share %</th><th class="bc">AOP Share %</th></tr>`;
   document.getElementById('rateClsB').innerHTML = rateClsData.map(r => {
     const share = totalActRC > 0 && r.act ? ((r.act/totalActRC)*100).toFixed(1)+'%' : '–';
     const dispAct = r.act ? fmtN(r.act) : '<span class="dim">–</span>';
     return `<tr><td style="padding-left:14px">${r.cls}</td><td class="ac">${dispAct}</td><td class="ac">${share}</td><td class="gld">${(r.budPct*100).toFixed(0)}%</td></tr>`;
   }).join('') +
-  `<tr class="tr"><td style="padding-left:10px"><strong>Total (RT10–RT50)</strong></td><td class="ac"><strong>${fmtN(totalActRC)}</strong></td><td class="ac"><strong>100%</strong></td><td class="gld">–</td></tr>`;
+  `<tr class="tr"><td style="padding-left:10px"><strong>Total (All Rate Classes)</strong></td><td class="ac"><strong>${fmtN(totalActRC)}</strong></td><td class="ac"><strong>100%</strong></td><td class="gld">–</td></tr>`;
 
   // ── GENERATION MIX TABLE ─────────────────────────────────────────────────
   const genTotalMWh = genTotals.reduce((s,v) => s+v, 0);
@@ -11918,646 +11929,595 @@ function _restoreState() {
 // Patch setScenario and setPeriod to save state — inline, no reassignment needed
 // _saveState() is called directly inside showPane, setScenario, setPeriod above
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  FLASH REPORT ENGINE  v3
-//  - Isolated white-paper document
-//  - Month-labelled A/B selects (period|versionId encoding)
-//  - Period navigation arrows (prev/next closed period)
-//  - Generation & Sales section (GWh, losses, peak demand)
-//  - Separate taxable/non-taxable other income
-//  - Inline 💬 comment icons per row
-// ═══════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  FLASH REPORT — v4  (Month + YTD  ×  Actual | Budget | LE)
+// ════════════════════════════════════════════════════════
 
-// ── Shared month label maps ───────────────────────────────────────────────────
 const FLASH_MONTHS = {
   202601:'Jan 2026', 202602:'Feb 2026', 202603:'Mar 2026',
   202604:'Apr 2026', 202605:'May 2026', 202606:'Jun 2026',
   202607:'Jul 2026', 202608:'Aug 2026', 202609:'Sep 2026',
-  202610:'Oct 2026', 202611:'Nov 2026', 202612:'Dec 2026'
+  202610:'Oct 2026', 202611:'Nov 2026', 202612:'Dec 2026',
+  202501:'Jan 2025', 202502:'Feb 2025', 202503:'Mar 2025',
+  202504:'Apr 2025', 202505:'May 2025', 202506:'Jun 2025',
+  202507:'Jul 2025', 202508:'Aug 2025', 202509:'Sep 2025',
+  202510:'Oct 2025', 202511:'Nov 2025', 202512:'Dec 2025',
 };
 const FLASH_MONTH_FULL = {
-  202601:'January 2026', 202602:'February 2026', 202603:'March 2026',
-  202604:'April 2026',   202605:'May 2026',       202606:'June 2026',
-  202607:'July 2026',    202608:'August 2026',    202609:'September 2026',
-  202610:'October 2026', 202611:'November 2026',  202612:'December 2026'
+  202601:'January 2026',   202602:'February 2026',  202603:'March 2026',
+  202604:'April 2026',     202605:'May 2026',        202606:'June 2026',
+  202607:'July 2026',      202608:'August 2026',     202609:'September 2026',
+  202610:'October 2026',   202611:'November 2026',   202612:'December 2026',
 };
 
 // ── Flash state ───────────────────────────────────────────────────────────────
-let _flashView           = 'month';
-let _flashNotesData      = [];
-let _flashInited         = false;
-let _flashClosedPeriods  = [];   // sorted array of period_ids e.g. [202601,202602,202603]
-let _flashPeriodIdx      = 0;    // current index into _flashClosedPeriods
-let _flashCurrentPeriod  = 202603;
+let _flashInited        = false;
+let _flashClosedPeriods = [];   // sorted [202601, 202602, 202603, ...]
+let _flashPeriodIdx     = 0;
+let _flashCurrentPeriod = 202603;
+let _flashNotesData     = [];
 
-// ── Encode/decode select value: "periodId|versionId" ─────────────────────────
-function flashEnc(perId, verId) { return perId + '|' + verId; }
-function flashDec(val) {
-  const parts = (val||'').split('|');
-  return { perId: parseInt(parts[0])||0, verId: parts[1]||'' };
-}
-
-// ── Show / hide the loading skeleton vs report body ───────────────────────────
+// ── Show / hide states ────────────────────────────────────────────────────────
 function flashShowLoading(msg) {
-  const ls = document.getElementById('flashLoadingState');
-  const rb = document.getElementById('flashReportBody');
-  if (ls) { ls.style.display = 'flex'; ls.innerHTML = `<div class="fl-spinner"></div><div style="font-size:12px;font-weight:600">${msg||'Loading…'}</div>`; }
-  if (rb) rb.style.display = 'none';
+  const ls=document.getElementById('flashLoadingState'), rb=document.getElementById('flashReportBody');
+  if(ls){ls.style.display='flex';ls.innerHTML=`<div class="fl-spinner"></div><div style="font-size:12px;font-weight:600;color:#1e3a5f">${msg||'Loading…'}</div>`;}
+  if(rb)rb.style.display='none';
 }
 function flashShowReport() {
-  const ls = document.getElementById('flashLoadingState');
-  const rb = document.getElementById('flashReportBody');
-  if (ls) ls.style.display = 'none';
-  if (rb) rb.style.display = 'block';
+  const ls=document.getElementById('flashLoadingState'), rb=document.getElementById('flashReportBody');
+  if(ls)ls.style.display='none';
+  if(rb)rb.style.display='block';
 }
 function flashShowEmpty(msg) {
-  const ls = document.getElementById('flashLoadingState');
-  const rb = document.getElementById('flashReportBody');
-  if (ls) { ls.style.display = 'flex'; ls.innerHTML = `<div style="font-size:32px">📰</div><div style="font-size:13px;font-weight:700;color:#1e3a5f">${msg||'Select versions above'}</div><div style="font-size:11px;color:#8099b8">Choose Version A and Version B in the control bar to compare</div>`; }
-  if (rb) rb.style.display = 'none';
+  const ls=document.getElementById('flashLoadingState'), rb=document.getElementById('flashReportBody');
+  if(ls){ls.style.display='flex';ls.innerHTML=`<div style="font-size:32px">📰</div><div style="font-size:13px;font-weight:700;color:#1e3a5f">${msg||'Select a period above'}</div><div style="font-size:11px;color:#8099b8">Choose a closed month to generate the flash report</div>`;}
+  if(rb)rb.style.display='none';
 }
 
-// ── Month-labelled version dropdowns ─────────────────────────────────────────
-// Each option value = "periodId|versionId" e.g. "202603|abc-uuid"
-// A dropdown: one entry per ACTUAL version (month-specific)
-// B dropdown: one entry per (period × BUDGET/LE/FORECAST) combination
-function flashPopulateVersions() {
-  const selA = document.getElementById('flashVerA');
-  const selB = document.getElementById('flashVerB');
-  if (!selA || !selB) return;
-  if (!fpa.versions || !fpa.versions.length) return;
-
-  const savedA = selA.value, savedB = selB.value;
-  const perId = _flashCurrentPeriod;
-
-  // ── Version A: Actual versions (each covers one month) ──
-  selA.innerHTML = '';
-  const actuals = fpa.versions
-    .filter(v => v.kind === 'ACTUAL')
-    .sort((a,b) => (b.period_id||0)-(a.period_id||0));  // newest first
-  actuals.forEach(v => {
-    const mo = FLASH_MONTHS[v.period_id] || String(v.period_id);
-    const enc = flashEnc(v.period_id, v.id);
-    selA.insertAdjacentHTML('beforeend',
-      `<option value="${enc}" ${v.period_id===perId?'selected':''}>${mo} — Actuals</option>`);
-  });
-  // Also offer LE versions for A
-  fpa.versions.filter(v=>v.kind==='LE').sort((a,b)=>(b.year||0)-(a.year||0)).forEach(v=>{
-    const closedPeriods = _flashClosedPeriods.filter(p=>Math.floor(p/100)===v.year);
-    closedPeriods.forEach(cp=>{
-      const mo = FLASH_MONTHS[cp] || String(cp);
-      selA.insertAdjacentHTML('beforeend',
-        `<option value="${flashEnc(cp,v.id)}" ${cp===perId&&!actuals.find(a=>a.period_id===cp)?'selected':''}>` +
-        `${mo} — ${v.name||'LE'}</option>`);
-    });
-  });
-  if (!selA.value && selA.options.length) selA.options[0].selected = true;
-  if (savedA) { try { selA.value = savedA; } catch(e){} }
-
-  // ── Version B: Budget / LE / Forecast (per period) ──
-  selB.innerHTML = '';
-  const nonActual = fpa.versions
-    .filter(v => ['BUDGET','LE','FORECAST','SCENARIO'].includes(v.kind))
-    .sort((a,b)=>{
-      const ord={BUDGET:0,LE:1,FORECAST:2,SCENARIO:3};
-      return (ord[a.kind]??9)-(ord[b.kind]??9)||a.name.localeCompare(b.name);
-    });
-
-  // For each non-actual version, offer entries for each closed period
-  nonActual.forEach(v => {
-    const kindLabel = {BUDGET:'Budget',LE:'LE',FORECAST:'Forecast',SCENARIO:'Scenario'}[v.kind]||v.kind;
-    _flashClosedPeriods.concat([_flashCurrentPeriod]).filter((p,i,a)=>a.indexOf(p)===i).forEach(cp=>{
-      const mo = FLASH_MONTHS[cp] || String(cp);
-      const enc = flashEnc(cp, v.id);
-      selB.insertAdjacentHTML('beforeend',
-        `<option value="${enc}" ${cp===perId?'selected':''}>` +
-        `${mo} — ${v.name||kindLabel} (${kindLabel})</option>`);
-    });
-  });
-  if (savedB) { try { selB.value = savedB; } catch(e){} }
-  if (!selB.value && selB.options.length) {
-    // Default to budget for current period
-    const budgetOpt = [...selB.options].find(o=>o.value.startsWith(String(perId))&&o.text.includes('Budget'));
-    if (budgetOpt) budgetOpt.selected = true;
-    else selB.options[0].selected = true;
-  }
-}
-
-// ── OLD flashPopulateVersions stub (kept for fallback) ───────────────────────
-function _flashPopVersionsFallback() {
-  const selA = document.getElementById('flashVerA');
-  const selB = document.getElementById('flashVerB');
-  if (!selA || !selB) return;
-  const savedA = selA.value, savedB = selB.value;
-  selA.innerHTML = '<option value="">— Select A —</option>';
-  selB.innerHTML = '<option value="">— Select B —</option>';
-  if (!fpa.versions || !fpa.versions.length) return;
-  // Sort: ACTUAL first, then BUDGET, then LE/FORECAST, then others
-  const order = { ACTUAL:0, BUDGET:1, LE:2, FORECAST:3, SCENARIO:4 };
-  const sorted = [...fpa.versions].sort((a,b) => {
-    const oa = order[a.kind] ?? 9, ob = order[b.kind] ?? 9;
-    return oa !== ob ? oa - ob : a.name.localeCompare(b.name);
-  });
-  sorted.forEach(v => {
-    const lbl = `[${v.kind}] ${v.name}`;
-    selA.insertAdjacentHTML('beforeend', `<option value="${v.id}">${lbl}</option>`);
-    selB.insertAdjacentHTML('beforeend', `<option value="${v.id}">${lbl}</option>`);
-  });
-  // Default: A = latest ACTUAL for current period, B = BUDGET or LE
-  if (!savedA) {
-    const periodId = parseInt(document.getElementById('flashMoA')?.value || '202603');
-    const actuals = sorted.filter(v => v.kind === 'ACTUAL' && v.period_id === periodId);
-    const budget  = sorted.find(v => v.kind === 'BUDGET');
-    const le      = sorted.find(v => v.kind === 'LE');
-    if (actuals.length) selA.value = actuals[0].id;
-    if (budget) selB.value = budget.id;
-    else if (le) selB.value = le.id;
+// ── Populate period dropdown from fpa.periods ─────────────────────────────────
+function flashPopulatePeriods() {
+  const sel = document.getElementById('flashMoPicker');
+  if (!sel) return;
+  // Build from fpa.periods (closed) plus fallback if empty
+  const closed = (fpa.periods||[]).filter(p=>p.is_closed).sort((a,b)=>b.id-a.id);
+  if (!closed.length) {
+    // Hardcoded fallback
+    sel.innerHTML = `<option value="202603">Mar 2026</option>
+      <option value="202602">Feb 2026</option>
+      <option value="202601">Jan 2026</option>`;
+    _flashClosedPeriods = [202601,202602,202603];
   } else {
-    selA.value = savedA;
-    selB.value = savedB;
+    sel.innerHTML = closed.map(p => {
+      const lbl = FLASH_MONTHS[p.id] || String(p.id);
+      return `<option value="${p.id}" ${p.id===_flashCurrentPeriod?'selected':''}>${lbl}</option>`;
+    }).join('');
+    _flashClosedPeriods = closed.map(p=>p.id).reverse(); // ascending
   }
+  // Sync hidden flashMoA
+  const hidMo = document.getElementById('flashMoA');
+  if (hidMo) hidMo.value = String(_flashCurrentPeriod);
 }
 
-// ── Aggregate facts for a version over a set of period IDs ───────────────────
+// ── Populate LE version dropdown ──────────────────────────────────────────────
+function flashPopulateLEVersions() {
+  const sel = document.getElementById('flashLEPicker');
+  if (!sel) return;
+  const les = (fpa.versions||[]).filter(v=>v.kind==='LE'||v.kind==='FORECAST')
+    .sort((a,b)=>(b.year||0)-(a.year||0)||(b.name||'').localeCompare(a.name||''));
+  if (!les.length) {
+    sel.innerHTML = '<option value="">— No LE loaded —</option>';
+    return;
+  }
+  const kindLabel = {LE:'LE',FORECAST:'Forecast'};
+  sel.innerHTML = les.map((v,i)=>
+    `<option value="${v.id}" ${i===0?'selected':''}>${v.name} (${kindLabel[v.kind]||v.kind})</option>`
+  ).join('');
+}
+
+// ── Fetch facts from Supabase, summed across period list ──────────────────────
 async function flashFetchFacts(versionId, periodIds) {
   if (!_sb || !versionId || !periodIds.length) return {};
-  const { data, error } = await _sb
-    .from('fpa_facts')
-    .select('line_id, period_id, value')
-    .eq('version_id', versionId)
-    .in('period_id', periodIds);
-  if (error || !data) return {};
-  // Aggregate: sum across periods for each line
-  const agg = {};
-  data.forEach(r => {
-    agg[r.line_id] = (agg[r.line_id] || 0) + parseFloat(r.value || 0);
-  });
+  const {data,error} = await _sb.from('fpa_facts')
+    .select('line_id,period_id,value')
+    .eq('version_id',versionId)
+    .in('period_id',periodIds);
+  if (error||!data) return {};
+  const agg={};
+  data.forEach(r=>{agg[r.line_id]=(agg[r.line_id]||0)+parseFloat(r.value||0);});
   return agg;
-}
-
-// ── Determine which period_ids to use based on view + anchor month ───────────
-function flashPeriodIds(view, anchorPeriodId) {
-  const y = Math.floor(anchorPeriodId / 100);
-  const m = anchorPeriodId % 100;
-  if (view === 'month')  return [anchorPeriodId];
-  if (view === 'annual') return Array.from({length:12}, (_,i) => y*100+(i+1));
-  if (view === 'ytd')    return Array.from({length:m},  (_,i) => y*100+(i+1));
-  if (view === 'qtd') {
-    const qStart = m <= 3 ? 1 : m <= 6 ? 4 : m <= 9 ? 7 : 10;
-    return Array.from({length: m - qStart + 1}, (_,i) => y*100+(qStart+i));
-  }
-  return [anchorPeriodId];
-}
-
-// ── Render a currency value ───────────────────────────────────────────────────
-function flashFmt(v) {
-  if (v == null || isNaN(v)) return '—';
-  const abs = Math.abs(Math.round(v));
-  return v < 0 ? `(${abs.toLocaleString()})` : abs.toLocaleString();
-}
-
-// ── Variance cell ─────────────────────────────────────────────────────────────
-function flashVar(a, b, favorable_when_positive = true) {
-  if (a == null || b == null || isNaN(a) || isNaN(b)) return { html:'—', cls:'' };
-  const diff = a - b;
-  const pct  = b !== 0 ? ((diff / Math.abs(b)) * 100).toFixed(1) : '—';
-  const good = favorable_when_positive ? diff >= 0 : diff <= 0;
-  const cls  = diff === 0 ? '' : good ? 'flash-var-pos' : 'flash-var-neg';
-  const sign = diff > 0 ? '+' : '';
-  return { html: `${sign}${flashFmt(diff)}<br><span style="font-size:9px">${sign}${pct}%</span>`, cls };
-}
-
-// ── Generation & Sales table ──────────────────────────────────────────────────
-function flashBuildGenV3(factsA, factsB, labelA, labelB, periodId) {
-  const tbl = document.getElementById('flashGenTable');
-  if (!tbl) return;
-  const mo = periodId % 100;
-  const moIdx = mo - 1; // 0-based index
-
-  // Pull from genMixData (hardcoded AOP plan) as B proxy when no facts
-  const genTotal = Object.values(genMixData).reduce((s,g) => s + (g.vals[moIdx]||0), 0) / 1000; // GWh
-  const ippTotal = ['ipp_hfo','ipp_lng','ipp_re'].reduce((s,k)=>(genMixData[k]?.vals[moIdx]||0)+s,0)/1000;
-  const jpsGen   = ['hfo','lng','solar','wind','hydro'].reduce((s,k)=>(genMixData[k]?.vals[moIdx]||0)+s,0)/1000;
-  const revBudSales = (revBudgetMonthly.salesMWh?.[moIdx]||0) / 1000; // GWh
-
-  // Try to get net sales from facts (kwh_sold / stat lines) — fallback to budget
-  const netSalesA = factsA['net_sales'] || factsA['gwh_billed'] || null;
-  const netSalesB = factsB['net_sales'] || factsB['gwh_billed'] || null;
-  const peakA     = factsA['peak_mw']   || null;
-  const peakB     = factsB['peak_mw']   || null;
-  const lossA     = factsA['sys_loss_pct'] || null;
-  const lossB     = factsB['sys_loss_pct'] || null;
-  const grossGenA = factsA['gross_gen_gwh'] || null;
-  const grossGenB = factsB['gross_gen_gwh'] || null;
-
-  const fmt1  = v => v!=null?v.toFixed(1):'—';
-  const fmtN  = v => v!=null?flashFmt(v):'—';
-  const fmtGWh= v => v!=null?(v/1000).toFixed(1)+' GWh':'—';  // assumes stored in MWh
-
-  // When specific facts missing, show plan figures from genMixData
-  const genRows = [
-    { name:'Gross Generation',     unit:'GWh', vA: grossGenA!=null?fmtGWh(grossGenA):genTotal.toFixed(1)+' GWh*', vB: grossGenB!=null?fmtGWh(grossGenB):genTotal.toFixed(1)+' GWh*', note:'' },
-    { name:'System Losses',        unit:'%',   vA: lossA!=null?fmt1(lossA)+'%':'~26.4%*', vB: lossB!=null?fmt1(lossB)+'%':'~26.4%*', fav:false, note:'' },
-    { name:'Net Sales (Billed)',   unit:'GWh', vA: netSalesA!=null?fmtGWh(netSalesA):revBudSales.toFixed(1)+' GWh*', vB: netSalesB!=null?fmtGWh(netSalesB):revBudSales.toFixed(1)+' GWh*', note:'' },
-    { name:'Peak Demand',          unit:'MW',  vA: peakA!=null?fmt1(peakA)+' MW':'—', vB: peakB!=null?fmt1(peakB)+' MW':'—', note:'' },
-    { name:'JPS Own Generation',   unit:'GWh', vA: jpsGen.toFixed(1)+' GWh*', vB: jpsGen.toFixed(1)+' GWh*', note:'' },
-    { name:'IPP Contracted',       unit:'GWh', vA: ippTotal.toFixed(1)+' GWh*', vB: ippTotal.toFixed(1)+' GWh*', note:'' },
-  ];
-  const abbr = s => s.length > 20 ? s.slice(0,18)+'…' : s;
-  const hd = `<tr><th style="min-width:180px">Metric</th><th>${abbr(labelA)}</th><th>${abbr(labelB)}</th><th>Note</th></tr>`;
-  const body = genRows.map((r,i) => `<tr>
-    <td>${r.name}</td><td>${r.vA}</td><td>${r.vB}</td>
-    <td style="font-size:9px;color:#8099b8">${r.note||''}<button onclick="flashCommentRow('generation','${r.name}')" style="border:none;background:transparent;cursor:pointer;color:#8099b8;font-size:10px" title="Add note">💬</button></td>
-  </tr>`).join('');
-  const footnote = `<tr style="background:#f8fafc"><td colspan="4" style="font-size:9px;color:#9aabb8;padding:6px 14px">* Plan figures from AOP 2026 (Supabase stat lines not yet loaded)</td></tr>`;
-  tbl.innerHTML = `<thead>${hd}</thead><tbody>${body}${footnote}</tbody>`;
-}
-
-// ── KPI strip (white document) ────────────────────────────────────────────────
-function flashBuildKpisV2(factsA, factsB, labelA, labelB) {
-  const el = document.getElementById('flashKpiStrip');
-  if (!el) return;
-  const kpis = [
-    { key:'ebitda',   label:'EBITDA',         fav:true  },
-    { key:'net_inc',  label:'Net Income',      fav:true  },
-    { key:'opex',     label:'O&M Expense',     fav:false },
-    { key:'fin_cost', label:'Financing Cost',  fav:false },
-    { key:'cash',     label:'Cash',            fav:true  },
-  ];
-  el.innerHTML = kpis.map(k => {
-    const vA = factsA[k.key] ?? null;
-    const vB = factsB[k.key] ?? null;
-    const diff = (vA!=null&&vB!=null) ? vA-vB : null;
-    const good = diff==null ? true : k.fav ? diff>=0 : diff<=0;
-    const cls  = diff==null||diff===0 ? 'fv-neu' : good ? 'fv-pos' : 'fv-neg';
-    const arrow = diff==null ? '' : diff>0 ? '▲ ' : '▼ ';
-    const varPct = (diff!=null&&vB&&vB!==0) ? Math.abs(diff/vB*100).toFixed(1)+'%' : '';
-    return `<div class="flash-kpi-cell">
-      <div class="flash-kpi-label">${k.label}</div>
-      <div class="flash-kpi-val">${vA!=null?'$'+flashFmt(vA):'—'}</div>
-      <div class="flash-kpi-var ${cls}">${diff!=null?arrow+flashFmt(Math.abs(diff))+' ('+varPct+')':'—'}</div>
-    </div>`;
-  }).join('');
-}
-
-// ── P&L table (white document, with inline comment icons) ────────────────────
-function flashBuildPLV2(factsA, factsB, labelA, labelB) {
-  const tbl = document.getElementById('flashPLTable');
-  if (!tbl) return;
-  const defs = [
-    { section:'Revenue', noteSection:'revenue' },
-    { id:'fuel_rev',  name:'Fuel Revenue',            fav:true,  indent:true, note:'revenue' },
-    { id:'nonfuel',   name:'Non-Fuel Revenue',         fav:true,  indent:true, note:'revenue' },
-    { id:'ipp_fr',    name:'IPP Fuel Recovery',        fav:true,  indent:true, note:'revenue' },
-    { id:'ipp_nr',    name:'IPP Non-Fuel Recovery',    fav:true,  indent:true, note:'revenue' },
-    { id:'fuel_surp', name:'Fuel Surplus / (Deficit)', fav:true,  indent:true, note:'revenue' },
-    { id:'tot_rev', name:'Total Revenue', keys:['fuel_rev','nonfuel','ipp_fr','ipp_nr','fuel_surp'], fav:true, subtotal:true, note:'revenue' },
-    { section:'Operating Costs', noteSection:'opex' },
-    { id:'fuel_cost', name:'Fuel Cost',                fav:false, indent:true, note:'opex' },
-    { id:'ipp_cost',  name:'IPP Purchase Cost',        fav:false, indent:true, note:'opex' },
-    { id:'opex',      name:'O&M Expense',              fav:false, indent:true, note:'opex' },
-    { id:'ebitda',    name:'EBITDA',                   fav:true,  subtotal:true, note:'ebitda' },
-    { section:'Non-Operating', noteSection:'financing' },
-    { id:'depn',      name:'Depreciation &amp; Amort.',fav:false, indent:true, note:'financing' },
-    { id:'ebit',      name:'EBIT',                     fav:true,  subtotal:true, note:'ebitda' },
-    { id:'fin_cost',  name:'Financing Cost',           fav:false, indent:true, note:'financing' },
-    { section:'Other Income / (Expense)', noteSection:'other_income' },
-    { id:'oth_inc_tax',    name:'Taxable Other Income',    fav:true,  indent:true, note:'other_income', fallback:'oth_inc', fallbackPct:0.6 },
-    { id:'oth_inc_nontax', name:'Non-Taxable Other Income',fav:true,  indent:true, note:'other_income', fallback:'oth_inc', fallbackPct:0.4 },
-    { id:'oth_exp',        name:'Other Expense',           fav:false, indent:true, note:'other_income' },
-    { id:'oth_inc', name:'Net Other Income',               fav:true,  subtotal:true, note:'other_income' },
-    { id:'pretax',    name:'Pre-Tax Income',            fav:true,  subtotal:true, note:'ebitda' },
-    { id:'tax',       name:'Income Tax',               fav:false, indent:true, note:'financing' },
-    { id:'net_inc',   name:'Net Income',               fav:true,  total:true, note:'ebitda' },
-  ];
-  const abbr = s => s.length > 20 ? s.slice(0,18)+'…' : s;
-  const hd = `<tr>
-    <th style="min-width:200px">Line Item</th>
-    <th>${abbr(labelA)}</th><th>${abbr(labelB)}</th>
-    <th>Variance</th><th>Var %</th><th style="width:28px"></th>
-  </tr>`;
-  let body = '';
-  defs.forEach(r => {
-    if (r.section) {
-      body += `<tr class="flash-row-section"><td colspan="6">${r.section}</td></tr>`; return;
-    }
-    let vA = factsA[r.id] ?? null;
-    let vB = factsB[r.id] ?? null;
-    // Fallback split for taxable/non-taxable other income
-    if (vA==null && r.fallback) { const base=factsA[r.fallback]??null; vA = base!=null ? base*r.fallbackPct : null; }
-    if (vB==null && r.fallback) { const base=factsB[r.fallback]??null; vB = base!=null ? base*r.fallbackPct : null; }
-    if (r.keys) { vA=r.keys.reduce((s,k)=>s+(factsA[k]||0),0); vB=r.keys.reduce((s,k)=>s+(factsB[k]||0),0); }
-    const diff = (vA!=null&&vB!=null) ? vA-vB : null;
-    const pct  = (diff!=null&&vB&&vB!==0) ? ((diff/Math.abs(vB))*100).toFixed(1) : null;
-    const good = r.fav ? (diff==null||diff>=0) : (diff==null||diff<=0);
-    const cls  = diff==null||diff===0 ? 'fv-neu' : good ? 'fv-pos' : 'fv-neg';
-    const sign = diff>0 ? '+' : '';
-    const rowCls = r.total ? 'flash-row-total' : r.subtotal ? 'flash-row-subtotal' : '';
-    const pad  = r.indent ? 'padding-left:26px' : '';
-    const noteBtn = r.note ? `<button onclick="flashCommentRow('${r.note}','${r.name.replace(/'/g,'')}')"
-      style="border:none;background:transparent;cursor:pointer;font-size:11px;padding:0;color:#b0c4de" title="Add note for ${r.name}">💬</button>` : '';
-    body += `<tr class="${rowCls}">
-      <td style="${pad}">${r.name}</td>
-      <td>${vA!=null?flashFmt(vA):'—'}</td>
-      <td>${vB!=null?flashFmt(vB):'—'}</td>
-      <td class="${rowCls?'':cls}">${diff!=null?sign+flashFmt(diff):'—'}</td>
-      <td class="${rowCls?'':cls}" style="font-size:10px">${pct!=null?sign+pct+'%':'—'}</td>
-      <td style="text-align:center;padding:4px">${noteBtn}</td>
-    </tr>`;
-  });
-  tbl.innerHTML = `<thead>${hd}</thead><tbody>${body}</tbody>`;
-}
-
-// ── Balance Sheet (white document) ────────────────────────────────────────────
-function flashBuildBSV2(factsA, factsB, labelA, labelB) {
-  const tbl = document.getElementById('flashBSTable');
-  if (!tbl) return;
-  const rows = [
-    { id:'cash',   name:'Cash & Equivalents', fav:true  },
-    { id:'tot_a',  name:'Total Assets',        fav:true  },
-    { id:'equity', name:'Shareholders Equity', fav:true  },
-    { id:'ltd',    name:'Long-Term Debt',       fav:false },
-    { id:'leases', name:'Lease Liabilities',    fav:false },
-  ];
-  const abbr = s => s.length > 18 ? s.slice(0,16)+'…' : s;
-  const hd = `<tr><th style="min-width:160px">Item</th><th>${abbr(labelA)}</th><th>${abbr(labelB)}</th><th>Var</th></tr>`;
-  const body = rows.map(r => {
-    const vA=factsA[r.id]??null, vB=factsB[r.id]??null;
-    const diff=(vA!=null&&vB!=null)?vA-vB:null;
-    const good=r.fav?(diff==null||diff>=0):(diff==null||diff<=0);
-    const cls=diff==null||diff===0?'fv-neu':good?'fv-pos':'fv-neg';
-    const sign=diff>0?'+':'';
-    return `<tr><td>${r.name}</td><td>${vA!=null?flashFmt(vA):'—'}</td><td>${vB!=null?flashFmt(vB):'—'}</td><td class="${cls}" style="font-size:10px">${diff!=null?sign+flashFmt(diff):'—'}</td></tr>`;
-  }).join('');
-  tbl.innerHTML = `<thead>${hd}</thead><tbody>${body}</tbody>`;
-}
-
-// ── Key Metrics (white document) ──────────────────────────────────────────────
-function flashBuildMetricsV2(factsA, factsB, labelA, labelB) {
-  const tbl = document.getElementById('flashMetricsTable');
-  if (!tbl) return;
-  const ebA=factsA['ebitda']||0, ebB=factsB['ebitda']||0;
-  const revA=(factsA['fuel_rev']||0)+(factsA['nonfuel']||0)+(factsA['ipp_fr']||0)+(factsA['ipp_nr']||0);
-  const revB=(factsB['fuel_rev']||0)+(factsB['nonfuel']||0)+(factsB['ipp_fr']||0)+(factsB['ipp_nr']||0);
-  const niA=factsA['net_inc']||0, niB=factsB['net_inc']||0;
-  const fmt1=(n,d)=>n!=null&&!isNaN(n)?n.toFixed(d):'—';
-  const metrics=[
-    {name:'EBITDA Margin %', vA:revA?fmt1(ebA/revA*100,1)+'%':'—', vB:revB?fmt1(ebB/revB*100,1)+'%':'—', raw_a:revA?ebA/revA:null, raw_b:revB?ebB/revB:null, fav:true},
-    {name:'Net Margin %',    vA:revA?fmt1(niA/revA*100,1)+'%':'—', vB:revB?fmt1(niB/revB*100,1)+'%':'—', raw_a:revA?niA/revA:null, raw_b:revB?niB/revB:null, fav:true},
-    {name:'Debt / EBITDA',   vA:ebA?fmt1((factsA['ltd']||0)/ebA,2)+'x':'—', vB:ebB?fmt1((factsB['ltd']||0)/ebB,2)+'x':'—', raw_a:ebA?(factsA['ltd']||0)/ebA:null, raw_b:ebB?(factsB['ltd']||0)/ebB:null, fav:false},
-    {name:'Total Revenue',   vA:'$'+flashFmt(revA), vB:'$'+flashFmt(revB), raw_a:revA, raw_b:revB, fav:true},
-    {name:'IPP Cost',        vA:'$'+flashFmt(factsA['ipp_cost']), vB:'$'+flashFmt(factsB['ipp_cost']), raw_a:factsA['ipp_cost'], raw_b:factsB['ipp_cost'], fav:false},
-  ];
-  const abbr = s => s.length > 16 ? s.slice(0,14)+'…' : s;
-  const hd=`<tr><th style="min-width:140px">Metric</th><th>${abbr(labelA)}</th><th>${abbr(labelB)}</th><th>Δ</th></tr>`;
-  const body=metrics.map(m=>{
-    const diff=(m.raw_a!=null&&m.raw_b!=null)?m.raw_a-m.raw_b:null;
-    const good=diff==null?true:m.fav?diff>=0:diff<=0;
-    const cls=diff==null||diff===0?'fv-neu':good?'fv-pos':'fv-neg';
-    return `<tr><td>${m.name}</td><td>${m.vA}</td><td>${m.vB}</td><td class="${cls}">${diff!=null?(diff>0?'▲':'▼'):'—'}</td></tr>`;
-  }).join('');
-  tbl.innerHTML=`<thead>${hd}</thead><tbody>${body}</tbody>`;
 }
 
 // ── Period navigation ─────────────────────────────────────────────────────────
 function flashNavPeriod(delta) {
-  const newIdx = Math.max(0, Math.min(_flashClosedPeriods.length - 1, _flashPeriodIdx + delta));
-  if (newIdx === _flashPeriodIdx && delta !== 0) return;
-  _flashPeriodIdx = newIdx;
-  _flashCurrentPeriod = _flashClosedPeriods[_flashPeriodIdx] || _flashCurrentPeriod;
-  // Update A selection to actuals for this period if available
-  const selA = document.getElementById('flashVerA');
-  if (selA) {
-    const targetEnc = [...selA.options].find(o => {
-      const d = flashDec(o.value);
-      return d.perId === _flashCurrentPeriod && o.text.includes('Actuals');
-    });
-    if (targetEnc) selA.value = targetEnc.value;
-  }
-  // Update B to same period
-  const selB = document.getElementById('flashVerB');
-  if (selB) {
-    const curD  = flashDec(selB.value);
-    const match = [...selB.options].find(o => {
-      const d = flashDec(o.value);
-      return d.perId === _flashCurrentPeriod && d.verId === curD.verId;
-    });
-    if (match) selB.value = match.value;
-  }
-  flashUpdatePeriodLabel();
+  const newIdx=Math.max(0,Math.min(_flashClosedPeriods.length-1, _flashPeriodIdx+delta));
+  if (newIdx===_flashPeriodIdx && delta!==0) return;
+  _flashPeriodIdx=newIdx;
+  _flashCurrentPeriod=_flashClosedPeriods[_flashPeriodIdx]||_flashCurrentPeriod;
+  // Sync picker
+  const sel=document.getElementById('flashMoPicker');
+  if (sel) sel.value=String(_flashCurrentPeriod);
+  const hidMo=document.getElementById('flashMoA');
+  if (hidMo) hidMo.value=String(_flashCurrentPeriod);
+  // Update nav button disabled state
+  const prev=document.querySelector('.flash-ctrl-bar button[onclick*="-1"]');
+  const next=document.querySelector('.flash-ctrl-bar button[onclick*="+1"]');
+  if (prev) prev.disabled=_flashPeriodIdx<=0;
+  if (next) next.disabled=_flashPeriodIdx>=_flashClosedPeriods.length-1;
   flashRefresh();
 }
 
-function flashUpdatePeriodLabel() {
-  const el = document.getElementById('flashPeriodLabel');
-  if (el) el.textContent = FLASH_MONTHS[_flashCurrentPeriod] || String(_flashCurrentPeriod);
-  // Disable/enable nav buttons
-  const prev = document.querySelector('.flash-ctrl-bar button[onclick*="-1"]');
-  const next = document.querySelector('.flash-ctrl-bar button[onclick*="+1"]');
-  if (prev) prev.disabled = _flashPeriodIdx <= 0;
-  if (next) next.disabled = _flashPeriodIdx >= _flashClosedPeriods.length - 1;
-}
-
-function flashOnVersionChange(which) {
-  // When A changes, sync _flashCurrentPeriod to A's period
-  if (which === 'A') {
-    const d = flashDec(document.getElementById('flashVerA')?.value || '');
-    if (d.perId) {
-      _flashCurrentPeriod = d.perId;
-      _flashPeriodIdx = _flashClosedPeriods.indexOf(d.perId);
-      if (_flashPeriodIdx < 0) _flashPeriodIdx = _flashClosedPeriods.length - 1;
-      flashUpdatePeriodLabel();
-    }
-  }
-  flashRefresh();
-}
-
-// ── Main refresh ──────────────────────────────────────────────────────────────
-async function flashRefresh() {
-  const selA = document.getElementById('flashVerA');
-  const selB = document.getElementById('flashVerB');
-  const decA = flashDec(selA?.value || '');
-  const decB = flashDec(selB?.value || '');
-  const verAId = decA.verId, perAId = decA.perId || _flashCurrentPeriod;
-  const verBId = decB.verId, perBId = decB.perId || _flashCurrentPeriod;
-  const periodId = perAId; // anchor period from A
-
-  if (!verAId || !verBId) { flashShowEmpty(); return; }
-
-  flashShowLoading('Loading report data…');
-
-  const periodIds  = flashPeriodIds(_flashView, periodId);
-  const periodIdsB = flashPeriodIds(_flashView, perBId || periodId);
-  const verA = fpa.versions?.find(v => v.id === verAId);
-  const verB = fpa.versions?.find(v => v.id === verBId);
-
-  // Month-prefixed labels (e.g. "Mar 2026 — Actuals")
-  const moA    = FLASH_MONTHS[perAId] || '';
-  const moB    = FLASH_MONTHS[perBId] || '';
-  const kindA  = {ACTUAL:'Actuals',BUDGET:'Budget',LE:'LE',FORECAST:'Forecast',SCENARIO:'Scenario'}[verA?.kind||'']||'';
-  const kindB  = {ACTUAL:'Actuals',BUDGET:'Budget',LE:'LE',FORECAST:'Forecast',SCENARIO:'Scenario'}[verB?.kind||'']||'';
-  const labelA = moA ? `${moA} — ${kindA||verA?.name||'A'}` : (verA?.name || 'Version A');
-  const labelB = moB ? `${moB} — ${kindB||verB?.name||'B'}` : (verB?.name || 'Version B');
-
-  const [factsA, factsB] = await Promise.all([
-    flashFetchFacts(verAId, periodIds),
-    flashFetchFacts(verBId, periodIdsB),
-  ]);
-
-  // Period label
-  const periodY = Math.floor(periodId/100);
-  const viewLabel = {
-    month: FLASH_MONTH_FULL[periodId] || String(periodId),
-    qtd:   `Q${Math.ceil((periodId%100)/3)} ${periodY} — QTD`,
-    ytd:   `YTD ${FLASH_MONTHS[periodId]||periodId}`,
-    annual:`Full Year ${periodY}`
-  }[_flashView];
-
-  const setEl = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
-  setEl('flashLabelA', labelA);
-  setEl('flashLabelB', labelB);
-  setEl('flashLabelPeriod', viewLabel);
-  setEl('flashReportSubtitle', `Jamaica Public Service Co. · FP&A · ${viewLabel} · Confidential`);
-  setEl('flashHeaderDate', new Date().toLocaleDateString('en-JM',{dateStyle:'long'}));
-  // Logo
-  const hLogo = document.getElementById('flashHeaderLogo');
-  if (hLogo && JPS_LOGO_DATA) hLogo.src = JPS_LOGO_DATA;
-
-  flashBuildKpisV2(factsA, factsB, labelA, labelB);
-  flashBuildGenV3(factsA, factsB, labelA, labelB, periodId);
-  flashBuildPLV2(factsA, factsB, labelA, labelB);
-  flashBuildBSV2(factsA, factsB, labelA, labelB);
-  flashBuildMetricsV2(factsA, factsB, labelA, labelB);
-  await flashLoadNotes();
-
-  setEl('flashGenTime', 'Generated ' + new Date().toLocaleString('en-JM',{dateStyle:'medium',timeStyle:'short'}));
-  flashShowReport();
-}
-
-// ── View toggle ───────────────────────────────────────────────────────────────
-function flashSetView(view, btn) {
-  _flashView = view;
-  document.querySelectorAll('.flash-view-btn').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
+function flashOnPeriodChange() {
+  const sel=document.getElementById('flashMoPicker');
+  if (!sel||!sel.value) return;
+  _flashCurrentPeriod=parseInt(sel.value);
+  _flashPeriodIdx=_flashClosedPeriods.indexOf(_flashCurrentPeriod);
+  if (_flashPeriodIdx<0) _flashPeriodIdx=_flashClosedPeriods.length-1;
+  const hidMo=document.getElementById('flashMoA');
+  if (hidMo) hidMo.value=String(_flashCurrentPeriod);
   flashRefresh();
 }
 
 // ── Comment row: pre-fill notes panel for a specific line ────────────────────
 function flashCommentRow(section, lineName) {
-  // Set the section dropdown to the matching section
-  const sec = document.getElementById('flashNoteSection');
+  const sec=document.getElementById('flashNoteSection');
   if (sec) {
-    // Map row section keys to flashNoteSection option values
-    const sectionMap = {
-      generation: 'generation', losses: 'losses',
-      revenue: 'revenue', opex: 'opex',
-      ebitda: 'ebitda', finance: 'financing', financing: 'financing',
-      other: 'other_income', tax: 'general', net_income: 'general',
-      bs: 'balance_sheet', general: 'general'
-    };
-    const mapped = sectionMap[section] || 'general';
-    // Set the value and trigger change if needed
-    sec.value = mapped;
+    const m={generation:'generation',losses:'losses',revenue:'revenue',opex:'opex',
+             ebitda:'ebitda',finance:'financing',financing:'financing',
+             other_income:'other_income',tax:'general',net_income:'general',
+             bs:'balance_sheet',general:'general'};
+    sec.value=m[section]||'general';
   }
-  // Pre-fill the note input with the line name as context
-  const inp = document.getElementById('flashNoteInput');
-  if (inp && lineName) {
-    const prefix = lineName.replace(/'/g, '') + ': ';
-    if (!inp.value || inp.value === '') {
-      inp.value = prefix;
-    }
+  const inp=document.getElementById('flashNoteInput');
+  if (inp&&lineName){
+    if (!inp.value) inp.value=lineName.replace(/'/g,'')+': ';
     inp.focus();
-    // Move cursor to end
-    inp.setSelectionRange(inp.value.length, inp.value.length);
+    inp.setSelectionRange(inp.value.length,inp.value.length);
   }
-  // Smooth scroll to notes section
-  const notesArea = document.querySelector('.flash-notes-area');
-  if (notesArea) {
-    notesArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.querySelector('.flash-notes-area')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── Format helpers ────────────────────────────────────────────────────────────
+function flashFmt(v) {
+  if (v==null||isNaN(v)) return '—';
+  const abs=Math.abs(Math.round(v));
+  return v<0?`(${abs.toLocaleString()})`:abs.toLocaleString();
+}
+// Build variance HTML + CSS class  (Act vs comparator)
+function flashVarCell(act, comp, fav=true) {
+  if (act==null||comp==null||isNaN(act)||isNaN(comp)) return {h:'—',c:''};
+  const d=act-comp, good=fav?(d>=0):(d<=0);
+  const pct=comp!==0?((d/Math.abs(comp))*100).toFixed(1):'—';
+  const cls=d===0?'':(good?'flash-var-pos':'flash-var-neg');
+  const sign=d>0?'+':'';
+  return {h:`${sign}${flashFmt(d)}<br><small>${sign}${pct}%</small>`,c:cls};
+}
+
+// ── Main refresh — 3-way × Month + YTD ───────────────────────────────────────
+async function flashRefresh() {
+  const periodId=_flashCurrentPeriod;
+  const y=Math.floor(periodId/100), m=periodId%100;
+
+  // Find versions
+  const verActual = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
+  const verBudget = (fpa.versions||[]).find(v=>v.kind==='BUDGET');
+  const lePicker  = document.getElementById('flashLEPicker');
+  const leId      = lePicker?.value || '';
+  const verLE     = leId ? (fpa.versions||[]).find(v=>v.id===leId) : null;
+
+  if (!verActual) {
+    flashShowEmpty(`No actuals loaded for ${FLASH_MONTHS[periodId]||periodId}. Upload the ${FLASH_MONTHS[periodId]||periodId} actuals file first.`);
+    return;
   }
+
+  flashShowLoading('Fetching report data…');
+
+  // Period ID arrays
+  const moIds  = [periodId];                                     // just this month
+  const ytdIds = Array.from({length:m}, (_,i)=>y*100+(i+1));   // Jan → selected month
+
+  // Fetch 6 fact sets in parallel
+  const [fActMo, fBudMo, fLEMo, fActYTD, fBudYTD, fLEYTD] = await Promise.all([
+    flashFetchFacts(verActual.id, moIds),
+    verBudget ? flashFetchFacts(verBudget.id, moIds)  : {},
+    verLE     ? flashFetchFacts(verLE.id, moIds)      : {},
+    flashFetchFacts(verActual.id, ytdIds),
+    verBudget ? flashFetchFacts(verBudget.id, ytdIds) : {},
+    verLE     ? flashFetchFacts(verLE.id, ytdIds)     : {},
+  ]);
+
+  // Labels
+  const moLabel  = FLASH_MONTH_FULL[periodId] || String(periodId);
+  const ytdLabel = m>1 ? `Jan – ${FLASH_MONTHS[periodId]||''}` : FLASH_MONTHS[periodId]||'';
+  const leLabel  = verLE?.name || 'LE';
+  const budLabel = verBudget?.name || 'AOP Budget';
+
+  const setEl=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  setEl('flashLabelA', moLabel+' — Actuals');
+  setEl('flashLabelB', budLabel);
+  setEl('flashLabelLE', leLabel);
+  setEl('flashLabelPeriod', moLabel+(m>1?' · YTD: '+ytdLabel:''));
+  setEl('flashReportSubtitle', `Jamaica Public Service Co. · FP&A · ${moLabel} · Confidential`);
+  setEl('flashHeaderDate', new Date().toLocaleDateString('en-JM',{dateStyle:'long'}));
+
+  const hLogo=document.getElementById('flashHeaderLogo');
+  if (hLogo&&JPS_LOGO_DATA) hLogo.src=JPS_LOGO_DATA;
+  const cLogo=document.getElementById('flashCtrlLogo');
+  if (cLogo&&JPS_LOGO_DATA) cLogo.src=JPS_LOGO_DATA;
+
+  flashBuildKpisV3(fActMo,fBudMo,fLEMo,fActYTD,fBudYTD,fLEYTD,moLabel,ytdLabel);
+  flashBuildGenV4(fActMo,fBudMo,fLEMo,fActYTD,fBudYTD,fLEYTD,periodId);
+  flashBuildPLV3(fActMo,fBudMo,fLEMo,fActYTD,fBudYTD,fLEYTD,budLabel,leLabel);
+  flashBuildBSV3(fActMo,fBudMo,fLEMo,budLabel,leLabel);
+  flashBuildMetricsV3(fActMo,fBudMo,fLEMo,fActYTD,fBudYTD,fLEYTD,budLabel,leLabel);
+  await flashLoadNotes();
+
+  setEl('flashGenTime','Generated '+new Date().toLocaleString('en-JM',{dateStyle:'medium',timeStyle:'short'}));
+  flashShowReport();
+}
+
+// ── KPI Strip — 3-way ────────────────────────────────────────────────────────
+function flashBuildKpisV3(fActMo,fBudMo,fLEMo,fActYTD,fBudYTD,fLEYTD,moLabel,ytdLabel) {
+  const el=document.getElementById('flashKpiStrip');
+  if (!el) return;
+  const kpis=[
+    {key:'ebitda',  label:'EBITDA',        fav:true },
+    {key:'net_inc', label:'Net Income',     fav:true },
+    {key:'opex',    label:'O&M Expense',    fav:false},
+    {key:'fin_cost',label:'Financing Cost', fav:false},
+    {key:'nonfuel', label:'Non-Fuel Rev',   fav:true },
+  ];
+  el.innerHTML=kpis.map(k=>{
+    const mA=fActMo[k.key]??null, mB=fBudMo[k.key]??null, mL=fLEMo[k.key]??null;
+    const yA=fActYTD[k.key]??null, yB=fBudYTD[k.key]??null;
+    const mDiff=mA!=null&&mB!=null?mA-mB:null;
+    const yDiff=yA!=null&&yB!=null?yA-yB:null;
+    const mGood=mDiff==null||mDiff===0?true:(k.fav?mDiff>=0:mDiff<=0);
+    const yGood=yDiff==null||yDiff===0?true:(k.fav?yDiff>=0:yDiff<=0);
+    const mCls=mDiff==null?'fv-neu':mGood?'fv-pos':'fv-neg';
+    const yCls=yDiff==null?'fv-neu':yGood?'fv-pos':'fv-neg';
+    const mPct=mDiff!=null&&mB&&mB!==0?(Math.abs(mDiff/mB)*100).toFixed(1)+'%':'';
+    const yPct=yDiff!=null&&yB&&yB!==0?(Math.abs(yDiff/yB)*100).toFixed(1)+'%':'';
+    const mArrow=mDiff==null?'':(mDiff>0?'▲':'▼');
+    const yArrow=yDiff==null?'':(yDiff>0?'▲':'▼');
+    return `<div class="flash-kpi-cell" style="min-width:0">
+      <div class="flash-kpi-label">${k.label}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:2px">
+        <div>
+          <div style="font-size:8px;color:#8099b8;font-weight:700;text-transform:uppercase;letter-spacing:.04em">Month</div>
+          <div class="flash-kpi-val" style="font-size:13px">${mA!=null?'$'+flashFmt(mA):'—'}</div>
+          <div class="flash-kpi-var ${mCls}" style="font-size:9px">${mDiff!=null?mArrow+' '+mPct+' vs Bud':'—'}</div>
+          ${mL!=null?`<div style="font-size:8px;color:#3d7a4a">LE: $${flashFmt(mL)}</div>`:''}
+        </div>
+        <div>
+          <div style="font-size:8px;color:#8099b8;font-weight:700;text-transform:uppercase;letter-spacing:.04em">YTD</div>
+          <div class="flash-kpi-val" style="font-size:13px">${yA!=null?'$'+flashFmt(yA):'—'}</div>
+          <div class="flash-kpi-var ${yCls}" style="font-size:9px">${yDiff!=null?yArrow+' '+yPct+' vs Bud':'—'}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Generation & Sales table — Month + YTD ────────────────────────────────────
+function flashBuildGenV4(fActMo,fBudMo,fLEMo,fActYTD,fBudYTD,fLEYTD,periodId) {
+  const tbl=document.getElementById('flashGenTable');
+  if (!tbl) return;
+  const moIdx=(periodId%100)-1; // 0-based for genMixData arrays
+  const m=periodId%100;
+  const y=Math.floor(periodId/100);
+
+  // Plan totals for this month (genMixData is 0-indexed by month)
+  const planGrossMo = Object.values(genMixData).reduce((s,g)=>s+(g.vals[moIdx]||0),0)/1000;
+  const planGrossYTD= Object.values(genMixData).reduce((s,g)=>g.vals.slice(0,m).reduce((ss,v)=>ss+v,0)+s,0)/1000;
+  const budNetSaleMo = (revBudgetMonthly.salesMWh?.[moIdx]||0)/1000;
+  const budNetSaleYTD= revBudgetMonthly.salesMWh?.slice(0,m).reduce((s,v)=>s+v,0)/1000||0;
+
+  const fmt1=(v,u)=>v!=null?v.toFixed(1)+(u||''):'—';
+
+  // Rows: [name, unit, getMo(facts)→val, getBud→val, getLE→val, getYTD→val ...]
+  // We'll display what we have from facts; fall back to plan with asterisk
+  const rows=[
+    {
+      name:'Gross Generation', unit:'GWh', note:'generation',
+      moA: fActMo['gross_gen_gwh']!=null ? (fActMo['gross_gen_gwh']/1000) : planGrossMo,
+      moB: fBudMo['gross_gen_gwh']!=null ? (fBudMo['gross_gen_gwh']/1000) : planGrossMo,
+      moL: fLEMo['gross_gen_gwh']!=null  ? (fLEMo['gross_gen_gwh']/1000)  : planGrossMo,
+      ytA: fActYTD['gross_gen_gwh']!=null? (fActYTD['gross_gen_gwh']/1000): planGrossYTD,
+      ytB: fBudYTD['gross_gen_gwh']!=null? (fBudYTD['gross_gen_gwh']/1000): planGrossYTD,
+      ytL: fLEYTD['gross_gen_gwh']!=null ? (fLEYTD['gross_gen_gwh']/1000) : planGrossYTD,
+      fav:true, decimals:1
+    },
+    {
+      name:'System Losses', unit:'%', note:'losses',
+      moA: fActMo['sys_loss_pct'], moB: fBudMo['sys_loss_pct']||26.4, moL: fLEMo['sys_loss_pct']||26.0,
+      ytA: fActYTD['sys_loss_pct'], ytB: fBudYTD['sys_loss_pct']||26.4, ytL: fLEYTD['sys_loss_pct']||26.0,
+      fav:false, decimals:1, pct:true
+    },
+    {
+      name:'Net Sales (Billed)', unit:'GWh', note:'generation',
+      moA: fActMo['net_sales']!=null?(fActMo['net_sales']/1000):fActMo['gwh_billed']!=null?(fActMo['gwh_billed']/1000):budNetSaleMo,
+      moB: fBudMo['net_sales']!=null?(fBudMo['net_sales']/1000):budNetSaleMo,
+      moL: fLEMo['net_sales']!=null ?(fLEMo['net_sales']/1000) :budNetSaleMo,
+      ytA: fActYTD['net_sales']!=null?(fActYTD['net_sales']/1000):budNetSaleYTD,
+      ytB: fBudYTD['net_sales']!=null?(fBudYTD['net_sales']/1000):budNetSaleYTD,
+      ytL: fLEYTD['net_sales']!=null ?(fLEYTD['net_sales']/1000) :budNetSaleYTD,
+      fav:true, decimals:1
+    },
+    {
+      name:'Peak Demand', unit:'MW', note:'generation',
+      moA: fActMo['peak_mw'], moB: fBudMo['peak_mw'], moL: fLEMo['peak_mw'],
+      ytA: null, ytB: null, ytL: null, // peak is point-in-time, no YTD
+      fav:true, decimals:1
+    },
+  ];
+
+  const hd=`<tr class="flash-col-group">
+    <th rowspan="2" style="min-width:160px;text-align:left">Metric</th>
+    <th colspan="4" class="flash-col-hdr-mo">── Month (${FLASH_MONTHS[periodId]||''}) ──</th>
+    <th colspan="4" class="flash-col-hdr-ytd">── YTD ──</th>
+    <th rowspan="2" style="width:26px"></th>
+  </tr>
+  <tr>
+    <th>Actual</th><th class="flash-col-bud">Budget</th><th class="flash-col-le">LE</th><th>Var vs Bud</th>
+    <th>Actual</th><th class="flash-col-bud">Budget</th><th class="flash-col-le">LE</th><th>Var vs Bud</th>
+  </tr>`;
+
+  const body=rows.map(r=>{
+    const d=r.decimals||1;
+    const fmtV=(v)=>v!=null?v.toFixed(d)+(r.pct?'%':''+(r.unit==='GWh'?' GWh':r.unit==='MW'?' MW':'')):'—';
+    const vMo=flashVarCell(r.moA,r.moB,r.fav), vYTD=flashVarCell(r.ytA,r.ytB,r.fav);
+    const noteBtn=`<button onclick="flashCommentRow('${r.note}','${r.name}')" style="border:none;background:transparent;cursor:pointer;font-size:11px;padding:0;color:#b0c4de">💬</button>`;
+    return `<tr>
+      <td style="font-weight:600">${r.name}</td>
+      <td>${fmtV(r.moA)}</td>
+      <td class="flash-col-bud">${fmtV(r.moB)}</td>
+      <td class="flash-col-le">${fmtV(r.moL)}</td>
+      <td class="${vMo.c}" style="font-size:10px">${vMo.h}</td>
+      <td>${r.ytA!=null?fmtV(r.ytA):'—'}</td>
+      <td class="flash-col-bud">${r.ytB!=null?fmtV(r.ytB):'—'}</td>
+      <td class="flash-col-le">${r.ytL!=null?fmtV(r.ytL):'—'}</td>
+      <td class="${vYTD.c}" style="font-size:10px">${r.ytA!=null&&r.ytB!=null?vYTD.h:'—'}</td>
+      <td style="text-align:center">${noteBtn}</td>
+    </tr>`;
+  }).join('');
+  tbl.innerHTML=`<thead>${hd}</thead><tbody>${body}</tbody>`;
+}
+
+// ── P&L table — 3-way × Month + YTD ─────────────────────────────────────────
+function flashBuildPLV3(fActMo,fBudMo,fLEMo,fActYTD,fBudYTD,fLEYTD,budLabel,leLabel) {
+  const tbl=document.getElementById('flashPLTable');
+  if (!tbl) return;
+
+  const defs=[
+    {section:'Revenue'},
+    {id:'fuel_rev',  name:'Fuel Revenue',            fav:true,  indent:true, note:'revenue'},
+    {id:'nonfuel',   name:'Non-Fuel Revenue',         fav:true,  indent:true, note:'revenue'},
+    {id:'ipp_fr',    name:'IPP Fuel Recovery',        fav:true,  indent:true, note:'revenue'},
+    {id:'ipp_nr',    name:'IPP Non-Fuel Recovery',    fav:true,  indent:true, note:'revenue'},
+    {id:'fuel_surp', name:'Fuel Surplus/(Deficit)',   fav:true,  indent:true, note:'revenue'},
+    {id:'tot_rev',   name:'Total Revenue',            fav:true,  subtotal:true, note:'revenue',
+     keys:['fuel_rev','nonfuel','ipp_fr','ipp_nr','fuel_surp']},
+    {section:'Operating Costs'},
+    {id:'fuel_cost', name:'Fuel Cost',                fav:false, indent:true, note:'opex'},
+    {id:'ipp_cost',  name:'IPP Purchase Cost',        fav:false, indent:true, note:'opex'},
+    {id:'opex',      name:'O&M Expense',              fav:false, indent:true, note:'opex'},
+    {id:'ebitda',    name:'EBITDA',                   fav:true,  subtotal:true, note:'ebitda'},
+    {section:'Non-Operating'},
+    {id:'depn',      name:'Depreciation & Amort.',    fav:false, indent:true, note:'financing'},
+    {id:'ebit',      name:'EBIT',                     fav:true,  subtotal:true, note:'ebitda'},
+    {id:'fin_cost',  name:'Financing Cost',           fav:false, indent:true, note:'financing'},
+    {section:'Other Income / (Expense)'},
+    {id:'oth_inc_tax',   name:'Taxable Other Income',     fav:true,  indent:true, note:'other_income',
+     fallback:'oth_inc', fallbackPct:0.6},
+    {id:'oth_inc_nontax',name:'Non-Taxable Other Income', fav:true,  indent:true, note:'other_income',
+     fallback:'oth_inc', fallbackPct:0.4},
+    {id:'oth_exp',       name:'Other Expense',            fav:false, indent:true, note:'other_income'},
+    {id:'oth_inc',       name:'Net Other Income',         fav:true,  subtotal:true, note:'other_income'},
+    {id:'pretax',    name:'Pre-Tax Income',           fav:true,  subtotal:true, note:'ebitda'},
+    {id:'tax',       name:'Income Tax',               fav:false, indent:true, note:'financing'},
+    {id:'net_inc',   name:'Net Income',               fav:true,  total:true,   note:'ebitda'},
+  ];
+
+  function getV(facts, r) {
+    if (r.keys) return r.keys.reduce((s,k)=>s+(facts[k]||0),0);
+    let v=facts[r.id]??null;
+    if (v==null&&r.fallback){const b=facts[r.fallback]??null; v=b!=null?b*r.fallbackPct:null;}
+    return v;
+  }
+
+  const abbr12=s=>s.length>12?s.slice(0,10)+'…':s;
+  const hd=`<tr class="flash-col-group">
+    <th rowspan="2" style="min-width:185px;text-align:left">Line Item</th>
+    <th colspan="4" class="flash-col-hdr-mo">── Month ──</th>
+    <th colspan="4" class="flash-col-hdr-ytd">── Year-to-Date ──</th>
+    <th rowspan="2" style="width:26px"></th>
+  </tr>
+  <tr>
+    <th>Actual</th><th class="flash-col-bud">${abbr12(budLabel)}</th><th class="flash-col-le">${abbr12(leLabel)}</th><th>Var vs Bud</th>
+    <th>Actual</th><th class="flash-col-bud">${abbr12(budLabel)}</th><th class="flash-col-le">${abbr12(leLabel)}</th><th>Var vs Bud</th>
+  </tr>`;
+
+  let body='';
+  defs.forEach(r=>{
+    if (r.section){
+      body+=`<tr class="flash-row-section"><td colspan="10">${r.section}</td></tr>`;
+      return;
+    }
+    const mA=getV(fActMo,r), mB=getV(fBudMo,r), mL=getV(fLEMo,r);
+    const yA=getV(fActYTD,r),yB=getV(fBudYTD,r),yL=getV(fLEYTD,r);
+    const vMo=flashVarCell(mA,mB,r.fav), vYTD=flashVarCell(yA,yB,r.fav);
+    const pad=r.indent?'padding-left:22px':'';
+    const rowCls=r.total?'flash-row-total':r.subtotal?'flash-row-subtotal':'';
+    const noteBtn=r.note?`<button onclick="flashCommentRow('${r.note}','${r.name.replace(/'/g,'')}') "
+      style="border:none;background:transparent;cursor:pointer;font-size:11px;padding:0;color:#b0c4de" title="Comment">💬</button>`:'';
+    body+=`<tr class="${rowCls}">
+      <td style="${pad}">${r.name}</td>
+      <td>${mA!=null?flashFmt(mA):'—'}</td>
+      <td class="flash-col-bud">${mB!=null?flashFmt(mB):'—'}</td>
+      <td class="flash-col-le">${mL!=null?flashFmt(mL):'—'}</td>
+      <td class="${vMo.c}" style="font-size:10px;line-height:1.3">${vMo.h}</td>
+      <td>${yA!=null?flashFmt(yA):'—'}</td>
+      <td class="flash-col-bud">${yB!=null?flashFmt(yB):'—'}</td>
+      <td class="flash-col-le">${yL!=null?flashFmt(yL):'—'}</td>
+      <td class="${vYTD.c}" style="font-size:10px;line-height:1.3">${vYTD.h}</td>
+      <td style="text-align:center;padding:4px">${noteBtn}</td>
+    </tr>`;
+  });
+  tbl.innerHTML=`<thead>${hd}</thead><tbody>${body}</tbody>`;
+}
+
+// ── Balance Sheet — 3-way ─────────────────────────────────────────────────────
+function flashBuildBSV3(fActMo,fBudMo,fLEMo,budLabel,leLabel) {
+  const tbl=document.getElementById('flashBSTable');
+  if (!tbl) return;
+  const rows=[
+    {id:'cash',  name:'Cash & Equivalents',  fav:true },
+    {id:'tot_a', name:'Total Assets',         fav:true },
+    {id:'equity',name:"Shareholders' Equity", fav:true },
+    {id:'ltd',   name:'Long-Term Debt',       fav:false},
+    {id:'leases',name:'Lease Liabilities',    fav:false},
+    {id:'cur_a', name:'Total Current Assets', fav:true },
+    {id:'cur_l', name:'Total Current Liab.',  fav:false},
+  ];
+  const abbr10=s=>s.length>10?s.slice(0,8)+'…':s;
+  const hd=`<tr><th style="min-width:155px">Item</th><th>Actual</th><th class="flash-col-bud">${abbr10(budLabel)}</th><th class="flash-col-le">${abbr10(leLabel)}</th><th>Var vs Bud</th></tr>`;
+  const body=rows.map(r=>{
+    const a=fActMo[r.id]??null, b=fBudMo[r.id]??null, l=fLEMo[r.id]??null;
+    const v=flashVarCell(a,b,r.fav);
+    return `<tr>
+      <td>${r.name}</td>
+      <td>${a!=null?flashFmt(a):'—'}</td>
+      <td class="flash-col-bud">${b!=null?flashFmt(b):'—'}</td>
+      <td class="flash-col-le">${l!=null?flashFmt(l):'—'}</td>
+      <td class="${v.c}" style="font-size:10px">${v.h}</td>
+    </tr>`;
+  }).join('');
+  tbl.innerHTML=`<thead>${hd}</thead><tbody>${body}</tbody>`;
+}
+
+// ── Key Metrics — 3-way × Month + YTD ────────────────────────────────────────
+function flashBuildMetricsV3(fActMo,fBudMo,fLEMo,fActYTD,fBudYTD,fLEYTD,budLabel,leLabel) {
+  const tbl=document.getElementById('flashMetricsTable');
+  if (!tbl) return;
+  const calcMetrics=(fA,fB,fL)=>{
+    const revA=(fA['fuel_rev']||0)+(fA['nonfuel']||0)+(fA['ipp_fr']||0)+(fA['ipp_nr']||0);
+    const revB=(fB['fuel_rev']||0)+(fB['nonfuel']||0)+(fB['ipp_fr']||0)+(fB['ipp_nr']||0);
+    const revL=(fL['fuel_rev']||0)+(fL['nonfuel']||0)+(fL['ipp_fr']||0)+(fL['ipp_nr']||0);
+    const fmt1=(n,d=1)=>n!=null&&!isNaN(n)?n.toFixed(d):'—';
+    return [
+      {name:'EBITDA Margin %',
+       vA:revA?fmt1((fA['ebitda']||0)/revA*100)+'%':'—',
+       vB:revB?fmt1((fB['ebitda']||0)/revB*100)+'%':'—',
+       vL:revL?fmt1((fL['ebitda']||0)/revL*100)+'%':'—',
+       rA:revA?(fA['ebitda']||0)/revA:null,
+       rB:revB?(fB['ebitda']||0)/revB:null, fav:true},
+      {name:'Net Margin %',
+       vA:revA?fmt1((fA['net_inc']||0)/revA*100)+'%':'—',
+       vB:revB?fmt1((fB['net_inc']||0)/revB*100)+'%':'—',
+       vL:revL?fmt1((fL['net_inc']||0)/revL*100)+'%':'—',
+       rA:revA?(fA['net_inc']||0)/revA:null,
+       rB:revB?(fB['net_inc']||0)/revB:null, fav:true},
+      {name:'OPEX / Revenue',
+       vA:revA?fmt1((fA['opex']||0)/revA*100)+'%':'—',
+       vB:revB?fmt1((fB['opex']||0)/revB*100)+'%':'—',
+       vL:revL?fmt1((fL['opex']||0)/revL*100)+'%':'—',
+       rA:revA?(fA['opex']||0)/revA:null,
+       rB:revB?(fB['opex']||0)/revB:null, fav:false},
+    ];
+  };
+  const mMet=calcMetrics(fActMo,fBudMo,fLEMo);
+  const yMet=calcMetrics(fActYTD,fBudYTD,fLEYTD);
+  const abbr10=s=>s.length>10?s.slice(0,8)+'…':s;
+  const hd=`<tr class="flash-col-group">
+    <th rowspan="2" style="min-width:140px">Metric</th>
+    <th colspan="3" class="flash-col-hdr-mo">Month</th>
+    <th colspan="3" class="flash-col-hdr-ytd">YTD</th>
+  </tr>
+  <tr>
+    <th>Act</th><th class="flash-col-bud">${abbr10(budLabel)}</th><th class="flash-col-le">${abbr10(leLabel)}</th>
+    <th>Act</th><th class="flash-col-bud">${abbr10(budLabel)}</th><th class="flash-col-le">${abbr10(leLabel)}</th>
+  </tr>`;
+  const body=mMet.map((m,i)=>{
+    const y=yMet[i];
+    const mDiff=m.rA!=null&&m.rB!=null?m.rA-m.rB:null;
+    const mCls=mDiff==null?'':(m.fav?(mDiff>=0?'fv-pos':'fv-neg'):(mDiff<=0?'fv-pos':'fv-neg'));
+    return `<tr>
+      <td>${m.name}</td>
+      <td class="${mCls}">${m.vA}</td>
+      <td class="flash-col-bud">${m.vB}</td>
+      <td class="flash-col-le">${m.vL}</td>
+      <td>${y.vA}</td>
+      <td class="flash-col-bud">${y.vB}</td>
+      <td class="flash-col-le">${y.vL}</td>
+    </tr>`;
+  }).join('');
+  tbl.innerHTML=`<thead>${hd}</thead><tbody>${body}</tbody>`;
 }
 
 // ── Init (called on tab open) ─────────────────────────────────────────────────
 function flashInit() {
-  // Populate _flashClosedPeriods from fpa.periods (must happen before flashPopulateVersions)
-  if (fpa.periods && fpa.periods.length) {
-    _flashClosedPeriods = fpa.periods
-      .filter(p => p.is_closed)
-      .map(p => p.id)
-      .sort((a, b) => a - b);
-    // Default current period to latest closed
+  // Populate _flashClosedPeriods from fpa.periods
+  if (fpa.periods&&fpa.periods.length) {
+    _flashClosedPeriods=fpa.periods.filter(p=>p.is_closed).map(p=>p.id).sort((a,b)=>a-b);
     if (_flashClosedPeriods.length) {
-      _flashCurrentPeriod = _flashClosedPeriods[_flashClosedPeriods.length - 1];
-      _flashPeriodIdx = _flashClosedPeriods.length - 1;
+      _flashCurrentPeriod=_flashClosedPeriods[_flashClosedPeriods.length-1];
+      _flashPeriodIdx=_flashClosedPeriods.length-1;
     }
   } else {
-    // Fallback if fpa.periods not loaded yet
-    _flashClosedPeriods = [202601, 202602, 202603];
-    _flashCurrentPeriod = 202603;
-    _flashPeriodIdx = 2;
+    _flashClosedPeriods=[202601,202602,202603];
+    _flashCurrentPeriod=202603;
+    _flashPeriodIdx=2;
   }
-
-  // Legacy month selector (kept for note-loading compatibility)
-  const moSel = document.getElementById('flashMoA');
-  if (moSel && fpa.periods) {
-    moSel.innerHTML = '';
-    const closed = fpa.periods.filter(p => p.year === 2026 && p.is_closed);
-    if (!closed.length) {
-      moSel.innerHTML = '<option value="202603">Mar 2026</option>';
-    } else {
-      closed.forEach(p => {
-        const lbl = new Date(p.year, p.month-1).toLocaleString('en-JM',{month:'short',year:'numeric'});
-        moSel.insertAdjacentHTML('beforeend', `<option value="${p.id}" ${p.id===_flashCurrentPeriod?'selected':''}>${lbl}</option>`);
-      });
-    }
-  }
-  flashPopulateVersions();
-  // Show/hide Back to Model button based on role
-  const backBtn = document.getElementById('flashBackBtn');
-  if (backBtn) backBtn.style.display = ['admin','analyst'].includes(currentUser?.role) ? 'inline-flex' : 'none';
-  // If versions loaded but none selected yet, show empty prompt; otherwise refresh
-  const verA = document.getElementById('flashVerA')?.value;
-  const verB = document.getElementById('flashVerB')?.value;
-  if (!verA || !verB) { flashShowEmpty(); }
-  else { flashRefresh(); }
-  _flashInited = true;
+  flashPopulatePeriods();
+  flashPopulateLEVersions();
+  // Show Back to Model only for privileged roles
+  const backBtn=document.getElementById('flashBackBtn');
+  if (backBtn) backBtn.style.display=['admin','analyst'].includes(currentUser?.role)?'inline-flex':'none';
+  // Logos
+  const cLogo=document.getElementById('flashCtrlLogo');
+  if (cLogo&&JPS_LOGO_DATA) cLogo.src=JPS_LOGO_DATA;
+  // Nav button initial state
+  const prev=document.querySelector('.flash-ctrl-bar button[onclick*="-1"]');
+  const next=document.querySelector('.flash-ctrl-bar button[onclick*="+1"]');
+  if (prev) prev.disabled=_flashPeriodIdx<=0;
+  if (next) next.disabled=_flashPeriodIdx>=_flashClosedPeriods.length-1;
+  // Trigger first load
+  flashRefresh();
+  _flashInited=true;
 }
 
 // ── Navigate back to main model ───────────────────────────────────────────────
 function flashGoToModel() {
-  const dashTab = document.querySelector('.tab[onclick*="\'dash\'"]');
-  showPane('dash', dashTab);
-  if (dashTab) { document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on')); dashTab.classList.add('on'); }
+  const dashTab=document.querySelector('.tab[onclick*="\'dash\'"]');
+  showPane('dash',dashTab);
+  if (dashTab){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));dashTab.classList.add('on');}
 }
 
-// ── Notes: load from Supabase ─────────────────────────────────────────────────
+// ── Notes: load ───────────────────────────────────────────────────────────────
 async function flashLoadNotes() {
   if (!_sb) return;
-  const periodId = document.getElementById('flashMoA')?.value || '202603';
-  const y = Math.floor(parseInt(periodId)/100), m = parseInt(periodId)%100;
-  const rptPeriod = `${y}-${String(m).padStart(2,'0')}`;
-  const { data, error } = await _sb
-    .from('fpa_flash_notes')
-    .select('*')
-    .eq('report_period', rptPeriod)
-    .eq('is_deleted', false)
-    .order('entered_at', { ascending: false });
-  _flashNotesData = error ? [] : (data || []);
+  const periodId=_flashCurrentPeriod;
+  const y=Math.floor(periodId/100), m=periodId%100;
+  const rptPeriod=`${y}-${String(m).padStart(2,'0')}`;
+  const {data,error}=await _sb.from('fpa_flash_notes').select('*')
+    .eq('report_period',rptPeriod).eq('is_deleted',false)
+    .order('entered_at',{ascending:false});
+  _flashNotesData=error?[]:(data||[]);
   flashRenderNotes();
 }
 
-// ── Notes: render feed ─────────────────────────────────────────────────────────
+// ── Notes: render ─────────────────────────────────────────────────────────────
 function flashRenderNotes() {
-  const feed = document.getElementById('flashNotesFeed');
+  const feed=document.getElementById('flashNotesFeed');
   if (!feed) return;
-  if (!_flashNotesData.length) {
-    feed.innerHTML = `<div style="font-size:11px;color:#8099b8;text-align:center;padding:18px 0">No commentary for this period yet.</div>`;
+  if (!_flashNotesData.length){
+    feed.innerHTML=`<div style="font-size:11px;color:#8099b8;text-align:center;padding:18px 0">No commentary for this period yet.</div>`;
     return;
   }
-  feed.innerHTML = _flashNotesData.map(n => {
-    const dt  = new Date(n.entered_at).toLocaleString('en-JM',{dateStyle:'medium',timeStyle:'short'});
-    const upd = n.updated_at ? ` · edited ${new Date(n.updated_at).toLocaleString('en-JM',{timeStyle:'short'})}` : '';
-    const initials = (n.entered_by||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  feed.innerHTML=_flashNotesData.map(n=>{
+    const dt=new Date(n.entered_at).toLocaleString('en-JM',{dateStyle:'medium',timeStyle:'short'});
+    const upd=n.updated_at?` · edited ${new Date(n.updated_at).toLocaleString('en-JM',{timeStyle:'short'})}`:'';
+    const initials=(n.entered_by||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     return `<div class="flash-note-entry">
       <div class="flash-note-avatar">${initials}</div>
       <div class="flash-note-body">
@@ -12572,78 +12532,69 @@ function flashRenderNotes() {
   }).join('');
 }
 
-// ── Notes: save new note ───────────────────────────────────────────────────────
+// ── Notes: save ───────────────────────────────────────────────────────────────
 async function flashSaveNote() {
-  if (!_sb) { toast('No database connection','err'); return; }
-  const noteText = (document.getElementById('flashNoteInput')?.value || '').trim();
-  if (!noteText) { toast('Please enter a note first','err'); return; }
-  const section   = document.getElementById('flashNoteSection')?.value || 'general';
-  const periodId  = document.getElementById('flashMoA')?.value || '202603';
-  const y = Math.floor(parseInt(periodId)/100), m = parseInt(periodId)%100;
-  const rptPeriod = `${y}-${String(m).padStart(2,'0')}`;
-  const { error } = await _sb.from('fpa_flash_notes').insert({
-    report_period: rptPeriod,
-    section,
-    note_text: noteText,
-    entered_by: currentUser?.name || 'Unknown',
+  if (!_sb){toast('No database connection','err');return;}
+  const noteText=(document.getElementById('flashNoteInput')?.value||'').trim();
+  if (!noteText){toast('Please enter a note first','err');return;}
+  const section=document.getElementById('flashNoteSection')?.value||'general';
+  const periodId=_flashCurrentPeriod;
+  const y=Math.floor(periodId/100), m=periodId%100;
+  const rptPeriod=`${y}-${String(m).padStart(2,'0')}`;
+  const {error}=await _sb.from('fpa_flash_notes').insert({
+    report_period:rptPeriod, section, note_text:noteText,
+    entered_by:currentUser?.name||'Unknown',
   });
-  if (error) { toast('Save failed: '+error.message, 'err'); return; }
-  document.getElementById('flashNoteInput').value = '';
+  if (error){toast('Save failed: '+error.message,'err');return;}
+  document.getElementById('flashNoteInput').value='';
   toast('Note saved','ok');
   await flashLoadNotes();
 }
 
 // ── Export PDF ────────────────────────────────────────────────────────────────
 function flashExportPDF() {
-  const title = document.title;
-  const periodId = document.getElementById('flashMoA')?.value || '202603';
-  const y = Math.floor(parseInt(periodId)/100), m = parseInt(periodId)%100;
-  document.title = `JPS Flash Report ${FLASH_MONTHS[periodId]||periodId}`;
+  const title=document.title;
+  document.title=`JPS Flash Report — ${FLASH_MONTHS[_flashCurrentPeriod]||_flashCurrentPeriod}`;
+  document.body.classList.add('printing-flash');
+  // Temporarily force report body visible for print
+  const rb=document.getElementById('flashReportBody');
+  const prevDisplay=rb?.style.display;
+  if (rb) rb.style.display='block';
   window.print();
-  document.title = title;
+  document.body.classList.remove('printing-flash');
+  if (rb&&prevDisplay!==undefined) rb.style.display=prevDisplay;
+  document.title=title;
   toast('Print dialog opened — save as PDF','ok');
 }
 
 // ── Export Excel ──────────────────────────────────────────────────────────────
 function flashExportXLSX() {
-  if (typeof XLSX === 'undefined') { toast('XLSX library not loaded','err'); return; }
-  const periodId = document.getElementById('flashMoA')?.value || '202603';
-  const verAId   = document.getElementById('flashVerA')?.value || '';
-  const verBId   = document.getElementById('flashVerB')?.value || '';
-  const verA = fpa.versions?.find(v => v.id === verAId);
-  const verB = fpa.versions?.find(v => v.id === verBId);
-  const labelA = verA?.name || 'Version A';
-  const labelB = verB?.name || 'Version B';
-
-  // Grab table data from DOM
-  const plTbl = document.getElementById('flashPLTable');
-  const bsTbl = document.getElementById('flashBSTable');
-  const rows = [];
-  rows.push(['JPS Management Flash Report — ' + (FLASH_MONTHS[periodId]||periodId)]);
+  if (typeof XLSX==='undefined'){toast('XLSX library not loaded','err');return;}
+  const periodId=_flashCurrentPeriod;
+  const moLabel=FLASH_MONTHS[periodId]||String(periodId);
+  const plTbl=document.getElementById('flashPLTable');
+  const bsTbl=document.getElementById('flashBSTable');
+  const genTbl=document.getElementById('flashGenTable');
+  const rows=[];
+  rows.push([`JPS Management Flash Report — ${moLabel}`]);
+  rows.push(['Generated:',new Date().toLocaleString('en-JM',{dateStyle:'long',timeStyle:'short'})]);
   rows.push([]);
-  rows.push(['INCOME STATEMENT']);
-  if (plTbl) {
-    plTbl.querySelectorAll('tr').forEach(tr => {
-      rows.push([...tr.querySelectorAll('th,td')].map(c => c.innerText.replace(/\n/g,' ')));
-    });
-  }
+  rows.push(['GENERATION & SALES']);
+  if (genTbl) genTbl.querySelectorAll('tr').forEach(tr=>{rows.push([...tr.querySelectorAll('th,td')].map(c=>c.innerText.replace(/\n/g,' ')));});
+  rows.push([]);
+  rows.push(['INCOME STATEMENT — Month & YTD vs Budget & LE']);
+  if (plTbl) plTbl.querySelectorAll('tr').forEach(tr=>{rows.push([...tr.querySelectorAll('th,td')].map(c=>c.innerText.replace(/\n/g,' ')));});
   rows.push([]);
   rows.push(['BALANCE SHEET HIGHLIGHTS']);
-  if (bsTbl) {
-    bsTbl.querySelectorAll('tr').forEach(tr => {
-      rows.push([...tr.querySelectorAll('th,td')].map(c => c.innerText.replace(/\n/g,' ')));
-    });
-  }
+  if (bsTbl) bsTbl.querySelectorAll('tr').forEach(tr=>{rows.push([...tr.querySelectorAll('th,td')].map(c=>c.innerText.replace(/\n/g,' ')));});
   rows.push([]);
-  rows.push(['NOTES']);
-  _flashNotesData.forEach(n => {
-    rows.push([n.entered_at, n.entered_by, n.section, n.note_text]);
-  });
-
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Flash Report');
-  XLSX.writeFile(wb, `JPS_Flash_${FLASH_MONTHS[periodId]||periodId}_${labelA}_vs_${labelB}.xlsx`.replace(/[\s/]/g,'_'));
+  rows.push(['MANAGEMENT COMMENTARY']);
+  rows.push(['Date','Author','Section','Note']);
+  _flashNotesData.forEach(n=>{rows.push([n.entered_at,n.entered_by,n.section,n.note_text]);});
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Flash Report');
+  XLSX.writeFile(wb,`JPS_Flash_${moLabel.replace(/\s/g,'_')}.xlsx`);
   toast('Excel exported','ok');
 }
 </script>
