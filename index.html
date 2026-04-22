@@ -5555,14 +5555,22 @@ function buildKpiOpsTable() {
 
 // ── 5-Year Trend Charts ──────────────────────────────
 function buildKpiCharts() {
+  // Defer until the pane is painted so canvases have non-zero dimensions
+  requestAnimationFrame(() => _buildKpiChartsInner());
+}
+function _buildKpiChartsInner() {
   const YRS = [2026,2027,2028,2029,2030];
   const YIDX = {2026:4,2027:5,2028:6,2029:7,2030:8};
+  // Resolve CSS variables to actual colors for Chart.js (it can't parse var(--x))
+  const style = getComputedStyle(document.documentElement);
+  const mutedColor    = style.getPropertyValue('--muted').trim()   || '#7da0c4';
+  const gridColor     = style.getPropertyValue('--chart-grid').trim() || 'rgba(255,255,255,.045)';
   const bO2 = () => ({
     responsive:true, maintainAspectRatio:false,
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.formattedValue}}},
     scales:{
-      x:{ticks:{color:'var(--muted)',font:{size:9}},grid:{color:'var(--chart-grid)'}},
-      y:{ticks:{color:'var(--muted)',font:{size:9}},grid:{color:'var(--chart-grid)'}}
+      x:{ticks:{color:mutedColor,font:{size:9}},grid:{color:gridColor}},
+      y:{ticks:{color:mutedColor,font:{size:9}},grid:{color:gridColor}}
     }
   });
 
@@ -5586,10 +5594,12 @@ function buildKpiCharts() {
     const debtSvc = intExp + ({2026:350000,2027:330000,2028:310000,2029:290000,2030:270000}[yr]||0)*0.07;
     return debtSvc>0 ? +(ebitda/debtSvc).toFixed(2) : 0;
   });
+  const tealColor  = style.getPropertyValue('--teal').trim()  || '#22d3ee';
+  const amberColor = style.getPropertyValue('--amber').trim() || '#fbbf24';
   mkChart('cKpiDscr',{type:'line',data:{labels:YRS.map(String),datasets:[
-    {data:dscrVals,borderColor:'var(--teal)',backgroundColor:'rgba(6,182,212,.1)',fill:true,tension:.3,pointRadius:4},
+    {data:dscrVals,borderColor:tealColor,backgroundColor:'rgba(6,182,212,.1)',fill:true,tension:.3,pointRadius:4},
     {data:YRS.map(()=>1.20),borderColor:'rgba(239,68,68,.6)',borderDash:[4,3],pointRadius:0,fill:false,label:'Min 1.20×'}
-  ]},options:{...bO2(),plugins:{legend:{display:true,labels:{color:'var(--muted)',font:{size:9}}},tooltip:{}},scales:{...bO2().scales,y:{...bO2().scales.y,ticks:{...bO2().scales.y.ticks,callback:v=>v+'×'}}}}});
+  ]},options:{...bO2(),plugins:{legend:{display:true,labels:{color:mutedColor,font:{size:9}}},tooltip:{}},scales:{...bO2().scales,y:{...bO2().scales.y,ticks:{...bO2().scales.y.ticks,callback:v=>v+'×'}}}}});
 
   // Net Debt / EBITDA
   const ndEbitda = YRS.map(yr => {
@@ -5607,9 +5617,9 @@ function buildKpiCharts() {
     return +(arr.reduce((s,v)=>s+v,0)/12).toFixed(2);
   });
   mkChart('cKpiLoss',{type:'line',data:{labels:YRS.map(String),datasets:[
-    {data:avgLoss,borderColor:'var(--amber)',backgroundColor:'rgba(245,158,11,.1)',fill:true,tension:.3,pointRadius:4},
+    {data:avgLoss,borderColor:amberColor,backgroundColor:'rgba(245,158,11,.1)',fill:true,tension:.3,pointRadius:4},
     {data:YRS.map(()=>26.0),borderColor:'rgba(16,185,129,.6)',borderDash:[4,3],pointRadius:0,fill:false,label:'Target 26%'}
-  ]},options:{...bO2(),plugins:{legend:{display:true,labels:{color:'var(--muted)',font:{size:9}}},tooltip:{}},scales:{...bO2().scales,y:{...bO2().scales.y,min:23,ticks:{...bO2().scales.y.ticks,callback:v=>v+'%'}}}}});
+  ]},options:{...bO2(),plugins:{legend:{display:true,labels:{color:mutedColor,font:{size:9}}},tooltip:{}},scales:{...bO2().scales,y:{...bO2().scales.y,min:23,ticks:{...bO2().scales.y.ticks,callback:v=>v+'%'}}}}});
 }
 
 // ── Export CSV ───────────────────────────────────────
@@ -6175,6 +6185,10 @@ function setRevRptView(v, btn) {
 
 // ─── REVENUE & GENERATION REPORT BUILDER ────────────────────────────────────
 function buildRevReport() {
+  // Defer chart rendering until pane is painted (avoids zero-width canvas on first open)
+  if (!document.getElementById('cGenMixDash')?.offsetParent) {
+    return requestAnimationFrame(() => buildRevReport());
+  }
   const mo  = parseInt(document.getElementById('revRptMo')?.value || 2);
   const isYTD = revRptView === 'ytd';
   const data  = actualsStore[mo];
@@ -6317,14 +6331,19 @@ function buildRevReport() {
   // Sum YTD generation for loaded months
   const genKeys   = Object.keys(genMixData);
   const genTotals = genKeys.map(k => moRange.reduce((s,mi) => s + (genMixData[k].vals[mi]||0), 0));
+  const genMutedColor = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#4a6485';
+  // Filter out zero-value slices so the donut renders correctly
+  const genNonZero = genKeys.filter((_,i) => genTotals[i] > 0);
+  const genTotalsNZ = genNonZero.map(k => moRange.reduce((s,mi) => s + (genMixData[k].vals[mi]||0), 0));
   mkChart('cGenMixDash', {
+    type: 'doughnut',
     data: {
-      labels: genKeys.map(k => genMixData[k].name),
-      datasets: [{ data: genTotals, backgroundColor: genKeys.map(k => genMixData[k].color), borderWidth: 1, borderColor: 'rgba(255,255,255,.08)' }],
+      labels: genNonZero.map(k => genMixData[k].name),
+      datasets: [{ data: genTotalsNZ, backgroundColor: genNonZero.map(k => genMixData[k].color), borderWidth: 1, borderColor: 'rgba(255,255,255,.08)' }],
     },
     options: {
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:'right', labels:{ color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485', font:{size:9}, boxWidth:9, padding:6 } } },
+      plugins:{ legend:{ position:'right', labels:{ color:genMutedColor, font:{size:9}, boxWidth:9, padding:6 } } },
       cutout:'60%',
     },
   });
