@@ -178,6 +178,18 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
   font-family:'IBM Plex Sans',sans-serif;letter-spacing:.03em;
 }
 #welcomeScreen .ws-powering span{color:#00aeef;}
+/* ── FLASH ISOLATION MODE — hides all platform chrome ───── */
+/* Applied to appShell when user logs in via Flash Report route */
+.flash-mode .tabbar          { display:none !important; }
+.flash-mode .topbar .cg      { display:none !important; }
+.flash-mode .topbar .sp      { display:none !important; }
+.flash-mode .topbar .btn-ai,
+.flash-mode .topbar .btn-gold,
+.flash-mode .topbar label.btn-teal { display:none !important; }
+.flash-mode .topbar .btn-ghost { display:none !important; }
+.flash-mode .topbar .theme-seg { display:none !important; }
+.flash-mode .topbar .cl      { display:none !important; }
+
 /* ── FLASH REPORT — isolated document styling ───────────── */
 /* Control bar sits in platform theme; document below is always white */
 #pane-rpt-flash{background:#eef1f6 !important;gap:0 !important;}
@@ -1534,9 +1546,11 @@ tr.der td{color:var(--teal)}
 <!-- ═══ FLASH REPORT ═══ -->
 <div id="pane-rpt-flash" class="pane">
 
-  <!-- ── CONTROL BAR (platform-themed) ── -->
+  <!-- ── CONTROL BAR ── -->
   <div class="flash-ctrl-bar">
-    <div style="font-size:13px;font-weight:800;color:var(--text);margin-right:6px;white-space:nowrap">📰 Flash Report</div>
+
+    <!-- JPS Logo -->
+    <img id="flashCtrlLogo" src="" alt="JPS" style="height:32px;object-fit:contain;flex-shrink:0;margin-right:4px">
 
     <!-- View toggle -->
     <div style="display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;flex-shrink:0">
@@ -1546,86 +1560,94 @@ tr.der td{color:var(--teal)}
       <button class="flash-view-btn"    data-view="annual" onclick="flashSetView('annual',this)">Full Year</button>
     </div>
 
-    <!-- Period -->
-    <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
-      <span style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Period</span>
-      <select id="flashMoA" class="flash-sel" onchange="flashRefresh()">
-        <option value="202601">Jan 2026</option>
-        <option value="202602">Feb 2026</option>
-        <option value="202603" selected>Mar 2026</option>
-      </select>
+    <!-- Period navigation -->
+    <div style="display:flex;align-items:center;gap:2px;flex-shrink:0;border:1px solid var(--border);border-radius:7px;overflow:hidden">
+      <button class="flash-view-btn" onclick="flashNavPeriod(-1)" title="Previous period" style="padding:6px 10px">◀</button>
+      <span id="flashPeriodLabel" style="font-size:11px;font-weight:700;color:var(--text);padding:0 10px;white-space:nowrap">Mar 2026</span>
+      <button class="flash-view-btn" onclick="flashNavPeriod(+1)" title="Next period" style="padding:6px 10px">▶</button>
     </div>
 
     <!-- Version A -->
     <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
-      <span style="font-size:9px;font-weight:800;color:#fff;background:#003da5;padding:2px 8px;border-radius:10px;letter-spacing:.04em">A</span>
-      <select id="flashVerA" class="flash-sel" onchange="flashRefresh()">
+      <span style="font-size:9px;font-weight:800;color:#fff;background:#003da5;padding:3px 9px;border-radius:10px;white-space:nowrap">A · Actual</span>
+      <select id="flashVerA" class="flash-sel" onchange="flashOnVersionChange('A')" style="min-width:160px">
         <option value="">— loading… —</option>
       </select>
     </div>
 
-    <span style="font-size:11px;font-weight:700;color:var(--muted)">vs</span>
+    <span style="font-size:11px;font-weight:700;color:var(--muted);flex-shrink:0">vs</span>
 
     <!-- Version B -->
     <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
-      <span style="font-size:9px;font-weight:800;color:#003da5;background:#e8f0fc;border:1px solid #b0c4de;padding:2px 8px;border-radius:10px;letter-spacing:.04em">B</span>
-      <select id="flashVerB" class="flash-sel" onchange="flashRefresh()">
+      <span style="font-size:9px;font-weight:800;color:#003da5;background:#e8f0fc;border:1px solid #b0c4de;padding:3px 9px;border-radius:10px;white-space:nowrap">B · Budget/LE</span>
+      <select id="flashVerB" class="flash-sel" onchange="flashRefresh()" style="min-width:160px">
         <option value="">— loading… —</option>
       </select>
     </div>
 
-    <!-- Action buttons -->
+    <!-- Actions -->
     <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0">
       <button id="flashBackBtn" class="btn btn-teal" style="font-size:10px;display:none" onclick="flashGoToModel()">← Full Model</button>
       <button class="btn btn-ghost" style="font-size:10px" onclick="flashExportPDF()">🖨 PDF</button>
       <button class="btn btn-ghost" style="font-size:10px" onclick="flashExportXLSX()">⬇ Excel</button>
     </div>
-  </div>
+  </div><!-- /ctrl-bar -->
 
-  <!-- ── DOCUMENT AREA ── -->
+  <!-- ── DOCUMENT ── -->
   <div id="flashDocument">
     <div class="flash-page" id="flashPage">
 
-      <!-- Loading state (shown until data arrives) -->
+      <!-- Loading / empty state -->
       <div id="flashLoadingState" class="flash-loading">
         <div class="fl-spinner"></div>
-        <div style="font-size:12px;font-weight:600">Loading report data…</div>
-        <div style="font-size:10px">Select Version A and Version B above to compare</div>
+        <div style="font-size:12px;font-weight:600;color:#1e3a5f">Loading report…</div>
+        <div style="font-size:10px;color:#8099b8">Select period and versions above to generate</div>
       </div>
 
-      <!-- Report content (hidden until loaded) -->
+      <!-- Report body -->
       <div id="flashReportBody" style="display:none">
 
-        <!-- Header -->
+        <!-- ── PAGE HEADER ── -->
         <div class="flash-page-header">
           <div class="flash-page-header-left">
             <div class="flash-report-title">Management Flash Report</div>
             <div class="flash-report-sub" id="flashReportSubtitle">Jamaica Public Service Co. · FP&amp;A · Confidential</div>
           </div>
           <div class="flash-page-header-right">
-            <div class="flash-brand">JPS<span>co</span></div>
+            <img id="flashHeaderLogo" src="" alt="JPS" style="height:44px;object-fit:contain;filter:brightness(0) invert(1)">
             <div class="flash-date" id="flashHeaderDate"></div>
           </div>
         </div>
 
-        <!-- Comparison banner -->
+        <!-- ── COMPARISON BANNER ── -->
         <div class="flash-compare-banner">
-          <span class="flash-ver-pill flash-ver-a" id="flashLabelA">Version A</span>
+          <span class="flash-ver-pill flash-ver-a" id="flashLabelA">Actuals</span>
           <span class="flash-compare-vs">vs</span>
-          <span class="flash-ver-pill flash-ver-b" id="flashLabelB">Version B</span>
+          <span class="flash-ver-pill flash-ver-b" id="flashLabelB">Budget</span>
           <span class="flash-compare-period" id="flashLabelPeriod"></span>
         </div>
 
-        <!-- KPI strip -->
+        <!-- ── KPI STRIP ── -->
         <div class="flash-kpi-strip" id="flashKpiStrip"></div>
 
-        <!-- Income Statement -->
-        <div class="flash-section-header">Income Statement &nbsp;<span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;color:#7090b0">USD $'000</span></div>
+        <!-- ── SALES & GENERATION ── -->
+        <div class="flash-section-header" style="border-top:1px solid #d8e2ef">
+          Generation &amp; Sales Performance &nbsp;<span style="font-weight:400;font-size:9px;color:#7090b0;text-transform:none;letter-spacing:0">GWh &amp; MW</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="flash-table" id="flashGenTable"></table>
+        </div>
+
+        <!-- ── INCOME STATEMENT ── -->
+        <div class="flash-section-header">
+          Income Statement &nbsp;<span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;color:#7090b0">USD $'000</span>
+          <span style="margin-left:8px;font-size:9px;font-weight:400;color:#8099b8;text-transform:none">💬 = click to add note</span>
+        </div>
         <div style="overflow-x:auto">
           <table class="flash-table" id="flashPLTable"></table>
         </div>
 
-        <!-- Balance Sheet + Metrics -->
+        <!-- ── BALANCE SHEET + METRICS ── -->
         <div class="flash-two-col">
           <div>
             <div class="flash-section-header" style="border-top:none">Balance Sheet Highlights</div>
@@ -1637,31 +1659,32 @@ tr.der td{color:var(--teal)}
           </div>
         </div>
 
-        <!-- Notes -->
+        <!-- ── NOTES ── -->
         <div class="flash-notes-area">
           <h3>📝 Management Commentary</h3>
-          <!-- Input row -->
           <div class="flash-note-input-row">
             <select id="flashNoteSection">
               <option value="general">General</option>
               <option value="revenue">Revenue</option>
+              <option value="generation">Generation &amp; Sales</option>
+              <option value="losses">System Losses</option>
               <option value="opex">O&amp;M / OPEX</option>
               <option value="ebitda">EBITDA</option>
               <option value="financing">Financing</option>
+              <option value="other_income">Other Income</option>
               <option value="balance_sheet">Balance Sheet</option>
               <option value="capex">CapEx</option>
               <option value="outlook">Outlook</option>
             </select>
             <textarea id="flashNoteInput" rows="2"
-              placeholder="Add commentary for this period… (Ctrl+Enter to save)"
+              placeholder="Add commentary… (Ctrl+Enter to save)"
               onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){flashSaveNote();event.preventDefault();}"></textarea>
             <button class="btn btn-gold" style="align-self:flex-start;font-size:11px" onclick="flashSaveNote()">Save</button>
           </div>
-          <!-- Feed -->
           <div id="flashNotesFeed"></div>
         </div>
 
-        <!-- Footer -->
+        <!-- ── FOOTER ── -->
         <div class="flash-page-footer">
           <span>CONFIDENTIAL · Internal Use Only · Jamaica Public Service Co.</span>
           <span id="flashGenTime"></span>
@@ -3745,6 +3768,7 @@ async function doLogin() {
 
   // Route to Flash Report if selected on login screen
   if (_loginDestination === 'flash') {
+    document.getElementById('appShell')?.classList.add('flash-mode');
     const flashTab = document.querySelector('.tab[onclick*="rpt-flash"]');
     showPane('rpt-flash', flashTab);
     if (flashTab) { document.querySelectorAll('.tab').forEach(t => t.classList.remove('on')); flashTab.classList.add('on'); }
@@ -11876,9 +11900,16 @@ function _restoreState() {
 // _saveState() is called directly inside showPane, setScenario, setPeriod above
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  FLASH REPORT ENGINE  v2 — white document, isolated from platform theme
+//  FLASH REPORT ENGINE  v3
+//  - Isolated white-paper document
+//  - Month-labelled A/B selects (period|versionId encoding)
+//  - Period navigation arrows (prev/next closed period)
+//  - Generation & Sales section (GWh, losses, peak demand)
+//  - Separate taxable/non-taxable other income
+//  - Inline 💬 comment icons per row
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ── Shared month label maps ───────────────────────────────────────────────────
 const FLASH_MONTHS = {
   202601:'Jan 2026', 202602:'Feb 2026', 202603:'Mar 2026',
   202604:'Apr 2026', 202605:'May 2026', 202606:'Jun 2026',
@@ -11892,9 +11923,20 @@ const FLASH_MONTH_FULL = {
   202610:'October 2026', 202611:'November 2026',  202612:'December 2026'
 };
 
-let _flashView      = 'month';
-let _flashNotesData = [];
-let _flashInited    = false;
+// ── Flash state ───────────────────────────────────────────────────────────────
+let _flashView           = 'month';
+let _flashNotesData      = [];
+let _flashInited         = false;
+let _flashClosedPeriods  = [];   // sorted array of period_ids e.g. [202601,202602,202603]
+let _flashPeriodIdx      = 0;    // current index into _flashClosedPeriods
+let _flashCurrentPeriod  = 202603;
+
+// ── Encode/decode select value: "periodId|versionId" ─────────────────────────
+function flashEnc(perId, verId) { return perId + '|' + verId; }
+function flashDec(val) {
+  const parts = (val||'').split('|');
+  return { perId: parseInt(parts[0])||0, verId: parts[1]||'' };
+}
 
 // ── Show / hide the loading skeleton vs report body ───────────────────────────
 function flashShowLoading(msg) {
@@ -11916,8 +11958,74 @@ function flashShowEmpty(msg) {
   if (rb) rb.style.display = 'none';
 }
 
-// ── Populate version dropdowns ────────────────────────────────────────────────
+// ── Month-labelled version dropdowns ─────────────────────────────────────────
+// Each option value = "periodId|versionId" e.g. "202603|abc-uuid"
+// A dropdown: one entry per ACTUAL version (month-specific)
+// B dropdown: one entry per (period × BUDGET/LE/FORECAST) combination
 function flashPopulateVersions() {
+  const selA = document.getElementById('flashVerA');
+  const selB = document.getElementById('flashVerB');
+  if (!selA || !selB) return;
+  if (!fpa.versions || !fpa.versions.length) return;
+
+  const savedA = selA.value, savedB = selB.value;
+  const perId = _flashCurrentPeriod;
+
+  // ── Version A: Actual versions (each covers one month) ──
+  selA.innerHTML = '';
+  const actuals = fpa.versions
+    .filter(v => v.kind === 'ACTUAL')
+    .sort((a,b) => (b.period_id||0)-(a.period_id||0));  // newest first
+  actuals.forEach(v => {
+    const mo = FLASH_MONTHS[v.period_id] || String(v.period_id);
+    const enc = flashEnc(v.period_id, v.id);
+    selA.insertAdjacentHTML('beforeend',
+      `<option value="${enc}" ${v.period_id===perId?'selected':''}>${mo} — Actuals</option>`);
+  });
+  // Also offer LE versions for A
+  fpa.versions.filter(v=>v.kind==='LE').sort((a,b)=>(b.year||0)-(a.year||0)).forEach(v=>{
+    const closedPeriods = _flashClosedPeriods.filter(p=>Math.floor(p/100)===v.year);
+    closedPeriods.forEach(cp=>{
+      const mo = FLASH_MONTHS[cp] || String(cp);
+      selA.insertAdjacentHTML('beforeend',
+        `<option value="${flashEnc(cp,v.id)}" ${cp===perId&&!actuals.find(a=>a.period_id===cp)?'selected':''}>` +
+        `${mo} — ${v.name||'LE'}</option>`);
+    });
+  });
+  if (!selA.value && selA.options.length) selA.options[0].selected = true;
+  if (savedA) { try { selA.value = savedA; } catch(e){} }
+
+  // ── Version B: Budget / LE / Forecast (per period) ──
+  selB.innerHTML = '';
+  const nonActual = fpa.versions
+    .filter(v => ['BUDGET','LE','FORECAST','SCENARIO'].includes(v.kind))
+    .sort((a,b)=>{
+      const ord={BUDGET:0,LE:1,FORECAST:2,SCENARIO:3};
+      return (ord[a.kind]??9)-(ord[b.kind]??9)||a.name.localeCompare(b.name);
+    });
+
+  // For each non-actual version, offer entries for each closed period
+  nonActual.forEach(v => {
+    const kindLabel = {BUDGET:'Budget',LE:'LE',FORECAST:'Forecast',SCENARIO:'Scenario'}[v.kind]||v.kind;
+    _flashClosedPeriods.concat([_flashCurrentPeriod]).filter((p,i,a)=>a.indexOf(p)===i).forEach(cp=>{
+      const mo = FLASH_MONTHS[cp] || String(cp);
+      const enc = flashEnc(cp, v.id);
+      selB.insertAdjacentHTML('beforeend',
+        `<option value="${enc}" ${cp===perId?'selected':''}>` +
+        `${mo} — ${v.name||kindLabel} (${kindLabel})</option>`);
+    });
+  });
+  if (savedB) { try { selB.value = savedB; } catch(e){} }
+  if (!selB.value && selB.options.length) {
+    // Default to budget for current period
+    const budgetOpt = [...selB.options].find(o=>o.value.startsWith(String(perId))&&o.text.includes('Budget'));
+    if (budgetOpt) budgetOpt.selected = true;
+    else selB.options[0].selected = true;
+  }
+}
+
+// ── OLD flashPopulateVersions stub (kept for fallback) ───────────────────────
+function _flashPopVersionsFallback() {
   const selA = document.getElementById('flashVerA');
   const selB = document.getElementById('flashVerB');
   if (!selA || !selB) return;
@@ -12000,6 +12108,52 @@ function flashVar(a, b, favorable_when_positive = true) {
   return { html: `${sign}${flashFmt(diff)}<br><span style="font-size:9px">${sign}${pct}%</span>`, cls };
 }
 
+// ── Generation & Sales table ──────────────────────────────────────────────────
+function flashBuildGenV3(factsA, factsB, labelA, labelB, periodId) {
+  const tbl = document.getElementById('flashGenTable');
+  if (!tbl) return;
+  const mo = periodId % 100;
+  const moIdx = mo - 1; // 0-based index
+
+  // Pull from genMixData (hardcoded AOP plan) as B proxy when no facts
+  const genTotal = Object.values(genMixData).reduce((s,g) => s + (g.vals[moIdx]||0), 0) / 1000; // GWh
+  const ippTotal = ['ipp_hfo','ipp_lng','ipp_re'].reduce((s,k)=>(genMixData[k]?.vals[moIdx]||0)+s,0)/1000;
+  const jpsGen   = ['hfo','lng','solar','wind','hydro'].reduce((s,k)=>(genMixData[k]?.vals[moIdx]||0)+s,0)/1000;
+  const revBudSales = (revBudgetMonthly.salesMWh?.[moIdx]||0) / 1000; // GWh
+
+  // Try to get net sales from facts (kwh_sold / stat lines) — fallback to budget
+  const netSalesA = factsA['net_sales'] || factsA['gwh_billed'] || null;
+  const netSalesB = factsB['net_sales'] || factsB['gwh_billed'] || null;
+  const peakA     = factsA['peak_mw']   || null;
+  const peakB     = factsB['peak_mw']   || null;
+  const lossA     = factsA['sys_loss_pct'] || null;
+  const lossB     = factsB['sys_loss_pct'] || null;
+  const grossGenA = factsA['gross_gen_gwh'] || null;
+  const grossGenB = factsB['gross_gen_gwh'] || null;
+
+  const fmt1  = v => v!=null?v.toFixed(1):'—';
+  const fmtN  = v => v!=null?flashFmt(v):'—';
+  const fmtGWh= v => v!=null?(v/1000).toFixed(1)+' GWh':'—';  // assumes stored in MWh
+
+  // When specific facts missing, show plan figures from genMixData
+  const genRows = [
+    { name:'Gross Generation',     unit:'GWh', vA: grossGenA!=null?fmtGWh(grossGenA):genTotal.toFixed(1)+' GWh*', vB: grossGenB!=null?fmtGWh(grossGenB):genTotal.toFixed(1)+' GWh*', note:'' },
+    { name:'System Losses',        unit:'%',   vA: lossA!=null?fmt1(lossA)+'%':'~26.4%*', vB: lossB!=null?fmt1(lossB)+'%':'~26.4%*', fav:false, note:'' },
+    { name:'Net Sales (Billed)',   unit:'GWh', vA: netSalesA!=null?fmtGWh(netSalesA):revBudSales.toFixed(1)+' GWh*', vB: netSalesB!=null?fmtGWh(netSalesB):revBudSales.toFixed(1)+' GWh*', note:'' },
+    { name:'Peak Demand',          unit:'MW',  vA: peakA!=null?fmt1(peakA)+' MW':'—', vB: peakB!=null?fmt1(peakB)+' MW':'—', note:'' },
+    { name:'JPS Own Generation',   unit:'GWh', vA: jpsGen.toFixed(1)+' GWh*', vB: jpsGen.toFixed(1)+' GWh*', note:'' },
+    { name:'IPP Contracted',       unit:'GWh', vA: ippTotal.toFixed(1)+' GWh*', vB: ippTotal.toFixed(1)+' GWh*', note:'' },
+  ];
+  const abbr = s => s.length > 20 ? s.slice(0,18)+'…' : s;
+  const hd = `<tr><th style="min-width:180px">Metric</th><th>${abbr(labelA)}</th><th>${abbr(labelB)}</th><th>Note</th></tr>`;
+  const body = genRows.map((r,i) => `<tr>
+    <td>${r.name}</td><td>${r.vA}</td><td>${r.vB}</td>
+    <td style="font-size:9px;color:#8099b8">${r.note||''}<button onclick="flashCommentRow('generation','${r.name}')" style="border:none;background:transparent;cursor:pointer;color:#8099b8;font-size:10px" title="Add note">💬</button></td>
+  </tr>`).join('');
+  const footnote = `<tr style="background:#f8fafc"><td colspan="4" style="font-size:9px;color:#9aabb8;padding:6px 14px">* Plan figures from AOP 2026 (Supabase stat lines not yet loaded)</td></tr>`;
+  tbl.innerHTML = `<thead>${hd}</thead><tbody>${body}${footnote}</tbody>`;
+}
+
 // ── KPI strip (white document) ────────────────────────────────────────────────
 function flashBuildKpisV2(factsA, factsB, labelA, labelB) {
   const el = document.getElementById('flashKpiStrip');
@@ -12027,40 +12181,53 @@ function flashBuildKpisV2(factsA, factsB, labelA, labelB) {
   }).join('');
 }
 
-// ── P&L table (white document) ────────────────────────────────────────────────
+// ── P&L table (white document, with inline comment icons) ────────────────────
 function flashBuildPLV2(factsA, factsB, labelA, labelB) {
   const tbl = document.getElementById('flashPLTable');
   if (!tbl) return;
   const defs = [
-    { section:'Revenue' },
-    { id:'fuel_rev',  name:'Fuel Revenue',          fav:true,  indent:true },
-    { id:'nonfuel',   name:'Non-Fuel Revenue',       fav:true,  indent:true },
-    { id:'ipp_fr',    name:'IPP Fuel Recovery',      fav:true,  indent:true },
-    { id:'ipp_nr',    name:'IPP Non-Fuel Recovery',  fav:true,  indent:true },
-    { id:'fuel_surp', name:'Fuel Surplus / (Deficit)',fav:true, indent:true },
-    { id:'tot_rev', name:'Total Revenue', keys:['fuel_rev','nonfuel','ipp_fr','ipp_nr','fuel_surp'], fav:true, subtotal:true },
-    { section:'Operating Costs' },
-    { id:'fuel_cost', name:'Fuel Cost',              fav:false, indent:true },
-    { id:'ipp_cost',  name:'IPP Purchase Cost',      fav:false, indent:true },
-    { id:'opex',      name:'O&M Expense',            fav:false, indent:true },
-    { id:'ebitda',    name:'EBITDA',                 fav:true,  subtotal:true },
-    { section:'Non-Operating' },
-    { id:'depn',      name:'Depreciation & Amort.',  fav:false, indent:true },
-    { id:'ebit',      name:'EBIT',                   fav:true,  subtotal:true },
-    { id:'fin_cost',  name:'Financing Cost',         fav:false, indent:true },
-    { id:'oth_inc',   name:'Other Income / (Expense)',fav:true, indent:true },
-    { id:'pretax',    name:'Pre-Tax Income',         fav:true,  subtotal:true },
-    { id:'tax',       name:'Income Tax',             fav:false, indent:true },
-    { id:'net_inc',   name:'Net Income',             fav:true,  total:true },
+    { section:'Revenue', noteSection:'revenue' },
+    { id:'fuel_rev',  name:'Fuel Revenue',            fav:true,  indent:true, note:'revenue' },
+    { id:'nonfuel',   name:'Non-Fuel Revenue',         fav:true,  indent:true, note:'revenue' },
+    { id:'ipp_fr',    name:'IPP Fuel Recovery',        fav:true,  indent:true, note:'revenue' },
+    { id:'ipp_nr',    name:'IPP Non-Fuel Recovery',    fav:true,  indent:true, note:'revenue' },
+    { id:'fuel_surp', name:'Fuel Surplus / (Deficit)', fav:true,  indent:true, note:'revenue' },
+    { id:'tot_rev', name:'Total Revenue', keys:['fuel_rev','nonfuel','ipp_fr','ipp_nr','fuel_surp'], fav:true, subtotal:true, note:'revenue' },
+    { section:'Operating Costs', noteSection:'opex' },
+    { id:'fuel_cost', name:'Fuel Cost',                fav:false, indent:true, note:'opex' },
+    { id:'ipp_cost',  name:'IPP Purchase Cost',        fav:false, indent:true, note:'opex' },
+    { id:'opex',      name:'O&M Expense',              fav:false, indent:true, note:'opex' },
+    { id:'ebitda',    name:'EBITDA',                   fav:true,  subtotal:true, note:'ebitda' },
+    { section:'Non-Operating', noteSection:'financing' },
+    { id:'depn',      name:'Depreciation &amp; Amort.',fav:false, indent:true, note:'financing' },
+    { id:'ebit',      name:'EBIT',                     fav:true,  subtotal:true, note:'ebitda' },
+    { id:'fin_cost',  name:'Financing Cost',           fav:false, indent:true, note:'financing' },
+    { section:'Other Income / (Expense)', noteSection:'other_income' },
+    { id:'oth_inc_tax',    name:'Taxable Other Income',    fav:true,  indent:true, note:'other_income', fallback:'oth_inc', fallbackPct:0.6 },
+    { id:'oth_inc_nontax', name:'Non-Taxable Other Income',fav:true,  indent:true, note:'other_income', fallback:'oth_inc', fallbackPct:0.4 },
+    { id:'oth_exp',        name:'Other Expense',           fav:false, indent:true, note:'other_income' },
+    { id:'oth_inc', name:'Net Other Income',               fav:true,  subtotal:true, note:'other_income' },
+    { id:'pretax',    name:'Pre-Tax Income',            fav:true,  subtotal:true, note:'ebitda' },
+    { id:'tax',       name:'Income Tax',               fav:false, indent:true, note:'financing' },
+    { id:'net_inc',   name:'Net Income',               fav:true,  total:true, note:'ebitda' },
   ];
-  const abbr = s => s.length > 22 ? s.slice(0,20)+'…' : s;
-  const hd = `<tr><th style="min-width:200px">Line Item</th><th>${abbr(labelA)}</th><th>${abbr(labelB)}</th><th>Variance</th><th>Var %</th></tr>`;
+  const abbr = s => s.length > 20 ? s.slice(0,18)+'…' : s;
+  const hd = `<tr>
+    <th style="min-width:200px">Line Item</th>
+    <th>${abbr(labelA)}</th><th>${abbr(labelB)}</th>
+    <th>Variance</th><th>Var %</th><th style="width:28px"></th>
+  </tr>`;
   let body = '';
   defs.forEach(r => {
-    if (r.section) { body += `<tr class="flash-row-section"><td colspan="5">${r.section}</td></tr>`; return; }
+    if (r.section) {
+      body += `<tr class="flash-row-section"><td colspan="6">${r.section}</td></tr>`; return;
+    }
     let vA = factsA[r.id] ?? null;
     let vB = factsB[r.id] ?? null;
-    if (r.keys) { vA = r.keys.reduce((s,k)=>s+(factsA[k]||0),0); vB = r.keys.reduce((s,k)=>s+(factsB[k]||0),0); }
+    // Fallback split for taxable/non-taxable other income
+    if (vA==null && r.fallback) { const base=factsA[r.fallback]??null; vA = base!=null ? base*r.fallbackPct : null; }
+    if (vB==null && r.fallback) { const base=factsB[r.fallback]??null; vB = base!=null ? base*r.fallbackPct : null; }
+    if (r.keys) { vA=r.keys.reduce((s,k)=>s+(factsA[k]||0),0); vB=r.keys.reduce((s,k)=>s+(factsB[k]||0),0); }
     const diff = (vA!=null&&vB!=null) ? vA-vB : null;
     const pct  = (diff!=null&&vB&&vB!==0) ? ((diff/Math.abs(vB))*100).toFixed(1) : null;
     const good = r.fav ? (diff==null||diff>=0) : (diff==null||diff<=0);
@@ -12068,12 +12235,15 @@ function flashBuildPLV2(factsA, factsB, labelA, labelB) {
     const sign = diff>0 ? '+' : '';
     const rowCls = r.total ? 'flash-row-total' : r.subtotal ? 'flash-row-subtotal' : '';
     const pad  = r.indent ? 'padding-left:26px' : '';
+    const noteBtn = r.note ? `<button onclick="flashCommentRow('${r.note}','${r.name.replace(/'/g,'')}')"
+      style="border:none;background:transparent;cursor:pointer;font-size:11px;padding:0;color:#b0c4de" title="Add note for ${r.name}">💬</button>` : '';
     body += `<tr class="${rowCls}">
       <td style="${pad}">${r.name}</td>
       <td>${vA!=null?flashFmt(vA):'—'}</td>
       <td>${vB!=null?flashFmt(vB):'—'}</td>
       <td class="${rowCls?'':cls}">${diff!=null?sign+flashFmt(diff):'—'}</td>
       <td class="${rowCls?'':cls}" style="font-size:10px">${pct!=null?sign+pct+'%':'—'}</td>
+      <td style="text-align:center;padding:4px">${noteBtn}</td>
     </tr>`;
   });
   tbl.innerHTML = `<thead>${hd}</thead><tbody>${body}</tbody>`;
@@ -12130,25 +12300,89 @@ function flashBuildMetricsV2(factsA, factsB, labelA, labelB) {
   tbl.innerHTML=`<thead>${hd}</thead><tbody>${body}</tbody>`;
 }
 
+// ── Period navigation ─────────────────────────────────────────────────────────
+function flashNavPeriod(delta) {
+  const newIdx = Math.max(0, Math.min(_flashClosedPeriods.length - 1, _flashPeriodIdx + delta));
+  if (newIdx === _flashPeriodIdx && delta !== 0) return;
+  _flashPeriodIdx = newIdx;
+  _flashCurrentPeriod = _flashClosedPeriods[_flashPeriodIdx] || _flashCurrentPeriod;
+  // Update A selection to actuals for this period if available
+  const selA = document.getElementById('flashVerA');
+  if (selA) {
+    const targetEnc = [...selA.options].find(o => {
+      const d = flashDec(o.value);
+      return d.perId === _flashCurrentPeriod && o.text.includes('Actuals');
+    });
+    if (targetEnc) selA.value = targetEnc.value;
+  }
+  // Update B to same period
+  const selB = document.getElementById('flashVerB');
+  if (selB) {
+    const curD  = flashDec(selB.value);
+    const match = [...selB.options].find(o => {
+      const d = flashDec(o.value);
+      return d.perId === _flashCurrentPeriod && d.verId === curD.verId;
+    });
+    if (match) selB.value = match.value;
+  }
+  flashUpdatePeriodLabel();
+  flashRefresh();
+}
+
+function flashUpdatePeriodLabel() {
+  const el = document.getElementById('flashPeriodLabel');
+  if (el) el.textContent = FLASH_MONTHS[_flashCurrentPeriod] || String(_flashCurrentPeriod);
+  // Disable/enable nav buttons
+  const prev = document.querySelector('.flash-ctrl-bar button[onclick*="-1"]');
+  const next = document.querySelector('.flash-ctrl-bar button[onclick*="+1"]');
+  if (prev) prev.disabled = _flashPeriodIdx <= 0;
+  if (next) next.disabled = _flashPeriodIdx >= _flashClosedPeriods.length - 1;
+}
+
+function flashOnVersionChange(which) {
+  // When A changes, sync _flashCurrentPeriod to A's period
+  if (which === 'A') {
+    const d = flashDec(document.getElementById('flashVerA')?.value || '');
+    if (d.perId) {
+      _flashCurrentPeriod = d.perId;
+      _flashPeriodIdx = _flashClosedPeriods.indexOf(d.perId);
+      if (_flashPeriodIdx < 0) _flashPeriodIdx = _flashClosedPeriods.length - 1;
+      flashUpdatePeriodLabel();
+    }
+  }
+  flashRefresh();
+}
+
 // ── Main refresh ──────────────────────────────────────────────────────────────
 async function flashRefresh() {
-  const periodId = parseInt(document.getElementById('flashMoA')?.value || '202603');
-  const verAId   = document.getElementById('flashVerA')?.value || '';
-  const verBId   = document.getElementById('flashVerB')?.value || '';
+  const selA = document.getElementById('flashVerA');
+  const selB = document.getElementById('flashVerB');
+  const decA = flashDec(selA?.value || '');
+  const decB = flashDec(selB?.value || '');
+  const verAId = decA.verId, perAId = decA.perId || _flashCurrentPeriod;
+  const verBId = decB.verId, perBId = decB.perId || _flashCurrentPeriod;
+  const periodId = perAId; // anchor period from A
 
   if (!verAId || !verBId) { flashShowEmpty(); return; }
 
   flashShowLoading('Loading report data…');
 
-  const periodIds = flashPeriodIds(_flashView, periodId);
+  const periodIds  = flashPeriodIds(_flashView, periodId);
+  const periodIdsB = flashPeriodIds(_flashView, perBId || periodId);
   const verA = fpa.versions?.find(v => v.id === verAId);
   const verB = fpa.versions?.find(v => v.id === verBId);
-  const labelA = verA ? verA.name : 'Version A';
-  const labelB = verB ? verB.name : 'Version B';
+
+  // Month-prefixed labels (e.g. "Mar 2026 — Actuals")
+  const moA    = FLASH_MONTHS[perAId] || '';
+  const moB    = FLASH_MONTHS[perBId] || '';
+  const kindA  = {ACTUAL:'Actuals',BUDGET:'Budget',LE:'LE',FORECAST:'Forecast',SCENARIO:'Scenario'}[verA?.kind||'']||'';
+  const kindB  = {ACTUAL:'Actuals',BUDGET:'Budget',LE:'LE',FORECAST:'Forecast',SCENARIO:'Scenario'}[verB?.kind||'']||'';
+  const labelA = moA ? `${moA} — ${kindA||verA?.name||'A'}` : (verA?.name || 'Version A');
+  const labelB = moB ? `${moB} — ${kindB||verB?.name||'B'}` : (verB?.name || 'Version B');
 
   const [factsA, factsB] = await Promise.all([
     flashFetchFacts(verAId, periodIds),
-    flashFetchFacts(verBId, periodIds),
+    flashFetchFacts(verBId, periodIdsB),
   ]);
 
   // Period label
@@ -12160,16 +12394,18 @@ async function flashRefresh() {
     annual:`Full Year ${periodY}`
   }[_flashView];
 
-  // Update document meta labels
   const setEl = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
-  const setHTML = (id,v) => { const e=document.getElementById(id); if(e) e.innerHTML=v; };
   setEl('flashLabelA', labelA);
   setEl('flashLabelB', labelB);
   setEl('flashLabelPeriod', viewLabel);
   setEl('flashReportSubtitle', `Jamaica Public Service Co. · FP&A · ${viewLabel} · Confidential`);
   setEl('flashHeaderDate', new Date().toLocaleDateString('en-JM',{dateStyle:'long'}));
+  // Logo
+  const hLogo = document.getElementById('flashHeaderLogo');
+  if (hLogo && JPS_LOGO_DATA) hLogo.src = JPS_LOGO_DATA;
 
   flashBuildKpisV2(factsA, factsB, labelA, labelB);
+  flashBuildGenV3(factsA, factsB, labelA, labelB, periodId);
   flashBuildPLV2(factsA, factsB, labelA, labelB);
   flashBuildBSV2(factsA, factsB, labelA, labelB);
   flashBuildMetricsV2(factsA, factsB, labelA, labelB);
@@ -12187,9 +12423,62 @@ function flashSetView(view, btn) {
   flashRefresh();
 }
 
+// ── Comment row: pre-fill notes panel for a specific line ────────────────────
+function flashCommentRow(section, lineName) {
+  // Set the section dropdown to the matching section
+  const sec = document.getElementById('flashNoteSection');
+  if (sec) {
+    // Map row section keys to flashNoteSection option values
+    const sectionMap = {
+      generation: 'generation', losses: 'losses',
+      revenue: 'revenue', opex: 'opex',
+      ebitda: 'ebitda', finance: 'financing', financing: 'financing',
+      other: 'other_income', tax: 'general', net_income: 'general',
+      bs: 'balance_sheet', general: 'general'
+    };
+    const mapped = sectionMap[section] || 'general';
+    // Set the value and trigger change if needed
+    sec.value = mapped;
+  }
+  // Pre-fill the note input with the line name as context
+  const inp = document.getElementById('flashNoteInput');
+  if (inp && lineName) {
+    const prefix = lineName.replace(/'/g, '') + ': ';
+    if (!inp.value || inp.value === '') {
+      inp.value = prefix;
+    }
+    inp.focus();
+    // Move cursor to end
+    inp.setSelectionRange(inp.value.length, inp.value.length);
+  }
+  // Smooth scroll to notes section
+  const notesArea = document.querySelector('.flash-notes-area');
+  if (notesArea) {
+    notesArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
 // ── Init (called on tab open) ─────────────────────────────────────────────────
 function flashInit() {
-  // Populate period options from fpa_dim_period closed periods
+  // Populate _flashClosedPeriods from fpa.periods (must happen before flashPopulateVersions)
+  if (fpa.periods && fpa.periods.length) {
+    _flashClosedPeriods = fpa.periods
+      .filter(p => p.is_closed)
+      .map(p => p.id)
+      .sort((a, b) => a - b);
+    // Default current period to latest closed
+    if (_flashClosedPeriods.length) {
+      _flashCurrentPeriod = _flashClosedPeriods[_flashClosedPeriods.length - 1];
+      _flashPeriodIdx = _flashClosedPeriods.length - 1;
+    }
+  } else {
+    // Fallback if fpa.periods not loaded yet
+    _flashClosedPeriods = [202601, 202602, 202603];
+    _flashCurrentPeriod = 202603;
+    _flashPeriodIdx = 2;
+  }
+
+  // Legacy month selector (kept for note-loading compatibility)
   const moSel = document.getElementById('flashMoA');
   if (moSel && fpa.periods) {
     moSel.innerHTML = '';
@@ -12199,7 +12488,7 @@ function flashInit() {
     } else {
       closed.forEach(p => {
         const lbl = new Date(p.year, p.month-1).toLocaleString('en-JM',{month:'short',year:'numeric'});
-        moSel.insertAdjacentHTML('beforeend', `<option value="${p.id}" ${p.id===202603?'selected':''}>${lbl}</option>`);
+        moSel.insertAdjacentHTML('beforeend', `<option value="${p.id}" ${p.id===_flashCurrentPeriod?'selected':''}>${lbl}</option>`);
       });
     }
   }
