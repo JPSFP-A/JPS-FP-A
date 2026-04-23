@@ -1865,14 +1865,6 @@ tr.der td{color:var(--teal)}
     <div id="covenantTrackPanel"></div>
   </div>
 
-  <!-- SECTION 5: Interest Projection Chart -->
-  <div class="tc2">
-    <div class="th"><div class="tt">§5 Interest Expense &amp; Debt Balance 2026–2030</div></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px">
-      <div><div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Total Debt Balance $'000</div><canvas id="cDebtBal" height="160"></canvas></div>
-      <div><div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Annual Interest Expense $'000</div><canvas id="cDebtInt" height="160"></canvas></div>
-    </div>
-  </div>
 </div>
 
 <!-- ═══ LEASE REGISTER ═══ -->
@@ -2468,18 +2460,130 @@ tr.der td{color:var(--teal)}
 
 <!-- ═══ DATA SOURCES ═══ -->
 <div id="pane-adm-data" class="pane">
-  <div class="info-bar"><div class="info-icon">☁</div><div class="info-text"><strong>Data Sources.</strong> 7 input files loaded from Feb 2026 LE. Drag & drop new files to refresh. Templates download pre-formatted for each module.</div></div>
-  <div class="dz" id="dz" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
-    <div class="di">📂</div><div class="dt">Drag & Drop Files Here</div>
-    <div class="ds">Supports .xlsx, .xlsm, .csv · Or <label style="color:var(--gold);cursor:pointer">browse<input type="file" style="display:none" multiple accept=".xlsx,.csv,.xlsm" onchange="handleUpload(event)"></label></div>
+
+  <!-- ── TOP STRIP: Year picker + summary badges ────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+    <div style="font-size:13px;font-weight:800;color:var(--text)">☁ Data Management Centre</div>
+    <div class="seg" id="dmYearSeg">
+      <div class="sb" onclick="dmSelectYear(2024,this)">2024</div>
+      <div class="sb" onclick="dmSelectYear(2025,this)">2025</div>
+      <div class="sb on" onclick="dmSelectYear(2026,this)">2026</div>
+      <div class="sb" onclick="dmSelectYear(2027,this)">2027</div>
+    </div>
+    <div id="dmYearBadges" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    <button class="btn btn-ghost" style="margin-left:auto;font-size:10px" onclick="dmRefresh()">⟳ Refresh from DB</button>
   </div>
-  <div style="font-size:11px;font-weight:700;color:white;margin-bottom:8px">📋 Download Input Templates</div>
-  <div class="tg2" id="tmplGrid"></div>
-  <!-- Period Status — rendered by buildPeriodStatusPanel() -->
-  <div id="periodStatusPanel" style="margin-bottom:12px"></div>
-  <div class="tc2"><div class="th"><div class="tt">Upload Log</div></div><div class="tscr"><table><thead><tr><th style="text-align:left">File</th><th>Type</th><th>Period</th><th>Rows</th><th>Status</th><th>Date</th><th>Action</th></tr></thead><tbody id="ulB"></tbody></table></div></div>
-  <!-- Supabase connection settings — rendered by buildSupabaseSettings() -->
+
+  <!-- ── PERIOD CALENDAR ────────────────────────────────────────────────── -->
+  <div class="tc2" style="margin-bottom:12px">
+    <div class="th">
+      <div>
+        <div class="tt" id="dmCalTitle">📅 2026 — Period Calendar</div>
+        <div class="ts">🔒 Closed = actuals locked &nbsp;·&nbsp; ⬆ Ready = awaiting upload &nbsp;·&nbsp; 📋 Open = LE editable &nbsp;·&nbsp; Click a month to manage its data</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:5px;padding:12px" id="dmCalGrid"></div>
+  </div>
+
+  <!-- ── MONTHLY DATA MANAGER ───────────────────────────────────────────── -->
+  <div class="tc2" style="margin-bottom:12px" id="dmManagerPanel" style="display:none">
+    <div class="th">
+      <div>
+        <div class="tt" id="dmManagerTitle">📂 Select a month above to manage data</div>
+        <div class="ts" id="dmManagerSub">Upload documents, review extracted data, commit to database or enter manually</div>
+      </div>
+      <div class="ta" style="gap:6px">
+        <button class="btn btn-ghost" style="font-size:10px;border-color:var(--amber);color:var(--amber)" id="dmClearBtn" onclick="dmClearMonth()" title="Delete all fact data for this period">🗑 Clear Month</button>
+        <button class="btn btn-ghost" style="font-size:10px" id="dmLockBtn" onclick="dmToggleLock()">🔒 Lock Period</button>
+      </div>
+    </div>
+
+    <!-- Status chips: what data is present for this month -->
+    <div style="padding:10px 12px;border-bottom:1px solid var(--border)">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Data Status for Selected Month</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px" id="dmStatusChips">
+        <span style="font-size:11px;color:var(--muted)">Select a month above…</span>
+      </div>
+    </div>
+
+    <!-- Upload zone -->
+    <div style="padding:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:8px">📤 Upload Document</div>
+      <div class="dz" id="dmDz" style="margin-bottom:10px"
+        ondragover="event.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="dmHandleDrop(event)">
+        <div class="di">📂</div>
+        <div class="dt">Drag &amp; drop your actuals file here, or <label style="color:var(--gold);cursor:pointer">browse<input type="file" id="dmFileInput" style="display:none" accept=".xlsx,.xlsm,.csv" onchange="dmHandleFile(this.files[0])"></label></div>
+        <div class="ds">Supports .xlsx · .xlsm · .csv &nbsp;·&nbsp; The platform will extract data automatically</div>
+      </div>
+
+      <!-- OR manual entry toggle -->
+      <div style="text-align:center;margin-bottom:10px">
+        <button class="btn btn-ghost" style="font-size:10px" onclick="dmToggleManual()">✏ Enter Data Manually Instead</button>
+      </div>
+
+      <!-- Manual entry panel (hidden by default) -->
+      <div id="dmManualPanel" style="display:none;background:var(--card2);border-radius:6px;padding:12px;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:10px">✏ Manual Entry — Key P&L Lines (USD $000)</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px" id="dmManualFields">
+          <!-- Populated by dmBuildManualFields() -->
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="btn btn-gold" style="font-size:11px" onclick="dmCommitManual()">✔ Commit Manual Entry</button>
+          <button class="btn btn-ghost" style="font-size:11px" onclick="dmToggleManual()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Extract preview (shown after upload) -->
+    <div id="dmExtractPanel" style="display:none;padding:0 12px 12px">
+      <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:8px">🔍 Extracted Data — Review Before Committing</div>
+      <div id="dmExtractStatus" style="margin-bottom:8px"></div>
+      <div style="overflow-x:auto;border-radius:6px;border:1px solid var(--border);margin-bottom:10px">
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr>
+            <th style="text-align:left;padding:6px 10px;background:var(--card2);border-bottom:1px solid var(--border)">Line Item</th>
+            <th style="text-align:right;padding:6px 10px;background:var(--card2);border-bottom:1px solid var(--border)">Extracted Value</th>
+            <th style="text-align:right;padding:6px 10px;background:var(--card2);border-bottom:1px solid var(--border)">Current in DB</th>
+            <th style="text-align:center;padding:6px 10px;background:var(--card2);border-bottom:1px solid var(--border)">Status</th>
+          </tr></thead>
+          <tbody id="dmExtractTbody"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-gold" style="font-size:11px" id="dmCommitBtn" onclick="dmCommitExtract()">✔ Commit to Database</button>
+        <button class="btn btn-ghost" style="font-size:11px" onclick="dmDiscardExtract()">✕ Discard</button>
+        <span style="font-size:10px;color:var(--muted)" id="dmCommitNote"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── UPLOAD LOG ─────────────────────────────────────────────────────── -->
+  <div class="tc2" style="margin-bottom:12px">
+    <div class="th">
+      <div><div class="tt">📋 Upload History</div><div class="ts">All data commits for this project, newest first</div></div>
+      <div class="ta"><button class="btn btn-ghost" style="font-size:10px" onclick="dmLoadUploadLog()">⟳ Refresh</button></div>
+    </div>
+    <div class="tscr">
+      <table><thead><tr>
+        <th style="text-align:left">Period</th>
+        <th style="text-align:left">Version</th>
+        <th style="text-align:left">Source</th>
+        <th>Rows</th>
+        <th>Status</th>
+        <th style="text-align:left">Uploaded By</th>
+        <th style="text-align:left">Date</th>
+        <th>Action</th>
+      </tr></thead>
+      <tbody id="dmLogBody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:14px;font-size:11px">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SUPABASE SETTINGS ──────────────────────────────────────────────── -->
   <div id="sbSettingsPanel"></div>
+
 </div>
 
 
@@ -3459,52 +3563,514 @@ function saveSbConfig(url, anonKey, enabled) {
   buildSupabaseSettings();
 }
 
-// ── Period Status Panel (in adm-data tab) ────────────
-function buildPeriodStatusPanel() {
-  const el = document.getElementById('periodStatusPanel');
-  if (!el) return;
+// ════════════════════════════════════════════════════════════════════════════
+//  DATA MANAGEMENT CENTRE — Period calendar, smart upload, commit workflow
+// ════════════════════════════════════════════════════════════════════════════
 
-  const year = 2026;
-  const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const latestClosed = fpa.latestClosedMonth(year);
-  const hasDB = fpa.periods.length > 0;
+let _dmYear        = 2026;
+let _dmMonth       = null;   // currently selected month (1-12)
+let _dmExtractRows = [];     // rows extracted from uploaded file, pending commit
+let _dmCurrentFacts= {};     // {line_id: value} already in DB for selected period
 
-  const cells = mn.map((m, i) => {
+const DM_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Lines to track/display in manual entry and extract preview
+const DM_LINES = [
+  { id:'rev_total',      label:'Total Revenue',           section:'Revenue' },
+  { id:'cogs_fuel',      label:'Fuel Cost',               section:'COGS'    },
+  { id:'cogs_ipp',       label:'IPP Cost',                section:'COGS'    },
+  { id:'gross_profit',   label:'Gross Profit',            section:'P&L'     },
+  { id:'om_total',       label:'Total O&M',               section:'OpEx'    },
+  { id:'ebitda',         label:'EBITDA',                  section:'P&L'     },
+  { id:'depreciation',   label:'Depreciation',            section:'P&L'     },
+  { id:'ebit',           label:'EBIT',                    section:'P&L'     },
+  { id:'net_fin_costs',  label:'Net Financing Costs',     section:'P&L'     },
+  { id:'net_profit',     label:'Net Profit / (Loss)',     section:'P&L'     },
+  { id:'bs_total_assets',label:'Total Assets',            section:'B/S'     },
+  { id:'bs_total_debt',  label:'Total Debt',              section:'B/S'     },
+  { id:'bs_equity',      label:'Total Equity',            section:'B/S'     },
+  { id:'cf_ops',         label:'Cash from Operations',    section:'CF'      },
+  { id:'cf_capex',       label:'CapEx',                   section:'CF'      },
+  { id:'gen_gwh',        label:'Net Generation (GWh)',    section:'Ops'     },
+  { id:'sales_gwh',      label:'Net Sales (GWh)',         section:'Ops'     },
+];
+
+function dmSelectYear(y, btn) {
+  _dmYear = y;
+  document.querySelectorAll('#dmYearSeg .sb').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  _dmMonth = null;
+  dmBuildCalendar(y);
+  document.getElementById('dmManagerPanel').style.display = 'none';
+}
+
+function dmRefresh() {
+  if (!_sb) { toast('Not connected to database','w'); return; }
+  fpaBootstrap().then(() => { dmBuildCalendar(_dmYear); dmLoadUploadLog(); toast('Refreshed from DB','ok'); });
+}
+
+function dmBuildCalendar(year) {
+  const title = document.getElementById('dmCalTitle');
+  if (title) title.textContent = `📅 ${year} — Period Calendar`;
+
+  const grid = document.getElementById('dmCalGrid');
+  if (!grid) return;
+
+  // Summary badges
+  const closed = (fpa.periods||[]).filter(p=>p.year===year&&p.is_closed).length;
+  const open   = 12 - closed;
+  const bdg = document.getElementById('dmYearBadges');
+  if (bdg) bdg.innerHTML =
+    `<span class="badge" style="background:rgba(52,211,153,.15);color:var(--green)">${closed} closed</span>` +
+    `<span class="badge" style="background:rgba(125,160,196,.1);color:var(--muted)">${open} open</span>`;
+
+  grid.innerHTML = DM_MONTHS.map((m, i) => {
     const mo = i + 1;
-    const closed = fpa.isPeriodClosed(year, mo);
-    const hasActuals = actualsStore[year]?.[mo] != null;
-    const isNext = !closed && mo === latestClosed + 1;
+    const period = (fpa.periods||[]).find(p => p.year===year && p.month===mo);
+    const closed   = period?.is_closed || false;
+    const hasActs  = actualsStore[year]?.[mo] != null;
+    const isNext   = !closed && mo === ((fpa.latestClosedMonth?.(year)||0) + 1);
+    const selected = _dmYear===year && _dmMonth===mo;
 
-    let bg, label, icon;
-    if (closed && hasActuals)    { bg='rgba(52,211,153,.12)'; label='Actuals Loaded'; icon='✅'; }
-    else if (closed)             { bg='rgba(52,211,153,.07)'; label='Closed'; icon='🔒'; }
-    else if (isNext)             { bg='rgba(251,191,36,.10)'; label='Next Upload'; icon='⬆'; }
-    else                         { bg='rgba(125,160,196,.06)'; label='Open — LE'; icon='📋'; }
+    let bg, border, icon, label;
+    if (closed && hasActs) { bg='rgba(52,211,153,.14)'; border='rgba(52,211,153,.35)'; icon='✅'; label='Actuals Loaded'; }
+    else if (closed)       { bg='rgba(52,211,153,.07)'; border='rgba(52,211,153,.2)';  icon='🔒'; label='Closed'; }
+    else if (isNext)       { bg='rgba(251,191,36,.12)'; border='rgba(251,191,36,.3)';  icon='⬆'; label='Ready to Upload'; }
+    else                   { bg='rgba(125,160,196,.06)'; border='var(--border)';        icon='📋'; label='Open — LE'; }
 
-    return `<div style="text-align:center;padding:8px 4px;border-radius:6px;background:${bg};border:1px solid ${closed?'rgba(52,211,153,.2)':isNext?'rgba(251,191,36,.25)':'var(--border)'}">
+    const selStyle = selected ? 'outline:2px solid var(--gold);outline-offset:2px;' : '';
+
+    return `<div onclick="dmSelectMonth(${year},${mo})"
+      style="text-align:center;padding:8px 4px;border-radius:6px;background:${bg};border:1px solid ${border};cursor:pointer;transition:.15s;${selStyle}"
+      title="${m} ${year} — ${label}">
       <div style="font-size:14px">${icon}</div>
-      <div style="font-size:10px;font-weight:700;color:var(--text);margin:2px 0">${m}</div>
+      <div style="font-size:10px;font-weight:700;color:var(--text);margin:2px 0">${m} ${year}</div>
       <div style="font-size:9px;color:var(--muted)">${label}</div>
     </div>`;
+  }).join('');
+}
+
+async function dmSelectMonth(year, month) {
+  _dmYear  = year;
+  _dmMonth = month;
+  dmBuildCalendar(year);
+
+  const panel = document.getElementById('dmManagerPanel');
+  const title  = document.getElementById('dmManagerTitle');
+  const sub    = document.getElementById('dmManagerSub');
+  const lockBtn= document.getElementById('dmLockBtn');
+
+  if (!panel) return;
+  panel.style.display = '';
+
+  const mLabel = `${DM_MONTHS[month-1]} ${year}`;
+  title.textContent = `📂 ${mLabel} — Data Manager`;
+  sub.textContent   = `Upload, review, or manually enter data for ${mLabel}`;
+
+  const period  = (fpa.periods||[]).find(p=>p.year===year&&p.month===month);
+  const isClosed= period?.is_closed||false;
+  lockBtn.textContent   = isClosed ? '🔓 Unlock Period' : '🔒 Lock Period';
+  lockBtn.style.borderColor = isClosed ? 'var(--amber)' : '';
+  lockBtn.style.color       = isClosed ? 'var(--amber)' : '';
+
+  // Load current DB facts for this period
+  await dmLoadCurrentFacts(year, month);
+  dmBuildStatusChips(year, month);
+  dmBuildManualFields();
+
+  // Reset extract panel
+  document.getElementById('dmExtractPanel').style.display = 'none';
+  _dmExtractRows = [];
+}
+
+async function dmLoadCurrentFacts(year, month) {
+  _dmCurrentFacts = {};
+  if (!_sb) return;
+  const periodId = year * 100 + month;
+  // Find ACTUAL version for this period
+  const actVer = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
+  if (!actVer) return;
+  const { data } = await _sb.from('fpa_facts')
+    .select('line_id, value')
+    .eq('version_id', actVer.id)
+    .eq('period_id', periodId);
+  (data||[]).forEach(r => { _dmCurrentFacts[r.line_id] = r.value; });
+}
+
+function dmBuildStatusChips(year, month) {
+  const chips = document.getElementById('dmStatusChips');
+  if (!chips) return;
+  const periodId = year * 100 + month;
+  const actVer   = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
+  const hasDB    = !!_sb;
+
+  const sections = ['Revenue','COGS','P&L','OpEx','B/S','CF','Ops'];
+  let html = '';
+  sections.forEach(sec => {
+    const lines = DM_LINES.filter(l=>l.section===sec);
+    const loaded = lines.filter(l=>_dmCurrentFacts[l.id]!=null).length;
+    const total  = lines.length;
+    const all    = loaded === total;
+    const none   = loaded === 0;
+    const bg    = all  ? 'rgba(52,211,153,.18)' : none ? 'rgba(239,68,68,.1)' : 'rgba(251,191,36,.15)';
+    const color  = all  ? 'var(--green)'          : none ? 'var(--red)'         : 'var(--amber)';
+    const icon   = all  ? '✅' : none ? '⭕' : '⚠';
+    if (!hasDB || !actVer) {
+      html += `<span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(125,160,196,.1);color:var(--muted)">${sec} — No DB connection</span>`;
+    } else {
+      html += `<span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;background:${bg};color:${color}">${icon} ${sec} ${loaded}/${total}</span>`;
+    }
   });
 
-  el.innerHTML = `
-    <div class="tc2" style="margin-bottom:0">
-      <div class="th">
-        <div>
-          <div class="tt">📅 2026 Period Status
-            <span class="badge" style="background:${hasDB?'rgba(52,211,153,.15)':'rgba(125,160,196,.1)'};color:${hasDB?'var(--green)':'var(--muted)'}">
-              ${hasDB ? `${latestClosed} month${latestClosed!==1?'s':''} closed` : 'DB not loaded'}
-            </span>
-          </div>
-          <div class="ts">🔒 Closed = actuals locked · ⬆ Next = upload actuals file · 📋 Open = LE editable</div>
-        </div>
-        <div class="ta">
-          <button class="btn btn-ghost" style="font-size:10px" onclick="showPane('adm-data',null);document.getElementById('dz').scrollIntoView({behavior:'smooth'})">⬆ Upload Actuals</button>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:5px;padding:12px">${cells.join('')}</div>
+  const period = (fpa.periods||[]).find(p=>p.year===year&&p.month===month);
+  if (!actVer) {
+    html = `<span style="padding:3px 10px;border-radius:10px;font-size:11px;background:rgba(239,68,68,.1);color:var(--red)">⭕ No ACTUAL version found for ${DM_MONTHS[month-1]} ${year} — create one in fpa_versions</span>` + html;
+  }
+  if (period?.is_closed) {
+    html = `<span style="padding:3px 10px;border-radius:10px;font-size:11px;background:rgba(52,211,153,.12);color:var(--green)">🔒 Period Locked — ${DM_MONTHS[month-1]} ${year}</span> ` + html;
+  }
+
+  chips.innerHTML = html;
+}
+
+function dmBuildManualFields() {
+  const container = document.getElementById('dmManualFields');
+  if (!container) return;
+  container.innerHTML = DM_LINES.map(l => {
+    const cur = _dmCurrentFacts[l.id];
+    const val = cur != null ? cur : '';
+    return `<div>
+      <label style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;display:block;margin-bottom:3px">${l.label}</label>
+      <input type="number" step="any" id="dmM_${l.id}" value="${val}"
+        style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);font-size:12px;font-family:var(--mono)"
+        placeholder="${l.section}">
     </div>`;
+  }).join('');
+}
+
+function dmToggleManual() {
+  const p = document.getElementById('dmManualPanel');
+  p.style.display = p.style.display === 'none' ? '' : 'none';
+}
+
+async function dmCommitManual() {
+  if (!_sb) { toast('Not connected to database','w'); return; }
+  if (!_dmMonth) { toast('Select a month first','w'); return; }
+  const periodId = _dmYear * 100 + _dmMonth;
+  const actVer   = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
+  if (!actVer) { toast('No ACTUAL version for this period','w'); return; }
+
+  const rows = [];
+  DM_LINES.forEach(l => {
+    const inp = document.getElementById('dmM_'+l.id);
+    if (inp && inp.value !== '') {
+      rows.push({ version_id: actVer.id, line_id: l.id, period_id: periodId,
+                  value: parseFloat(inp.value), source: 'manual' });
+    }
+  });
+
+  if (!rows.length) { toast('No values entered','w'); return; }
+
+  // Upsert rows
+  const { error } = await _sb.from('fpa_facts')
+    .upsert(rows, { onConflict: 'version_id,line_id,period_id', ignoreDuplicates: false });
+
+  if (error) { toast('Commit failed: '+error.message,'w'); return; }
+  toast(`${rows.length} lines committed for ${DM_MONTHS[_dmMonth-1]} ${_dmYear}`,'ok');
+  auditLog('upload','manual-entry',`${DM_MONTHS[_dmMonth-1]} ${_dmYear}`,{rows:rows.length});
+  await dmSelectMonth(_dmYear, _dmMonth);
+  dmToggleManual();
+}
+
+// ── Smart file upload ────────────────────────────────────────────────────────
+function dmHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dmDz').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) dmHandleFile(f);
+}
+
+function dmHandleFile(file) {
+  if (!file) return;
+  if (!_dmMonth) { toast('Select a month first','w'); return; }
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['xlsx','xlsm','csv'].includes(ext)) { toast('Only .xlsx/.xlsm/.csv files accepted','w'); return; }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      if (ext === 'csv') {
+        dmParseCSV(e.target.result, file.name);
+      } else {
+        if (typeof XLSX === 'undefined') { toast('SheetJS not loaded — try CSV','w'); return; }
+        const wb = XLSX.read(e.target.result, { type:'binary' });
+        dmParseExcel(wb, file.name);
+      }
+    } catch(err) { toast('Parse error: '+err.message,'w'); }
+  };
+  if (ext === 'csv') reader.readAsText(file);
+  else               reader.readAsBinaryString(file);
+}
+
+function dmParseExcel(wb, filename) {
+  // Try to identify relevant sheets and extract key P&L lines
+  const extracted = {};
+  const sheetNames = wb.SheetNames;
+
+  // Heuristic: look for sheets with financial keywords
+  const plSheet = sheetNames.find(n => /p.?l|income|profit|loss|financial/i.test(n))
+                || sheetNames.find(n => /summary|main|output/i.test(n))
+                || sheetNames[0];
+
+  if (!plSheet) { toast('Cannot identify data sheet in this file','w'); return; }
+  const ws   = wb.Sheets[plSheet];
+  const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+
+  // Build a simple keyword → value map by scanning row labels
+  const kwMap = {
+    'revenue':           'rev_total',
+    'total revenue':     'rev_total',
+    'fuel':              'cogs_fuel',
+    'fuel cost':         'cogs_fuel',
+    'ipp':               'cogs_ipp',
+    'gross profit':      'gross_profit',
+    'o&m':               'om_total',
+    'o & m':             'om_total',
+    'operating expense': 'om_total',
+    'ebitda':            'ebitda',
+    'depreciation':      'depreciation',
+    'ebit':              'ebit',
+    'net financing':     'net_fin_costs',
+    'interest expense':  'net_fin_costs',
+    'net profit':        'net_profit',
+    'profit after tax':  'net_profit',
+    'total assets':      'bs_total_assets',
+    'total debt':        'bs_total_debt',
+    'equity':            'bs_equity',
+    'cash from operations':'cf_ops',
+    'capex':             'cf_capex',
+    'net generation':    'gen_gwh',
+    'net sales':         'sales_gwh',
+  };
+
+  // Month column: guess from header row — look for month name matching _dmMonth
+  const mName = DM_MONTHS[_dmMonth-1].toLowerCase();
+  let colIdx = -1;
+  for (let r = 0; r < Math.min(10, rows.length); r++) {
+    const row = rows[r];
+    for (let c = 0; c < row.length; c++) {
+      if (String(row[c]).toLowerCase().includes(mName)) { colIdx = c; break; }
+    }
+    if (colIdx >= 0) break;
+  }
+  // Fallback: use last numeric column
+  if (colIdx < 0 && rows.length > 1) {
+    const lastRow = rows[rows.length-1];
+    for (let c = lastRow.length-1; c >= 0; c--) {
+      if (typeof lastRow[c] === 'number') { colIdx = c; break; }
+    }
+  }
+
+  rows.forEach(row => {
+    const label = String(row[0]||'').toLowerCase().trim().replace(/[^a-z0-9& ]/g,'').trim();
+    const val   = colIdx >= 0 ? row[colIdx] : row[row.length-1];
+    if (!label || typeof val !== 'number') return;
+    Object.entries(kwMap).forEach(([kw, lineId]) => {
+      if (label.includes(kw) && extracted[lineId] == null) {
+        extracted[lineId] = Math.round(val * 10) / 10;
+      }
+    });
+  });
+
+  dmShowExtractPreview(extracted, filename, sheetNames);
+}
+
+function dmParseCSV(text, filename) {
+  const lines  = text.split(/\r?\n/).filter(l=>l.trim());
+  const header = lines[0]?.split(',').map(h=>h.trim().toLowerCase())||[];
+  const extracted = {};
+
+  // If CSV has line_id + value columns (our standard format)
+  if (header.includes('line_id') && header.includes('value')) {
+    const liIdx = header.indexOf('line_id');
+    const vIdx  = header.indexOf('value');
+    lines.slice(1).forEach(line => {
+      const cols = line.split(',');
+      const lid  = cols[liIdx]?.trim();
+      const val  = parseFloat(cols[vIdx]);
+      if (lid && !isNaN(val)) extracted[lid] = val;
+    });
+  } else {
+    // Free-form: col 0 = label, last numeric col = value
+    lines.slice(1).forEach(line => {
+      const cols = line.split(',');
+      const label= cols[0]?.trim().toLowerCase();
+      const val  = parseFloat(cols[cols.length-1]);
+      if (!label || isNaN(val)) return;
+      DM_LINES.forEach(l => {
+        if (label.includes(l.label.toLowerCase().split(' ')[0]) && extracted[l.id]==null)
+          extracted[l.id] = val;
+      });
+    });
+  }
+
+  dmShowExtractPreview(extracted, filename, []);
+}
+
+function dmShowExtractPreview(extracted, filename, sheets) {
+  _dmExtractRows = [];
+  const tbody = document.getElementById('dmExtractTbody');
+  const panel = document.getElementById('dmExtractPanel');
+  const status= document.getElementById('dmExtractStatus');
+  const note  = document.getElementById('dmCommitNote');
+
+  const found  = Object.keys(extracted).length;
+  const total  = DM_LINES.length;
+
+  status.innerHTML = `<div style="font-size:11px;color:var(--muted)">
+    File: <strong>${filename}</strong>${sheets.length?` · Sheets: ${sheets.join(', ')}`:''}
+    &nbsp;·&nbsp; <strong style="color:${found>0?'var(--green)':'var(--amber)'}">${found}/${total} lines matched</strong>
+  </div>`;
+
+  note.textContent = found===0
+    ? '⚠ No lines matched — try uploading in the standard CSV format (line_id, value)'
+    : `${found} lines will be committed. Unmatched lines keep their current DB value.`;
+
+  tbody.innerHTML = DM_LINES.map(l => {
+    const exVal  = extracted[l.id];
+    const curVal = _dmCurrentFacts[l.id];
+    const hasNew = exVal != null;
+    const same   = hasNew && curVal != null && Math.abs(exVal - curVal) < 0.05;
+
+    let statusHtml;
+    if (!hasNew)          statusHtml = `<span style="color:var(--muted);font-size:10px">— Not found</span>`;
+    else if (curVal==null)statusHtml = `<span style="color:var(--green);font-size:10px">✚ New</span>`;
+    else if (same)        statusHtml = `<span style="color:var(--muted);font-size:10px">= No change</span>`;
+    else                  statusHtml = `<span style="color:var(--amber);font-size:10px">↻ Update</span>`;
+
+    if (hasNew) _dmExtractRows.push({ id: l.id, label: l.label, value: exVal });
+
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:5px 10px;color:var(--text)">${l.label} <span style="font-size:9px;color:var(--muted)">${l.section}</span></td>
+      <td style="padding:5px 10px;text-align:right;font-family:var(--mono);color:${hasNew?'var(--text)':'var(--muted)'}">${hasNew ? exVal.toLocaleString() : '—'}</td>
+      <td style="padding:5px 10px;text-align:right;font-family:var(--mono);color:var(--muted)">${curVal!=null ? curVal.toLocaleString() : '—'}</td>
+      <td style="padding:5px 10px;text-align:center">${statusHtml}</td>
+    </tr>`;
+  }).join('');
+
+  panel.style.display = '';
+  document.getElementById('dmCommitBtn').disabled = found === 0;
+}
+
+async function dmCommitExtract() {
+  if (!_sb) { toast('Not connected to database','w'); return; }
+  if (!_dmMonth || !_dmExtractRows.length) { toast('Nothing to commit','w'); return; }
+
+  const periodId = _dmYear * 100 + _dmMonth;
+  const actVer   = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
+  if (!actVer) { toast('No ACTUAL version for this period','w'); return; }
+
+  const rows = _dmExtractRows.map(r => ({
+    version_id: actVer.id, line_id: r.id, period_id: periodId,
+    value: r.value, source: 'upload'
+  }));
+
+  const { error } = await _sb.from('fpa_facts')
+    .upsert(rows, { onConflict: 'version_id,line_id,period_id', ignoreDuplicates: false });
+
+  if (error) { toast('Commit failed: '+error.message,'w'); return; }
+  toast(`${rows.length} lines committed for ${DM_MONTHS[_dmMonth-1]} ${_dmYear}`,'ok');
+  auditLog('upload','smart-extract',`${DM_MONTHS[_dmMonth-1]} ${_dmYear}`,{rows:rows.length});
+  _dmExtractRows = [];
+  document.getElementById('dmExtractPanel').style.display = 'none';
+  await dmSelectMonth(_dmYear, _dmMonth);
+  dmLoadUploadLog();
+}
+
+function dmDiscardExtract() {
+  _dmExtractRows = [];
+  document.getElementById('dmExtractPanel').style.display = 'none';
+  toast('Extract discarded','ok');
+}
+
+async function dmToggleLock() {
+  if (!_sb || !_dmMonth) { toast('Select a month first','w'); return; }
+  const period  = (fpa.periods||[]).find(p=>p.year===_dmYear&&p.month===_dmMonth);
+  if (!period)  { toast('Period not found in DB','w'); return; }
+  const newVal  = !period.is_closed;
+  const label   = `${DM_MONTHS[_dmMonth-1]} ${_dmYear}`;
+
+  if (newVal && !confirm(`Lock ${label}? This will prevent further edits to actuals.`)) return;
+
+  const { error } = await _sb.from('fpa_dim_period')
+    .update({ is_closed: newVal, closed_at: newVal ? new Date().toISOString() : null })
+    .eq('id', period.id);
+
+  if (error) { toast('Update failed: '+error.message,'w'); return; }
+  toast(`${label} ${newVal?'locked 🔒':'unlocked 🔓'}`,'ok');
+  auditLog('edit','period-lock',label,{is_closed:newVal});
+  await fpaBootstrap();
+  dmBuildCalendar(_dmYear);
+  dmSelectMonth(_dmYear, _dmMonth);
+}
+
+async function dmClearMonth() {
+  if (!_sb || !_dmMonth) { toast('Select a month first','w'); return; }
+  const periodId = _dmYear * 100 + _dmMonth;
+  const label    = `${DM_MONTHS[_dmMonth-1]} ${_dmYear}`;
+
+  const actVer = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
+  if (!actVer) { toast('No ACTUAL version found for this period','w'); return; }
+
+  if (!confirm(`Delete ALL fact data for ${label} (version: ${actVer.code})? This cannot be undone.`)) return;
+
+  const { error } = await _sb.from('fpa_facts')
+    .delete()
+    .eq('version_id', actVer.id)
+    .eq('period_id', periodId);
+
+  if (error) { toast('Clear failed: '+error.message,'w'); return; }
+  toast(`${label} data cleared`,'ok');
+  auditLog('edit','clear-period',label,{version:actVer.code});
+  await dmSelectMonth(_dmYear, _dmMonth);
+}
+
+async function dmLoadUploadLog() {
+  const tbody = document.getElementById('dmLogBody');
+  if (!tbody) return;
+  if (!_sb) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:12px;font-size:11px">Not connected to database</td></tr>';
+    return;
+  }
+  const { data, error } = await _sb.from('fpa_audit_log')
+    .select('*')
+    .in('action', ['upload','smart-extract','manual-entry'])
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error || !data?.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:12px;font-size:11px">No upload history yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(r => {
+    const meta = r.meta||{};
+    return `<tr>
+      <td style="font-weight:600">${r.target||'—'}</td>
+      <td style="color:var(--muted)">${r.action}</td>
+      <td style="color:var(--muted)">${meta.source||r.cat||'—'}</td>
+      <td style="text-align:center">${meta.rows??'—'}</td>
+      <td style="text-align:center"><span class="badge badge-act">✅ OK</span></td>
+      <td>${r.user_name||'—'}</td>
+      <td style="color:var(--muted);font-size:10px">${r.created_at?.slice(0,16)||'—'}</td>
+      <td></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Period Status Panel (in adm-data tab) ────────────
+function buildPeriodStatusPanel() {
+  // Now handled by dmBuildCalendar() — this stub kept for backward-compat calls
+  dmBuildCalendar(_dmYear);
 }
 
 // ── Supabase Settings UI (in adm-data tab) ──────────
@@ -8219,12 +8785,9 @@ function copyCommentary(){
 
 // DATA SOURCES
 function buildDataSources(){
-  const tmpls=[{i:'📊',n:'Income Statement Actuals',d:'Monthly P&L by line item',k:'pl'},{i:'💧',n:'Direct Cash Flow',d:'Monthly receipts & disbursements',k:'cf'},{i:'⚖',n:'Balance Sheet',d:'Monthly BS positions',k:'bs'},{i:'📈',n:'Revenue & Volume',d:'GWh, customers, peak demand by month',k:'revenue'},{i:'📋',n:'Tariff Rates',d:'OUR approved rates by class',k:'tariff'},{i:'🔧',n:'O&M by Category',d:'Monthly costs – 17 categories',k:'om'},{i:'🏗',n:'CapEx Plan',d:'Monthly by division',k:'capex'},{i:'💳',n:'Collections Data',d:'Billings, rates, prior period',k:'collections'},{i:'📉',n:'Depreciation Schedule',d:'Asset lines + monthly depreciation',k:'depn'},{i:'🎯',n:'Scenario Overrides',d:'Adj% per KPI vs Base Case',k:'scenario'}];
-  document.getElementById('tmplGrid').innerHTML=tmpls.map(t=>`<div class="tc3" onclick="dlTmpl('${t.k}')"><div class="ti">${t.i}</div><div><div class="tn">${t.n}</div><div class="td">${t.d}</div></div></div>`).join('');
-  document.getElementById('ulB').innerHTML=uploadLog.map(u=>`<tr><td style="text-align:left;font-family:var(--sans)"><strong>${u.name}</strong></td><td>${u.type}</td><td>${u.period}</td><td>${u.rows}</td><td>${u.status}</td><td>${u.date}</td><td><button class="btn btn-ghost" style="font-size:9px;height:20px;padding:0 6px" onclick="toast('Refreshing...')">🔄</button></td></tr>`).join('');
-  // Render period status + Supabase settings panels
-  buildPeriodStatusPanel();
   buildSupabaseSettings();
+  dmBuildCalendar(_dmYear);
+  dmLoadUploadLog();
 }
 function dlTmpl(key){
   const h={pl:'Month,Year,Line_Item,Section,Type_I_or_E,Value_USD_000s',revenue:'Month,Year,RT10_Customers_000s,RT20_Cust,RT40_Cust,RT10_GWh,RT20_GWh,RT40_GWh,RT50_GWh,RT60_GWh,RT70_GWh,Peak_MW,Loss_Pct',tariff:'Rate_Class,Block,Voltage,Rate_USD_cents_kWh,Change_2027_Pct,Change_2028_Pct',om:'Month,Year,Category,USD_000s,Cash_Lag_Days',capex:'Month,Year,Division,Category,USD_000s,Pay_Lag_Mo,Transfer_Lag_Mo,Depn_Yrs',collections:'Month,Year,Billings_JMD_000s,RT10_Rate_Pct,RT20_Rate_Pct,RT4050_Rate_Pct,Prior_Period_USD,GCT_USD',depn:'Asset_ID,Asset_Name,Division,Depn_Life_Yrs,Annual_Pct,Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec'};
