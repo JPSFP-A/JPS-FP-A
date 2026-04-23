@@ -5271,6 +5271,7 @@ let bsLines=[
 // 2026 seed from Depreciation_February_2026_LE_revised.xlsx
 // depLines[] kept as read-only reference
 // depreciationComponents — zeroed. Populate from uploads.
+const _z12=()=>Array(12).fill(0);
 function _mkDepComp(){
   const base={
     faRegister:     _z12(),
@@ -5312,7 +5313,6 @@ function calcDepTotals(yr,m){
 }
 
 // O&M DATA — year-keyed 2026-2030. Zeroed — populate from uploads.
-const _z12=()=>Array(12).fill(0);
 function _mkOMRows(){
   const base=[
     {id:'payroll',  name:'01. Payroll',                cashLag:0,  vals:_z12()},
