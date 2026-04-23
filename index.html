@@ -2723,6 +2723,53 @@ tr.der td{color:var(--teal)}
 </div>
 
 <!-- MODALS -->
+
+<!-- ── Clear Data Modal (admin only) ───────────────────────────────────────── -->
+<div class="mbg" id="eraseModal" onclick="if(event.target===this)closeModal('eraseModal')">
+  <div class="modal" style="max-width:440px">
+    <div class="mt" style="color:var(--red)">🗑 Clear Actuals Data
+      <span class="mc" onclick="closeModal('eraseModal')">✕</span>
+    </div>
+
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.5">
+      Permanently deletes uploaded facts from Supabase. The version record is kept
+      so you can re-upload without recreating it. This cannot be undone.
+    </div>
+
+    <!-- Scope picker -->
+    <div class="fi" style="margin-bottom:12px">
+      <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em">What to erase</label>
+      <select id="eraseScope" onchange="eraseUpdateWarning()"
+        style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;margin-top:4px">
+        <option value="">— Select —</option>
+      </select>
+    </div>
+
+    <!-- Warning badge -->
+    <div id="eraseWarning" style="display:none;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.4);
+         border-radius:8px;padding:10px 12px;font-size:11px;color:#f87171;margin-bottom:14px;line-height:1.5"></div>
+
+    <!-- Confirm input -->
+    <div class="fi" style="margin-bottom:16px">
+      <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--red)">
+        Type <strong>ERASE</strong> to confirm
+      </label>
+      <input id="eraseConfirmInput" type="text" placeholder='Type ERASE here'
+        oninput="eraseCheckConfirm()"
+        style="width:100%;padding:8px 10px;border-radius:8px;border:2px solid var(--border);
+               background:var(--card);color:var(--text);font-size:13px;font-family:var(--mono);
+               letter-spacing:.08em;margin-top:4px;box-sizing:border-box">
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeModal('eraseModal')">Cancel</button>
+      <button id="eraseConfirmBtn" class="btn" disabled
+        style="background:var(--red);color:#fff;opacity:.4;cursor:not-allowed"
+        onclick="eraseExecute()">🗑 Erase Now</button>
+    </div>
+  </div>
+</div>
+
 <div class="mbg" id="scModal">
   <div class="modal">
     <div class="mt">New / Edit Scenario <span class="mc" onclick="closeModal('scModal')">✕</span></div>
@@ -4159,6 +4206,161 @@ function buildPeriodStatusPanel() {
   dmBuildCalendar(_dmYear);
 }
 
+// ── Clear Data Modal ─────────────────────────────────────────────────────────
+function openEraseModal() {
+  if (currentUser?.role !== 'admin') { toast('Admin access required', 'err'); return; }
+
+  // Build option list from ACTUAL versions that have facts loaded
+  const sel = document.getElementById('eraseScope');
+  sel.innerHTML = '<option value="">— Select scope —</option>';
+
+  // Per-month options (ACTUALS_YYYY_MM)
+  const monthly = (fpa.versions||[])
+    .filter(v => v.kind==='ACTUAL' && v.period_id)
+    .sort((a,b) => b.period_id - a.period_id);
+  monthly.forEach(v => {
+    const lbl = FLASH_MONTHS[v.period_id] || flashPeriodLabel(v.period_id);
+    const factCount = Object.values(fpa.facts[v.code]||{}).length;
+    sel.innerHTML += `<option value="month:${v.code}:${v.period_id}">${lbl} — ${v.code} (${factCount} lines)</option>`;
+  });
+
+  // Year-level options (HIST_ACTUAL_* or ACTUAL_YYYY with period_id=null)
+  const yearly = (fpa.versions||[])
+    .filter(v => v.kind==='ACTUAL' && !v.period_id)
+    .sort((a,b) => (b.year||0) - (a.year||0));
+  yearly.forEach(v => {
+    const factCount = Object.values(fpa.facts[v.code]||{}).length;
+    sel.innerHTML += `<option value="year:${v.code}">${v.name} (${factCount} lines)</option>`;
+  });
+
+  // All 2026 per-month actuals at once
+  if (monthly.some(v => Math.floor(v.period_id/100)===2026)) {
+    sel.innerHTML += `<option value="all2026">⚠ ALL 2026 monthly actuals</option>`;
+  }
+
+  // AOP
+  const aop = (fpa.versions||[]).find(v=>v.code==='AOP_2026');
+  if (aop) {
+    const fc = Object.values(fpa.facts['AOP_2026']||{}).length;
+    sel.innerHTML += `<option value="aop">AOP 2026 Budget (${fc} lines)</option>`;
+  }
+
+  document.getElementById('eraseWarning').style.display = 'none';
+  document.getElementById('eraseConfirmInput').value = '';
+  document.getElementById('eraseConfirmBtn').disabled = true;
+  document.getElementById('eraseConfirmBtn').style.opacity = '.4';
+  document.getElementById('eraseConfirmBtn').style.cursor = 'not-allowed';
+  openModal('eraseModal');
+}
+
+function eraseUpdateWarning() {
+  const scope = document.getElementById('eraseScope').value;
+  const warn  = document.getElementById('eraseWarning');
+  document.getElementById('eraseConfirmInput').value = '';
+  eraseCheckConfirm();
+  if (!scope) { warn.style.display='none'; return; }
+  const msgs = {
+    'all2026': '⚠ This will erase ALL uploaded monthly actuals for 2026. You will need to re-upload each month.',
+    'aop':     '⚠ This will erase all AOP 2026 budget facts. You will need to re-upload the Budget Template.',
+  };
+  let msg = msgs[scope];
+  if (!msg) {
+    if (scope.startsWith('month:')) {
+      const parts = scope.split(':');
+      msg = `⚠ This will erase all facts for ${FLASH_MONTHS[Number(parts[2])]||parts[2]} (version ${parts[1]}). Re-upload the actuals file to restore.`;
+    } else if (scope.startsWith('year:')) {
+      msg = `⚠ This will erase all facts for the selected year-level version. Re-upload to restore.`;
+    }
+  }
+  warn.textContent = msg || '';
+  warn.style.display = msg ? 'block' : 'none';
+}
+
+function eraseCheckConfirm() {
+  const val  = (document.getElementById('eraseConfirmInput').value||'').trim();
+  const scope= document.getElementById('eraseScope').value;
+  const btn  = document.getElementById('eraseConfirmBtn');
+  const ok   = val === 'ERASE' && !!scope;
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '.4';
+  btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
+}
+
+async function eraseExecute() {
+  const scope = document.getElementById('eraseScope').value;
+  const confirm = (document.getElementById('eraseConfirmInput').value||'').trim();
+  if (confirm !== 'ERASE' || !scope) return;
+  if (!_sb) { toast('No database connection', 'err'); return; }
+
+  const btn = document.getElementById('eraseConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Erasing…';
+
+  try {
+    let deleted = 0;
+
+    if (scope.startsWith('month:')) {
+      // Single month version
+      const [,code] = scope.split(':');
+      const ver = (fpa.versions||[]).find(v=>v.code===code);
+      if (!ver) throw new Error('Version not found: ' + code);
+      const { error, count } = await _sb.from('fpa_facts')
+        .delete({ count: 'exact' })
+        .eq('version_id', ver.id);
+      if (error) throw error;
+      deleted = count || 0;
+      // Clear in-memory
+      fpa.facts[code] = {};
+
+    } else if (scope.startsWith('year:')) {
+      // Year-level version
+      const [,code] = scope.split(':');
+      const ver = (fpa.versions||[]).find(v=>v.code===code);
+      if (!ver) throw new Error('Version not found: ' + code);
+      const { error, count } = await _sb.from('fpa_facts')
+        .delete({ count: 'exact' })
+        .eq('version_id', ver.id);
+      if (error) throw error;
+      deleted = count || 0;
+      fpa.facts[code] = {};
+
+    } else if (scope === 'all2026') {
+      // All per-month 2026 actuals
+      const vers = (fpa.versions||[]).filter(v=>v.kind==='ACTUAL'&&v.period_id&&Math.floor(v.period_id/100)===2026);
+      for (const ver of vers) {
+        const { error, count } = await _sb.from('fpa_facts')
+          .delete({ count: 'exact' })
+          .eq('version_id', ver.id);
+        if (error) throw error;
+        deleted += count || 0;
+        fpa.facts[ver.code] = {};
+      }
+
+    } else if (scope === 'aop') {
+      const ver = (fpa.versions||[]).find(v=>v.code==='AOP_2026');
+      if (!ver) throw new Error('AOP_2026 version not found');
+      const { error, count } = await _sb.from('fpa_facts')
+        .delete({ count: 'exact' })
+        .eq('version_id', ver.id);
+      if (error) throw error;
+      deleted = count || 0;
+      fpa.facts['AOP_2026'] = {};
+    }
+
+    closeModal('eraseModal');
+    auditLog('delete', 'fpa_facts', null, { scope, rows_deleted: deleted });
+    toast(`✅ Erased ${deleted} fact rows for "${scope}". Re-upload to restore.`, 'ok');
+    // Refresh any open reports
+    if (typeof flashRefresh==='function' && document.querySelector('#pane-rpt-flash.on')) flashRefresh();
+
+  } catch(err) {
+    btn.disabled = false;
+    btn.textContent = '🗑 Erase Now';
+    toast('❌ Erase failed: ' + err.message, 'err');
+    console.error('[Erase]', err);
+  }
+}
+
 // ── Supabase Settings UI (in adm-data tab) ──────────
 function buildSupabaseSettings() {
   const el = document.getElementById('sbSettingsPanel');
@@ -4226,6 +4428,7 @@ function buildSupabaseSettings() {
             <button class="btn btn-ghost" style="font-size:10px" id="btnPullScenarios" onclick="
               const b=this;b.disabled=true;b.textContent='⏳ Syncing…';
               _sbLoadScenarios().then(()=>{buildScPanel();toast('Scenarios synced','ok');}).catch(e=>toast('Sync failed: '+e.message,'err')).finally(()=>{b.disabled=false;b.textContent='⬇ Pull Scenarios';})">⬇ Pull Scenarios</button>
+            ${currentUser?.role==='admin'?`<button class="btn btn-ghost" style="font-size:10px;color:var(--red)" onclick="openEraseModal()">🗑 Clear Data</button>`:''}
             <button class="btn btn-ghost" style="font-size:10px;color:var(--red)" onclick="if(confirm('Sign out?'))doLogout()">⎋ Sign Out</button>
           </div>
         </div>` : ''}
