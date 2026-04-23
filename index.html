@@ -368,6 +368,8 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
   /* Ensure flash tables print with color */
   .flash-table thead th{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
   .flash-row-total td{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  /* Charts: white background when printing */
+  canvas{background:#fff!important;}
 }
 /* hide app shell until logged in */
 .app-shell{display:none;}
@@ -455,7 +457,7 @@ select.sel:focus{border-color:var(--gold)}
 .warn-bar{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:6px;padding:7px 13px;font-size:10px;color:var(--amber)}
 
 /* KPIs */
-.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.kpi-row{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
 /* Dashboard KPI row — single horizontal row, wraps only when screen is too narrow */
 #dash-kpis{display:flex !important;flex-direction:row !important;flex-wrap:wrap !important;gap:8px !important;grid-template-columns:unset !important;}
 .kpi{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:11px;position:relative;overflow:hidden}
@@ -807,8 +809,7 @@ tr.der td{color:var(--teal)}
   .tc { overflow-x: auto; flex-wrap: nowrap; }
   .tabbar { overflow-x: auto; }
   .main { padding: 8px; }
-  .kpi-row { grid-template-columns: 1fr 1fr; }
-  #dash-kpis { flex-wrap: wrap !important; }
+  .kpi-row > * { flex:1 1 140px !important; }
   .g2 { grid-template-columns: 1fr; }
   .modal { width: 95vw; max-width: 95vw; }
   .sg { grid-template-columns: 1fr; }
@@ -817,7 +818,7 @@ tr.der td{color:var(--teal)}
 }
 @media (max-width: 480px) {
   .brand-s, .brand-n { font-size: 10px; }
-  .kpi-row { grid-template-columns: 1fr; }
+  .kpi-row > * { flex:1 1 100% !important; }
   .btn { padding: 0 7px; font-size: 9px; }
 }
 
@@ -1073,7 +1074,7 @@ tr.der td{color:var(--teal)}
   <div class="cr c3">
     <div class="cc"><div class="ct">Cash Flow Bridge <em>FY2026</em></div><div class="cb h140"><canvas id="cBridge"></canvas></div></div>
     <div class="cc"><div class="ct">O&M by Category 2026 <em>From O_M_February_2026_LE</em></div><div class="cb h140"><canvas id="cOM"></canvas></div></div>
-    <div class="cc"><div class="ct">Depreciation 2026 Monthly <em>From Depreciation_Feb_2026</em></div><div class="cb h140"><canvas id="cDep"></canvas></div></div>
+    <div class="cc"><div class="ct">Depreciation 2026 — By Component <em>FA Register · SJPC · Leases · CX Transfers · Other | $'000</em></div><div class="cb h140"><canvas id="cDep"></canvas></div></div>
   </div>
   <div class="cr c2">
     <div class="cc"><div class="ct">CapEx by Category <em>From Capex_February_2026_LE | USD $'000</em></div><div class="cb h140"><canvas id="cCx"></canvas></div></div>
@@ -1084,27 +1085,13 @@ tr.der td{color:var(--teal)}
 <!-- ═══ INCOME STATEMENT ═══ -->
 <div id="pane-rpt-pl" class="pane">
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
-    <div class="seg" id="plViewSeg">
-      <button class="sb on" onclick="setPLView('monthly',this)">📅 Monthly View</button>
-      <button class="sb" onclick="setPLView('annual',this)">📊 Annual View</button>
-    </div>
-    <div id="plAnnualControls" style="display:none;gap:8px;align-items:center">
-      <span class="cl">From</span>
-      <select class="sel" onchange="plYrFrom=parseInt(this.value);buildStatTbl(plLines,document.getElementById('plH'),document.getElementById('plB'))" style="height:26px">
-        <option>2022</option><option>2023</option><option selected>2024</option><option>2025</option><option>2026</option>
-      </select>
-      <span class="cl">To</span>
-      <select class="sel" onchange="plYrTo=parseInt(this.value);buildStatTbl(plLines,document.getElementById('plH'),document.getElementById('plB'))" style="height:26px">
-        <option>2026</option><option selected>2027</option><option>2028</option><option>2029</option><option>2030</option>
-      </select>
-    </div>
     <div id="plMonthlyControls" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
       <span class="cl">Year</span>
       <div id="plMoYrSeg" style="display:flex;gap:3px"></div>
       <div class="seg" id="plActualSeg" style="margin-left:8px">
-        <div class="sb on" onclick="setPlActualMode('le',this)" title="Show LE/Forecast only">LE</div>
-        <div class="sb" onclick="setPlActualMode('actual_le',this)" title="Show Actual vs LE side-by-side (2026 only)">Actual vs LE</div>
-        <div class="sb" onclick="setPlActualMode('variance',this)" title="Show variance columns (2026 only)">Variance</div>
+        <div class="sb on" onclick="setPlActualMode('le',this)" title="LE / Forecast — no actuals overlay">Actuals Only</div>
+        <div class="sb" onclick="setPlActualMode('actual_le',this)" title="Actuals for closed months + LE for balance of year">Current LE</div>
+        <div class="sb" onclick="setPlActualMode('variance',this)" title="Variance: Actual vs LE (closed months only)">Variance</div>
       </div>
     </div>
   </div>
@@ -1128,19 +1115,63 @@ tr.der td{color:var(--teal)}
 <!-- ═══ BALANCE SHEET ═══ -->
 <div id="pane-rpt-bs" class="pane">
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
-    <span class="cl">From</span>
-    <select class="sel" onchange="plYrFrom=parseInt(this.value);buildStatTbl(bsLines,document.getElementById('bsH'),document.getElementById('bsB'))" style="height:26px">
-      <option>2022</option><option>2023</option><option selected>2024</option><option>2025</option><option>2026</option>
-    </select>
-    <span class="cl">To</span>
-    <select class="sel" onchange="plYrTo=parseInt(this.value);buildStatTbl(bsLines,document.getElementById('bsH'),document.getElementById('bsB'))" style="height:26px">
-      <option>2026</option><option selected>2027</option><option>2028</option><option>2029</option><option>2030</option>
-    </select>
+    <div class="seg" id="bsViewSeg">
+      <button class="sb on" onclick="setBSView('monthly',this)">📅 Monthly</button>
+      <button class="sb" onclick="setBSView('annual',this)">📊 Annual</button>
+    </div>
+    <div id="bsMonthlyControls" style="display:flex;gap:4px;align-items:center">
+      <span class="cl">Year</span>
+      <div id="bsMoYrSeg" style="display:flex;gap:3px"></div>
+      <div class="seg" id="bsActualSeg" style="margin-left:8px">
+        <div class="sb on" onclick="setBSMode('le',this)" title="LE / Forecast">LE</div>
+        <div class="sb" onclick="setBSMode('actual_le',this)" title="Actuals + LE">Actuals</div>
+      </div>
+    </div>
+    <div id="bsAnnualControls" style="display:none;gap:8px;align-items:center">
+      <span class="cl">From</span>
+      <select class="sel" onchange="plYrFrom=parseInt(this.value);buildStatTbl(bsLines,document.getElementById('bsH'),document.getElementById('bsB'))" style="height:26px">
+        <option>2022</option><option>2023</option><option selected>2024</option><option>2025</option><option>2026</option>
+      </select>
+      <span class="cl">To</span>
+      <select class="sel" onchange="plYrTo=parseInt(this.value);buildStatTbl(bsLines,document.getElementById('bsH'),document.getElementById('bsB'))" style="height:26px">
+        <option>2026</option><option selected>2027</option><option>2028</option><option>2029</option><option>2030</option>
+      </select>
+    </div>
+    <button class="btn btn-ghost" style="margin-left:auto" onclick="openAddBSLineModal()">+ Add Line</button>
   </div>
-  <div class="lock-banner">🔒 Report View — Read Only.</div>
-  <div class="tc2">
-    <div class="th"><div class="tt">⚖ Balance Sheet | USD $'000</div><div class="ta"><button class="btn btn-ghost" onclick="exportCSV()">⬇ Export</button></div></div>
-    <div class="tscr"><table><thead id="bsH"></thead><tbody id="bsB"></tbody></table></div>
+  <div class="lock-banner">🔒 Report View — Balance Sheet data derives from P&L, CapEx, Debt &amp; Lease assumptions.</div>
+  <!-- Monthly BS container -->
+  <div id="bsMonthlyContainer">
+    <div class="tc2">
+      <div class="th"><div><div class="tt">⚖ Monthly Balance Sheet <span class="badge badge-act">Live Calculated</span></div><div class="ts">Jamaica Public Service Company Limited | USD $'000</div></div><div class="ta"><button class="btn btn-ghost" onclick="exportCSV()">⬇ Export</button></div></div>
+      <div class="tscr"><table><thead id="bsMonH"></thead><tbody id="bsMonB"></tbody></table></div>
+    </div>
+  </div>
+  <!-- Annual BS container -->
+  <div id="bsAnnualContainer" style="display:none">
+    <div class="tc2">
+      <div class="th"><div class="tt">⚖ Balance Sheet | USD $'000</div><div class="ta"><button class="btn btn-ghost" onclick="exportCSV()">⬇ Export</button></div></div>
+      <div class="tscr"><table><thead id="bsH"></thead><tbody id="bsB"></tbody></table></div>
+    </div>
+  </div>
+</div>
+<!-- Add BS Line Modal -->
+<div class="mbg" id="addBSLineModal">
+  <div class="modal" style="width:380px">
+    <div class="mh"><span>Add Balance Sheet Line</span><button class="mbtn" onclick="closeModal('addBSLineModal')">✕</button></div>
+    <div class="mb" style="display:flex;flex-direction:column;gap:10px">
+      <div><label class="cl">Section</label>
+        <select class="sel" id="bsLineSect" style="width:100%;height:28px;margin-top:4px">
+          <option>Current Assets</option><option>Non-Current Assets</option>
+          <option>Current Liabilities</option><option>Non-Current Liabilities</option><option>Equity</option>
+        </select></div>
+      <div><label class="cl">Line Name</label>
+        <input class="sel" id="bsLineName" placeholder="e.g. Deferred Tax Asset" style="width:100%;height:28px;margin-top:4px;padding:0 8px;box-sizing:border-box"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closeModal('addBSLineModal')">Cancel</button>
+        <button class="btn btn-gold" onclick="addBSLine()">Add Line</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1171,8 +1202,6 @@ tr.der td{color:var(--teal)}
   <div id="cfCovenants" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px"></div>
   <!-- KPI Cards -->
   <div class="kpi-row" id="cfKpis"></div>
-  <!-- CF Chart -->
-  <div class="cr c1"><div class="cc"><div class="ct" id="cfChartTitle">Monthly Cash Flow 2026 <em>From Assumptions</em></div><div class="cb h140"><canvas id="cCFR"></canvas></div></div></div>
   <!-- CF Table -->
   <div class="tc2">
     <div class="th"><div class="tt" id="cfTableTitle">💧 Cash Flow Statement</div></div>
@@ -8804,7 +8833,7 @@ function buildOMTable(){
       subRows=`<tr style="font-size:10px"><td style="padding-left:22px;color:var(--teal)">↳ IFRS-16 Property Credit</td><td></td>${grPad}${cr.map(v=>`<td class="der" style="color:var(--teal)">(${Math.round(v)||'–'})</td>`).join('')}<td class="der" style="color:var(--teal)">(${fmtN(Math.round(sumArr(cr)))})</td><td></td></tr>
 <tr style="font-size:10px;font-weight:700"><td style="padding-left:22px;color:var(--teal)">Net Building</td><td></td>${grPad}${netV.map(v=>`<td class="der" style="color:var(--teal);font-weight:700">${fmtN(v)}</td>`).join('')}<td class="der" style="color:var(--teal);font-weight:700">${fmtN(sumArr(netV))}</td><td></td></tr>`;
     }
-    return `<tr><td style="padding-left:10px"><strong>${r.name}</strong><span class="del" onclick="delOMRow('${r.id}',${yr})">✕</span></td>
+    return `<tr><td style="padding-left:10px"><strong>${r.name}</strong></td>
       <td style="text-align:center;color:var(--muted)">${r.cashLag===0?'Same mo':r.cashLag+'d'}</td>
       ${grCell}${valCells}
       <td class="gld">${fmtN(tot)}</td><td class="der">${fmtN(cashTot)}</td></tr>${subRows}`;
@@ -9160,6 +9189,53 @@ function buildDashKpis(){
 
   let html='';
   if(loadedCount){
+    // Pre-compute exec summary vars (hoisted so exec summary renders FIRST / LEFT)
+    const niVar=actYTDNI!=null&&budYTDNI?(actYTDNI-budYTDNI):null;
+    const niVarPct=niVar!=null&&budYTDNI?((niVar/Math.abs(budYTDNI))*100).toFixed(1):null;
+    const ebiVar=actYTDEBITDA!=null&&budYTDEBITDA?(actYTDEBITDA-budYTDEBITDA):null;
+    const revVar=actYTDRev!=null&&budYTDRev?(actYTDRev-budYTDRev):null;
+    const pulse=(v,posGood)=>{if(v==null)return'<span style="color:var(--muted)">–</span>';const fav=posGood?v>=0:v<=0;return `<span style="color:${fav?'var(--green)':'var(--red)'};font-weight:700">${v>=0?'▲':'▼'} $${Math.abs(Math.round(v)).toLocaleString()}K</span>`;};
+    // ── Executive Summary — LEFT ─────────────────────────
+    const _savedNote=typeof _execNote!=='undefined'?_execNote:'';
+    html+=`<div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid rgba(0,174,239,0.3);background:var(--card);box-shadow:0 2px 8px var(--shadow);flex:2 1 280px;min-width:0">
+      <div style="background:linear-gradient(135deg,#1e3a5f,#2d5a8e);padding:6px 12px;display:flex;align-items:center;justify-content:space-between">
+        <span style="color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em">📋 Executive Summary</span>
+        <span style="color:rgba(255,255,255,.6);font-size:9px">${ytdLabel}</span>
+      </div>
+      <div style="flex:1;padding:10px 12px;display:flex;flex-direction:column;gap:6px">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+          <div style="background:var(--card2);border-radius:6px;padding:6px 8px">
+            <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Revenue vs Budget</div>
+            <div style="font-size:12px;font-family:var(--mono)">${pulse(revVar,true)}</div>
+          </div>
+          <div style="background:var(--card2);border-radius:6px;padding:6px 8px">
+            <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">EBITDA vs Budget</div>
+            <div style="font-size:12px;font-family:var(--mono)">${pulse(ebiVar,true)}</div>
+          </div>
+          <div style="background:var(--card2);border-radius:6px;padding:6px 8px">
+            <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Net Income vs Budget</div>
+            <div style="font-size:12px;font-family:var(--mono)">${pulse(niVar,true)}${niVarPct!=null?`<span style="font-size:9px;color:var(--muted);margin-left:3px">(${niVarPct}%)</span>`:''}</div>
+          </div>
+        </div>
+        <div style="font-size:9px;color:var(--muted);line-height:1.5;padding:4px 0">
+          <strong style="color:var(--text)">${MONTHS[loadedCount-1]} 2026</strong> actuals loaded ·
+          Scenario: <strong style="color:var(--gold)">${activeSc}</strong> ·
+          EBITDA margin YTD: <strong style="color:var(--text)">${actYTDRev&&actYTDEBITDA?((actYTDEBITDA/actYTDRev)*100).toFixed(1)+'%':'–'}</strong> ·
+          PY comparison: <span style="color:var(--muted);font-style:italic">upload PY actuals to enable</span>
+        </div>
+        <div style="height:1px;background:var(--border)"></div>
+        <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;display:flex;align-items:center;justify-content:space-between">
+          <span>Commentary</span>
+          <button onclick="event.stopPropagation();document.getElementById('_execNoteArea').style.display=document.getElementById('_execNoteArea').style.display==='none'?'block':'none'" style="background:var(--blue);color:#fff;border:none;border-radius:4px;padding:1px 7px;font-size:8px;cursor:pointer">+ Add</button>
+        </div>
+        <div id="_execNoteDisp" style="font-size:9px;color:var(--text);line-height:1.5;min-height:16px">${_savedNote||'<span style="color:var(--muted);font-style:italic">No commentary added yet. Click + Add to write notes.</span>'}</div>
+        <div id="_execNoteArea" style="display:none">
+          <textarea id="_execNoteTa" rows="2" style="width:100%;box-sizing:border-box;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:5px 7px;font-size:9px;resize:vertical" placeholder="Add executive commentary...">${_savedNote}</textarea>
+          <button onclick="window._execNote=document.getElementById('_execNoteTa').value;document.getElementById('_execNoteDisp').textContent=window._execNote||'';document.getElementById('_execNoteArea').style.display='none'" style="margin-top:4px;background:var(--green);color:#fff;border:none;border-radius:4px;padding:2px 10px;font-size:9px;cursor:pointer">Save</button>
+        </div>
+      </div>
+    </div>`;
+    // ── KPI Cards ────────────────────────────────────────
     html+=kpiCard('Revenue','var(--blue)',actMTDRev,budMTDRev,actYTDRev,budYTDRev,true);
     html+=kpiCard('Gross Profit','var(--teal)',actYTDGP?Math.round(actYTDGP/loadedCount):null,null,actYTDGP,null,true);
     html+=kpiCard('EBITDA','var(--green)',actMTDEBITDA,budMTDEBITDA,actYTDEBITDA,budYTDEBITDA,true);
@@ -9197,40 +9273,6 @@ function buildDashKpis(){
       </div>
     </div>`;
     html+=ratioCard;
-    // Executive Summary — uses remaining flex space
-    const niVar=actYTDNI!=null&&budYTDNI?(actYTDNI-budYTDNI):null;
-    const niVarPct=niVar!=null&&budYTDNI?((niVar/Math.abs(budYTDNI))*100).toFixed(1):null;
-    const ebiVar=actYTDEBITDA!=null&&budYTDEBITDA?(actYTDEBITDA-budYTDEBITDA):null;
-    const revVar=actYTDRev!=null&&budYTDRev?(actYTDRev-budYTDRev):null;
-    const pulse=(v,posGood)=>{if(v==null)return'<span style="color:var(--muted)">–</span>';const fav=posGood?v>=0:v<=0;return `<span style="color:${fav?'var(--green)':'var(--red)'};font-weight:700">${v>=0?'▲':'▼'} $${Math.abs(Math.round(v)).toLocaleString()}K</span>`;};
-    html+=`<div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);flex:2 1 260px;min-width:0">
-      <div style="background:linear-gradient(135deg,#1e3a5f,#2d5a8e);padding:5px 12px;display:flex;align-items:center;justify-content:space-between">
-        <span style="color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em">Executive Summary</span>
-        <span style="color:rgba(255,255,255,.6);font-size:9px">${ytdLabel}</span>
-      </div>
-      <div style="flex:1;padding:9px 12px;display:flex;flex-direction:column;gap:5px;justify-content:space-between">
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <div style="flex:1;min-width:80px">
-            <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Revenue vs Bud</div>
-            <div style="font-size:12px;font-family:var(--mono)">${pulse(revVar,true)}</div>
-          </div>
-          <div style="flex:1;min-width:80px">
-            <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">EBITDA vs Bud</div>
-            <div style="font-size:12px;font-family:var(--mono)">${pulse(ebiVar,true)}</div>
-          </div>
-          <div style="flex:1;min-width:80px">
-            <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Net Income vs Bud</div>
-            <div style="font-size:12px;font-family:var(--mono)">${pulse(niVar,true)}${niVarPct!=null?`<span style="font-size:9px;color:var(--muted);margin-left:4px">(${niVarPct}%)</span>`:''}</div>
-          </div>
-        </div>
-        <div style="height:1px;background:var(--border)"></div>
-        <div style="font-size:9px;color:var(--muted);line-height:1.6">
-          ${loadedCount?`<strong style="color:var(--text)">${MONTHS[loadedCount-1]} 2026</strong> actuals loaded · Scenario: <strong style="color:var(--gold)">${activeSc}</strong> · 
-          EBITDA margin YTD: <strong style="color:var(--text)">${actYTDRev&&actYTDEBITDA?((actYTDEBITDA/actYTDRev)*100).toFixed(1)+'%':'–'}</strong>`
-          :'Upload actuals via <strong style="color:var(--text)">☁ Upload</strong> button to see YTD performance'}
-        </div>
-      </div>
-    </div>`;
   } else {
     const annRevLE2=582000, ebitdaPct=((e26/annRevLE2)*100).toFixed(1);
     const ebitLine=plLines.find(l=>l.id==='ebitda'), ebitLine2=plLines.find(l=>l.id==='ebit');
@@ -9325,6 +9367,23 @@ function buildCapexKpis(){const yr=selectedCapexYear;const tot=getCxTotal(yr);co
   {l:'Hurricane Restoration',v:toK(sumArr(rows.find(r=>r.id==='cx_hurr')?.vals||[])*1000),cls:'amber'},{l:'Depn (Regular)',v:toK(depAnn/1000),cls:'b'},
 ].map(k=>`<div class="kpi ${k.cls||'b'}"><div class="kpi-l">${k.l}</div><div class="kpi-v">${k.v}</div></div>`).join('');}
 // ═══════════════════════════════════════════════════════
+//  PERIOD AGGREGATION HELPERS (used by dashboard charts)
+// ═══════════════════════════════════════════════════════
+function _pLabels(){
+  if(period==='quarterly') return ['Q1','Q2','Q3','Q4'];
+  if(period==='annual')    return ['FY 2026'];
+  return MONTHS;
+}
+function _pData(arr12){
+  const a=(arr12||[]).map(v=>v||0);
+  if(period==='quarterly'){
+    return [[0,1,2],[3,4,5],[6,7,8],[9,10,11]].map(idx=>idx.reduce((s,i)=>s+(a[i]||0),0));
+  }
+  if(period==='annual') return [a.reduce((s,v)=>s+v,0)];
+  return a.slice(0,12);
+}
+
+// ═══════════════════════════════════════════════════════
 //  CHARTS
 // ═══════════════════════════════════════════════════════
 function buildDashCharts(){
@@ -9350,14 +9409,18 @@ function buildDashCharts(){
   const omCats=['payroll','overtime','benefits','thirdpty','transport','insurance','bad_debt'];
   const omLabels=['Payroll','OT','Benefits','3rd Pty','Transport','Insurance','Bad Debt'];
   const omR=getOMRows(2026);
-  mkChart('cOM',{type:'bar',data:{labels:MONTHS,datasets:omCats.map((id,i)=>({label:omLabels[i],data:omR.find(r=>r.id===id)?.vals||[],backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
-  const depMo2026=MONTHS.map((_,m)=>Math.round(calcDepTotals(2026,m).regular/1000));
-  mkChart('cDep',{type:'bar',data:{labels:MONTHS,datasets:[{label:'Monthly Depreciation 2026 ($000s)',data:depMo2026,backgroundColor:'rgba(139,92,246,.65)',borderColor:CP[4],borderWidth:1}]},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},y:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
+  mkChart('cOM',{type:'bar',data:{labels:_pLabels(),datasets:omCats.map((id,i)=>({label:omLabels[i],data:_pData(omR.find(r=>r.id===id)?.vals||[]),backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
+  // Depreciation — stacked by component, responds to period filter
+  {const _dc=depreciationComponents[2026]||{};
+  const _dk=['faRegister','sjpc','otherLeases','capexTransfers','capitalSpares','decommissioning','strandedMeters','strandedLights','impairment'];
+  const _dl=['FA Register','SJPC','Leases','CX Transfers','Cap Spares','Decommission.','Str. Meters','Str. Lights','Impairment'];
+  const _dclr=['rgba(139,92,246,.8)','rgba(59,130,246,.8)','rgba(16,185,129,.8)','rgba(245,158,11,.8)','rgba(239,68,68,.8)','rgba(20,184,166,.8)','rgba(249,115,22,.8)','rgba(168,85,247,.8)','rgba(236,72,153,.8)'];
+  mkChart('cDep',{type:'bar',data:{labels:_pLabels(),datasets:_dk.map((k,i)=>({label:_dl[i],data:_pData((_dc[k]||Array(12).fill(0)).map(v=>Math.round(v/1000))),backgroundColor:_dclr[i],stack:'s'}))},options:{...bO(),plugins:{legend:{labels:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:8},boxWidth:8}}},scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}}});}
   const cxR=getCxRows(2026);
-  mkChart('cCx',{type:'bar',data:{labels:MONTHS,datasets:cxR.map((r,i)=>({label:r.name.slice(0,20),data:r.vals||[],backgroundColor:CP[i%CP.length]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
+  mkChart('cCx',{type:'bar',data:{labels:_pLabels(),datasets:cxR.map((r,i)=>({label:r.name.slice(0,20),data:_pData(r.vals||[]),backgroundColor:CP[i%CP.length]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
   const gwhMap=['gwh_rt10','gwh_rt20','gwh_rt40','gwh_rt50','gwh_rt60','gwh_rt70'];
   const gwhLbls=['RT10 Res','RT20 SME','RT40 LV','RT50 MV','RT60 Lights','RT70 HV'];
-  mkChart('cGWh',{type:'bar',data:{labels:MONTHS,datasets:gwhMap.map((id,i)=>({label:gwhLbls[i],data:revRows.find(r=>r.id===id)?.vals||[],backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(v=>v+' GWh'),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>v+' GWh'},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
+  mkChart('cGWh',{type:'bar',data:{labels:_pLabels(),datasets:gwhMap.map((id,i)=>({label:gwhLbls[i],data:_pData(revRows.find(r=>r.id===id)?.vals||[]),backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(v=>v+' GWh'),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>v+' GWh'},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
 }
 
 function buildOMCharts(){
@@ -10011,8 +10074,8 @@ function confirmAddLine(){
 // On subsequent visits (tab already built), _rebuildPane() is called instead
 // to refresh data without re-running expensive first-time setup.
 const _tabBuilders = {
-  'rpt-pl':    ()=>{ buildStatTbl(plLines,document.getElementById('plH'),document.getElementById('plB')); setPLView(plViewMode,document.querySelector('#plViewSeg .sb.on')||document.querySelector('#plViewSeg .sb')); },
-  'rpt-bs':    ()=>{ buildStatTbl(bsLines,document.getElementById('bsH'),document.getElementById('bsB')); },
+  'rpt-pl':    ()=>{ buildMonthlyPL(plMonthlyYear); },
+  'rpt-bs':    ()=>{ buildYrSeg('bsMoYrSeg',bsMonthlyYear,(y)=>{bsMonthlyYear=y;buildMonthlyBS(y);}); buildMonthlyBS(bsMonthlyYear); },
   'rpt-cf':    ()=>{ buildCFReport(); },
   'rpt-dep':   ()=>{ buildDepReport(); },
   'rpt-var':   ()=>{ buildVarReport(); buildActualsLog(); },
@@ -10049,7 +10112,7 @@ function showPane(id,el){
   if(typeof _rtAnnouncePresence === 'function') _rtAnnouncePresence(id);
 }
 
-function setPeriod(p,btn){const prev=period;period=p;document.querySelectorAll('.sb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');refreshAll();auditLog('period','Display Period',prev,p);_saveState();}
+function setPeriod(p,btn){const prev=period;period=p;document.querySelectorAll('#perSeg .sb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');refreshAll();auditLog('period','Display Period',prev,p);_saveState();}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.addEventListener('click',e=>{if(e.target.classList.contains('mbg'))e.target.classList.remove('open');});
@@ -12106,14 +12169,80 @@ function setPlActualMode(mode,btn){
 
 function setPLView(mode,btn){
   plViewMode=mode;
-  document.querySelectorAll('#plViewSeg .sb').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
+  if(btn){document.querySelectorAll('#plViewSeg .sb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
   document.getElementById('plMonthlyContainer').style.display=mode==='monthly'?'block':'none';
   document.getElementById('plAnnualContainer').style.display=mode==='annual'?'block':'none';
-  document.getElementById('plAnnualControls').style.display=mode==='annual'?'flex':'none';
+  if(document.getElementById('plAnnualControls')) document.getElementById('plAnnualControls').style.display=mode==='annual'?'flex':'none';
   document.getElementById('plMonthlyControls').style.display=mode==='monthly'?'flex':'none';
   if(mode==='monthly') buildMonthlyPL(plMonthlyYear);
   else buildStatTbl(plLines,document.getElementById('plH'),document.getElementById('plB'));
+}
+
+// ── Balance Sheet view/mode controls ──────────────────────────────────────────
+let bsViewMode='monthly'; let bsMonthlyYear=2026; let bsActualMode='le';
+function setBSView(mode,btn){
+  bsViewMode=mode;
+  document.querySelectorAll('#bsViewSeg .sb').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('bsMonthlyContainer').style.display=mode==='monthly'?'block':'none';
+  document.getElementById('bsAnnualContainer').style.display=mode==='annual'?'block':'none';
+  document.getElementById('bsMonthlyControls').style.display=mode==='monthly'?'flex':'none';
+  document.getElementById('bsAnnualControls').style.display=mode==='annual'?'flex':'none';
+  if(mode==='monthly') buildMonthlyBS(bsMonthlyYear);
+  else buildStatTbl(bsLines,document.getElementById('bsH'),document.getElementById('bsB'));
+}
+function setBSMode(mode,btn){
+  bsActualMode=mode;
+  document.querySelectorAll('#bsActualSeg .sb').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  buildMonthlyBS(bsMonthlyYear);
+}
+function buildMonthlyBS(yr){
+  yr=yr||bsMonthlyYear; bsMonthlyYear=yr;
+  buildYrSeg('bsMoYrSeg',yr,(y)=>{bsMonthlyYear=y;buildMonthlyBS(y);});
+  const MO=MONTHS;
+  const loadedMos=MO.map((_,m)=>actualsStore[m+1]).filter(Boolean);
+  const showAct=yr===2026&&bsActualMode==='actual_le'&&loadedMos.length>0;
+  document.getElementById('bsMonH').innerHTML=`<tr><th style="text-align:left;min-width:220px;position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2">Line Item</th>${MO.map(m=>`<th class="bc">${m}</th>`).join('')}<th class="bc">Total / EoY</th></tr>`;
+  let body='';
+  let sect='';
+  bsLines.forEach(l=>{
+    if(l.sect!==sect){sect=l.sect;body+=`<tr class="sr"><td colspan="${MO.length+2}" style="position:sticky;left:0">${sect}</td></tr>`;}
+    const vals=MO.map((_,m)=>{
+      if(showAct&&actualsStore[m+1]){
+        // map common BS line IDs to actuals fields
+        const bsMap={cash:'cash',receivables:'receivables',inventories:'inventories',total_assets:'totalAssets',
+          total_liab:'totalLiabilities',retained_earnings:'retainedEarnings'};
+        const actField=bsMap[l.id];
+        if(actField&&actualsStore[m+1]?.bs?.[actField]!=null) return actualsStore[m+1].bs[actField];
+      }
+      return l.vals?.[4]||0; // use 2026 LE column
+    });
+    const last=vals[vals.length-1];
+    const isTot=l.tot||l.sub;
+    const cls=isTot?'tr':'';
+    body+=`<tr class="${cls}"><td style="padding-left:${isTot?'10px':'22px'};position:sticky;left:0;background:var(--card);${l.color?'color:'+l.color:''}">${isTot?`<strong>${l.name}</strong>`:l.name}</td>${vals.map(v=>{const n=v<0;return `<td class="${isTot?'gld':'der'}">${n?`<span class="neg">(${Math.abs(Math.round(v)).toLocaleString()})</span>`:v===0?'<span class="dim">–</span>':Math.round(v).toLocaleString()}</td>`;}).join('')}<td class="${isTot?'gld':'der'}">${last<0?`<strong>(${Math.abs(Math.round(last)).toLocaleString()})</strong>`:last===0?'–':`<strong>${Math.round(last).toLocaleString()}</strong>`}</td></tr>`;
+  });
+  document.getElementById('bsMonB').innerHTML=body;
+}
+// Add new BS line
+function openAddBSLineModal(){openModal('addBSLineModal');}
+function addBSLine(){
+  const sect=document.getElementById('bsLineSect').value;
+  const name=document.getElementById('bsLineName').value.trim();
+  if(!name){toast('Enter a line name','err');return;}
+  const newLine={id:'custom_'+Date.now(),name,sect,vals:[0,0,0,0,0,0,0,0,0],tot:false};
+  bsLines.push(newLine);
+  // Re-sort so it appears in correct section
+  bsLines.sort((a,b)=>{
+    const sOrder=['Current Assets','Non-Current Assets','Current Liabilities','Non-Current Liabilities','Equity'];
+    return (sOrder.indexOf(a.sect)-sOrder.indexOf(b.sect))||0;
+  });
+  closeModal('addBSLineModal');
+  document.getElementById('bsLineName').value='';
+  if(bsViewMode==='monthly') buildMonthlyBS(bsMonthlyYear);
+  else buildStatTbl(bsLines,document.getElementById('bsH'),document.getElementById('bsB'));
+  toast('"'+name+'" added to Balance Sheet','ok');
 }
 
 function buildMonthlyPL(yr){
