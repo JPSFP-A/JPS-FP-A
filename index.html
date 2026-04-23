@@ -1001,6 +1001,7 @@ tr.der td{color:var(--teal)}
     <div class="ml" style="display:flex;gap:6px;align-items:center">
       <button class="btn btn-ghost" onclick="exportCSV()" title="Export CSV (Ctrl+E)">⬇ Export</button>
       <label class="btn btn-teal" style="cursor:pointer">☁ Upload<input type="file" style="display:none" multiple accept=".xlsx,.csv,.xlsm" onchange="handleUpload(event)"></label>
+      <label class="btn btn-gold" style="cursor:pointer" title="Upload AOP / Budget Template xlsx">📊 AOP<input type="file" style="display:none" accept=".xlsx" onchange="handleAOPUpload(event)"></label>
       <button class="btn btn-print" onclick="openPrintModal()" title="Print / Save PDF">🖨 Print</button>
       <button class="btn btn-ai" onclick="showPane('ai-comm',null);document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.tab')[10]?.classList.add('on')">✦ AI Analysis</button>
       <button class="btn btn-gold" onclick="openModal('scModal')">＋ Scenario</button>
@@ -2914,14 +2915,22 @@ async function fpaBootstrap() {
     fpa.activeVersionId = fpa.vid('LE_2026_02') || fpa.versions[0]?.id;
 
     showBootstrapOverlay(`Loading ${fpa.versions.length} versions of facts...`);
-    const factsRes = await _sb.from('fpa_v_facts').select('*');
-    if (factsRes.error) throw factsRes.error;
+    // Paginate fpa_v_facts in batches of 2000 to avoid Supabase's default 1000-row cap.
     fpa.facts = {};
-    (factsRes.data || []).forEach(r => {
-      (fpa.facts[r.version_code] ??= {});
-      (fpa.facts[r.version_code][r.line_id] ??= {});
-      fpa.facts[r.version_code][r.line_id][r.period_id] = Number(r.value);
-    });
+    let factsOffset = 0;
+    const FACTS_PAGE = 5000;
+    while (true) {
+      const factsRes = await _sb.from('fpa_v_facts').select('*').range(factsOffset, factsOffset + FACTS_PAGE - 1);
+      if (factsRes.error) throw factsRes.error;
+      const rows = factsRes.data || [];
+      rows.forEach(r => {
+        (fpa.facts[r.version_code] ??= {});
+        (fpa.facts[r.version_code][r.line_id] ??= {});
+        fpa.facts[r.version_code][r.line_id][r.period_id] = Number(r.value);
+      });
+      if (rows.length < FACTS_PAGE) break; // last page
+      factsOffset += FACTS_PAGE;
+    }
 
     showBootstrapOverlay('Loading assumptions...');
     const assumpsRes = await _sb.from('fpa_assumptions').select('*, fpa_versions!inner(code)');
@@ -2938,18 +2947,25 @@ async function fpaBootstrap() {
     });
 
     showBootstrapOverlay('Loading registers...');
-    const [leasesRes, insRes, impRes] = await Promise.all([
+    const [leasesRes, insRes, impRes, netGenRes] = await Promise.all([
       _sb.from('fpa_leases').select('*'),
       _sb.from('fpa_insurance_policies').select('*'),
       _sb.from('fpa_impairment_events').select('*'),
+      _sb.from('net_gen_historical').select('year,month,net_gen_mwh,peak_mw'),
     ]);
     fpa.leases      = leasesRes.data || [];
     fpa.insurance   = insRes.data || [];
     fpa.impairments = impRes.data || [];
+    // netGenHist[year*100+month] = { netGenMWh, peakMW }
+    fpa.netGenHist  = {};
+    (netGenRes.data||[]).forEach(r=>{
+      fpa.netGenHist[r.year*100+r.month] = { netGenMWh: Number(r.net_gen_mwh), peakMW: Number(r.peak_mw) };
+    });
 
     fpa.loadedAt = new Date();
     const ms = Math.round(performance.now() - t0);
-    console.log(`[FPA] Bootstrap complete in ${ms}ms — ${fpa.versions.length} versions, ${fpa.lines.length} lines, ${Object.keys(fpa.facts).length} fact sets`);
+    const totalFactRows = Object.values(fpa.facts).reduce((s,vf)=>s+Object.values(vf).reduce((ss,lf)=>ss+Object.keys(lf).length,0),0);
+    console.log(`[FPA] Bootstrap complete in ${ms}ms — ${fpa.versions.length} versions, ${fpa.lines.length} lines, ${Object.keys(fpa.facts).length} ver codes, ${totalFactRows} total fact rows`);
     showBootstrapOverlay(null);  // hide
 
     // Apply DB data into legacy globals for existing UI compatibility
@@ -3562,7 +3578,10 @@ async function _sbSaveActuals(month, year, data) {
 }
 
 // Load actuals from Supabase on init
+// NOTE: fpa_actuals table replaced by fpa_facts + fpa_versions. This is now a no-op.
 async function _sbLoadActuals() {
+  // Table deprecated — actuals are loaded at boot from fpa_v_facts into fpa.facts.
+  return;
   const rows = await _sbQ(sb => sb.from('fpa_actuals').select('*').eq('year', 2026));
   if (!rows?.data) return;
   rows.data.forEach(r => {
@@ -3586,7 +3605,10 @@ async function _sbSaveScenario(name, scenarioData) {
 }
 
 // Load scenarios from Supabase
+// NOTE: fpa_scenarios table replaced by fpa_versions (kind=SCENARIO). This is now a no-op.
 async function _sbLoadScenarios() {
+  // Table deprecated — scenarios are in fpa_versions + fpa_facts loaded at boot.
+  return;
   const rows = await _sbQ(sb =>
     sb.from('fpa_scenarios').select('*').or(`owner_id.eq.${currentUser.id},shared.eq.true`)
   );
@@ -4420,8 +4442,6 @@ async function doLogin() {
     _rtStartHeartbeat();
     if (_sb) {
       _sbStartRealtime();
-      await _sbLoadActuals();
-      await _sbLoadScenarios();
     }
   }, 300);
 }
@@ -7281,155 +7301,891 @@ function setVarCmp(c, btn) {
 }
 
 // ─── Parse a JPSCo_Financials_MM-YY.xlsx via SheetJS ───────────────────────
+// Reads 5 sheets: P&L, P&L Detail, B_S, Cash flow, Revenues
+// Runs 4 consistency checks (NI tie, cash tie, BS balance, RE roll)
+// Writes to fpa_facts (ACTUAL_YYYY version) and marks period closed
+// Backward-compat: also populates actualsStore[moNum] and actualsStore[yr][moNum]
 async function handleActualsUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
-  const fn = file.name; // e.g. JPSCo_Financials_03-26.xlsx
-  const moMatch = fn.match(/(\d{2})-(\d{2})\.xlsx$/i);
-  const moNum = moMatch ? parseInt(moMatch[1], 10) : null;
-  const label = moNum ? MONTHS[moNum - 1] + ' 20' + (moMatch[2] || '26') : fn;
-  toast('Parsing ' + fn + '…', 'i');
+  event.target.value = '';   // reset input immediately
+
+  const fn       = file.name;
+  const moMatch  = fn.match(/(\d{2})-(\d{2})\.xlsx$/i);
+  const moNum    = moMatch ? parseInt(moMatch[1], 10)        : null;
+  const yr       = moMatch ? 2000 + parseInt(moMatch[2], 10) : null;
+  const label    = moNum && yr ? MONTHS[moNum - 1] + ' ' + yr : fn;
+
+  if (!moNum || !yr || moNum < 1 || moNum > 12) {
+    toast('❌ Filename must match JPSCo_Financials_MM-YY.xlsx (e.g. JPSCo_Financials_03-26.xlsx)', 'w');
+    return;
+  }
+  toast('📂 Parsing ' + label + '…', 'i');
+
   try {
+    // ── 1. Read workbook ──────────────────────────────────────────────────────
     const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type: 'array' });
+    const wb  = XLSX.read(buf, { type: 'array' });
+
+    // Safe integer reader from a sheet's raw array (0-indexed row/col)
+    const I = (raw, row, col) => {
+      const x = raw?.[row]?.[col];
+      return (typeof x === 'number') ? Math.round(x) : 0;
+    };
+
+    // ── 2. P&L sheet ─────────────────────────────────────────────────────────
+    // Col 2 = Actual MTD | Col 5 = Budget MTD | Col 12 = YTD Actual | Col 13 = YTD Budget
     const plSheet = wb.Sheets['P&L'];
-    if (!plSheet) throw new Error('P&L sheet not found');
-    const raw = XLSX.utils.sheet_to_json(plSheet, { header: 1, defval: null });
+    if (!plSheet) throw new Error('Sheet "P&L" not found — check workbook name');
+    const plRaw = XLSX.utils.sheet_to_json(plSheet, { header: 1, defval: null });
+    const p = (r, c) => I(plRaw, r, c);
 
-    const v = (row, col) => { const x = raw[row]?.[col]; return (typeof x === 'number') ? Math.round(x) : 0; };
-    // Col 2 = Current Month Actual, Col 5 = Budget, Col 12 = YTD Actual, Col 13 = YTD Budget
-    const pl = {
-      fuelSales:    v(7,2),  nonFuelSales: v(8,2),  totalSales:   v(9,2),
-      fuelCost:     v(10,2), ppaCost:      v(11,2), otherCOS:     v(12,2),
-      totalCOS:     v(13,2), grossProfit:  v(14,2),
-      sga:          v(15,2), maintenance:  v(16,2), opex:         v(17,2),
-      ebitda:       v(18,2), depreciation: v(19,2), ebit:         v(20,2),
-      intIncome:    v(21,2), intExpense:   v(22,2), nfc:          v(23,2),
-      otherIncome:  v(25,2), pretax:       v(27,2), tax:          v(28,2),
-      netIncome:    v(29,2),
+    const plAct = {
+      fuel_sales:   p(7,2),  nonfuel:      p(8,2),  total_sales: p(9,2),
+      fuel_cos:     p(10,2), ppa:          p(11,2), other_cos:   p(12,2),
+      total_cos:    p(13,2), gross_profit: p(14,2),
+      sga:          p(15,2), maintenance:  p(16,2), opex:        p(17,2),
+      ebitda:       p(18,2), depn:         p(19,2), ebit:        p(20,2),
+      // Summary below-EBIT (rows 21-29 in P&L — detail overridden from P&L Detail sheet)
+      int_income_s: p(21,2), int_exp_s:   p(22,2), nfc:         p(23,2),
+      oth_inc:      p(25,2), pretax:       p(27,2), tax:         p(28,2),
+      net_inc:      p(29,2),
     };
-    const budget = {
-      fuelSales:    v(7,5),  nonFuelSales: v(8,5),  totalSales:   v(9,5),
-      fuelCost:     v(10,5), ppaCost:      v(11,5), otherCOS:     v(12,5),
-      totalCOS:     v(13,5), grossProfit:  v(14,5),
-      sga:          v(15,5), maintenance:  v(16,5), opex:         v(17,5),
-      ebitda:       v(18,5), depreciation: v(19,5), ebit:         v(20,5),
-      intIncome:    v(21,5), intExpense:   v(22,5), nfc:          v(23,5),
-      otherIncome:  v(25,5), pretax:       v(27,5), tax:          v(28,5),
-      netIncome:    v(29,5),
+    const plBud = {
+      fuel_sales:   p(7,5),  nonfuel:      p(8,5),  total_sales: p(9,5),
+      fuel_cos:     p(10,5), ppa:          p(11,5), other_cos:   p(12,5),
+      total_cos:    p(13,5), gross_profit: p(14,5),
+      sga:          p(15,5), maintenance:  p(16,5), opex:        p(17,5),
+      ebitda:       p(18,5), depn:         p(19,5), ebit:        p(20,5),
+      int_income_s: p(21,5), int_exp_s:   p(22,5), nfc:         p(23,5),
+      oth_inc:      p(25,5), pretax:       p(27,5), tax:         p(28,5),
+      net_inc:      p(29,5),
     };
-    const ytdActual = {
-      fuelSales:    v(7,12), nonFuelSales: v(8,12), totalSales:   v(9,12),
-      fuelCost:     v(10,12),ppaCost:      v(11,12),otherCOS:     v(12,12),
-      totalCOS:     v(13,12),grossProfit:  v(14,12),
-      sga:          v(15,12),maintenance:  v(16,12),opex:         v(17,12),
-      ebitda:       v(18,12),depreciation: v(19,12),ebit:         v(20,12),
-      intIncome:    v(21,12),intExpense:   v(22,12),nfc:          v(23,12),
-      otherIncome:  v(25,12),pretax:       v(27,12),tax:          v(28,12),
-      netIncome:    v(29,12),
+    const plYTDA = {
+      fuel_sales:   p(7,12),  nonfuel:      p(8,12),  total_sales: p(9,12),
+      fuel_cos:     p(10,12), ppa:          p(11,12), other_cos:   p(12,12),
+      total_cos:    p(13,12), gross_profit: p(14,12),
+      sga:          p(15,12), maintenance:  p(16,12), opex:        p(17,12),
+      ebitda:       p(18,12), depn:         p(19,12), ebit:        p(20,12),
+      nfc:          p(23,12), oth_inc:      p(25,12),
+      pretax:       p(27,12), tax:          p(28,12), net_inc:     p(29,12),
     };
-    const ytdBudget = {
-      fuelSales:    v(7,13), nonFuelSales: v(8,13), totalSales:   v(9,13),
-      fuelCost:     v(10,13),ppaCost:      v(11,13),otherCOS:     v(12,13),
-      totalCOS:     v(13,13),grossProfit:  v(14,13),
-      sga:          v(15,13),maintenance:  v(16,13),opex:         v(17,13),
-      ebitda:       v(18,13),depreciation: v(19,13),ebit:         v(20,13),
-      intIncome:    v(21,13),intExpense:   v(22,13),nfc:          v(23,13),
-      otherIncome:  v(25,13),pretax:       v(27,13),tax:          v(28,13),
-      netIncome:    v(29,13),
+    const plYTDB = {
+      fuel_sales:   p(7,13),  nonfuel:      p(8,13),  total_sales: p(9,13),
+      fuel_cos:     p(10,13), ppa:          p(11,13), other_cos:   p(12,13),
+      total_cos:    p(13,13), gross_profit: p(14,13),
+      sga:          p(15,13), maintenance:  p(16,13), opex:        p(17,13),
+      ebitda:       p(18,13), depn:         p(19,13), ebit:        p(20,13),
+      nfc:          p(23,13), oth_inc:      p(25,13),
+      pretax:       p(27,13), tax:          p(28,13), net_inc:     p(29,13),
     };
 
-    // Revenue sheet
-    const revSheet = wb.Sheets['Revenues'];
-    const revRaw   = revSheet ? XLSX.utils.sheet_to_json(revSheet,{header:1,defval:null}) : [];
-    const rv = (row,col)=>{ const x=revRaw[row]?.[col]; return (typeof x==='number')?Math.round(x):0; };
-    const rev = {
-      fuel: rv(10,2), ipp: rv(11,2), energy: rv(12,2), custCharge: rv(13,2),
-      other: rv(17,2), total: rv(18,2),
-      rate10: rv(21,2), rate20: rv(22,2), rate40: rv(23,2), rate50: rv(24,2),
-      salesMWh: Math.round((raw[34]?.[2])||0),
+    // ── 3. P&L Detail sheet (below-EBIT granular breakdown) ──────────────────
+    // Col 1 = prior month | Col 2 = current month
+    // Rows confirmed from JPSCo_Financials_03-26.xlsx inspection
+    const plDtlSheet = wb.Sheets['P&L Detail'] || wb.Sheets['PL Detail'];
+    const dtlRaw     = plDtlSheet ? XLSX.utils.sheet_to_json(plDtlSheet, { header: 1, defval: null }) : [];
+    const d = (r, c) => I(dtlRaw, r, c);
+
+    const dtl = {
+      int_income:  plDtlSheet ? d(35,2) : plAct.int_income_s,  // R36: Interest Income
+      afudc:       plDtlSheet ? d(36,2) : 0,                    // R37: AFUDC
+      int_expense: plDtlSheet ? d(38,2) : plAct.int_exp_s,     // R39: Interest Expense
+      loan_fees:   plDtlSheet ? d(40,2) : 0,                    // R41: Loan financing fees
+      pref_div:    plDtlSheet ? d(41,2) : 0,                    // R42: Preference dividends
+      fx:          plDtlSheet ? d(42,2) : 0,                    // R43: FX gain/(loss)
     };
 
-    // B_S sheet
+    // ── 4. B_S sheet ─────────────────────────────────────────────────────────
+    // Col 2 = prior period | Col 3 = current period
+    // Row indices confirmed from JPSCo_Financials_03-26.xlsx inspection
     const bsSheet = wb.Sheets['B_S'];
-    const bsRaw   = bsSheet ? XLSX.utils.sheet_to_json(bsSheet,{header:1,defval:null}) : [];
-    const bs2 = (row,col)=>{ const x=bsRaw[row]?.[col]; return (typeof x==='number')?Math.round(x):0; };
-    const bs = {
-      cash: bs2(24,3), receivables: bs2(26,3), unbilled: bs2(29,3),
-      fuelInv: bs2(31,3), materials: bs2(32,3), totalCurrentAssets: bs2(33,3),
-      fixedAssetsNBV: bs2(17,3), totalAssets: bs2(35,3),
-      payables: bs2(45,3), shortTermDebt: bs2(50,3), currentLTD: bs2(51,3),
-      totalCurrentLiab: bs2(54,3), longTermDebt: bs2(56,3),
-      leaseObligation: bs2(57,3), totalEquity: bs2(42,3),
+    const bsRaw   = bsSheet ? XLSX.utils.sheet_to_json(bsSheet, { header: 1, defval: null }) : [];
+    const b = (r, c) => I(bsRaw, r, c);
+
+    const bsAct = {
+      fa_nbv:          b(17,3),  // PP&E Net book value          → ppe
+      cash:            b(24,3),  // Cash & short-term deposits   → cash
+      recv:            b(26,3),  // Receivables, net             → recv
+      unbill:          b(29,3),  // Unbilled revenue             → unbill
+      fuel_inv:        b(31,3),  // Fuel inventory               → finv
+      matls:           b(32,3),  // Materials & supplies         → matls
+      cur_a:           b(33,3),  // Total current assets         → cur_a
+      tot_a:           b(35,3),  // Total assets                 → tot_a
+      // Equity section
+      retained_curr:   b(41,3),  // Retained earnings (current)  → bs_retained
+      retained_prior:  b(41,2),  // Retained earnings (prior)    → for RE roll check
+      equity:          b(42,3),  // Total equity                 → equity
+      // Current liabilities
+      ap:              b(45,3),  // Accounts payable & accruals  → ap
+      std:             b(50,3),  // Short-term debt              → bs_std
+      curr_ltd:        b(51,3),  // Current portion of LTD       → bs_curr_ltd
+      cur_l:           b(54,3),  // Total current liabilities    → cur_l
+      // Non-current liabilities
+      ltd:             b(56,3),  // Long-term debt               → ltd
+      leases:          b(57,3),  // Lease liabilities (IFRS-16)  → leases
+      cust_dep_lt:     b(59,3),  // Customer deposits & adv (LT) → bs_cust_dep_lt (confirmed idx 59)
+      // Totals
+      tot_l:           b(66,3),  // Total liabilities            → tot_l  (confirmed idx 66)
+      tot_le:          b(68,3),  // Total liabilities & equity   → tot_le (confirmed idx 68)
     };
 
-    // Cash flow sheet
-    const cfSheet = wb.Sheets['Cash flow'];
-    const cfRaw   = cfSheet ? XLSX.utils.sheet_to_json(cfSheet,{header:1,defval:null}) : [];
-    const cf2 = (row,col)=>{ const x=cfRaw[row]?.[col]; return (typeof x==='number')?Math.round(x):0; };
-    const cf = {
-      netProfit: cf2(7,3), depreciation: cf2(10,3), interestExp: cf2(13,3),
-      operatingCF: cf2(23,3), accountsReceivable: cf2(25,3), payables: cf2(31,3),
+    // ── 5. Cash flow sheet ────────────────────────────────────────────────────
+    // Col 3 = actual MTD
+    // Rows confirmed from JPSCo indirect CF structure; CF tax rows (14,15) are best-guess
+    // until the CF sheet is inspected directly — fall back to P&L total tax if zero
+    const cfSheet = wb.Sheets['Cash flow'] || wb.Sheets['Cash Flow'] || wb.Sheets['CF'];
+    const cfRaw   = cfSheet ? XLSX.utils.sheet_to_json(cfSheet, { header: 1, defval: null }) : [];
+    const c = (r, col) => I(cfRaw, r, col);
+
+    const cfAct = {
+      net_profit:  c(7,3),   // Net profit (= P&L net income)   → cf_ni
+      depn:        c(10,3),  // Depreciation add-back           → cf_depn
+      def_tax:     c(11,3),  // Deferred tax add-back           → cf_def_tax (best-guess row)
+      int_inc_adj: c(12,3),  // Interest income reverse         → cf_int_inc_adj (best-guess)
+      netint:      c(13,3),  // Net interest expense add-back   → cf_netint
+      tax_exp:     c(14,3),  // Current income tax add-back     → cf_tax_exp (best-guess row)
+      ops_net:     c(23,3),  // Net cash from operating         → cf_ops_net
+      wc_recv:     c(25,3),  // Δ Receivables                   → cf_wc_recv
+      wc_ap:       c(31,3),  // Δ Payables                      → cf_wc_ap
+      cf_close:    c(63,3),  // Closing cash balance            → cf_close (for cash tie check)
+    };
+    // Fallback: if CF tax rows returned 0, use total P&L tax as current tax
+    const currTax = cfAct.tax_exp || plAct.tax;
+    const deferTax = cfAct.def_tax;
+
+    // ── 6. Revenues sheet ─────────────────────────────────────────────────────
+    // Col 2 = actual MTD
+    const revSheet = wb.Sheets['Revenues'];
+    const revRaw   = revSheet ? XLSX.utils.sheet_to_json(revSheet, { header: 1, defval: null }) : [];
+    const rv = (r, col) => I(revRaw, r, col);
+
+    const revAct = {
+      // Revenue by type (billing breakdown)
+      ipp:       rv(11,2),  // IPP recovery                    → rev_ipp
+      energy:    rv(12,2),  // Energy (non-fuel)               → rev_energy
+      cust_chg:  rv(13,2),  // Customer charge                 → rev_cust_chg
+      other:     rv(17,2),  // Other revenue                   → rev_other
+      // Revenue by rate class (J$ thousands)
+      rt10:      rv(21,2),  // Rate 10                         → rev_rt10
+      rt20:      rv(22,2),  // Rate 20                         → rev_rt20
+      rt40:      rv(23,2),  // Rate 40                         → rev_rt40
+      rt50:      rv(24,2),  // Rate 50                         → rev_rt50
+      rt60:      rv(25,2),  // Rate 60                         → rev_rt60
+      rt70:      rv(26,2),  // Rate 70                         → rev_rt70
+      // Sales volume (col 2 on Revenue sheet)
+      mwh_rt10:  rv(21,4),  // MWh — Rate 10                   → rev_mwh_rt10 (col 4 tentative)
+      mwh_rt20:  rv(22,4),  // MWh — Rate 20                   → rev_mwh_rt20
+      mwh_rt40:  rv(23,4),  // MWh — Rate 40                   → rev_mwh_rt40
+      mwh_rt50:  rv(24,4),  // MWh — Rate 50                   → rev_mwh_rt50
+      mwh_rt60:  rv(25,4),  // MWh — Rate 60                   → rev_mwh_rt60
+      mwh_rt70:  rv(26,4),  // MWh — Rate 70                   → rev_mwh_rt70
+    };
+    // Total billed sales MWh (sum of rate classes, or from P&L if Rev sheet missing)
+    const salesMWh = revAct.mwh_rt10 + revAct.mwh_rt20 + revAct.mwh_rt40
+                   + revAct.mwh_rt50 + revAct.mwh_rt60 + revAct.mwh_rt70;
+
+    // ── 7. Four consistency checks ───────────────────────────────────────────
+    const MATERIALITY = 2000;  // $2,000 — soft warn below, hard block above
+    const checks = [];
+    const chk = (name, a, b) => {
+      const diff = Math.abs(a - b);
+      checks.push({ name, a, b, diff, pass: diff <= MATERIALITY });
     };
 
-    actualsStore[moNum] = {
-      month: label, pl, budget, ytdActual, ytdBudget, rev, bs, cf, seg: {},
-      uploadMeta: { file: fn, ts: new Date().toISOString(), status: '✅ Parsed' },
-    };
+    // 7a. Net income tie: P&L NI must equal CF net profit
+    chk('Net Income (P&L vs CF)', plAct.net_inc, cfAct.net_profit);
 
-    // ── Auto-wire actuals into generation & collections ──────────────────────
-    // Override fuelCostByMonth for the uploaded month (month is 1-indexed, array is 0-indexed)
-    if(moNum>=1&&moNum<=12){
-      if(!fuelCostByMonth[2026]) fuelCostByMonth[2026]=Array(12).fill(0);
-      if(pl.fuelCost) fuelCostByMonth[2026][moNum-1]=Math.abs(pl.fuelCost);
+    // 7b. Cash balance tie: BS cash must equal CF closing cash
+    //     (only enforce if CF sheet was found and has a value)
+    if (cfSheet && cfAct.cf_close !== 0)
+      chk('Cash Balance (BS vs CF)', bsAct.cash, cfAct.cf_close);
+
+    // 7c. Balance sheet balance: Total Assets must equal Total Liabilities & Equity
+    chk('Balance Sheet (Assets vs L&E)', bsAct.tot_a, bsAct.tot_le);
+
+    // 7d. Retained earnings roll: Prior RE + Current NI = Current RE
+    //     (only enforce if we have a non-zero prior RE — avoids false fail on first upload)
+    if (bsAct.retained_prior !== 0)
+      chk('Retained Earnings Roll', bsAct.retained_prior + plAct.net_inc, bsAct.retained_curr);
+
+    const failures = checks.filter(c => !c.pass);
+    if (failures.length > 0) {
+      const msgs = failures.map(c =>
+        `  • ${c.name}\n    Got: ${c.a.toLocaleString()} vs ${c.b.toLocaleString()} — diff $${c.diff.toLocaleString()}`
+      ).join('\n');
+      const fullMsg = `Upload blocked — ${failures.length} consistency check(s) failed:\n${msgs}\n\nFix the source file and re-upload.`;
+      toast('❌ ' + fullMsg, 'w');
+      actualsLog.unshift({
+        file: fn, month: moNum, label,
+        ts: new Date().toLocaleString(), rows: 0,
+        status: '❌ Check failed: ' + failures.map(c => c.name).join('; '),
+      });
+      buildActualsLog();
+      console.warn('[FPA Actuals] Blocked —', fullMsg);
+      return;
     }
-    // Rebuild fuelRevByYear for 2026 using 1-month lag (fuel rev in month m = fuel cost from month m-1)
-    // Only update the lag-shifted month, preserve the rest
-    if(moNum>=2){
-      if(!fuelRevByYear[2026]) fuelRevByYear[2026]=Array(12).fill(0);
-      fuelRevByYear[2026][moNum-1]=Math.abs(pl.fuelCost||0); // cost is the OUR pass-through
+    const warnings = checks.filter(c => c.pass && c.diff > 0);
+    if (warnings.length)
+      toast('⚠ Minor rounding diff (≤$2K): ' + warnings.map(c => c.name + ' $' + c.diff.toLocaleString()).join(', '), 'w');
+
+    // ── 8. Supabase: find / create ACTUAL_YYYY version ───────────────────────
+    const versionCode = 'ACTUAL_' + yr;
+    let   versionId   = fpa.vid(versionCode);
+
+    if (!versionId && _sb) {
+      const { data: newVer, error: verErr } = await _sb
+        .from('fpa_versions')
+        .upsert(
+          { code: versionCode, name: 'Actuals ' + yr, kind: 'ACTUAL', is_locked: false },
+          { onConflict: 'code' }
+        )
+        .select().single();
+      if (verErr) throw new Error('Could not create version: ' + verErr.message);
+      versionId = newVer.id;
+      fpa.versions.push(newVer);
     }
-    // Rebuild derived billed sales from actuals salesMWh
-    if(rev.salesMWh){
-      // Update volumeTable-derived total to match actuals for this month
-      // (proportional distribution across rate classes)
-      const mIdx=moNum-1;
-      const classes=['RT10_lo','RT10_hi','RT20','RT40_std','RT40_tou','RT50_std','RT50_tou','RT60','RT70'];
-      const weights=[0.1427,0.3333,0.1653,0.1593,0.0281,0.1298,0.0229,0.0190,0.0996];
-      // Note: weights sum to ~1; apply actuals total proportionally
-      const actMWh=rev.salesMWh;
-      classes.forEach((cls,ci)=>{
-        if(volumeTable[cls]?.mwh) volumeTable[cls].mwh[mIdx]=Math.round(actMWh*weights[ci]);
+
+    // ── 9. Resolve period key ─────────────────────────────────────────────────
+    // fpa_facts.period_id is INTEGER (year*100+month), NOT a UUID.
+    // fpa_dim_period.id is also this integer (confirmed from DB schema).
+    const periodKey = yr * 100 + moNum;   // e.g. 202603
+    const periodRow = fpa.periods.find(p => p.year === yr && p.month === moNum);
+    if (!periodRow)
+      throw new Error(`Period ${yr}-${String(moNum).padStart(2,'0')} not found in fpa_dim_period. Run the period seed migration first.`);
+
+    // ── 10. Build fpa_facts rows ──────────────────────────────────────────────
+    // Line IDs match fpa_dim_line.id exactly (confirmed from DB query).
+    // period_id = integer key; source = 'upload' to distinguish from manual/formula entries.
+    const factRows = [];
+    const F = (lineId, value) => {
+      // Only write lines that exist in our loaded catalog (guards against stale IDs)
+      if (!fpa.lines.find(l => l.id === lineId)) {
+        console.warn('[FPA Actuals] Unknown line_id "' + lineId + '" — skipped');
+        return;
+      }
+      factRows.push({
+        version_id: versionId,
+        line_id:    lineId,
+        period_id:  periodKey,   // integer, e.g. 202603
+        value:      (value === null || value === undefined) ? 0 : value,
+        source:     'upload',
+      });
+    };
+
+    // ── P&L facts ────────────────────────────────────────────────────────────
+    F('fuel_rev',      plAct.fuel_sales);   // Fuel Revenue
+    F('nonfuel',       plAct.nonfuel);      // Non-Fuel Revenue
+    F('pl_total_sales',plAct.total_sales);  // Total Sales
+    F('fuel_cost',     plAct.fuel_cos);     // Fuel Costs
+    F('pl_ppa',        plAct.ppa);          // Purchased Power (PPA)
+    F('pl_other_cos',  plAct.other_cos);    // Other Cost of Sales
+    F('pl_total_cos',  plAct.total_cos);    // Total Cost of Sales
+    F('pl_gross_profit',plAct.gross_profit);// Gross Profit
+    F('pl_sga',        plAct.sga);          // SG&A
+    F('pl_maintenance',plAct.maintenance);  // Maintenance
+    F('opex',          plAct.opex);         // O&M (operating expense subtotal)
+    F('ebitda',        plAct.ebitda);       // Total EBITDA
+    F('depn',          plAct.depn);         // Depreciation
+    F('ebit',          plAct.ebit);         // EBIT
+    // Below-EBIT (from P&L Detail where available, fallback to P&L summary)
+    F('pl_int_income', dtl.int_income);     // Interest Income
+    F('pl_afudc',      dtl.afudc);          // AFUDC
+    F('pl_int_expense',dtl.int_expense);    // Interest Expense
+    F('pl_loan_fees',  dtl.loan_fees);      // Loan Financing Fees
+    F('pl_pref_div',   dtl.pref_div);       // Preference Dividends
+    F('pl_fx',         dtl.fx);             // FX Gain/(Loss)
+    F('fin_cost',      plAct.nfc);          // Net Financing Cost (summary)
+    F('oth_inc',       plAct.oth_inc);      // Other Income/(Expense)
+    F('pretax',        plAct.pretax);       // Pre-Tax Income
+    F('tax',           plAct.tax);          // Income Tax (total)
+    F('pl_curr_tax',   currTax);            // Current Income Tax (from CF add-back or total)
+    F('pl_def_tax',    deferTax);           // Deferred Tax
+    F('net_inc',       plAct.net_inc);      // NET INCOME
+
+    // ── B_S facts ─────────────────────────────────────────────────────────────
+    F('ppe',           bsAct.fa_nbv);       // PP&E – Net
+    F('cash',          bsAct.cash);         // Cash & Short Term Deposits
+    F('recv',          bsAct.recv);         // Receivables, Net
+    F('unbill',        bsAct.unbill);       // Unbilled Revenue
+    F('finv',          bsAct.fuel_inv);     // Fuel Inventory
+    F('matls',         bsAct.matls);        // Materials & Supplies
+    F('cur_a',         bsAct.cur_a);        // Total Current Assets
+    F('tot_a',         bsAct.tot_a);        // TOTAL ASSETS
+    F('bs_retained',   bsAct.retained_curr);// Retained Earnings
+    F('equity',        bsAct.equity);       // Total Equity
+    F('ap',            bsAct.ap);           // Accounts Payable & Accruals
+    F('bs_std',        bsAct.std);          // Short-Term Debt
+    F('bs_curr_ltd',   bsAct.curr_ltd);     // Current Maturity — LTD
+    F('cur_l',         bsAct.cur_l);        // Total Current Liabilities
+    F('ltd',           bsAct.ltd);          // Long-Term Debt
+    F('leases',        bsAct.leases);       // Lease Liabilities (IFRS-16)
+    F('bs_cust_dep_lt',bsAct.cust_dep_lt);  // Customer Deposits & Advances — LT
+    F('tot_l',         bsAct.tot_l);        // TOTAL LIABILITIES
+    F('tot_le',        bsAct.tot_le);       // TOTAL LIABILITIES & EQUITY
+
+    // ── CF (indirect) facts ───────────────────────────────────────────────────
+    F('cf_ni',         cfAct.net_profit);   // Net Profit
+    F('cf_depn',       cfAct.depn);         // Add: Depreciation
+    F('cf_def_tax',    deferTax);           // Deferred Tax (non-cash add-back)
+    F('cf_int_inc_adj',cfAct.int_inc_adj);  // Less: Interest Income
+    F('cf_netint',     cfAct.netint);       // Net Interest Expense (add back)
+    F('cf_tax_exp',    currTax);            // Income Tax Expense (add-back)
+    F('cf_ops_net',    cfAct.ops_net);      // Net Cash from Operating
+    F('cf_wc_recv',    cfAct.wc_recv);      // Δ Receivables
+    F('cf_wc_ap',      cfAct.wc_ap);        // Δ Payables
+    F('cf_close',      cfAct.cf_close || bsAct.cash); // Closing Cash Balance
+
+    // ── Revenue / STAT facts ──────────────────────────────────────────────────
+    F('rev_ipp',       revAct.ipp);
+    F('rev_energy',    revAct.energy);
+    F('rev_cust_chg',  revAct.cust_chg);
+    F('rev_other',     revAct.other);
+    F('rev_rt10',      revAct.rt10);
+    F('rev_rt20',      revAct.rt20);
+    F('rev_rt40',      revAct.rt40);
+    F('rev_rt50',      revAct.rt50);
+    F('rev_rt60',      revAct.rt60);
+    F('rev_rt70',      revAct.rt70);
+    F('rev_mwh_rt10',  revAct.mwh_rt10);
+    F('rev_mwh_rt20',  revAct.mwh_rt20);
+    F('rev_mwh_rt40',  revAct.mwh_rt40);
+    F('rev_mwh_rt50',  revAct.mwh_rt50);
+    F('rev_mwh_rt60',  revAct.mwh_rt60);
+    F('rev_mwh_rt70',  revAct.mwh_rt70);
+
+    // ── Derived STAT facts ────────────────────────────────────────────────────
+    // stat_billed_gwh: total billed MWh from Revenue sheet (stored in MWh; flash divides by 1000)
+    const totalBilledMWh = salesMWh || (revAct.mwh_rt10 + revAct.mwh_rt20 + revAct.mwh_rt40
+                         + revAct.mwh_rt50 + revAct.mwh_rt60 + revAct.mwh_rt70);
+    F('stat_billed_gwh', totalBilledMWh);
+
+    // stat_sysloss_pct: derive from plan net generation + actual billed MWh.
+    // Net gen for this month comes from the in-memory generation module (genMixData).
+    // Once generation actuals are uploaded separately, stat_netgen_gwh will supersede this.
+    const planNetGenMWh = (() => {
+      try {
+        return Object.values(genMixData || {})
+          .reduce((s, g) => s + (g.vals?.[moNum - 1] || 0), 0); // already in MWh
+      } catch(e) { return 0; }
+    })();
+    if (planNetGenMWh > 0 && totalBilledMWh > 0) {
+      const sysloss = (planNetGenMWh - totalBilledMWh) / planNetGenMWh * 100;
+      F('stat_sysloss_pct', Math.max(0, Math.round(sysloss * 10) / 10)); // 1 dp
+    }
+
+    // ── 11. Write to Supabase ─────────────────────────────────────────────────
+    if (_sb && versionId && factRows.length > 0) {
+      const { error: upsertErr } = await _sb
+        .from('fpa_facts')
+        .upsert(factRows, { onConflict: 'version_id,line_id,period_id' });
+      if (upsertErr) throw new Error('DB write failed: ' + upsertErr.message);
+
+      // Mark period closed in fpa_dim_period (period_id is integer PK)
+      const { error: closeErr } = await _sb
+        .from('fpa_dim_period')
+        .update({ is_closed: true })
+        .eq('id', periodKey);
+      if (closeErr) console.warn('[FPA Actuals] Could not close period:', closeErr.message);
+    } else if (!_sb) {
+      console.warn('[FPA Actuals] No Supabase connection — facts stored in-memory only');
+    }
+
+    // ── 12. Update in-memory fpa.facts and fpa.periods ───────────────────────
+    (fpa.facts[versionCode] ??= {});
+    factRows.forEach(f => {
+      (fpa.facts[versionCode][f.line_id] ??= {});
+      fpa.facts[versionCode][f.line_id][periodKey] = Number(f.value);
+    });
+    // Mark period closed in-memory (match by year+month, safe regardless of id type)
+    const pRow = fpa.periods.find(p => p.year === yr && p.month === moNum);
+    if (pRow) pRow.is_closed = true;
+
+    // ── 13. Backward-compat actualsStore ──────────────────────────────────────
+    // Existing UI reads actualsStore[moNum] and actualsStore[yr][moNum]
+    const storeEntry = {
+      month: label,
+      pl: {
+        fuelSales:    plAct.fuel_sales,   nonFuelSales:  plAct.nonfuel,
+        totalSales:   plAct.total_sales,  fuelCost:      plAct.fuel_cos,
+        ppaCost:      plAct.ppa,          otherCOS:      plAct.other_cos,
+        totalCOS:     plAct.total_cos,    grossProfit:   plAct.gross_profit,
+        sga:          plAct.sga,          maintenance:   plAct.maintenance,
+        opex:         plAct.opex,         ebitda:        plAct.ebitda,
+        depreciation: plAct.depn,         ebit:          plAct.ebit,
+        intIncome:    dtl.int_income,     intExpense:    dtl.int_expense,
+        otherIncome:  plAct.oth_inc,      pretax:        plAct.pretax,
+        tax:          plAct.tax,          netIncome:     plAct.net_inc,
+      },
+      budget: {
+        fuelSales:    plBud.fuel_sales,   nonFuelSales:  plBud.nonfuel,
+        totalSales:   plBud.total_sales,  fuelCost:      plBud.fuel_cos,
+        ppaCost:      plBud.ppa,          otherCOS:      plBud.other_cos,
+        totalCOS:     plBud.total_cos,    grossProfit:   plBud.gross_profit,
+        sga:          plBud.sga,          maintenance:   plBud.maintenance,
+        opex:         plBud.opex,         ebitda:        plBud.ebitda,
+        depreciation: plBud.depn,         ebit:          plBud.ebit,
+        intIncome:    plBud.int_income_s, intExpense:    plBud.int_exp_s,
+        otherIncome:  plBud.oth_inc,      pretax:        plBud.pretax,
+        tax:          plBud.tax,          netIncome:     plBud.net_inc,
+      },
+      ytdActual: {
+        fuelSales:    plYTDA.fuel_sales,  nonFuelSales:  plYTDA.nonfuel,
+        totalSales:   plYTDA.total_sales, fuelCost:      plYTDA.fuel_cos,
+        ppaCost:      plYTDA.ppa,         otherCOS:      plYTDA.other_cos,
+        totalCOS:     plYTDA.total_cos,   grossProfit:   plYTDA.gross_profit,
+        sga:          plYTDA.sga,         maintenance:   plYTDA.maintenance,
+        opex:         plYTDA.opex,        ebitda:        plYTDA.ebitda,
+        depreciation: plYTDA.depn,        ebit:          plYTDA.ebit,
+        nfc:          plYTDA.nfc,         otherIncome:   plYTDA.oth_inc,
+        pretax:       plYTDA.pretax,      tax:           plYTDA.tax,
+        netIncome:    plYTDA.net_inc,
+      },
+      ytdBudget: {
+        fuelSales:    plYTDB.fuel_sales,  nonFuelSales:  plYTDB.nonfuel,
+        totalSales:   plYTDB.total_sales, fuelCost:      plYTDB.fuel_cos,
+        ppaCost:      plYTDB.ppa,         otherCOS:      plYTDB.other_cos,
+        totalCOS:     plYTDB.total_cos,   grossProfit:   plYTDB.gross_profit,
+        sga:          plYTDB.sga,         maintenance:   plYTDB.maintenance,
+        opex:         plYTDB.opex,        ebitda:        plYTDB.ebitda,
+        depreciation: plYTDB.depn,        ebit:          plYTDB.ebit,
+        nfc:          plYTDB.nfc,         otherIncome:   plYTDB.oth_inc,
+        pretax:       plYTDB.pretax,      tax:           plYTDB.tax,
+        netIncome:    plYTDB.net_inc,
+      },
+      rev: {
+        ipp: revAct.ipp, energy: revAct.energy, custCharge: revAct.cust_chg,
+        other: revAct.other, salesMWh,
+        rate10: revAct.rt10, rate20: revAct.rt20, rate40: revAct.rt40,
+        rate50: revAct.rt50, rate60: revAct.rt60, rate70: revAct.rt70,
+      },
+      bs: {
+        cash: bsAct.cash,   receivables:      bsAct.recv,     unbilled:    bsAct.unbill,
+        fuelInv: bsAct.fuel_inv, materials:   bsAct.matls,
+        totalCurrentAssets: bsAct.cur_a,      fixedAssetsNBV:  bsAct.fa_nbv,
+        totalAssets: bsAct.tot_a,             payables:        bsAct.ap,
+        shortTermDebt: bsAct.std,             currentLTD:      bsAct.curr_ltd,
+        totalCurrentLiab: bsAct.cur_l,        longTermDebt:    bsAct.ltd,
+        leaseObligation: bsAct.leases,         totalEquity:    bsAct.equity,
+        retainedEarnings: bsAct.retained_curr, totalLiab:      bsAct.tot_l,
+        totalLE: bsAct.tot_le,
+      },
+      cf: {
+        netProfit: cfAct.net_profit, depreciation: cfAct.depn,
+        netInterest: cfAct.netint,   operatingCF:  cfAct.ops_net,
+        recvChange:  cfAct.wc_recv,  apChange:     cfAct.wc_ap,
+        closingCash: cfAct.cf_close,
+      },
+      seg: {},
+      uploadMeta: { file: fn, ts: new Date().toISOString(),
+                    status: '✅ ' + factRows.length + ' facts' + (_sb ? ' → DB' : ' (offline)') },
+    };
+    actualsStore[moNum]          = storeEntry;
+    (actualsStore[yr] ??= {})[moNum] = storeEntry;   // dual-key for _getMonthlyPLLine
+
+    // ── 14. Auto-wire into legacy fuel cost engine ────────────────────────────
+    if (moNum >= 1 && moNum <= 12 && plAct.fuel_cos) {
+      (fuelCostByMonth[yr] ??= Array(12).fill(0));
+      fuelCostByMonth[yr][moNum - 1] = Math.abs(plAct.fuel_cos);
+    }
+
+    // ── 15. Update MWh volumes for rate-class tables ──────────────────────────
+    if (salesMWh > 0) {
+      const mIdx = moNum - 1;
+      const classMwh = [
+        ['RT10_lo', revAct.mwh_rt10 * 0.30], ['RT10_hi', revAct.mwh_rt10 * 0.70],
+        ['RT20',    revAct.mwh_rt20],
+        ['RT40_std',revAct.mwh_rt40 * 0.85],  ['RT40_tou',revAct.mwh_rt40 * 0.15],
+        ['RT50_std',revAct.mwh_rt50 * 0.85],  ['RT50_tou',revAct.mwh_rt50 * 0.15],
+        ['RT60',    revAct.mwh_rt60],
+        ['RT70',    revAct.mwh_rt70],
+      ];
+      classMwh.forEach(([cls, mwh]) => {
+        if (volumeTable[cls]?.mwh) volumeTable[cls].mwh[mIdx] = Math.round(mwh || 0);
       });
     }
-    // Enable month in selector
-    const opt = document.querySelector(`#varMo option[value="${moNum}"]`);
-    if (opt) opt.disabled = false;
-    const opt2 = document.querySelector(`#revRptMo option[value="${moNum}"]`);
-    if (opt2) opt2.disabled = false;
 
-    actualsLog.unshift({ file: fn, month: moNum, label, ts: new Date().toLocaleString(), rows: 29, status: '✅ Parsed' });
+    // ── 16. Refresh legacy globals & rebuild all live views ───────────────────
+    fpaApplyToLegacyGlobals();
+
+    // Enable month in reporting selectors
+    ['varMo', 'revRptMo'].forEach(id => {
+      const opt = document.querySelector(`#${id} option[value="${moNum}"]`);
+      if (opt) opt.disabled = false;
+    });
+
+    // Log entry
+    actualsLog.unshift({
+      file: fn, month: moNum, label,
+      ts: new Date().toLocaleString(),
+      rows: factRows.length,
+      status: '✅ ' + factRows.length + ' facts' + (_sb ? ' → DB' : ' (offline)'),
+    });
     buildActualsLog();
-    // Auto-select the newly uploaded month
-    document.getElementById('varMo').value = moNum;
-    buildVarReport();
-    // Refresh dashboard KPIs with latest actuals
+
+    // Refresh reports
+    const varMoEl = document.getElementById('varMo');
+    if (varMoEl) { varMoEl.value = moNum; buildVarReport(); }
     buildDashKpis();
-    // Refresh monthly P&L overlay if it's open
-    setTimeout(()=>buildMonthlyPL(plMonthlyYear), 80);
-    // Refresh active assumption/working tab if it has an actuals overlay
-    const activePane=document.querySelector('.pane.on')?.id?.replace('pane-','');
-    if(activePane==='wrk-gen') setTimeout(()=>buildGenTables(), 100);
-    if(activePane==='wrk-coll') setTimeout(()=>{computeAll(selectedCollYear);buildCollTable();}, 100);
-    if(activePane==='ass-om') setTimeout(()=>buildOMTable(), 100);
-    if(activePane==='rpt-pl') setTimeout(()=>buildMonthlyPL(plMonthlyYear), 100);
-    toast('✅ ' + fn + ' → ' + label + ' loaded · Dashboard & P&L updated', 'ok');
+    setTimeout(() => buildMonthlyPL(plMonthlyYear), 80);
+    const activePane = document.querySelector('.pane.on')?.id?.replace('pane-', '');
+    if (activePane === 'wrk-gen')  setTimeout(() => buildGenTables(), 100);
+    if (activePane === 'wrk-coll') setTimeout(() => { computeAll(selectedCollYear); buildCollTable(); }, 100);
+    if (activePane === 'ass-om')   setTimeout(() => buildOMTable(), 100);
+    if (activePane === 'rpt-pl')   setTimeout(() => buildMonthlyPL(plMonthlyYear), 100);
+
+    // Audit trail to console
+    console.group('[FPA Actuals] ' + label + ' — consistency checks');
+    checks.forEach(c => console.log((c.pass ? (c.diff > 0 ? '⚠' : '✅') : '❌') +
+      ' ' + c.name + ': diff=$' + c.diff.toLocaleString()));
+    console.groupEnd();
+
+    const dbTag = _sb ? ' · Saved to Supabase' : ' · Offline (no DB)';
+    toast('✅ ' + label + ' — ' + factRows.length + ' facts loaded' + dbTag, 'ok');
+
   } catch(err) {
-    actualsLog.unshift({ file: fn, month: moNum||'?', label, ts: new Date().toLocaleString(), rows: 0, status: '❌ ' + err.message });
+    actualsLog.unshift({
+      file: fn, month: moNum || '?', label,
+      ts: new Date().toLocaleString(), rows: 0,
+      status: '❌ ' + err.message,
+    });
     buildActualsLog();
-    toast('❌ Parse failed: ' + err.message, 'w');
+    toast('❌ Upload failed: ' + err.message, 'w');
+    console.error('[FPA Actuals] handleActualsUpload error:', err);
   }
+}
+
+// ─── Parse Budget Template 2026_V2.xlsx (AOP) via SheetJS ──────────────────
+// Reads P&L, B_S, C flow, Revenue by Rate Class sheets.
+// Writes all 12 months of 2026 AOP data into the AOP_2026 version (kind=BUDGET).
+// No consistency-check hard block — budget data is assumed internally consistent.
+async function handleAOPUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
   event.target.value = '';
+
+  toast('📂 Parsing AOP budget file…', 'i');
+  const fn = file.name;
+
+  // Show in Data Sources upload log immediately
+  const uploadEntry = {name:fn,type:'AOP Budget',period:'2026 Jan–Dec',rows:'Parsing…',status:'⏳ Processing',date:new Date().toISOString().slice(0,10)};
+  uploadLog.unshift(uploadEntry);
+  buildDataSources?.();
+
+  try {
+    const buf = await file.arrayBuffer();
+    const wb  = XLSX.read(buf, { type: 'array' });
+
+    // Safe numeric read helper (0-indexed row/col, returns rounded integer)
+    const N = (raw, row, col) => {
+      const x = raw?.[row]?.[col];
+      return (typeof x === 'number') ? Math.round(x) : 0;
+    };
+
+    // ── 1. Locate 2026 month columns dynamically by scanning header row ────────
+    // This is robust against future version changes that shift columns.
+    const findMonthCols = (raw, hdrRowIdx) => {
+      const hdr = raw[hdrRowIdx] || [];
+      const cols = {};
+      hdr.forEach((v, i) => {
+        if (!v) return;
+        const s = String(v);
+        const m = s.match(/^(\d{4})-(\d{2})/);
+        if (m && m[1] === '2026') {
+          const mo = parseInt(m[2], 10); // 1-12
+          if (mo >= 1 && mo <= 12) cols[mo] = i;
+        }
+      });
+      return cols; // { 1: colIdx, 2: colIdx, ... }
+    };
+
+    // ── 2. P&L sheet ─────────────────────────────────────────────────────────
+    // Sheet name: 'P&L 2024 - 2026'
+    const plSheet = wb.Sheets['P&L 2024 - 2026'] || wb.Sheets['P&L'];
+    if (!plSheet) throw new Error('Sheet "P&L 2024 - 2026" not found');
+    const plRaw  = XLSX.utils.sheet_to_json(plSheet, { header: 1, defval: null });
+    const plCols = findMonthCols(plRaw, 3); // R4 (0-indexed row 3) = header
+    if (!plCols[1]) throw new Error('Could not locate 2026 Jan column in P&L sheet');
+
+    // Row indices (0-indexed). Confirmed from Budget Template 2026_V2 inspection.
+    const PL = {
+      fuel_rev:      7,   // Fuel Clause billing
+      ipp_fr:        8,   // IPP Surcharge
+      energy_c:      9,   // Energy Clause (non-fuel component)
+      cust_chg:      11,  // Customer Charge
+      other_rev:     14,  // Other Operating Revenues
+      total_sales:   15,  // Total Operating Revenue
+      fuel_cost:     18,  // Fuel cost of sales
+      ppa:           19,  // Purchased Power (PPA)
+      total_cos:     21,  // Total COS (unlabeled subtotal)
+      gross_profit:  22,  // Gross profit
+      total_opex:    32,  // Total operating expenses (unlabeled subtotal)
+      ebitda:        34,  // Profit before interest/tax/dep = EBITDA
+      depn:          36,  // Depreciation
+      ebit:          37,  // Operating profit = EBIT
+      int_income:    39,  // Interest Income
+      afudc:         40,  // AFUDC
+      int_expense:   42,  // Interest Expense
+      pref_div:      44,  // Preference Dividend
+      loan_fees:     45,  // Loan Financing Fees
+      fx:            46,  // Foreign exchange gain/(loss)
+      fin_cost:      48,  // Total Net Financing Costs
+      oth_inc:       50,  // Other income/expenses
+      pretax:        51,  // Net Profit before tax
+      tax:           52,  // Taxation
+      net_inc:       53,  // Net Profit after tax
+    };
+
+    // ── 3. B_S sheet ─────────────────────────────────────────────────────────
+    const bsSheet = wb.Sheets['B_S 2024 - 2026'] || wb.Sheets['B_S'];
+    if (!bsSheet) throw new Error('Sheet "B_S 2024 - 2026" not found');
+    const bsRaw  = XLSX.utils.sheet_to_json(bsSheet, { header: 1, defval: null });
+    const bsCols = findMonthCols(bsRaw, 3);
+
+    const BS = {
+      cash:         6,   // Cash & short-term deposits
+      rcash:        7,   // Restricted Cash
+      recv:         8,   // Receivables, net
+      bs_other_recv:9,   // Other receivables
+      unbill:       11,  // Unbilled revenue
+      bs_prepaid:   12,  // Prepaid expenses & deposits
+      finv:         13,  // Fuel inventory
+      matls:        14,  // Materials & supplies
+      cur_a:        15,  // Total current assets
+      bs_std:       17,  // Short-term loans
+      bs_corp_tax:  18,  // Corporation Tax Payable (row 19 = idx 18, was 0)
+      ap:           19,  // Accounts Payables
+      bs_payroll_tax:20, // Payroll taxes payable
+      bs_curr_ltd:  21,  // Current Portion of LTD (loan)
+      bs_cust_dep:  22,  // Current Portion Customer Deposits
+      lease_cl:     23,  // Current maturity lease obligations
+      bs_int_acc:   24,  // Interest accrued
+      bs_due_to:    25,  // Due to parent company
+      cur_l:        26,  // Total current liabilities
+      ppe:          41,  // Total Fixed assets NBV (R42 = idx 41)
+      bs_fa_cost:   35,  // Total FA at cost (R36 = idx 35)
+      bs_accum_depn:36,  // Accumulated depreciation
+      cwip:         40,  // Construction WIP (R41 = idx 40)
+      pension:      43,  // Pension Asset (R44 = idx 43)
+      bs_dta:       46,  // Deferred tax asset (R47 = idx 46)
+      eqinv:        47,  // Equity Investments (R48 = idx 47)
+      tot_a:        48,  // Total assets (R49 = idx 48)
+      bs_pref:      51,  // Cumulative Preference Shares
+      bs_share_cap: 52,  // Share capital
+      bs_cap_res:   53,  // Capital reserve
+      bs_cap_redm:  54,  // Capital redemption reserve
+      bs_retained:  55,  // Retained earnings
+      equity:       56,  // Total equity (shareholders' equity subtotal)
+      ltd:          57,  // Long-term debt
+      bs_cust_dep_lt:59, // Customer deposits & advances (R60 = idx 59)
+      leases:       62,  // Lease Liability (R63 = idx 62)
+      bs_dtl:       64,  // Deferred tax liability (R65 = idx 64)
+      tot_le:       65,  // Total L&E (R66 = idx 65)
+    };
+
+    // ── 4. Cash Flow sheet ────────────────────────────────────────────────────
+    const cfSheet = wb.Sheets['C flow 2024 - 2026'] || wb.Sheets['Cash flow'];
+    if (!cfSheet) throw new Error('Sheet "C flow 2024 - 2026" not found');
+    const cfRaw  = XLSX.utils.sheet_to_json(cfSheet, { header: 1, defval: null });
+    const cfCols = findMonthCols(cfRaw, 3);
+
+    const CF = {
+      cf_ni:        7,   // Net profit (R8)
+      cf_depn:      10,  // Depreciation add-back (R11)
+      cf_netint:    13,  // Net interest expense add-back (R14)
+      cf_rcash:     17,  // Restricted cash (R18)
+      cf_ops_pre:   18,  // Pre-WC operating cash (R19)
+      cf_wc_recv:   20,  // Δ Receivables (R21)
+      cf_wc_unbill: 21,  // Δ Unbilled revenue (R22)
+      cf_wc_inv:    22,  // Δ Fuel inventory (R23)
+      cf_wc_matls:  23,  // Δ Materials (R24)
+      cf_wc_ap:     26,  // Δ Payables (R27)
+      cf_wc_payrtax:27,  // Δ Payroll taxes (R28)
+      cf_wc_corptax:28,  // Δ Corp tax (R29)
+      cf_ops_net:   32,  // Net cash from operating (R33)
+      cf_capex:     35,  // Capital expenditure (R36)
+      cf_disposal:  37,  // Proceeds from disposal (R38)
+      cf_inv_net:   38,  // Net investing (R39)
+      cf_intpd:     43,  // Interest paid (R44)
+      cf_prefdiv:   44,  // Preference dividends paid (R45)
+      cf_loanrep:   46,  // Loan repayments (R47)
+      cf_drawdown:  48,  // Loan drawdowns (R49)
+      cf_fin_net:   51,  // Net financing (R52)
+      cf_change:    52,  // Net change in cash (R53)
+      cf_open:      53,  // Opening cash (R54)
+      cf_close:     54,  // Closing cash (R55)
+    };
+
+    // ── 5. Revenue by Rate Class sheet ────────────────────────────────────────
+    const revSheet = wb.Sheets['Revenue by Rate Class'];
+    const revRaw   = revSheet ? XLSX.utils.sheet_to_json(revSheet, { header: 1, defval: null }) : [];
+    // US$ revenue section: header at R2 (idx 1), data from R19 (idx 18)
+    // 2026 months in col 26 (Jan) from P&L-style layout
+    const revCols = findMonthCols(revRaw, 1) || {}; // R2 header
+    if (!revCols[1] && revSheet) {
+      // fallback: scan all header rows
+      for (let ri = 0; ri < 5; ri++) {
+        const fc = findMonthCols(revRaw, ri);
+        if (fc[1]) { Object.assign(revCols, fc); break; }
+      }
+    }
+    const REV_USD = {
+      rev_rt10: 18, rev_rt20: 19, rev_rt40: 20,
+      rev_rt50: 21, rev_rt60: 22, rev_rt70: 23,
+      rev_ipp:  25, rev_other: 26,
+    };
+    // MWh section: header at R35 (idx 34), cols 1-12
+    const MWH = {
+      rev_mwh_rt10: 35, rev_mwh_rt20: 36, rev_mwh_rt40: 37,
+      rev_mwh_rt50: 38, rev_mwh_rt60: 39, rev_mwh_rt70: 40,
+    };
+
+    // ── 6. Find AOP_2026 version ───────────────────────────────────────────────
+    const verAOP = fpa.versions.find(v => v.code === 'AOP_2026');
+    if (!verAOP) throw new Error('AOP_2026 version not found in database. Run version seed migration.');
+    const versionId = verAOP.id;
+
+    // ── 7. Build all fact rows for 12 months ──────────────────────────────────
+    const allFacts = [];
+    let linesNotFound = [];
+
+    const lineExists = (id) => !!fpa.lines.find(l => l.id === id);
+    const addFact = (lineId, periodKey, value) => {
+      if (!lineExists(lineId)) {
+        if (!linesNotFound.includes(lineId)) linesNotFound.push(lineId);
+        return;
+      }
+      allFacts.push({
+        version_id: versionId,
+        line_id:    lineId,
+        period_id:  periodKey,   // integer e.g. 202601
+        value:      (value === null || value === undefined || isNaN(value)) ? 0 : Math.round(value),
+        source:     'upload',
+      });
+    };
+
+    for (let mo = 1; mo <= 12; mo++) {
+      const pk   = 2026 * 100 + mo;              // period key e.g. 202601
+      const plC  = plCols[mo];                   // P&L column for this month
+      const bsC  = bsCols[mo];                   // BS column
+      const cfC  = cfCols[mo];                   // CF column
+      const revC = revCols[mo];                  // Rev USD column
+      const mwhC = mo;                           // MWh cols are 1-12
+
+      if (!plC) { console.warn(`[AOP] Missing P&L col for month ${mo}`); continue; }
+
+      // ── P&L ────────────────────────────────────────────────────────────────
+      const pl_total  = N(plRaw, PL.total_sales,  plC);
+      const pl_fuel   = N(plRaw, PL.fuel_rev,      plC);
+      const pl_nonfuel = pl_total - pl_fuel;
+
+      addFact('fuel_rev',       pk, pl_fuel);
+      addFact('ipp_fr',         pk, N(plRaw, PL.ipp_fr,      plC));
+      addFact('nonfuel',        pk, pl_nonfuel);
+      addFact('pl_total_sales', pk, pl_total);
+      addFact('fuel_cost',      pk, N(plRaw, PL.fuel_cost,    plC));
+      addFact('pl_ppa',         pk, N(plRaw, PL.ppa,          plC));
+      addFact('pl_total_cos',   pk, N(plRaw, PL.total_cos,    plC));
+      addFact('pl_gross_profit',pk, N(plRaw, PL.gross_profit, plC));
+      addFact('opex',           pk, N(plRaw, PL.total_opex,   plC));
+      addFact('ebitda',         pk, N(plRaw, PL.ebitda,       plC));
+      addFact('depn',           pk, N(plRaw, PL.depn,         plC));
+      addFact('ebit',           pk, N(plRaw, PL.ebit,         plC));
+      addFact('pl_int_income',  pk, N(plRaw, PL.int_income,   plC));
+      addFact('pl_afudc',       pk, N(plRaw, PL.afudc,        plC));
+      addFact('pl_int_expense', pk, N(plRaw, PL.int_expense,  plC));
+      addFact('pl_pref_div',    pk, N(plRaw, PL.pref_div,     plC));
+      addFact('pl_loan_fees',   pk, N(plRaw, PL.loan_fees,    plC));
+      addFact('pl_fx',          pk, N(plRaw, PL.fx,           plC));
+      addFact('fin_cost',       pk, N(plRaw, PL.fin_cost,     plC));
+      addFact('oth_inc',        pk, N(plRaw, PL.oth_inc,      plC));
+      addFact('pretax',         pk, N(plRaw, PL.pretax,       plC));
+      addFact('tax',            pk, N(plRaw, PL.tax,          plC));
+      addFact('net_inc',        pk, N(plRaw, PL.net_inc,      plC));
+
+      // ── B_S ────────────────────────────────────────────────────────────────
+      if (bsC) {
+        Object.entries(BS).forEach(([lineId, rowIdx]) => {
+          addFact(lineId, pk, N(bsRaw, rowIdx, bsC));
+        });
+      }
+
+      // ── CF ─────────────────────────────────────────────────────────────────
+      if (cfC) {
+        Object.entries(CF).forEach(([lineId, rowIdx]) => {
+          addFact(lineId, pk, N(cfRaw, rowIdx, cfC));
+        });
+      }
+
+      // ── Revenue by rate class (US$) ─────────────────────────────────────────
+      if (revSheet && revC) {
+        Object.entries(REV_USD).forEach(([lineId, rowIdx]) => {
+          addFact(lineId, pk, N(revRaw, rowIdx, revC));
+        });
+      }
+
+      // ── MWh by rate class ───────────────────────────────────────────────────
+      if (revSheet && mwhC) {
+        Object.entries(MWH).forEach(([lineId, rowIdx]) => {
+          addFact(lineId, pk, N(revRaw, rowIdx, mwhC));
+        });
+        // stat_billed_gwh: sum of rate class MWh
+        const totalMWh = ['rev_mwh_rt10','rev_mwh_rt20','rev_mwh_rt40',
+                          'rev_mwh_rt50','rev_mwh_rt60','rev_mwh_rt70']
+          .reduce((s, id) => s + N(revRaw, MWH[id], mwhC), 0);
+        addFact('stat_billed_gwh', pk, totalMWh);
+      }
+    } // end month loop
+
+    if (linesNotFound.length)
+      console.warn('[AOP Upload] Skipped unknown line_ids:', linesNotFound.join(', '));
+
+    // ── 8. Write to Supabase ─────────────────────────────────────────────────
+    let dbStatus = '(offline)';
+    if (_sb && allFacts.length > 0) {
+      // Batch in chunks of 500 to stay within Supabase limits
+      const CHUNK = 500;
+      for (let i = 0; i < allFacts.length; i += CHUNK) {
+        const { error } = await _sb.from('fpa_facts')
+          .upsert(allFacts.slice(i, i + CHUNK), { onConflict: 'version_id,line_id,period_id' });
+        if (error) throw new Error('DB write failed (batch ' + Math.ceil(i/CHUNK+1) + '): ' + error.message);
+      }
+      dbStatus = '→ Supabase';
+    }
+
+    // ── 9. Update in-memory fpa.facts ─────────────────────────────────────────
+    (fpa.facts['AOP_2026'] ??= {});
+    allFacts.forEach(f => {
+      (fpa.facts['AOP_2026'][f.line_id] ??= {});
+      fpa.facts['AOP_2026'][f.line_id][f.period_id] = Number(f.value);
+    });
+
+    // ── 10. Refresh any open flash report ─────────────────────────────────────
+    fpaApplyToLegacyGlobals();
+    if (typeof flashRefresh === 'function' && document.querySelector('#pane-rpt-flash.on')) {
+      flashRefresh();
+    }
+
+    const summary = `AOP 2026 — ${allFacts.length} facts across 12 months ${dbStatus}`;
+    actualsLog.unshift({
+      file: fn, month: 'AOP', label: 'AOP 2026',
+      ts: new Date().toLocaleString(), rows: allFacts.length,
+      status: '✅ ' + allFacts.length + ' facts',
+    });
+    // Update Data Sources upload log entry
+    uploadEntry.rows   = allFacts.length;
+    uploadEntry.status = '✅ ' + allFacts.length + ' facts ' + dbStatus;
+    buildActualsLog();
+    buildDataSources?.();
+    toast('✅ ' + summary, 'ok');
+    console.log('[AOP Upload]', summary);
+
+  } catch(err) {
+    uploadEntry.status = '❌ ' + err.message;
+    buildDataSources?.();
+    toast('❌ AOP upload failed: ' + err.message, 'w');
+    console.error('[AOP Upload]', err);
+  }
 }
 
 function buildActualsLog() {
@@ -8956,10 +9712,14 @@ function dlTmpl(key){
 }
 function handleUpload(e){
   [...e.target.files].forEach(f=>{
-    // If it looks like a monthly actuals file, route to the actuals parser
+    // Route monthly actuals → actuals parser
     if(/JPSCo_Financials_\d{2}-\d{2}\.xlsx/i.test(f.name)){
       const fakeEvt={target:{files:[f],value:''},};
       handleActualsUpload(fakeEvt);
+    // Route AOP / Budget Template → AOP parser
+    } else if(/Budget\s*Template|AOP/i.test(f.name) && /\.xlsx$/i.test(f.name)){
+      const fakeEvt={target:{files:[f],value:''},};
+      handleAOPUpload(fakeEvt);
     } else {
       uploadLog.unshift({name:f.name,type:'Upload',period:'User Defined',rows:'Parsing...',status:'⏳ Processing',date:new Date().toISOString().slice(0,10)});
       auditLog('upload','File Upload',null,f.name);
@@ -12314,7 +13074,7 @@ function _initPlatform() {
             const av = document.getElementById('userAvatar'); if (av) av.textContent = currentUser.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
           });
           _sbStartRealtime();
-          Promise.all([_sbLoadActuals(), _sbLoadScenarios()]).then(()=>refreshAll()).catch(()=>{});
+          refreshAll();
         }
       });
     }
@@ -12649,22 +13409,19 @@ function _restoreState() {
 //  FLASH REPORT — v4  (Month + YTD  ×  Actual | Budget | LE)
 // ════════════════════════════════════════════════════════
 
-const FLASH_MONTHS = {
-  202601:'Jan 2026', 202602:'Feb 2026', 202603:'Mar 2026',
-  202604:'Apr 2026', 202605:'May 2026', 202606:'Jun 2026',
-  202607:'Jul 2026', 202608:'Aug 2026', 202609:'Sep 2026',
-  202610:'Oct 2026', 202611:'Nov 2026', 202612:'Dec 2026',
-  202501:'Jan 2025', 202502:'Feb 2025', 202503:'Mar 2025',
-  202504:'Apr 2025', 202505:'May 2025', 202506:'Jun 2025',
-  202507:'Jul 2025', 202508:'Aug 2025', 202509:'Sep 2025',
-  202510:'Oct 2025', 202511:'Nov 2025', 202512:'Dec 2025',
-};
-const FLASH_MONTH_FULL = {
-  202601:'January 2026',   202602:'February 2026',  202603:'March 2026',
-  202604:'April 2026',     202605:'May 2026',        202606:'June 2026',
-  202607:'July 2026',      202608:'August 2026',     202609:'September 2026',
-  202610:'October 2026',   202611:'November 2026',   202612:'December 2026',
-};
+// Auto-generate month labels for any period key (year*100+month)
+const _MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const _MNF= ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const flashPeriodLabel     = pid => _MN[(pid%100)-1]+' '+Math.floor(pid/100);
+const flashPeriodLabelFull = pid => _MNF[(pid%100)-1]+' '+Math.floor(pid/100);
+
+// Build lookup maps on-the-fly for all years 2020-2030
+const FLASH_MONTHS = {}, FLASH_MONTH_FULL = {};
+for (let y=2020;y<=2030;y++) for (let m=1;m<=12;m++) {
+  const k=y*100+m;
+  FLASH_MONTHS[k]     = flashPeriodLabel(k);
+  FLASH_MONTH_FULL[k] = flashPeriodLabelFull(k);
+}
 
 // ── Flash state ───────────────────────────────────────────────────────────────
 let _flashInited        = false;
@@ -12690,26 +13447,14 @@ function flashShowEmpty(msg) {
   if(rb)rb.style.display='none';
 }
 
-// ── Populate period dropdown from fpa.periods ─────────────────────────────────
+// ── Populate period dropdown from _flashClosedPeriods (built in flashInit) ────
 function flashPopulatePeriods() {
   const sel = document.getElementById('flashMoPicker');
   if (!sel) return;
-  // Build from fpa.periods (closed) plus fallback if empty
-  const closed = (fpa.periods||[]).filter(p=>p.is_closed).sort((a,b)=>b.id-a.id);
-  if (!closed.length) {
-    // Hardcoded fallback
-    sel.innerHTML = `<option value="202603">Mar 2026</option>
-      <option value="202602">Feb 2026</option>
-      <option value="202601">Jan 2026</option>`;
-    _flashClosedPeriods = [202601,202602,202603];
-  } else {
-    sel.innerHTML = closed.map(p => {
-      const lbl = FLASH_MONTHS[p.id] || String(p.id);
-      return `<option value="${p.id}" ${p.id===_flashCurrentPeriod?'selected':''}>${lbl}</option>`;
-    }).join('');
-    _flashClosedPeriods = closed.map(p=>p.id).reverse(); // ascending
-  }
-  // Sync hidden flashMoA
+  const opts = [..._flashClosedPeriods].sort((a,b)=>b-a); // newest first in picker
+  sel.innerHTML = opts.length
+    ? opts.map(pid=>`<option value="${pid}" ${pid===_flashCurrentPeriod?'selected':''}>${FLASH_MONTHS[pid]||flashPeriodLabel(pid)}</option>`).join('')
+    : `<option value="202602">Feb 2026</option><option value="202601">Jan 2026</option>`;
   const hidMo = document.getElementById('flashMoA');
   if (hidMo) hidMo.value = String(_flashCurrentPeriod);
 }
@@ -12737,6 +13482,21 @@ async function flashFetchFacts(versionId, periodIds) {
     .select('line_id,period_id,value')
     .eq('version_id',versionId)
     .in('period_id',periodIds);
+  if (error||!data) return {};
+  const agg={};
+  data.forEach(r=>{agg[r.line_id]=(agg[r.line_id]||0)+parseFloat(r.value||0);});
+  return agg;
+}
+
+// ── Union facts across MULTIPLE version IDs (for per-month YTD aggregation) ──
+// Used when layout B (per-month versions) is active: collects facts from all
+// monthly versions for a year and sums them just like a single year-level version.
+async function flashFetchFactsMultiVer(versionIds, periodIds) {
+  if (!_sb || !versionIds.length || !periodIds.length) return {};
+  const {data,error} = await _sb.from('fpa_facts')
+    .select('line_id,period_id,value')
+    .in('version_id', versionIds)
+    .in('period_id',  periodIds);
   if (error||!data) return {};
   const agg={};
   data.forEach(r=>{agg[r.line_id]=(agg[r.line_id]||0)+parseFloat(r.value||0);});
@@ -12809,13 +13569,55 @@ function flashVarCell(act, comp, fav=true) {
 }
 
 // ── Main refresh — 3-way × Month + YTD ───────────────────────────────────────
+// Uses fpa.facts (loaded at boot from fpa_v_facts) for all lookups.
+// This avoids per-request Supabase queries, eliminates RLS cross-version issues,
+// and makes the report render synchronously (no network wait).
 async function flashRefresh() {
   const periodId=_flashCurrentPeriod;
   const y=Math.floor(periodId/100), m=periodId%100;
 
-  // Find versions
-  const verActual = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
-  const verBudget = (fpa.versions||[]).find(v=>v.kind==='BUDGET');
+  // ── In-memory fact helpers ─────────────────────────────────────────────────
+  // fpa.facts[versionCode][lineId][periodId] = value  (loaded at boot)
+  // getFactsMem: sum a single version's facts across a list of period IDs
+  const getFactsMem = (versionCode, periodIds) => {
+    if (!versionCode) return {};
+    const vf = fpa.facts[versionCode] || {};
+    const pSet = new Set(periodIds.map(Number));
+    const agg = {};
+    for (const [lineId, periods] of Object.entries(vf)) {
+      let sum=0, found=false;
+      for (const [pid, val] of Object.entries(periods)) {
+        if (pSet.has(Number(pid))) { sum+=Number(val); found=true; }
+      }
+      if (found) agg[lineId]=sum;
+    }
+    return agg;
+  };
+  // getFactsMultiMem: union across multiple version codes, sum by line
+  const getFactsMultiMem = (versionCodes, periodIds) => {
+    const pSet = new Set(periodIds.map(Number));
+    const agg = {};
+    for (const code of versionCodes) {
+      const vf = fpa.facts[code] || {};
+      for (const [lineId, periods] of Object.entries(vf)) {
+        for (const [pid, val] of Object.entries(periods)) {
+          if (pSet.has(Number(pid))) agg[lineId]=(agg[lineId]||0)+Number(val);
+        }
+      }
+    }
+    return agg;
+  };
+
+  // ── Resolve actuals version(s) ─────────────────────────────────────────────
+  // Two layouts exist in the DB:
+  //   (A) Year-level: ACTUAL_YYYY — one version, all months, period_id=null
+  //   (B) Per-month:  ACTUALS_YYYY_MM — one version per month, period_id set
+  const allActualsForYear = (fpa.versions||[]).filter(v=>v.kind==='ACTUAL'&&v.year===y);
+  const verActualYear  = allActualsForYear.find(v=>!v.period_id);   // layout A
+  const verActualMo    = allActualsForYear.find(v=>v.period_id===periodId); // layout B
+  const verActual      = verActualYear || verActualMo;
+
+  const verBudget = (fpa.versions||[]).find(v=>v.kind==='BUDGET'&&(v.year===y||v.year==null));
   const lePicker  = document.getElementById('flashLEPicker');
   const leId      = lePicker?.value || '';
   const verLE     = leId ? (fpa.versions||[]).find(v=>v.id===leId) : null;
@@ -12825,21 +13627,32 @@ async function flashRefresh() {
     return;
   }
 
-  flashShowLoading('Fetching report data…');
+  flashShowLoading('Building report…');
 
   // Period ID arrays
   const moIds  = [periodId];                                     // just this month
   const ytdIds = Array.from({length:m}, (_,i)=>y*100+(i+1));   // Jan → selected month
 
-  // Fetch 6 fact sets in parallel
-  const [fActMo, fBudMo, fLEMo, fActYTD, fBudYTD, fLEYTD] = await Promise.all([
-    flashFetchFacts(verActual.id, moIds),
-    verBudget ? flashFetchFacts(verBudget.id, moIds)  : {},
-    verLE     ? flashFetchFacts(verLE.id, moIds)      : {},
-    flashFetchFacts(verActual.id, ytdIds),
-    verBudget ? flashFetchFacts(verBudget.id, ytdIds) : {},
-    verLE     ? flashFetchFacts(verLE.id, ytdIds)     : {},
-  ]);
+  // ── Actuals: use in-memory fpa.facts ──────────────────────────────────────
+  let fActMo, fActYTD;
+  if (verActualYear) {
+    // Layout A: single year-level version has all months — both queries hit the same code
+    fActMo  = getFactsMem(verActualYear.code, moIds);
+    fActYTD = getFactsMem(verActualYear.code, ytdIds);
+  } else {
+    // Layout B: union across monthly versions up to selected month
+    const ytdVerCodes = allActualsForYear
+      .filter(v=>v.period_id && v.period_id<=periodId)
+      .map(v=>v.code);
+    fActMo  = getFactsMem(verActualMo.code, moIds);
+    fActYTD = getFactsMultiMem(ytdVerCodes, ytdIds);
+  }
+
+  // ── Budget + LE: in-memory lookup ─────────────────────────────────────────
+  const fBudMo  = getFactsMem(verBudget?.code, moIds);
+  const fBudYTD = getFactsMem(verBudget?.code, ytdIds);
+  const fLEMo   = getFactsMem(verLE?.code,     moIds);
+  const fLEYTD  = getFactsMem(verLE?.code,     ytdIds);
 
   // Labels
   const moLabel  = FLASH_MONTH_FULL[periodId] || String(periodId);
@@ -12932,37 +13745,63 @@ function flashBuildGenV4(fActMo,fBudMo,fLEMo,fActYTD,fBudYTD,fLEYTD,periodId) {
 
   // Rows: [name, unit, getMo(facts)→val, getBud→val, getLE→val, getYTD→val ...]
   // We'll display what we have from facts; fall back to plan with asterisk
+  // ── Helper: derive system loss % ────────────────────────────────────────────
+  // Priority: (1) stored stat_sysloss_pct, (2) stat_netgen_gwh + stat_billed_gwh,
+  //           (3) net_gen_historical MWh + stat_billed_gwh,  (4) null → caller falls back to plan
+  const deriveSysLoss = (facts, periodKey) => {
+    if (facts['stat_sysloss_pct'] != null) return Number(facts['stat_sysloss_pct']);
+    let netGenGWh = facts['stat_netgen_gwh'] ?? null;
+    const billedMWh = facts['stat_billed_gwh'] ?? null;
+    // Fallback: look up net_gen_historical if we have a single period key and no stored net gen
+    if (netGenGWh == null && periodKey && fpa.netGenHist?.[periodKey]) {
+      netGenGWh = fpa.netGenHist[periodKey].netGenMWh / 1000;  // convert MWh→GWh
+    }
+    if (netGenGWh && billedMWh) {
+      const billedGWh = billedMWh / 1000;
+      return netGenGWh > 0 ? Math.round((netGenGWh - billedGWh) / netGenGWh * 1000) / 10 : null;
+    }
+    return null;
+  };
+  const planSysLossMo  = sysLossTable?.[y]?.[moIdx] ?? 26.4;
+  const planSysLossYTD = sysLossTable?.[y]?.slice(0, m).reduce((s,v)=>s+v, 0) / m || 26.4;
+
   const rows=[
     {
-      name:'Gross Generation', unit:'GWh', note:'generation',
-      moA: fActMo['gross_gen_gwh']!=null ? (fActMo['gross_gen_gwh']/1000) : planGrossMo,
-      moB: fBudMo['gross_gen_gwh']!=null ? (fBudMo['gross_gen_gwh']/1000) : planGrossMo,
-      moL: fLEMo['gross_gen_gwh']!=null  ? (fLEMo['gross_gen_gwh']/1000)  : planGrossMo,
-      ytA: fActYTD['gross_gen_gwh']!=null? (fActYTD['gross_gen_gwh']/1000): planGrossYTD,
-      ytB: fBudYTD['gross_gen_gwh']!=null? (fBudYTD['gross_gen_gwh']/1000): planGrossYTD,
-      ytL: fLEYTD['gross_gen_gwh']!=null ? (fLEYTD['gross_gen_gwh']/1000) : planGrossYTD,
+      name:'Net Generation', unit:'GWh', note:'generation',
+      moA: fActMo['stat_netgen_gwh']  ?? (fpa.netGenHist?.[periodId]?.netGenMWh/1000) ?? planGrossMo,
+      moB: fBudMo['stat_netgen_gwh']  ?? planGrossMo,
+      moL: fLEMo['stat_netgen_gwh']   ?? planGrossMo,
+      ytA: fActYTD['stat_netgen_gwh'] ?? planGrossYTD,
+      ytB: fBudYTD['stat_netgen_gwh'] ?? planGrossYTD,
+      ytL: fLEYTD['stat_netgen_gwh']  ?? planGrossYTD,
       fav:true, decimals:1
     },
     {
       name:'System Losses', unit:'%', note:'losses',
-      moA: fActMo['sys_loss_pct'], moB: fBudMo['sys_loss_pct']||26.4, moL: fLEMo['sys_loss_pct']||26.0,
-      ytA: fActYTD['sys_loss_pct'], ytB: fBudYTD['sys_loss_pct']||26.4, ytL: fLEYTD['sys_loss_pct']||26.0,
+      // deriveSysLoss: stored % → stored netGen+billed → net_gen_historical+billed → null(→plan)
+      moA: deriveSysLoss(fActMo,  periodId) ?? planSysLossMo,
+      moB: deriveSysLoss(fBudMo,  periodId) ?? planSysLossMo,
+      moL: deriveSysLoss(fLEMo,   periodId) ?? planSysLossMo,
+      ytA: deriveSysLoss(fActYTD, null)     ?? planSysLossYTD,
+      ytB: deriveSysLoss(fBudYTD, null)     ?? planSysLossYTD,
+      ytL: deriveSysLoss(fLEYTD,  null)     ?? planSysLossYTD,
       fav:false, decimals:1, pct:true
     },
     {
       name:'Net Sales (Billed)', unit:'GWh', note:'generation',
-      moA: fActMo['net_sales']!=null?(fActMo['net_sales']/1000):fActMo['gwh_billed']!=null?(fActMo['gwh_billed']/1000):budNetSaleMo,
-      moB: fBudMo['net_sales']!=null?(fBudMo['net_sales']/1000):budNetSaleMo,
-      moL: fLEMo['net_sales']!=null ?(fLEMo['net_sales']/1000) :budNetSaleMo,
-      ytA: fActYTD['net_sales']!=null?(fActYTD['net_sales']/1000):budNetSaleYTD,
-      ytB: fBudYTD['net_sales']!=null?(fBudYTD['net_sales']/1000):budNetSaleYTD,
-      ytL: fLEYTD['net_sales']!=null ?(fLEYTD['net_sales']/1000) :budNetSaleYTD,
+      // stat_billed_gwh stored as MWh in actuals upload → divide by 1000 for GWh display
+      moA: fActMo['stat_billed_gwh']!=null?(fActMo['stat_billed_gwh']/1000):budNetSaleMo,
+      moB: fBudMo['stat_billed_gwh']!=null?(fBudMo['stat_billed_gwh']/1000):budNetSaleMo,
+      moL: fLEMo['stat_billed_gwh'] !=null?(fLEMo['stat_billed_gwh']/1000) :budNetSaleMo,
+      ytA: fActYTD['stat_billed_gwh']!=null?(fActYTD['stat_billed_gwh']/1000):budNetSaleYTD,
+      ytB: fBudYTD['stat_billed_gwh']!=null?(fBudYTD['stat_billed_gwh']/1000):budNetSaleYTD,
+      ytL: fLEYTD['stat_billed_gwh'] !=null?(fLEYTD['stat_billed_gwh']/1000) :budNetSaleYTD,
       fav:true, decimals:1
     },
     {
       name:'Peak Demand', unit:'MW', note:'generation',
-      moA: fActMo['peak_mw'], moB: fBudMo['peak_mw'], moL: fLEMo['peak_mw'],
-      ytA: null, ytB: null, ytL: null, // peak is point-in-time, no YTD
+      moA: fActMo['stat_peak_mw'], moB: fBudMo['stat_peak_mw'], moL: fLEMo['stat_peak_mw'],
+      ytA: null, ytB: null, ytL: null, // peak is point-in-time, no YTD sum
       fav:true, decimals:1
     },
   ];
@@ -13172,17 +14011,29 @@ function flashBuildMetricsV3(fActMo,fBudMo,fLEMo,fActYTD,fBudYTD,fLEYTD,budLabel
 
 // ── Init (called on tab open) ─────────────────────────────────────────────────
 function flashInit() {
-  // Populate _flashClosedPeriods from fpa.periods
-  if (fpa.periods&&fpa.periods.length) {
-    _flashClosedPeriods=fpa.periods.filter(p=>p.is_closed).map(p=>p.id).sort((a,b)=>a-b);
-    if (_flashClosedPeriods.length) {
-      _flashCurrentPeriod=_flashClosedPeriods[_flashClosedPeriods.length-1];
-      _flashPeriodIdx=_flashClosedPeriods.length-1;
+  // Build selectable periods from two sources:
+  //   1. fpa_dim_period rows flagged is_closed=true
+  //   2. Periods derived from any ACTUAL version that has facts loaded in fpa.facts
+  //      — per-month versions (ACTUALS_YYYY_MM): use their period_id directly
+  //      — year-level versions (HIST_ACTUAL_YYYY): use the max period_id in their facts
+  const pidSet = new Set((fpa.periods||[]).filter(p=>p.is_closed).map(p=>p.id));
+  (fpa.versions||[]).filter(v=>v.kind==='ACTUAL').forEach(v=>{
+    if (v.period_id) {
+      pidSet.add(v.period_id);
+    } else if (fpa.facts[v.code]) {
+      const allPids = Object.values(fpa.facts[v.code])
+        .flatMap(ld=>Object.keys(ld).map(Number));
+      if (allPids.length) pidSet.add(Math.max(...allPids));
     }
+  });
+  _flashClosedPeriods = [...pidSet].sort((a,b)=>a-b);
+  if (_flashClosedPeriods.length) {
+    _flashCurrentPeriod = _flashClosedPeriods[_flashClosedPeriods.length-1];
+    _flashPeriodIdx     = _flashClosedPeriods.length-1;
   } else {
-    _flashClosedPeriods=[202601,202602,202603];
-    _flashCurrentPeriod=202603;
-    _flashPeriodIdx=2;
+    _flashClosedPeriods = [202601,202602];
+    _flashCurrentPeriod = 202602;
+    _flashPeriodIdx     = 1;
   }
   flashPopulatePeriods();
   flashPopulateLEVersions();
