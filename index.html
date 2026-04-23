@@ -3,9 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JPS FP&A Platform v30.0</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+<title>JPS FP&A Platform v31.0</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23003da5'/><text x='50' y='72' font-size='58' text-anchor='middle' font-family='sans-serif' fill='%2300aeef'>⚡</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"
+  onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/chart.js@4.4.0/dist/chart.umd.min.js';document.head.appendChild(s);"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"
+  onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';document.head.appendChild(s);"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
@@ -13545,8 +13548,9 @@ function _initPlatform() {
   try { runProjectionEngine(); } catch(e) { console.warn('Projection engine init:', e); }
   try { syncDebtToNFC(); } catch(e) { console.warn('Debt sync init:', e); }
   // Init Supabase client from saved config (restores existing session)
+  // Guard: doLogin may have already initialised _sb — don't create a second client
   try {
-    _sb = _sbInit();
+    if (!_sb) _sb = _sbInit();
     if (_sb) {
       _sb.auth.getSession().then(({ data }) => {
         if (data?.session?.user) {
