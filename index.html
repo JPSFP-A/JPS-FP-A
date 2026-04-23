@@ -923,6 +923,9 @@ tr.der td{color:var(--teal)}
       <button class="ws-dest-btn" data-dest="flash" onclick="selectDest(this)">
         <span style="font-size:16px">⚡</span><span>Flash Report</span>
       </button>
+      <button class="ws-dest-btn" data-dest="data-entry" onclick="selectDest(this)" title="Admin access required">
+        <span style="font-size:16px">🗄️</span><span>Data Entry</span>
+      </button>
     </div>
 
     <!-- Supabase mode: email + password -->
@@ -2652,6 +2655,12 @@ tr.der td{color:var(--teal)}
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:5px;padding:12px" id="dmCalGrid"></div>
+
+    <!-- Quick lock/unlock strip — visible without selecting a month -->
+    <div id="dmLockStrip" style="display:none;padding:0 12px 12px">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">🔒 Quick Period Lock — click a month to toggle</div>
+      <div id="dmLockBtns" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+    </div>
   </div>
 
   <!-- ── MONTHLY DATA MANAGER ───────────────────────────────────────────── -->
@@ -3949,6 +3958,54 @@ function dmBuildCalendar(year) {
       <div style="font-size:9px;color:var(--muted)">${label}</div>
     </div>`;
   }).join('');
+
+  // Rebuild the quick-lock strip (admin only)
+  dmBuildLockStrip(year);
+}
+
+function dmBuildLockStrip(year) {
+  const strip = document.getElementById('dmLockStrip');
+  const btnRow = document.getElementById('dmLockBtns');
+  if (!strip || !btnRow) return;
+
+  // Only show to admins
+  if (currentUser.role !== 'admin') { strip.style.display = 'none'; return; }
+  strip.style.display = '';
+
+  btnRow.innerHTML = DM_MONTHS.map((m, i) => {
+    const mo = i + 1;
+    const period   = (fpa.periods||[]).find(p => p.year===year && p.month===mo);
+    const isClosed = period?.is_closed || false;
+    const clr      = isClosed ? 'var(--amber)' : 'var(--muted)';
+    const bdr      = isClosed ? 'var(--amber)' : 'var(--border)';
+    const lbl      = isClosed ? '🔒' : '🔓';
+    return `<button
+      onclick="dmQuickToggleLock(${year},${mo},this)"
+      title="${isClosed ? 'Unlock' : 'Lock'} ${m} ${year}"
+      style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid ${bdr};
+             background:transparent;color:${clr};cursor:pointer;transition:.15s;white-space:nowrap">
+      ${lbl} ${m}
+    </button>`;
+  }).join('');
+}
+
+async function dmQuickToggleLock(year, month, btn) {
+  if (!_sb) { toast('Not connected to database','w'); return; }
+  const period   = (fpa.periods||[]).find(p => p.year===year && p.month===month);
+  const isClosed = period?.is_closed || false;
+  const newVal   = !isClosed;
+  const label    = `${DM_MONTHS[month-1]} ${year}`;
+  if (!confirm(`${newVal ? 'Lock' : 'Unlock'} ${label}?\n${newVal ? 'This will prevent further edits to actuals for this period.' : 'This will allow edits to this closed period.'}`)) return;
+  const { error } = await _sb.from('fpa_dim_period')
+    .update({ is_closed: newVal })
+    .eq('year', year).eq('month', month);
+  if (error) { toast('DB error: ' + error.message, 'e'); return; }
+  toast(`${label} ${newVal ? 'locked 🔒' : 'unlocked 🔓'}`, 'ok');
+  auditLog('edit','period-lock',label,{is_closed:newVal});
+  await fpaBootstrap();
+  dmBuildCalendar(year);
+  // Also refresh the manager panel if this month is currently selected
+  if (_dmMonth === month) dmSelectMonth(year, month);
 }
 
 async function dmSelectMonth(year, month) {
@@ -4806,6 +4863,33 @@ async function doLogin() {
     showPane('rpt-flash', flashTab);
     if (flashTab) { document.querySelectorAll('.tab').forEach(t => t.classList.remove('on')); flashTab.classList.add('on'); }
     setTimeout(() => flashInit(), 400);
+  }
+
+  // Route to Data Entry (admin only)
+  if (_loginDestination === 'data-entry') {
+    if (currentUser.role !== 'admin') {
+      // Not admin — fade back in the login card with an error, abort shell launch
+      const ws2 = document.getElementById('welcomeScreen');
+      ws2.style.opacity = '1';
+      ws2.style.pointerEvents = '';
+      ws2.style.display = '';
+      const shell2 = document.getElementById('appShell');
+      shell2.classList.remove('visible');
+      const errEl2 = document.getElementById('loginError');
+      if (errEl2) errEl2.textContent = '⛔ Data Entry access is restricted to Admin users.';
+      const loginBtn2 = document.getElementById('loginBtn');
+      if (loginBtn2) { loginBtn2.textContent = 'Enter Platform →'; loginBtn2.disabled = false; }
+      return;
+    }
+    // Admin: navigate straight to Data Sources tab
+    setTimeout(() => {
+      const dataTab = document.querySelector('.tab[data-pane="adm-data"], .tab[onclick*="adm-data"]');
+      if (dataTab) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+        dataTab.classList.add('on');
+        showPane('pane-adm-data', dataTab);
+      }
+    }, 500);
   }
 
   auditLog('login', 'session', null, { name, role: currentUser.role });
@@ -10106,20 +10190,86 @@ fpa_uploads · fpa_audit_log · dashboard_state · profiles
 jps_actuals (33K rows) · jps_budget (1.1K rows) — separate app, read-only here</div>
       <p><strong>Data not yet in DB</strong> (still hardcoded, planned migration): O&M category definitions, CapEx category definitions, tariff tables, volume tables.</p>`},
     {n:'17. Glossary',c:'var(--gold)',body:`
-      <p><strong>LE</strong> — Latest Estimate. The rolling re-forecast blending YTD actuals with forward projections. Feb 2026 LE is the current base.</p>
-      <p><strong>AOP</strong> — Annual Operating Plan. The approved budget set at year start. Used as the benchmark for variances.</p>
-      <p><strong>EBITDA</strong> — Earnings Before Interest, Tax, Depreciation &amp; Amortisation. Core operational profitability metric.</p>
-      <p><strong>NPAT / NPBT</strong> — Net Profit After Tax / Before Tax.</p>
-      <p><strong>OUR</strong> — Office of Utilities Regulation. Sets JPS tariff rates and approves fuel-cost pass-throughs.</p>
-      <p><strong>IPP</strong> — Independent Power Producer. Third-party generators (SJPC, JEP, JPPC, WKPP). Costs split: cash payment + IFRS-16 lease credit.</p>
-      <p><strong>IFRS 16</strong> — Accounting standard for leases. Replaces operating lease expense with ROU depreciation + interest. JPS applies to IPP PPAs and property/vehicle leases.</p>
-      <p><strong>ROU</strong> — Right-of-Use asset. The capitalised value of a lease on the balance sheet.</p>
-      <p><strong>DSO</strong> — Days Sales Outstanding. (Closing Receivables ÷ Monthly Billing) × 30. Measures collection efficiency.</p>
-      <p><strong>DSCR</strong> — Debt Service Coverage Ratio. EBITDA ÷ Total Debt Service. Covenant minimum: 1.20×.</p>
-      <p><strong>FX G/(L)</strong> — Foreign Exchange Gain/Loss. (Actual Rate − Budget Rate) × Net USD Position.</p>
-      <p><strong>VOM</strong> — Variable O&M. Fuel-linked operating cost per kWh for thermal generation.</p>
-      <p><strong>CWIP</strong> — Capital Work in Progress. CapEx spend not yet transferred to Fixed Assets.</p>
-      <p><strong>IAS 36</strong> — Impairment of Assets. Impairment charges always shown as a separate amber line; never combined with depreciation.</p>`},
+      <p style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--teal);margin:0 0 8px">📊 Planning &amp; Forecasting</p>
+      <p><strong>LE</strong> — Latest Estimate. The rolling re-forecast that blends YTD actuals with forward projections for the balance of the year. Feb 2026 LE is the current base version.</p>
+      <p><strong>AOP</strong> — Annual Operating Plan. The approved budget set at year start, signed off by the Board. Used as the primary variance benchmark throughout the year.</p>
+      <p><strong>PY</strong> — Prior Year. Full-year or YTD actuals from the equivalent period one year earlier. Used as a secondary comparison alongside AOP.</p>
+      <p><strong>YTD</strong> — Year to Date. Cumulative actuals from January through the latest closed month.</p>
+      <p><strong>FAV / UNF</strong> — Favourable / Unfavourable. Convention: revenue above budget is FAV; cost above budget is UNF. Displayed in green / red respectively.</p>
+      <p><strong>Variance</strong> — Difference between Actual and plan (AOP or LE). Computed as Actual − Budget for revenue lines; Budget − Actual for cost lines (so positive always = favourable).</p>
+      <p><strong>Closed Period</strong> — A month locked in the DB after actuals have been signed off. No further edits permitted without admin unlock. Displayed with a 🔒 icon in the calendar.</p>
+
+      <p style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--teal);margin:12px 0 8px">💰 Income Statement</p>
+      <p><strong>Revenue</strong> — Total billed sales to customers (kWh × tariff rate). Excludes fuel-cost pass-through surcharges which are separately tracked.</p>
+      <p><strong>EBITDA</strong> — Earnings Before Interest, Tax, Depreciation &amp; Amortisation. Core operational profitability; the primary covenant and performance metric.</p>
+      <p><strong>EBIT</strong> — Earnings Before Interest &amp; Tax. EBITDA less total depreciation and impairment.</p>
+      <p><strong>NPBT</strong> — Net Profit Before Tax. EBIT less net financing costs (interest expense + FX loss − interest income + FX gain).</p>
+      <p><strong>NPAT</strong> — Net Profit After Tax. Bottom-line earnings after income tax expense.</p>
+      <p><strong>O&amp;M</strong> — Operations &amp; Maintenance. The main controllable cost category split into ~15 sub-lines (Labour, Contractors, Materials, Insurance, etc.).</p>
+      <p><strong>VOM</strong> — Variable O&amp;M. Fuel-linked operating cost per kWh generated by JPS-owned thermal plant.</p>
+      <p><strong>FOM</strong> — Fixed O&amp;M. Standing charges unrelated to generation volume (e.g. maintenance contracts, fixed labour).</p>
+      <p><strong>FX G/(L)</strong> — Foreign Exchange Gain / Loss. Calculated as (Actual Rate − Budget Rate) × Net USD-denominated monetary position. A weaker JD vs budget = FX Loss.</p>
+      <p><strong>FCAM</strong> — Fuel Cost Adjustment Mechanism. OUR-approved tariff surcharge that passes fuel cost movements directly to customers. Reduces net fuel exposure on the P&amp;L.</p>
+
+      <p style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--teal);margin:12px 0 8px">🏛 Balance Sheet</p>
+      <p><strong>ROU Asset</strong> — Right-of-Use Asset. The capitalised present value of future lease payments under IFRS 16. Recognised on the balance sheet for IPP PPAs, land, vehicles, and property leases.</p>
+      <p><strong>CWIP</strong> — Capital Work in Progress. CapEx spend on projects not yet commissioned and transferred to Fixed Assets. Once complete, transferred to the FA Register.</p>
+      <p><strong>PP&amp;E</strong> — Property, Plant &amp; Equipment. The net book value of JPS-owned fixed assets after accumulated depreciation.</p>
+      <p><strong>DSO</strong> — Days Sales Outstanding. (Closing Trade Receivables ÷ Monthly Billing) × 30. Measures how quickly customers pay. JPS target: &lt; 45 days.</p>
+      <p><strong>DPO</strong> — Days Payable Outstanding. (Closing Trade Payables ÷ Monthly COGS) × 30. Measures how quickly JPS pays suppliers.</p>
+      <p><strong>Net Debt</strong> — Total interest-bearing borrowings less unrestricted cash. Key leverage metric monitored by lenders.</p>
+      <p><strong>Net Debt / EBITDA</strong> — Leverage ratio. Lender covenant ceiling is typically 4.0×. JPS target: ≤ 3.5×.</p>
+      <p><strong>DSCR</strong> — Debt Service Coverage Ratio. EBITDA ÷ Total Debt Service (principal + interest due in the period). Covenant minimum: 1.20×.</p>
+
+      <p style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--teal);margin:12px 0 8px">💸 Cash Flow</p>
+      <p><strong>OCF</strong> — Operating Cash Flow. Cash generated from the core business before investing and financing activities.</p>
+      <p><strong>FCF</strong> — Free Cash Flow. OCF less CapEx. Indicates cash available for debt service and dividends after sustaining the asset base.</p>
+      <p><strong>CapEx</strong> — Capital Expenditure. Spend on new or upgraded fixed assets. Split into Sustaining CapEx (maintenance) and Growth CapEx (expansion).</p>
+      <p><strong>Working Capital Movement</strong> — Change in (Receivables + Inventory − Payables). A positive movement = cash inflow (e.g. collecting receivables faster).</p>
+
+      <p style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--teal);margin:12px 0 8px">⚡ Generation &amp; Operations</p>
+      <p><strong>kWh / GWh / MWh</strong> — Kilowatt-hour / Gigawatt-hour / Megawatt-hour. Units of electrical energy. 1 GWh = 1,000 MWh = 1,000,000 kWh.</p>
+      <p><strong>MW</strong> — Megawatt. Unit of electrical power (capacity). JPS total installed capacity ≈ 618 MW.</p>
+      <p><strong>IPP</strong> — Independent Power Producer. Third-party generators selling power to JPS under a PPA. Current IPPs: SJPC, JEP, JPPC, WKPP, Wigton.</p>
+      <p><strong>PPA</strong> — Power Purchase Agreement. Long-term contract between JPS and an IPP defining energy purchase volume, capacity charge, and fuel cost pass-through terms.</p>
+      <p><strong>SJPC</strong> — South Jamaica Power Company. JPS's largest IPP; 190 MW LNG-fired combined-cycle plant at Old Harbour Bay. Accounted under IFRS 16.</p>
+      <p><strong>JEP</strong> — Jamaica Energy Partners. IPP operating the 74 MW HFO plant at Old Harbour Bay.</p>
+      <p><strong>JPPC</strong> — Jamaica Private Power Company. IPP at Bogue, St. James.</p>
+      <p><strong>WKPP</strong> — West Kingston Power Partners. Diesel / HFO peaking plant.</p>
+      <p><strong>Wigton</strong> — Wigton Windfarm. 62.7 MW wind generation facility; government-owned, sells to JPS under PPA.</p>
+      <p><strong>HFO</strong> — Heavy Fuel Oil. Primary thermal generation fuel for older JPS and IPP plant. Higher emissions, lower cost than ADO.</p>
+      <p><strong>LNG</strong> — Liquefied Natural Gas. Cleaner-burning generation fuel used by SJPC. Sourced via NFE (New Fortress Energy).</p>
+      <p><strong>ADO</strong> — Automotive Diesel Oil. Distillate fuel used for peaking and backup plant. Most expensive per kWh.</p>
+      <p><strong>Heat Rate</strong> — Fuel efficiency measure expressed as BTU / kWh (or kJ / kWh). Lower = more efficient. Used to convert fuel price ($/MMBTU) to generation cost ($/kWh).</p>
+      <p><strong>T&amp;D Losses</strong> — Transmission &amp; Distribution Losses. Energy lost between generation and billing, including technical losses and non-technical losses (theft). Expressed as % of GWh generated.</p>
+      <p><strong>System Load</strong> — Total electricity demand on the JPS grid at a given time (MW). Peak system load drives capacity planning.</p>
+      <p><strong>Dispatch</strong> — The merit-order process of committing and scheduling generation units to meet demand at least cost.</p>
+
+      <p style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--teal);margin:12px 0 8px">📋 Tariff &amp; Regulatory</p>
+      <p><strong>OUR</strong> — Office of Utilities Regulation. The independent regulator that sets JPS tariff rates, reviews performance, and approves fuel surcharges.</p>
+      <p><strong>PBR</strong> — Performance-Based Rate-making. The OUR tariff framework that links allowed revenue to reliability and efficiency targets. Current licence runs to 2027.</p>
+      <p><strong>CRF</strong> — Capital Recovery Factor. The annualised cost-of-capital factor used in tariff calculations to recover regulated asset investment over its useful life.</p>
+      <p><strong>RT-10</strong> — Residential Tariff class. Low-voltage domestic customers (the largest customer count). Rates set by OUR; subsidised tiers for low-usage customers.</p>
+      <p><strong>RT-20</strong> — General Service (small commercial &amp; industrial). Low-voltage non-residential.</p>
+      <p><strong>RT-40</strong> — Large Power — Medium Voltage. Industrial and commercial customers on 12 kV or 24 kV supply.</p>
+      <p><strong>RT-50</strong> — Large Power — High Voltage. Major industrial customers on 69 kV transmission-level supply.</p>
+      <p><strong>RT-60</strong> — Street Lighting. OUR-regulated tariff for public lighting supplied to NROCC / municipalities.</p>
+      <p><strong>RT-70</strong> — Distributed Generation / Renewable buyback. Net-billing rate for customer-owned solar feeding excess to the grid.</p>
+      <p><strong>CBA</strong> — Cost-Benefit Analysis. Required by OUR for major capital investments to demonstrate consumer benefit.</p>
+
+      <p style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--teal);margin:12px 0 8px">📐 Accounting Standards</p>
+      <p><strong>IFRS 16</strong> — Lease accounting standard effective 2019. Replaces straight-line operating lease expense with: (a) ROU asset depreciation on the P&amp;L and (b) lease liability interest. JPS applies to all IPP PPAs and significant property/vehicle leases.</p>
+      <p><strong>IAS 36</strong> — Impairment of Assets. Requires testing assets for impairment whenever indicators exist. Impairment charges are always shown as a distinct amber line in this platform — never combined with regular depreciation.</p>
+      <p><strong>IAS 19</strong> — Employee Benefits. Governs the accounting for JPS's defined-benefit pension obligation. Actuarial remeasurements go through OCI (Other Comprehensive Income), not the P&amp;L.</p>
+      <p><strong>IFRS 9</strong> — Financial Instruments. Governs classification, measurement, and expected credit loss (ECL) provisioning on trade receivables.</p>
+      <p><strong>OCI</strong> — Other Comprehensive Income. Items recognised in equity but not on the face of the P&amp;L (e.g. pension remeasurements, cash flow hedge reserves).</p>
+
+      <p style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--teal);margin:12px 0 8px">🔧 Platform-Specific</p>
+      <p><strong>FA Register</strong> — Fixed Asset Register. The source-of-truth schedule of all capitalised assets, their cost, accumulated depreciation, and net book value by asset class.</p>
+      <p><strong>Flash Report</strong> — A condensed month-end summary (revenue, EBITDA, NPAT vs budget) distributed to senior management within 3 business days of month close.</p>
+      <p><strong>fpa_facts</strong> — Core platform database table. Stores all financial values keyed by (version_id, line_id, period_id). Every P&amp;L, BS, and CF number flows through this table.</p>
+      <p><strong>Version</strong> — A named snapshot of the financial model (e.g. "2026 AOP", "Feb 2026 LE"). Multiple versions can coexist; the platform always displays the active version selected in settings.</p>
+      <p><strong>Period Lock</strong> — Admin action that freezes a closed month in the DB, preventing further data changes. Represented by 🔒 in the Data Sources calendar.</p>`},
   ];
   if(!document.getElementById('guideStyle')){
     const s=document.createElement('style');
