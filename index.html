@@ -3015,8 +3015,10 @@ function showBootstrapError(msg) {
 function fpaApplyToLegacyGlobals() {
   if (!fpa.versions.length) return;  // no DB data loaded
 
-  // Determine active reporting version. Use LE_2026_02 (latest actuals-blended) for 2026,
-  // HIST_ACTUAL_YYYY for historical years.
+  // Version map for open/future periods:
+  //   Historical years  → HIST_ACTUAL_YYYY
+  //   2026 open months  → LE_2026_02   (closed months use actuals — blended below)
+  //   2027+             → FORECAST_BASE
   const yearToVersion = {
     2022: 'HIST_ACTUAL_2022', 2023: 'HIST_ACTUAL_2023',
     2024: 'HIST_ACTUAL_2024', 2025: 'HIST_ACTUAL_2025',
@@ -3025,14 +3027,60 @@ function fpaApplyToLegacyGlobals() {
     2029: 'FORECAST_BASE', 2030: 'FORECAST_BASE',
   };
 
+  // Helper: return the ACTUAL version code for a closed month of a given year.
+  // For 2026, actuals may live in fpa.facts under an ACTUAL_2026 version or a
+  // sub-month LE build. We try common naming patterns and fall back to the LE.
+  const actualVerFor = (y) => {
+    const candidates = [`ACTUAL_${y}`, `HIST_ACTUAL_${y}`, `ACT_${y}`];
+    for (const c of candidates) {
+      if (fpa.versions.find(v => v.code === c)) return c;
+    }
+    return yearToVersion[y]; // fall back to LE/history
+  };
+
+  // Helper: blended annual total for a P&L line in a year.
+  //   Closed months → ACTUAL version   (best available data)
+  //   Open  months  → LE / Forecast version
+  //   Historical years → single version annual total (no blend needed)
+  const blendedAnnual = (lineId, y) => {
+    const leVer = yearToVersion[y];
+    // Historical years: just use the annual total from the one version
+    if (y <= 2025) {
+      const ann = fpa.factAnnual(leVer, lineId, y);
+      return ann;
+    }
+    // 2026+: sum month-by-month
+    let sum = 0, any = false;
+    const actVer = actualVerFor(y);
+    for (let m = 1; m <= 12; m++) {
+      let v = null;
+      if (fpa.isPeriodClosed(y, m)) {
+        // Try actual version first, fall back to LE if not in DB
+        v = fpa.fact(actVer, lineId, y, m) ?? fpa.fact(leVer, lineId, y, m);
+        // If still null, try seeded actualsStore (2026 only, month-indexed)
+        if (v === null && y === 2026) {
+          const seedPL = actualsStore[m]?.pl;
+          if (seedPL) {
+            // We can't map arbitrary lineId to actualsStore keys here;
+            // this is handled per-key in _getMonthlyPLLine. Use LE as fallback.
+            v = fpa.fact(leVer, lineId, y, m);
+          }
+        }
+      } else {
+        v = fpa.fact(leVer, lineId, y, m);
+      }
+      if (v !== null && !isNaN(v)) { sum += Number(v); any = true; }
+    }
+    return any ? sum : null;
+  };
+
   // ── P&L lines ─────────────────────────────────────
   try {
     const plYears = [2022,2023,2024,2025,2026,2027,2028,2029,2030];
     if (typeof plLines !== 'undefined') {
       plLines.forEach(ln => {
         plYears.forEach((y, idx) => {
-          const vCode = yearToVersion[y];
-          const ann = fpa.factAnnual(vCode, ln.id, y);
+          const ann = blendedAnnual(ln.id, y);
           if (ann !== null && !isNaN(ann)) ln.vals[idx] = Math.round(ann);
         });
       });
@@ -3040,16 +3088,32 @@ function fpaApplyToLegacyGlobals() {
   } catch(e) { console.warn('[FPA] plLines bridge:', e); }
 
   // ── BS lines ──────────────────────────────────────
+  // Balance Sheet uses period-end (stock) values — no blending; take the
+  // latest closed month for 2026, year-end (Dec) for all others.
   try {
     const bsYears = [2022,2023,2024,2025,2026,2027,2028,2029,2030];
     if (typeof bsLines !== 'undefined') {
       bsLines.forEach(ln => {
         bsYears.forEach((y, idx) => {
-          const vCode = yearToVersion[y];
-          // BS: take Dec value (or any month — should be same for stocks)
-          const v = fpa.fact(vCode, ln.id, y, 12) ?? fpa.fact(vCode, ln.id, y, 6) ?? fpa.factAnnual(vCode, ln.id, y);
-          // For historical years stored as annual totals at month 12, fact() returns that value — correct
-          // For 2026+ stored monthly as BS carry (same value each month), take month 12 — correct
+          const leVer = yearToVersion[y];
+          let v = null;
+          if (y === 2026) {
+            // For 2026: prefer last closed month, fall back to Dec LE
+            const lastClosed = fpa.latestClosedMonth(2026);
+            const actVer     = actualVerFor(2026);
+            if (lastClosed > 0) {
+              v = fpa.fact(actVer, ln.id, 2026, lastClosed)
+               ?? fpa.fact(leVer,  ln.id, 2026, lastClosed);
+            }
+            // If no actuals in DB, use actualsStore seeded BS (cash/recv etc.)
+            if (v === null && lastClosed > 0) {
+              const seedBS = actualsStore[lastClosed]?.bs;
+              // seedBS keys won't map to line IDs here — fall through to LE Dec
+            }
+            v = v ?? fpa.fact(leVer, ln.id, 2026, 12) ?? fpa.factAnnual(leVer, ln.id, 2026);
+          } else {
+            v = fpa.fact(leVer, ln.id, y, 12) ?? fpa.fact(leVer, ln.id, y, 6) ?? fpa.factAnnual(leVer, ln.id, y);
+          }
           if (v !== null && !isNaN(v)) ln.vals[idx] = Math.round(v);
         });
       });
@@ -5741,39 +5805,89 @@ function _plVal(nameFrag, mo, yr) {
   return line.vals?.[YIDX[yr]] || 0;
 }
 
-// Get monthly P&L from actualsStore or computed data
+// Get monthly P&L using blended actuals (closed periods) + LE/Forecast (open periods).
+// Priority: 1) DB-loaded actuals  2) seeded actualsStore  3) fpa.facts LE  4) engine fallback
 function _getMonthlyPLLine(key, yr) {
   yr = yr || selectedKpiYear;
-  const MONTHS_COUNT = 12;
-  // Try actuals first
-  const result = Array(MONTHS_COUNT).fill(0);
-  for (let m = 0; m < MONTHS_COUNT; m++) {
-    const act = actualsStore[yr]?.[m+1];
-    if (act) {
-      if (key === 'revenue')    result[m] = (act.fuelSales||0)+(act.nonFuelSales||0);
-      else if (key === 'nonfuel') result[m] = act.nonFuelSales||0;
-      else if (key === 'ebitda') result[m] = act.ebitda||0;
-      else if (key === 'ebit')   result[m] = act.ebit||0;
-      else if (key === 'netinc') result[m] = act.netIncome||0;
-      else if (key === 'depn')   result[m] = act.depreciation||0;
-    } else {
-      // Fall back to computed engine values
-      const rev = calcRevEngineMonth(m);
-      if (key === 'revenue')     result[m] = rev.totalRevUSD||0;
-      else if (key === 'nonfuel') result[m] = rev.nonFuelUSD||0;
-      else if (key === 'ebitda') {
-        const totOM = getOMRows(yr).reduce((s,r)=>s+(r.vals[m]||0),0);
-        result[m] = (rev.totalRevUSD||0) - totOM;
-      }
-      else if (key === 'ebit') {
-        const totOM = getOMRows(yr).reduce((s,r)=>s+(r.vals[m]||0),0);
-        const dep = calcDepTotals(yr, m).total;
-        result[m] = (rev.totalRevUSD||0) - totOM - dep;
-      }
-      else if (key === 'netinc') result[m] = 0;
-      else if (key === 'depn')   result[m] = calcDepTotals(yr, m).total;
-    }
+
+  // ── Extractors: actualsStore pl object → value ──────────────────────────
+  const ACT_EXTRACT = {
+    revenue: a => (a.fuelSales||0) + (a.nonFuelSales||0),
+    nonfuel: a => a.nonFuelSales||0,
+    ebitda:  a => a.ebitda||0,
+    ebit:    a => a.ebit||0,
+    netinc:  a => a.netIncome||0,
+    depn:    a => Math.abs(a.depreciation||0),
+  };
+
+  // ── Name fragments for fpa.facts / plLines line lookup ──────────────────
+  const LINE_FRAGS = {
+    revenue: ['total revenue','total sales'],
+    nonfuel: ['non-fuel','nonfuel'],
+    ebitda:  ['ebitda'],
+    ebit:    ['operating income','ebit'],
+    netinc:  ['net profit after','net income'],
+    depn:    ['depreciation'],
+  };
+
+  // Resolve line ID from plLines (already bridged from fpa.facts)
+  let lineId = null;
+  for (const frag of (LINE_FRAGS[key] || [])) {
+    const l = (typeof plLines !== 'undefined' ? plLines : [])
+                .find(l => l.name && l.name.toLowerCase().includes(frag));
+    if (l) { lineId = l.id; break; }
   }
+
+  // Version code for LE / History / Forecast
+  const leVer = yr <= 2025 ? `HIST_ACTUAL_${yr}` :
+                yr === 2026 ? 'LE_2026_02' : 'FORECAST_BASE';
+
+  const extractor = ACT_EXTRACT[key];
+  const result    = Array(12).fill(0);
+
+  for (let m = 0; m < 12; m++) {
+    const mNum = m + 1;
+
+    // ── Closed period → use actuals ────────────────────────────────────────
+    if (fpa.isPeriodClosed(yr, mNum)) {
+
+      // 1. DB-loaded actuals: actualsStore[year][month] — flat or { pl:{} }
+      const dbEntry = actualsStore[yr]?.[mNum];
+      if (dbEntry && extractor) {
+        result[m] = extractor(dbEntry.pl ?? dbEntry);
+        continue;
+      }
+
+      // 2. Seeded actuals (month-indexed, 2026 only): actualsStore[month].pl
+      if (yr === 2026) {
+        const seedPL = actualsStore[mNum]?.pl;
+        if (seedPL && extractor) { result[m] = extractor(seedPL); continue; }
+      }
+    }
+
+    // ── Open period (or no actuals found) → try fpa.facts ─────────────────
+    if (lineId !== null) {
+      const v = fpa.fact(leVer, lineId, yr, mNum);
+      if (v !== null) { result[m] = Number(v); continue; }
+    }
+
+    // ── Final fallback: revenue engine ─────────────────────────────────────
+    const rev = calcRevEngineMonth(m);
+    if      (key === 'revenue')  result[m] = rev.totalRevUSD||0;
+    else if (key === 'nonfuel')  result[m] = rev.nonFuelUSD||0;
+    else if (key === 'ebitda') {
+      const totOM = getOMRows(yr).reduce((s,r)=>s+(r.vals[m]||0),0);
+      result[m] = (rev.totalRevUSD||0) - totOM;
+    }
+    else if (key === 'ebit') {
+      const totOM = getOMRows(yr).reduce((s,r)=>s+(r.vals[m]||0),0);
+      const dep   = calcDepTotals(yr, m).total;
+      result[m]   = (rev.totalRevUSD||0) - totOM - dep;
+    }
+    else if (key === 'depn') result[m] = calcDepTotals(yr, m).total;
+    // netinc: stays 0 when fpa.facts has no data (shouldn't happen once DB is live)
+  }
+
   return result;
 }
 
@@ -6032,42 +6146,87 @@ function buildKpiLeverageTable() {
     return Math.abs(l?.vals?.[YIDX[yr]]||0);
   };
 
-  // Approximate total debt from financing schedule seed data
-  const debtSeed = {2026:350000, 2027:330000, 2028:310000, 2029:290000, 2030:270000};
-  const cashSeed = {2026:92000,  2027:85000,  2028:88000,  2029:90000,  2030:95000};
+  // ── Live debt data: projDebtSchedule closing balances + loanRegister aggregates ──
+  // Closing debt balance (year-end) — use loanRegister aggregate if loans are loaded,
+  // otherwise fall back to the projection schedule.
+  const getClosingDebt = yr => {
+    try {
+      const agg = getDebtAggregates(yr);
+      if (agg && agg.closingBal > 0) return agg.closingBal;
+    } catch(e) {}
+    return projDebtSchedule?.closingDebt?.vals?.[yr] || 0;
+  };
+
+  // Year-end cash from bsLines (already updated from fpa.facts via fpaApplyToLegacyGlobals)
+  const getClosingCash = yr => {
+    const l = bsLines.find(l => l.id === 'cash');
+    const v = l?.vals?.[YIDX[yr]];
+    // If bsLines not yet populated from DB, use actualsStore latest closed month
+    if (!v && yr === 2026) {
+      const closedMos = [12,11,10,9,8,7,6,5,4,3,2,1].filter(m => fpa.isPeriodClosed(2026, m));
+      if (closedMos.length) {
+        const mo = closedMos[0];
+        return actualsStore[mo]?.bs?.cash || actualsStore[2026]?.[mo]?.bs?.cash || 0;
+      }
+    }
+    return v || 0;
+  };
+
+  // Annual debt service (interest + principal) from loanRegister, fall back to schedule
+  const getDebtService = yr => {
+    try {
+      const agg = getDebtAggregates(yr);
+      if (agg) {
+        const svc = agg.totalCashPmt.reduce((s, v) => s + v, 0);
+        if (svc > 0) return svc;
+      }
+    } catch(e) {}
+    return (projDebtSchedule?.interestCost?.vals?.[yr] || 0) +
+           (projDebtSchedule?.repayments?.vals?.[yr]   || 0);
+  };
 
   const rows = [
     {
       name: 'DSCR (×)', cov:'≥ 1.20×',
       vals: YRS.map(yr => {
-        const ebitda = getEBITDA(yr);
-        const intExp = getIntExp(yr);
-        const debtSvc = intExp + (debtSeed[yr]||0)*0.07;
-        return debtSvc>0 ? ebitda/debtSvc : 0;
+        const ebitda  = getEBITDA(yr);
+        const debtSvc = getDebtService(yr);
+        return debtSvc > 0 ? ebitda / debtSvc : 0;
       }),
       fmt: v=>isFinite(v)&&v?v.toFixed(2)+'×':'—', thresh:1.20, dir:'gte'
     },
     {
       name: 'Net Debt / EBITDA (×)', cov:'≤ 4.50×',
       vals: YRS.map(yr => {
-        const ebitda = getEBITDA(yr);
-        const netDebt = (debtSeed[yr]||0)-(cashSeed[yr]||0);
-        return ebitda>0 ? netDebt/ebitda : 0;
+        const ebitda  = getEBITDA(yr);
+        const netDebt = getClosingDebt(yr) - getClosingCash(yr);
+        return ebitda > 0 ? netDebt / ebitda : 0;
       }),
       fmt: v=>isFinite(v)&&v?v.toFixed(2)+'×':'—', thresh:4.50, dir:'lte'
     },
     {
       name: 'Interest Coverage (EBIT/Int) (×)', cov:'≥ 1.50×',
       vals: YRS.map(yr => {
-        const ebit = getEBIT(yr);
+        const ebit   = getEBIT(yr);
         const intExp = getIntExp(yr);
-        return intExp>0 ? ebit/intExp : 0;
+        return intExp > 0 ? ebit / intExp : 0;
       }),
       fmt: v=>isFinite(v)&&v?v.toFixed(2)+'×':'—', thresh:1.50, dir:'gte'
     },
     {
       name: 'Net Debt $\'000', cov:'—',
-      vals: YRS.map(yr => (debtSeed[yr]||0)-(cashSeed[yr]||0)),
+      vals: YRS.map(yr => getClosingDebt(yr) - getClosingCash(yr)),
+      fmt: v => v >= 0 ? '$'+Math.round(v).toLocaleString() : '('+Math.round(Math.abs(v)).toLocaleString()+')',
+      thresh:null, dir:null
+    },
+    {
+      name: 'Closing Debt $\'000', cov:'—',
+      vals: YRS.map(yr => getClosingDebt(yr)),
+      fmt: v=>'$'+Math.round(v).toLocaleString(), thresh:null, dir:null
+    },
+    {
+      name: 'Year-End Cash $\'000', cov:'—',
+      vals: YRS.map(yr => getClosingCash(yr)),
       fmt: v=>'$'+Math.round(v).toLocaleString(), thresh:null, dir:null
     },
     {
