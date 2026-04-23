@@ -4831,6 +4831,15 @@ async function doLogin() {
     currentUser = { id: 'local_' + Date.now(), name, email: '', role: _selectedLoginRole };
   }
 
+  // ── Data Entry destination: admin check BEFORE shell launches ───────────
+  if (_loginDestination === 'data-entry' && currentUser.role !== 'admin') {
+    const errEl2 = document.getElementById('loginError');
+    if (errEl2) errEl2.textContent = '⛔ Data Entry is restricted to Admin users.';
+    const loginBtn2 = document.getElementById('loginBtn');
+    if (loginBtn2) { loginBtn2.textContent = 'Enter Platform →'; loginBtn2.disabled = false; }
+    return;
+  }
+
   // ── Common post-login flow ────────────────────────
   const name = currentUser.name;
   const nameDisp = document.getElementById('userNameDisp');
@@ -4865,29 +4874,14 @@ async function doLogin() {
     setTimeout(() => flashInit(), 400);
   }
 
-  // Route to Data Entry (admin only)
+  // Route to Data Entry — go straight to Data Sources tab
   if (_loginDestination === 'data-entry') {
-    if (currentUser.role !== 'admin') {
-      // Not admin — fade back in the login card with an error, abort shell launch
-      const ws2 = document.getElementById('welcomeScreen');
-      ws2.style.opacity = '1';
-      ws2.style.pointerEvents = '';
-      ws2.style.display = '';
-      const shell2 = document.getElementById('appShell');
-      shell2.classList.remove('visible');
-      const errEl2 = document.getElementById('loginError');
-      if (errEl2) errEl2.textContent = '⛔ Data Entry access is restricted to Admin users.';
-      const loginBtn2 = document.getElementById('loginBtn');
-      if (loginBtn2) { loginBtn2.textContent = 'Enter Platform →'; loginBtn2.disabled = false; }
-      return;
-    }
-    // Admin: navigate straight to Data Sources tab
     setTimeout(() => {
-      const dataTab = document.querySelector('.tab[data-pane="adm-data"], .tab[onclick*="adm-data"]');
+      const dataTab = document.querySelector('.tab[onclick*="adm-data"]');
       if (dataTab) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
         dataTab.classList.add('on');
-        showPane('pane-adm-data', dataTab);
+        showPane('adm-data', dataTab);
       }
     }, 500);
   }
@@ -4902,33 +4896,37 @@ async function doLogin() {
 }
 
 async function doLogout() {
-  auditLog('logout','session',currentUser.name,null);
-  // Sign out from Supabase if active
-  if (_sb) {
-    try {
+  try { auditLog('logout','session',currentUser?.name,null); } catch(e) {}
+  // Sign out from Supabase
+  try {
+    if (_sb) {
       if (_sbChannel) { await _sb.removeChannel(_sbChannel); _sbChannel = null; }
       await _sbSignOut();
-    } catch(e) {}
-  }
-  // Stop BroadcastChannel heartbeat
-  if (_rtHeartbeat) { clearInterval(_rtHeartbeat); _rtHeartbeat = null; }
-  _rtBroadcast('bye', { name: currentUser.name });
-  // Destroy all chart instances to free memory
-  Object.keys(charts).forEach(k=>{ try{charts[k].destroy();}catch(e){} delete charts[k]; });
-  // Reset lazy-build tracker so tabs rebuild fresh on next login
+    }
+  } catch(e) {}
+  // Stop heartbeat
+  try { if (_rtHeartbeat) { clearInterval(_rtHeartbeat); _rtHeartbeat = null; } } catch(e) {}
+  try { _rtBroadcast('bye', { name: currentUser?.name }); } catch(e) {}
+  // Destroy charts
+  try { Object.keys(charts).forEach(k=>{ try{charts[k].destroy();}catch(e){} delete charts[k]; }); } catch(e) {}
+  // Reset state
   _builtTabs.clear();
   _platformInited = false;
+  currentUser = null;
+  // Always restore the login screen regardless of any errors above
   const shell = document.getElementById('appShell');
-  shell.classList.remove('visible');
+  if (shell) shell.classList.remove('visible');
   const ws = document.getElementById('welcomeScreen');
-  ws.style.display = 'flex';
-  ws.style.opacity = '0';
-  ws.style.transition = 'opacity .3s';
-  setTimeout(() => { ws.style.opacity = '1'; }, 10);
-  ws.style.pointerEvents = '';
-  const nameEl = document.getElementById('loginName');
-  if (nameEl) nameEl.value = '';
-  document.getElementById('loginError').textContent = '';
+  if (ws) {
+    ws.style.display = 'flex';
+    ws.style.opacity = '0';
+    ws.style.pointerEvents = '';
+    ws.style.transition = 'opacity .3s';
+    setTimeout(() => { ws.style.opacity = '1'; }, 10);
+  }
+  try { const nameEl = document.getElementById('loginName'); if (nameEl) nameEl.value = ''; } catch(e) {}
+  try { const errEl = document.getElementById('loginError'); if (errEl) errEl.textContent = ''; } catch(e) {}
+  try { const pwEl = document.getElementById('loginPassword'); if (pwEl) pwEl.value = ''; } catch(e) {}
 }
 
 function can(action) {
