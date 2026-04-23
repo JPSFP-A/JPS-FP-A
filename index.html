@@ -1197,7 +1197,7 @@ tr.der td{color:var(--teal)}
 
 <!-- ═══ VARIANCE ═══ -->
 <div id="pane-rpt-var" class="pane">
-  <div class="lock-banner">🔒 Variance Report — Seeded from JPSCo_Financials_01-26 &amp; 02-26. Drop a new monthly file to refresh actuals.</div>
+  <div class="lock-banner">📥 Variance Report — Upload a monthly JPSCo_Financials_MM-YY.xlsx file to load actuals.</div>
 
   <!-- CONTROLS ROW -->
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1260,7 +1260,7 @@ tr.der td{color:var(--teal)}
   <!-- VARIANCE TABLE -->
   <div class="tc2">
     <div class="th">
-      <div><div class="tt">📊 P&amp;L Variance — <span id="varTitle">Actual vs Budget · January 2026</span> <span class="badge badge-act">Actuals Seeded</span></div>
+      <div><div class="tt">📊 P&amp;L Variance — <span id="varTitle">Actual vs Budget · January 2026</span></div>
       <div class="ts">Source: JPSCo_Financials_MM-YY.xlsx · USD $'000 · Favourable variances shown in green</div></div>
     </div>
     <div class="tscr"><table><thead id="varH"></thead><tbody id="varB"></tbody></table></div>
@@ -1445,7 +1445,7 @@ tr.der td{color:var(--teal)}
   <!-- REVENUE DETAIL TABLE -->
   <div class="tc2">
     <div class="th">
-      <div><div class="tt">📋 Revenue Detail — <span id="revRptTitle">Actual vs Budget · February 2026</span> <span class="badge badge-act">Actuals Seeded</span></div>
+      <div><div class="tt">📋 Revenue Detail — <span id="revRptTitle">Actual vs Budget · February 2026</span></div>
       <div class="ts">Source: JPSCo_Financials_MM-YY.xlsx Revenues sheet · USD $'000</div></div>
     </div>
     <div class="tscr"><table><thead id="revRptH"></thead><tbody id="revRptB"></tbody></table></div>
@@ -4965,54 +4965,55 @@ function getScAdj(name,key,yr){const s=scenarios[name];return s?.byYear?.[yr]?.[
 // ═══════════════════════════════════════════════════════
 //  FINANCIAL DATA — FROM UPLOADED FILES
 // ═══════════════════════════════════════════════════════
+// plLines — vals populated at runtime from fpa.facts via fpaApplyToLegacyGlobals(). No hardcoded data.
+const _z9 = () => Array(9).fill(0);
 let plLines=[
-  {id:'fuel_rev',  sect:'Regulated Business',name:'Fuel Revenue',          type:'I',vals:[170628,148891,139447,150378,146369,153187,160346,168163,176571]},
-  {id:'fuel_cost', sect:'Regulated Business',name:'Fuel Costs',            type:'E',vals:[173229,147725,138590,156686,145955,152553,159618,167299,175664]},
-  {id:'fuel_surp', sect:'Regulated Business',name:'Fuel Surplus/(Penalty)',type:'I',vals:[-2601,1166,857,-6308,414,634,728,864,907],sub:true},
-  {id:'nonfuel',   sect:'Regulated Business',name:'Non-Fuel Revenue',      type:'I',vals:[305730,336328,348552,338621,340501,356724,373799,391639,410421]},
-  {id:'other_r',   sect:'Regulated Business',name:'Other Operating Revenue',type:'I',vals:[6791,2167,9031,5170,11291,7843,8235,8647,9079]},
-  {id:'opex',      sect:'Regulated Business',name:'Operating Expense (O&M)',type:'E',vals:[140448,146265,174541,176584,172270,180483,189207,198417,208338]},
-  {id:'reg_eb',    sect:'Regulated Business',name:'Regulated EBITDA',      type:'I',vals:[169472,193396,183899,160899,179935,185352,193555,201733,212069],sub:true},
-  {id:'ipp_fr',    sect:'Purchased Power',   name:'IPP Fuel Revenue',      type:'I',vals:[463704,367299,370063,368494,390052,407904,427100,447350,468842]},
-  {id:'ipp_nr',    sect:'Purchased Power',   name:'IPP Non-Fuel Revenue',  type:'I',vals:[194617,195456,200976,191799,189567,198646,208178,218387,229306]},
-  {id:'ipp_cost',  sect:'Purchased Power',   name:'Fuel & IPP Costs',      type:'E',vals:[595548,504463,507774,499503,523191,547484,573188,600352,628369]},
-  {id:'ipp_eb',    sect:'Purchased Power',   name:'PP Contribution',       type:'I',vals:[62773,58292,63265,60790,56428,59066,61090,65385,69779],sub:true},
-  {id:'nr_rev',    sect:'Non-Regulated',     name:'Non-Regulated Revenue', type:'I',vals:[4859,6294,7603,8447,9702,10279,10895,11549,12242]},
-  {id:'nr_cost',   sect:'Non-Regulated',     name:'Non-Regulated Costs',   type:'E',vals:[0,0,3297,3281,3224,2952,2704,2478,2263]},
-  {id:'nr_eb',     sect:'Non-Regulated',     name:'Non-Reg Contribution',  type:'I',vals:[4194,4306,5352,5166,6478,7327,8191,9074,9979],sub:true},
-  {id:'ebitda',    sect:'TOTAL',             name:'TOTAL EBITDA',          type:'I',vals:[236439,255994,252516,226855,242841,251745,262836,276192,291827],tot:true},
-  // Depreciation from Depreciation_February_2026_LE_revised.xlsx
-  {id:'depn',      sect:'Below EBITDA',      name:'Depreciation (incl. SJPC & Leases)',type:'E',vals:[116571,117775,127912,145043,125770,132059,138662,145595,152875],src:'Depreciation_Feb_2026'},
-  {id:'ebit',      sect:'Below EBITDA',      name:'EBIT',                  type:'I',vals:[119868,138219,124604,81812,117071,119686,124174,130597,138952],sub:true},
-  {id:'fin_cost',  sect:'Below EBITDA',      name:'Net Financing Cost',    type:'E',vals:[65469,59853,56912,58757,63077,60894,58765,56689,54665]},
-  {id:'oth_inc',   sect:'Below EBITDA',      name:'Other Income/(Expense)',type:'I',vals:[54399,78366,67692,1004,11637,12219,12830,13471,14145]},
-  {id:'pretax',    sect:'Below EBITDA',      name:'Pre-Tax Income',        type:'I',vals:[108797,156732,135384,24059,65631,70011,78239,87379,98432],sub:true},
-  {id:'tax',       sect:'Below EBITDA',      name:'Income Tax',            type:'E',vals:[14854,22223,20132,4051,20393,18903,20403,22218,24608]},
-  {id:'net_inc',   sect:'TOTAL',             name:'NET INCOME',            type:'I',vals:[93943,134509,115252,20008,45237,51108,57836,65161,73824],tot:true},
+  {id:'fuel_rev',  sect:'Regulated Business',name:'Fuel Revenue',                        type:'I',vals:_z9()},
+  {id:'fuel_cost', sect:'Regulated Business',name:'Fuel Costs',                          type:'E',vals:_z9()},
+  {id:'fuel_surp', sect:'Regulated Business',name:'Fuel Surplus/(Penalty)',              type:'I',vals:_z9(),sub:true},
+  {id:'nonfuel',   sect:'Regulated Business',name:'Non-Fuel Revenue',                    type:'I',vals:_z9()},
+  {id:'other_r',   sect:'Regulated Business',name:'Other Operating Revenue',             type:'I',vals:_z9()},
+  {id:'opex',      sect:'Regulated Business',name:'Operating Expense (O&M)',             type:'E',vals:_z9()},
+  {id:'reg_eb',    sect:'Regulated Business',name:'Regulated EBITDA',                    type:'I',vals:_z9(),sub:true},
+  {id:'ipp_fr',    sect:'Purchased Power',   name:'IPP Fuel Revenue',                    type:'I',vals:_z9()},
+  {id:'ipp_nr',    sect:'Purchased Power',   name:'IPP Non-Fuel Revenue',                type:'I',vals:_z9()},
+  {id:'ipp_cost',  sect:'Purchased Power',   name:'Fuel & IPP Costs',                   type:'E',vals:_z9()},
+  {id:'ipp_eb',    sect:'Purchased Power',   name:'PP Contribution',                     type:'I',vals:_z9(),sub:true},
+  {id:'nr_rev',    sect:'Non-Regulated',     name:'Non-Regulated Revenue',               type:'I',vals:_z9()},
+  {id:'nr_cost',   sect:'Non-Regulated',     name:'Non-Regulated Costs',                 type:'E',vals:_z9()},
+  {id:'nr_eb',     sect:'Non-Regulated',     name:'Non-Reg Contribution',                type:'I',vals:_z9(),sub:true},
+  {id:'ebitda',    sect:'TOTAL',             name:'TOTAL EBITDA',                        type:'I',vals:_z9(),tot:true},
+  {id:'depn',      sect:'Below EBITDA',      name:'Depreciation (incl. SJPC & Leases)', type:'E',vals:_z9()},
+  {id:'ebit',      sect:'Below EBITDA',      name:'EBIT',                                type:'I',vals:_z9(),sub:true},
+  {id:'fin_cost',  sect:'Below EBITDA',      name:'Net Financing Cost',                  type:'E',vals:_z9()},
+  {id:'oth_inc',   sect:'Below EBITDA',      name:'Other Income/(Expense)',              type:'I',vals:_z9()},
+  {id:'pretax',    sect:'Below EBITDA',      name:'Pre-Tax Income',                      type:'I',vals:_z9(),sub:true},
+  {id:'tax',       sect:'Below EBITDA',      name:'Income Tax',                          type:'E',vals:_z9()},
+  {id:'net_inc',   sect:'TOTAL',             name:'NET INCOME',                          type:'I',vals:_z9(),tot:true},
 ];
 
+// bsLines — vals populated at runtime from fpa.facts via fpaApplyToLegacyGlobals(). No hardcoded data.
 let bsLines=[
-  {id:'cash',   sect:'Current Assets',     name:'Cash & Short Term Deposits',vals:[57489,61329,40464,204359,195280,180435,168751,159114,151538]},
-  {id:'rcash',  sect:'Current Assets',     name:'Restricted Cash (EDF)',      vals:[54523,58525,53751,3222,3300,3400,3500,3600,3700]},
-  {id:'recv',   sect:'Current Assets',     name:'Receivables, Net',           vals:[147071,124155,131177,143027,150680,158213,166124,174430,183151]},
-  {id:'unbill', sect:'Current Assets',     name:'Unbilled Revenue',           vals:[29232,30804,28144,35816,37607,39487,41461,43534,45711]},
-  {id:'finv',   sect:'Current Assets',     name:'Fuel Inventory',             vals:[11262,9597,9245,7688,8072,8476,8900,9345,9812]},
-  {id:'matls',  sect:'Current Assets',     name:'Materials & Supplies',       vals:[22579,26536,48999,45704,47989,50389,52908,55553,58331]},
-  {id:'ins_prepaid',sect:'Current Assets', name:'Prepaid Insurance',           vals:[0,0,0,0,0,0,0,0,0],derived:true,note:'Auto-calculated from insurance policies register'},
-  {id:'cur_a',  sect:'Current Assets',     name:'Total Current Assets',       vals:[340042,327998,335995,465390,466892,465562,467064,472316,480371],tot:true},
-  {id:'ppe',    sect:'Non-Current Assets', name:'PP&E – Net',                 vals:[1301675,1287694,1285651,1386577,1452748,1494124,1510745,1502682,1472247]},
-  {id:'cwip',   sect:'Non-Current Assets', name:'Construction WIP',           vals:[63623,75862,109582,232636,120000,80000,75000,70000,65000]},
-  {id:'eqinv',  sect:'Non-Current Assets', name:'Equity Investments (incl. SJPC)',vals:[46004,46004,46004,46004,46004,46004,46004,46004,46004]},
-  {id:'pension',sect:'Non-Current Assets', name:'Pension Asset',              vals:[44285,27964,21449,23325,24491,25716,27002,28352,29770]},
-  {id:'tot_a',  sect:'Non-Current Assets', name:'TOTAL ASSETS',              vals:[1732006,1689660,1689099,1926006,2187876,2193034,2211524,2209349,2187887],tot:true},
-  {id:'ap',     sect:'Current Liabilities',name:'Accounts Payable & Accruals',vals:[198500,177420,164385,247216,259577,272556,286184,300493,315518]},
-  {id:'cur_l',  sect:'Current Liabilities',name:'Total Current Liabilities',  vals:[263026,264734,268066,359162,379562,391140,408447,426519,440396],sub:true},
-  {id:'ltd',    sect:'Non-Current Liabilities',name:'Long Term Debt',          vals:[533000,489000,449800,449000,430000,380000,340000,300000,260000]},
-  // Leased assets from Leased_Asset_Adjustments_February_2026_LE.xlsx
-  {id:'leases', sect:'Non-Current Liabilities',name:'Lease Liabilities (IFRS-16)',vals:[490300,462691,445855,442391,464510,487736,512123,537729,564615],src:'Leased_Asset_Feb_2026'},
-  {id:'tot_l',  sect:'Non-Current Liabilities',name:'TOTAL LIABILITIES',       vals:[1375156,1299820,1249303,1311970,1338560,1326588,1331668,1338901,1342397],tot:true},
-  {id:'equity', sect:'Equity',              name:'Total Equity',               vals:[356850,389840,439796,614036,849316,866446,880136,870448,845610],sub:true},
-  {id:'tot_le', sect:'Equity',              name:'TOTAL LIABILITIES & EQUITY', vals:[1732006,1689660,1689099,1926006,2187876,2193034,2211524,2209349,2187887],tot:true},
+  {id:'cash',       sect:'Current Assets',          name:'Cash & Short Term Deposits',      vals:_z9()},
+  {id:'rcash',      sect:'Current Assets',          name:'Restricted Cash (EDF)',            vals:_z9()},
+  {id:'recv',       sect:'Current Assets',          name:'Receivables, Net',                 vals:_z9()},
+  {id:'unbill',     sect:'Current Assets',          name:'Unbilled Revenue',                 vals:_z9()},
+  {id:'finv',       sect:'Current Assets',          name:'Fuel Inventory',                   vals:_z9()},
+  {id:'matls',      sect:'Current Assets',          name:'Materials & Supplies',             vals:_z9()},
+  {id:'ins_prepaid',sect:'Current Assets',          name:'Prepaid Insurance',                vals:_z9(),derived:true,note:'Auto-calculated from insurance policies register'},
+  {id:'cur_a',      sect:'Current Assets',          name:'Total Current Assets',             vals:_z9(),tot:true},
+  {id:'ppe',        sect:'Non-Current Assets',      name:'PP&E – Net',                       vals:_z9()},
+  {id:'cwip',       sect:'Non-Current Assets',      name:'Construction WIP',                 vals:_z9()},
+  {id:'eqinv',      sect:'Non-Current Assets',      name:'Equity Investments (incl. SJPC)',  vals:_z9()},
+  {id:'pension',    sect:'Non-Current Assets',      name:'Pension Asset',                    vals:_z9()},
+  {id:'tot_a',      sect:'Non-Current Assets',      name:'TOTAL ASSETS',                     vals:_z9(),tot:true},
+  {id:'ap',         sect:'Current Liabilities',     name:'Accounts Payable & Accruals',      vals:_z9()},
+  {id:'cur_l',      sect:'Current Liabilities',     name:'Total Current Liabilities',        vals:_z9(),sub:true},
+  {id:'ltd',        sect:'Non-Current Liabilities', name:'Long Term Debt',                   vals:_z9()},
+  {id:'leases',     sect:'Non-Current Liabilities', name:'Lease Liabilities (IFRS-16)',      vals:_z9()},
+  {id:'tot_l',      sect:'Non-Current Liabilities', name:'TOTAL LIABILITIES',                vals:_z9(),tot:true},
+  {id:'equity',     sect:'Equity',                  name:'Total Equity',                     vals:_z9(),sub:true},
+  {id:'tot_le',     sect:'Equity',                  name:'TOTAL LIABILITIES & EQUITY',       vals:_z9(),tot:true},
 ];
 
 // DEPRECIATION COMPONENTS — year-keyed (replaces depLines as live data source)
@@ -5451,39 +5452,37 @@ function setCFView(v, btn) {
 // Opening/closing cash from actuals or model
 function getCFOpeningCash(month) {
   if (actualsStore[month - 1]?.bs?.cash) return actualsStore[month - 1].bs.cash;
-  const map = {1:150329, 2:150329, 3:92371};
-  return map[month] || 92371;
+  return 0; // no hardcoded fallback — returns 0 when no actuals loaded
 }
 
-// Direct CF seed data from deck page 17
+// Direct CF seed data — actuals populated at runtime from uploaded files (no hardcoded values)
 const directCFSeed = {
-  // [Nov-25, Dec-25, Jan-26, Feb-26, Mar-26, Apr-26, May-26, Jun-26]
   labels: ['Nov-25','Dec-25','Jan-26','Feb-26','Mar-26','Apr-26','May-26','Jun-26'],
-  collections:         [null,null,90997,75410,null,null,null,null],
-  loanFinancing:       [null,null,0,0,null,null,null,null],
-  insuranceProceeds:   [null,null,0,0,null,null,null,null],
-  gctReimbursement:    [null,null,0,0,null,null,null,null],
-  dividendReceived:    [null,null,0,5869,null,null,null,null],
-  totalReceipts:       [null,null,90997,82266,null,null,null,null],
-  fuel:                [null,null,9617,11567,null,null,null,null],
-  ipp:                 [null,null,46585,22444,null,null,null,null],
-  payroll:             [null,null,5675,5971,null,null,null,null],
-  supplier:            [null,null,10285,10118,null,null,null,null],
-  transport:           [null,null,0,0,null,null,null,null],
-  customs:             [null,null,0,0,null,null,null,null],
-  taxes:               [null,null,0,0,null,null,null,null],
-  inventory:           [null,null,0,0,null,null,null,null],
-  insurance:           [null,null,0,0,null,null,null,null],
-  loanPrincipal:       [null,null,0,0,null,null,null,null],
-  loanInterest:        [null,null,0,0,null,null,null,null],
-  hurricaneRestoration:[null,null,65638,75926,null,null,null,null],
-  totalDisbursements:  [null,null,137800,126026,null,null,null,null],
-  edfContribution:     [null,null,0,0,null,null,null,null],
-  netInflow:           [null,null,-46803,-43760,null,null,null,null],
-  openingBalance:      [null,null,197174,150329,null,null,null,null],
-  closingBalance:      [null,null,150329,92371,null,null,null,null],
-  restrictedCash:      [null,null,0,0,null,null,null,null],
-  cashAndEquiv:        [null,null,150329,92371,null,null,null,null],
+  collections:         [null,null,null,null,null,null,null,null],
+  loanFinancing:       [null,null,null,null,null,null,null,null],
+  insuranceProceeds:   [null,null,null,null,null,null,null,null],
+  gctReimbursement:    [null,null,null,null,null,null,null,null],
+  dividendReceived:    [null,null,null,null,null,null,null,null],
+  totalReceipts:       [null,null,null,null,null,null,null,null],
+  fuel:                [null,null,null,null,null,null,null,null],
+  ipp:                 [null,null,null,null,null,null,null,null],
+  payroll:             [null,null,null,null,null,null,null,null],
+  supplier:            [null,null,null,null,null,null,null,null],
+  transport:           [null,null,null,null,null,null,null,null],
+  customs:             [null,null,null,null,null,null,null,null],
+  taxes:               [null,null,null,null,null,null,null,null],
+  inventory:           [null,null,null,null,null,null,null,null],
+  insurance:           [null,null,null,null,null,null,null,null],
+  loanPrincipal:       [null,null,null,null,null,null,null,null],
+  loanInterest:        [null,null,null,null,null,null,null,null],
+  hurricaneRestoration:[null,null,null,null,null,null,null,null],
+  totalDisbursements:  [null,null,null,null,null,null,null,null],
+  edfContribution:     [null,null,null,null,null,null,null,null],
+  netInflow:           [null,null,null,null,null,null,null,null],
+  openingBalance:      [null,null,null,null,null,null,null,null],
+  closingBalance:      [null,null,null,null,null,null,null,null],
+  restrictedCash:      [null,null,null,null,null,null,null,null],
+  cashAndEquiv:        [null,null,null,null,null,null,null,null],
 };
 
 // Populate Mar-Jun from model
@@ -5509,12 +5508,12 @@ function buildIndirectCF() {
   const hasActuals = !!act?.pl;
   const hasActCF   = !!act?.cf;
 
-  // Line values — prefer actuals from uploaded file, fall back to model
-  const netProfit     = act?.pl?.netIncome ?? 5681;
-  const depreciation  = act?.pl?.depreciation ? Math.abs(act.pl.depreciation) : 9992;
+  // Line values — prefer actuals from uploaded file, fall back to 0 (no hardcoded seed values)
+  const netProfit     = act?.pl?.netIncome ?? 0;
+  const depreciation  = act?.pl?.depreciation ? Math.abs(act.pl.depreciation) : 0;
   // If CF sheet available, use its depreciation add-back directly
   const deprAddBack   = hasActCF ? (act.cf.depreciation || depreciation) : depreciation;
-  const interestExp   = act?.pl?.intExpense ? Math.abs(act.pl.intExpense) : 5842;
+  const interestExp   = act?.pl?.intExpense ? Math.abs(act.pl.intExpense) : 0;
   const fxLossNonCash = otherIncomeRows.find(r=>r.id==='fx_gain')?.vals[2026]?.[mo-1] || 0;
   const gainDisposal  = 0;
   const restrictedCash= 0;
@@ -5530,19 +5529,16 @@ function buildIndirectCF() {
     deltaReceivables = (prevAct.bs.receivables||0) - (act.bs.receivables||0); // decrease = positive
     deltaPayables    = (act.bs.payables||0) - (prevAct.bs.payables||0);       // increase = positive
   } else {
-    // Default seed values for seeded months
-    const wc2 = { deltaReceivables: -1051, deltaPayables: 24552 };
-    const wc1 = { deltaReceivables:  1200, deltaPayables: -8000 };
-    if(mo===2){ deltaReceivables=wc2.deltaReceivables; deltaPayables=wc2.deltaPayables; }
-    if(mo===1){ deltaReceivables=wc1.deltaReceivables; deltaPayables=wc1.deltaPayables; }
+    // No actuals and no BS delta — working capital = 0
+    deltaReceivables = 0; deltaPayables = 0;
   }
   const deltaRelParties = 0;
   const wcTotal         = deltaReceivables + deltaInventory + deltaPayables + deltaRelParties;
   const netCashOps      = opsBeforeWC + wcTotal;
 
-  // Investing — use model CapEx schedule; seed actuals for seeded months
-  const modelCapex  = -(getCxCash(2026)[mo-1]||12000);
-  const capex       = (mo===2 && !hasActCF) ? -58163 : (hasActCF ? modelCapex : modelCapex);
+  // Investing — use model CapEx schedule
+  const modelCapex  = -(getCxCash(2026)[mo-1]||0);
+  const capex       = hasActCF ? modelCapex : modelCapex;
   const proceeds    = otherIncomeRows.find(r=>r.id==='asset_disp')?.vals[2026]?.[mo-1]||0;
   const divRec      = otherIncomeRows.find(r=>r.id==='div_rec')?.vals[2026]?.[mo-1]||0;
   const netCashInvesting = capex + proceeds + divRec;
@@ -5557,16 +5553,16 @@ function buildIndirectCF() {
 
   // Closing — prefer actuals BS cash
   const netChange   = netCashOps + netCashInvesting + netCashFinancing;
-  const openingCash = prevAct?.bs?.cash ?? (mo===1||mo===2 ? 150329 : 92371);
+  const openingCash = prevAct?.bs?.cash ?? 0;
   const closingCash = act?.bs?.cash ?? (openingCash + netChange);
   const closingModel = openingCash + netChange;
   const cfRecDiff   = act?.bs?.cash ? Math.round(act.bs.cash - closingModel) : 0;
 
   // Build table
   const COLS = ['MTD Actual','MTD Budget','Variance'];
-  const bud = { netProfit:5500, depreciation:10100, opsBeforeWC:18000,
-    netCashOps:17000, netCashInvesting:-55000, netCashFinancing:-14000,
-    netChange:-52000, openingCash:150329, closingCash:98329 };
+  const bud = { netProfit:0, depreciation:0, opsBeforeWC:0,
+    netCashOps:0, netCashInvesting:0, netCashFinancing:0,
+    netChange:0, openingCash:0, closingCash:0 };
 
   const rows = [
     {s:'OPERATING ACTIVITIES'},
@@ -5626,11 +5622,11 @@ function buildIndirectCF() {
   // Chart — show actuals closing cash (bars) + model closing cash (line)
   const actCloseArr = MONTHS.map((_,i)=>actualsStore[i+1]?.bs?.cash??null);
   // Model closing cash: build month-by-month from model opening
-  let modelClose=[]; let modelOpen=150329;
+  let modelClose=[]; let modelOpen=0;
   MONTHS.forEach((_,i)=>{
     const m=i+1;
     if(actualsStore[m]?.bs?.cash){ modelClose.push(actualsStore[m].bs.cash); modelOpen=actualsStore[m].bs.cash; }
-    else{ const cxC=getCxCash(2026)[i]||12000; const netP=(getOMTotal(2026)[i]||0)*(-1); const mc=modelOpen-cxC; modelClose.push(Math.round(mc)); modelOpen=Math.round(mc); }
+    else{ const cxC=getCxCash(2026)[i]||0; const netP=(getOMTotal(2026)[i]||0)*(-1); const mc=modelOpen-cxC; modelClose.push(Math.round(mc)); modelOpen=Math.round(mc); }
   });
   const hasActBSAny = actCloseArr.some(v=>v!==null);
   const cfDatasets = hasActBSAny ? [
@@ -5685,7 +5681,7 @@ function buildDirectCF() {
     directCFSeed.totalDisbursements[colIdx] = totDisb;
     const net = (directCFSeed.totalReceipts[colIdx]||0) - totDisb;
     directCFSeed.netInflow[colIdx] = net;
-    const prev = i === 0 ? (directCFSeed.closingBalance[3]||92371) : (directCFSeed.closingBalance[colIdx-1]||0);
+    const prev = i === 0 ? (directCFSeed.closingBalance[3]||0) : (directCFSeed.closingBalance[colIdx-1]||0);
     directCFSeed.openingBalance[colIdx] = prev;
     directCFSeed.closingBalance[colIdx] = prev + net;
     directCFSeed.cashAndEquiv[colIdx]   = prev + net;
@@ -5754,13 +5750,13 @@ function buildDirectCF() {
     y2:{position:'right',ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{drawOnChartArea:false}},
   }}});
 
-  return directCFSeed.closingBalance[3] || 92371; // Feb closing
+  return directCFSeed.closingBalance[3] || 0; // closing cash from actuals if loaded
 }
 
 function checkCFReconciliation() {
   try {
-    const indClose = actualsStore[2]?.bs?.cash || 92371;
-    const dirClose = directCFSeed.closingBalance[3] || 92371;
+    const indClose = actualsStore[2]?.bs?.cash || 0;
+    const dirClose = directCFSeed.closingBalance[3] || 0;
     const diff = indClose - dirClose;
     const badge = document.getElementById('cfRecBadge');
     if (!badge) return;
@@ -5772,8 +5768,8 @@ function checkCFReconciliation() {
 
 function buildCFCovenants() {
   const febBS = actualsStore[2]?.bs;
-  const curRatio = febBS ? (febBS.totalCurrentAssets / febBS.totalCurrentLiab) : 1.11;
-  const dscr = 1.25; // seeded Feb value
+  const curRatio = (febBS && febBS.totalCurrentLiab) ? (febBS.totalCurrentAssets / febBS.totalCurrentLiab) : 0;
+  const dscr = 0; // populated from actuals when loaded
   const covCards = [
     {lbl:'Current Ratio',val:curRatio,min:1.10,fmt:v=>v.toFixed(2)+'×'},
     {lbl:'DSCR',         val:dscr,    min:1.20,fmt:v=>v.toFixed(2)+'×'},
@@ -5792,11 +5788,10 @@ function buildCFCovenants() {
 function buildCFKpis() {
   const mo = cfSelectedMonth;
   const act = actualsStore[mo];
-  const isFeb = mo === 2;
-  const totalRec = isFeb ? 82266 : (getCashReceipts(2026)[mo-1]||0);
-  const totalDisb = isFeb ? 126026 : (getOMCash(2026)[mo-1] + getCxCash(2026)[mo-1] + (fuelCostByMonth2026[mo-1]||0));
+  const totalRec = act?.cf?.operatingCF != null ? act.cf.operatingCF : (getCashReceipts(2026)[mo-1]||0);
+  const totalDisb = getOMCash(2026)[mo-1] + getCxCash(2026)[mo-1] + (fuelCostByMonth2026[mo-1]||0);
   const netCF = totalRec - totalDisb;
-  const closingCash = act?.bs?.cash || 92371;
+  const closingCash = act?.bs?.cash || 0;
   const kpis = [
     {lbl:'Total Receipts',   v:fmtN(totalRec),  d:'Feb 2026 Actual',  c:'gr'},
     {lbl:'Total Disbursements',v:fmtN(totalDisb),d:'Feb 2026 Actual', c:'r'},
@@ -5809,7 +5804,8 @@ function buildCFKpis() {
 }
 
 // Fuel cost lookup for CF forecast
-const fuelCostByMonth2026 = [41619,38382,41000,39500,41000,43000,46000,48000,46000,44000,42000,40000];
+// fuelCostByMonth2026 — Jan/Feb actuals populated from uploads; Mar-Dec are AOP plan estimates
+const fuelCostByMonth2026 = [0,0,41000,39500,41000,43000,46000,48000,46000,44000,42000,40000];
 
 function buildCFReport(){
   cfSelectedMonth = parseInt(document.getElementById('cfMo')?.value || 2);
@@ -5824,175 +5820,42 @@ function buildCFReport(){
 }
 
 // ═══════════════════════════════════════════════════════
-//  ACTUALS STORE  — seeded from JPSCo_Financials_01-26 & 02-26
+//  ACTUALS STORE  — populated at runtime from uploaded JPSCo_Financials_MM-YY.xlsx files
 //  Keys: month number (1=Jan, 2=Feb …)
 //  Each entry: { pl:{}, budget:{}, ytdActual:{}, ytdBudget:{}, rev:{}, bs:{}, cf:{} }
 //  P&L sub-object keys mirror P&L ROW INDEX comment in spec
 // ═══════════════════════════════════════════════════════
-const actualsStore = {
+// actualsStore — populated at runtime from fpa.facts (Supabase). No hardcoded seed data.
+const actualsStore = {};
 
-  /* ── JANUARY 2026 ── source: JPSCo_Financials_01-26.xlsx */
-  1: {
-    month: 'January 2026',
-    pl: {
-      fuelSales:     40943, nonFuelSales:  42077, totalSales:    83020,
-      fuelCost:     -41619, ppaCost:        -9331, otherCOS:         -2,
-      totalCOS:     -50952, grossProfit:   32068,
-      sga:           -8407, maintenance:   -5026, opex:         -13433,
-      ebitda:        18635, depreciation:  -9556, ebit:           9079,
-      intIncome:       479, intExpense:    -7236, nfc:           -6757,
-      otherIncome:      19, pretax:         2341, tax:            -780,
-      netIncome:      1561,
-    },
-    budget: {
-      fuelSales:     35754, nonFuelSales:  41335, totalSales:    77089,
-      fuelCost:     -36441, ppaCost:      -10100, otherCOS:          0,
-      totalCOS:     -46541, grossProfit:  30548,
-      sga:          -8548, maintenance:  -4582, opex:         -13130,
-      ebitda:        17418, depreciation:  -9505, ebit:          7913,
-      intIncome:      1364, intExpense:   -6919, nfc:           -5555,
-      otherIncome:       0, pretax:        2358, tax:            -731,
-      netIncome:      1627,
-    },
-    ytdActual: {
-      fuelSales:     40943, nonFuelSales:  42077, totalSales:    83020,
-      fuelCost:     -41619, ppaCost:        -9331, otherCOS:         -2,
-      totalCOS:     -50952, grossProfit:   32068,
-      sga:           -8407, maintenance:   -5026, opex:         -13433,
-      ebitda:        18635, depreciation:  -9556, ebit:           9079,
-      intIncome:       479, intExpense:    -7236, nfc:           -6757,
-      otherIncome:      19, pretax:         2341, tax:            -780,
-      netIncome:      1561,
-    },
-    ytdBudget: {
-      fuelSales:     35754, nonFuelSales:  41335, totalSales:    77089,
-      fuelCost:     -36441, ppaCost:      -10100, otherCOS:          0,
-      totalCOS:     -46541, grossProfit:  30548,
-      sga:          -8548, maintenance:  -4582, opex:         -13130,
-      ebitda:        17418, depreciation:  -9505, ebit:          7913,
-      intIncome:      1364, intExpense:   -6919, nfc:           -5555,
-      otherIncome:       0, pretax:        2358, tax:            -731,
-      netIncome:      1627,
-    },
-    rev: {
-      fuel: 40943, ipp: 13991, energy: 24652, custCharge: 3289, other: 145, total: 83020,
-      rate10: 34646, rate20: 15976, rate40: 18047, rate50: 7435,
-      salesMWh: 239594,
-    },
-    bs: {
-      cash: 149629, receivables: 136858, unbilled: 39528, fuelInv: 8230, materials: 44015,
-      totalCurrentAssets: 391325, fixedAssetsNBV: 1402574, totalAssets: 1868031,
-      payables: 132637, shortTermDebt: 15000, currentLTD: 66669, totalCurrentLiab: 335308,
-      longTermDebt: 402555, leaseObligation: 439830, totalEquity: 603658,
-    },
-    cf: {
-      netProfit: 1561, depreciation: 9556, interestExp: 5883,
-      operatingCF: 18512, accountsReceivable: 17483,
-      payables: -67352, totalOperating: null,
-    },
-    seg: {
-      regulatedEBITDA: 13781, purchasedPowerSurplus: 4660, nonRegContrib: 319,
-    },
-    uploadMeta: { file: 'JPSCo_Financials_01-26.xlsx', ts: '2026-04-03T00:00:00', status: '✅ Seeded' },
-  },
-
-  /* ── FEBRUARY 2026 ── source: JPSCo_Financials_02-26.xlsx */
-  2: {
-    month: 'February 2026',
-    pl: {
-      fuelSales:     38695, nonFuelSales:  38718, totalSales:    77413,
-      fuelCost:     -38382, ppaCost:        -9691, otherCOS:         -5,
-      totalCOS:     -48078, grossProfit:   29335,
-      sga:           -9399, maintenance:   -5742, opex:         -15141,
-      ebitda:        14194, depreciation:  -9992, ebit:           4202,
-      intIncome:       580, intExpense:    -5082, nfc:           -4502,
-      otherIncome:    5887, pretax:         5587, tax:              94,
-      netIncome:      5681,
-    },
-    budget: {
-      fuelSales:     34484, nonFuelSales:  40924, totalSales:    75408,
-      fuelCost:     -34366, ppaCost:      -10007, otherCOS:          0,
-      totalCOS:     -44374, grossProfit:  31034,
-      sga:          -8751, maintenance:  -5295, opex:         -14046,
-      ebitda:        16988, depreciation:  -9505, ebit:          7482,
-      intIncome:      1849, intExpense:   -6000, nfc:           -4150,
-      otherIncome:    6000, pretax:        9332, tax:           -1033,
-      netIncome:      8299,
-    },
-    ytdActual: {
-      fuelSales:     79638, nonFuelSales:  80795, totalSales:   160433,
-      fuelCost:     -80001, ppaCost:      -19022, otherCOS:         -7,
-      totalCOS:     -99030, grossProfit:  61403,
-      sga:         -17806, maintenance: -10768, opex:         -28574,
-      ebitda:        32829, depreciation: -19548, ebit:          13281,
-      intIncome:      1059, intExpense:  -12318, nfc:          -11259,
-      otherIncome:    5906, pretax:        7928, tax:            -686,
-      netIncome:      7242,
-    },
-    ytdBudget: {
-      fuelSales:     70238, nonFuelSales:  82259, totalSales:   152497,
-      fuelCost:     -70808, ppaCost:      -20106, otherCOS:          0,
-      totalCOS:     -90914, grossProfit:  61583,
-      sga:         -17299, maintenance:  -9877, opex:         -27177,
-      ebitda:        34406, depreciation: -19011, ebit:         15395,
-      intIncome:      3213, intExpense:  -12918, nfc:           -9705,
-      otherIncome:    6000, pretax:       11690, tax:           -1764,
-      netIncome:      9926,
-    },
-    rev: {
-      fuel: 38695, ipp: 14612, energy: 20405, custCharge: 3283, other: 418, total: 77413,
-      rate10: 29351, rate20: 16168, rate40: 16902, rate50: 7429,
-      salesMWh: 215825,
-    },
-    bs: {
-      cash: 92371, receivables: 137755, unbilled: 38252, fuelInv: 8241, materials: 44758,
-      totalCurrentAssets: 333966, fixedAssetsNBV: 1451020, totalAssets: 1859689,
-      payables: 157189, shortTermDebt: 15000, currentLTD: 66699, totalCurrentLiab: 330362,
-      longTermDebt: 396023, leaseObligation: 437254, totalEquity: 609339,
-    },
-    cf: {
-      netProfit: 5681, depreciation: 9992, interestExp: 5842,
-      operatingCF: 21042, accountsReceivable: 1051,
-      payables: 24552, totalOperating: null,
-    },
-    seg: {
-      regulatedEBITDA: 8754, purchasedPowerSurplus: 4921, nonRegContrib: 519,
-    },
-    uploadMeta: { file: 'JPSCo_Financials_02-26.xlsx', ts: '2026-04-03T00:00:00', status: '✅ Seeded' },
-  },
-};
-
-// Upload log for actuals
-let actualsLog = [
-  { file: 'JPSCo_Financials_01-26.xlsx', month: 1, label: 'January 2026',  ts: '2026-04-03 00:00', rows: 29, status: '✅ Seeded' },
-  { file: 'JPSCo_Financials_02-26.xlsx', month: 2, label: 'February 2026', ts: '2026-04-03 00:00', rows: 29, status: '✅ Seeded' },
-];
+// Upload log for actuals — populated at runtime from fpa_audit_log. No seed entries.
+let actualsLog = [];
 
 // ═══════════════════════════════════════════════════════
 //  GENERATION MIX DATA — from System_Control_February_2026_LE.xlsm
 //  Units: MWh (monthly gross generation by fuel type)
 //  Source rows: JPS own plant + IPP contracted capacity
 // ═══════════════════════════════════════════════════════
+// genMixData — populated at runtime from fpa.facts (Supabase). No hardcoded seed values.
+const _zeroMix = () => Array(12).fill(0);
 const genMixData = {
-  // JPS Own Generation
-  hfo:     { name:'HFO / Diesel (JPS)',  color:'rgba(239,68,68,.7)',   vals:[82400,74200,77800,75300,69400,72100,78400,82300,79500,77200,74800,71900] },
-  lng:     { name:'LNG / Gas (JPS)',     color:'rgba(59,130,246,.7)',  vals:[48300,43500,45600,44200,40800,42300,45900,48100,46400,45100,43600,41900] },
-  solar:   { name:'Solar PV (JPS)',      color:'rgba(240,180,41,.75)', vals:[12800,13400,15200,16100,18400,19800,20300,19700,17600,15200,13100,11900] },
-  wind:    { name:'Wind (JPS)',          color:'rgba(16,185,129,.7)',  vals:[9200,10100,8700,7800,6900,6200,5900,6100,7200,8400,9800,10600] },
-  hydro:   { name:'Hydro (JPS)',         color:'rgba(6,182,212,.7)',   vals:[2100,2400,2800,3100,3600,4100,3900,3200,2900,2600,2300,2000] },
-  // IPP Contracted
-  ipp_hfo: { name:'IPP – HFO',          color:'rgba(239,68,68,.4)',   vals:[95400,86100,90200,87300,80600,83700,91000,95500,92200,89600,86700,83500] },
-  ipp_lng: { name:'IPP – LNG/Gas',      color:'rgba(59,130,246,.4)',  vals:[41200,37100,38900,37700,34800,36100,39200,41100,39600,38500,37200,35800] },
-  ipp_re:  { name:'IPP – Renewables',   color:'rgba(16,185,129,.4)',  vals:[24800,26200,27600,28900,31400,33200,34100,33600,30900,28200,25600,23400] },
+  hfo:     { name:'HFO / Diesel (JPS)',  color:'rgba(239,68,68,.7)',   vals:_zeroMix() },
+  lng:     { name:'LNG / Gas (JPS)',     color:'rgba(59,130,246,.7)',  vals:_zeroMix() },
+  solar:   { name:'Solar PV (JPS)',      color:'rgba(240,180,41,.75)', vals:_zeroMix() },
+  wind:    { name:'Wind (JPS)',          color:'rgba(16,185,129,.7)',  vals:_zeroMix() },
+  hydro:   { name:'Hydro (JPS)',         color:'rgba(6,182,212,.7)',   vals:_zeroMix() },
+  ipp_hfo: { name:'IPP – HFO',          color:'rgba(239,68,68,.4)',   vals:_zeroMix() },
+  ipp_lng: { name:'IPP – LNG/Gas',      color:'rgba(59,130,246,.4)',  vals:_zeroMix() },
+  ipp_re:  { name:'IPP – Renewables',   color:'rgba(16,185,129,.4)',  vals:_zeroMix() },
 };
 
-// AOP 2026 Monthly revenue budget by component (USD $'000) — from AOP file
+// revBudgetMonthly — populated at runtime from AOP version in fpa.facts (Supabase). No hardcoded seed values.
 const revBudgetMonthly = {
-  fuel:      [35754,34484,37129,34877,36210,38654,40100,41253,39870,38231,36547,34852],
-  nonFuel:   [41335,40924,42180,40765,41923,44521,46023,47389,45234,43012,41098,39254],
-  ipp:       [13991,13800,14250,13560,14100,14823,15234,15678,14890,14231,13654,13012],
-  total:     [77089,75408,79309,75642,78233,83175,86157,88642,84994,81443,77649,73106],
-  salesMWh:  [245000,235000,241000,238000,248000,266000,277000,282000,268000,255000,242000,231000],
+  fuel:     Array(12).fill(0),
+  nonFuel:  Array(12).fill(0),
+  ipp:      Array(12).fill(0),
+  total:    Array(12).fill(0),
+  salesMWh: Array(12).fill(0),
 };
 
 // ═══════════════════════════════════════════════════════
@@ -6263,7 +6126,7 @@ function buildKpiLiquidityTable() {
       vals: Array(12).fill(0).map((_,m) => {
         // Use CF closing cash from indirect CF data if available
         const act = actualsStore[yr]?.[m+1];
-        return act?.closingCash || (92371 - m*500); // seed from Feb 2026
+        return act?.closingCash || act?.bs?.cash || 0;
       })
     },
   ];
@@ -7990,6 +7853,8 @@ async function handleActualsUpload(event) {
     if (moNum >= 1 && moNum <= 12 && plAct.fuel_cos) {
       (fuelCostByMonth[yr] ??= Array(12).fill(0));
       fuelCostByMonth[yr][moNum - 1] = Math.abs(plAct.fuel_cos);
+      // Also update fuelCostByMonth2026 legacy array for 2026 months
+      if (yr === 2026) fuelCostByMonth2026[moNum - 1] = Math.abs(plAct.fuel_cos);
     }
 
     // ── 15. Update MWh volumes for rate-class tables ──────────────────────────
@@ -12187,7 +12052,7 @@ function calcInterestIncome(yr){
     // Fallback: use bsLines cash vals for the year index
     const yIdx=YEARS.indexOf(String(yr));
     const cashLine=bsLines?.find(l=>l.id==='cash');
-    return cashLine?.vals[yIdx]||92371;
+    return cashLine?.vals[yIdx]||0;
   });
   nfc.intIncome.vals=cashBal.map(cash=>Math.round(cash*rate));
 }
