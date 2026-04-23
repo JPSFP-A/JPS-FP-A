@@ -1006,6 +1006,28 @@ tr.der td{color:var(--teal)}
       <button class="btn btn-print" onclick="openPrintModal()" title="Print / Save PDF">🖨 Print</button>
       <button class="btn btn-ai" onclick="showPane('ai-comm',null);document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.tab')[10]?.classList.add('on')">✦ AI Analysis</button>
       <button class="btn btn-gold" onclick="openModal('scModal')">＋ Scenario</button>
+      <div id="adminDataEntryBtn" style="display:none;position:relative">
+        <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;gap:5px" onclick="toggleDataEntryMenu(event)" title="Admin Data Entry">🗄 Data Entry ▾</button>
+        <div id="dataEntryMenu" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);min-width:260px;z-index:999;overflow:hidden">
+          <div style="padding:8px 12px;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border)">Admin · Data Entry</div>
+          <a href="/JPS_Actuals_Upload_Template.html" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:var(--text);text-decoration:none;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background=''">
+            <span style="font-size:18px">📥</span>
+            <div><div style="font-size:12px;font-weight:700">Actuals Upload</div><div style="font-size:10px;color:var(--muted)">Monthly P&L · BS · CF · Volumes</div></div>
+          </a>
+          <a href="/JPS_Budget_LE_Upload_Template.html" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:var(--text);text-decoration:none;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background=''">
+            <span style="font-size:18px">🏗️</span>
+            <div><div style="font-size:12px;font-weight:700">Budget / LE Upload</div><div style="font-size:10px;color:var(--muted)">Full year plan · Macro · Volumes · O&M · CapEx</div></div>
+          </a>
+          <a href="/JPS_Debt_Schedule_Upload.html" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:var(--text);text-decoration:none;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background=''">
+            <span style="font-size:18px">🏦</span>
+            <div><div style="font-size:12px;font-weight:700">Debt Schedule</div><div style="font-size:10px;color:var(--muted)">Loan facilities · Amortisation schedule</div></div>
+          </a>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;color:var(--text)" onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background=''" onclick="openModal('uploadGuideModal');document.getElementById('dataEntryMenu').style.display='none'">
+            <span style="font-size:18px">📖</span>
+            <div><div style="font-size:12px;font-weight:700">Upload Guide</div><div style="font-size:10px;color:var(--muted)">File requirements · Field mapping · How-to</div></div>
+          </div>
+        </div>
+      </div>
       <div style="display:flex;align-items:center;gap:7px;padding:0 8px;border-left:1px solid var(--border);margin-left:4px">
         <!-- Online users panel -->
         <div id="onlineUsersPanel" style="display:flex;align-items:center"></div>
@@ -1170,6 +1192,123 @@ tr.der td{color:var(--teal)}
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-ghost" onclick="closeModal('addBSLineModal')">Cancel</button>
         <button class="btn btn-gold" onclick="addBSLine()">Add Line</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ UPLOAD GUIDE MODAL ═══ -->
+<div class="mbg" id="uploadGuideModal">
+  <div class="modal" style="width:760px;max-width:95vw;max-height:88vh;overflow-y:auto">
+    <div class="mh" style="background:linear-gradient(135deg,#4f46e5,#7c3aed)">
+      <span style="color:#fff;font-weight:700;font-size:14px">📖 Data Entry Guide — Admin</span>
+      <button class="mbtn" onclick="closeModal('uploadGuideModal')">✕</button>
+    </div>
+    <div class="mb" style="padding:20px 24px;display:flex;flex-direction:column;gap:20px">
+
+      <!-- ACTUALS TEMPLATE -->
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="font-size:20px">📥</span>
+          <div>
+            <div style="font-size:14px;font-weight:800;color:var(--text)">Actuals Upload Template</div>
+            <div style="font-size:11px;color:var(--muted)">Use every month to load actual financial results · Opens in new tab → <a href="/JPS_Actuals_Upload_Template.html" target="_blank" style="color:var(--blue)">Open Template ↗</a></div>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr style="background:var(--card2)">
+            <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:700;width:18%">Tab</th>
+            <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:700;width:30%">Source File / System</th>
+            <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:700">Key Fields to Enter</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Statistical</td><td style="padding:6px 10px;color:var(--muted)">Billing System · OUR Dispatch Log · BOJ FX</td><td style="padding:6px 10px">GWh sold by rate class, system losses %, peak demand MW, customer counts, FX avg + EOP</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Revenue</td><td style="padding:6px 10px;color:var(--muted)">Oracle GL · Billing Revenue Report</td><td style="padding:6px 10px">Fuel revenue, non-fuel revenue by rate class, fuel surcharge, GCT collected</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">IPP / Pwr</td><td style="padding:6px 10px;color:var(--muted)">IPP Invoice Summary · Oracle Payables</td><td style="padding:6px 10px">PPA capacity charges, energy charges per IPP (JEA, JAMALCO, WRB, NEK, etc.)</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">O&amp;M</td><td style="padding:6px 10px;color:var(--muted)">Oracle GL Cost Centre Report</td><td style="padding:6px 10px">Payroll, overtime, benefits, 3rd party, insurance, bad debt — all as positive USD $000</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Depreciation</td><td style="padding:6px 10px;color:var(--muted)">FA Register Run · IFRS 16 Lease Schedule</td><td style="padding:6px 10px">Dep by component: FA Register, SJPC, leases, CX transfers, impairment</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">CapEx</td><td style="padding:6px 10px;color:var(--muted)">CapEx Tracker · Oracle Projects</td><td style="padding:6px 10px">Spend by category: Generation, T&amp;D, IT, Hurricane, Other — USD $000</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Financing</td><td style="padding:6px 10px;color:var(--muted)">Treasury Report · Oracle GL</td><td style="padding:6px 10px">Interest income, interest expense, loan fees, preference dividends, FX gain/loss</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Balance Sheet</td><td style="padding:6px 10px;color:var(--muted)">Oracle GL Trial Balance / Management Accounts</td><td style="padding:6px 10px">Cash, receivables, inventories, PPE net, total debt, equity — closing balances</td></tr>
+            <tr><td style="padding:6px 10px;font-weight:700">Cash Flow</td><td style="padding:6px 10px;color:var(--muted)">Treasury / Bank Statements</td><td style="padding:6px 10px">Collections, fuel/IPP payments, O&amp;M cash, CapEx cash, debt service, opening/closing cash</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:10px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:6px;padding:9px 12px;font-size:11px;color:var(--text)">
+          <strong>How to use:</strong> Select Year + Month at the top → Enter values in the amber <span style="background:#f59e0b;color:#fff;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700">INPUT</span> cells → Blue <span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700">DERIVED</span> rows calculate automatically → Click <strong>Preview &amp; Commit</strong> to review changes vs DB → <strong>Commit All</strong> saves to Supabase. You can also drag &amp; drop source Excel files and the system will auto-read recognised formats.
+        </div>
+      </div>
+
+      <div style="height:1px;background:var(--border)"></div>
+
+      <!-- BUDGET/LE TEMPLATE -->
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="font-size:20px">🏗️</span>
+          <div>
+            <div style="font-size:14px;font-weight:800;color:var(--text)">Budget / LE Upload Template</div>
+            <div style="font-size:11px;color:var(--muted)">Use for annual budget and each Latest Estimate revision · Opens in new tab → <a href="/JPS_Budget_LE_Upload_Template.html" target="_blank" style="color:var(--blue)">Open Template ↗</a></div>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr style="background:var(--card2)">
+            <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:700;width:18%">Section</th>
+            <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:700;width:30%">Source / Reference</th>
+            <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:700">Key Inputs</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Macro</td><td style="padding:6px 10px;color:var(--muted)">BOJ · Statistical Institute · OUR</td><td style="padding:6px 10px">Monthly FX avg + EOP, EUR/JMD, CPI inflation %, tariff escalation %, salary &amp; O&M escalation, WACC</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Volumes</td><td style="padding:6px 10px;color:var(--muted)">Sales forecast · Dispatch plan</td><td style="padding:6px 10px">GWh sales by rate class (monthly), generation mix %, system loss target %, peak demand MW</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Revenue</td><td style="padding:6px 10px;color:var(--muted)">OUR tariff schedule · Revenue model</td><td style="padding:6px 10px">Non-fuel tariff rate by class, fuel surcharge formula inputs, GCT rate, other operating revenue</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Fuel &amp; IPP</td><td style="padding:6px 10px;color:var(--muted)">Fuel price forecast · PPA contracts</td><td style="padding:6px 10px">HFO/LNG/ADO price (US$/bbl), heat rates, IPP capacity + energy charges by contract</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">O&amp;M</td><td style="padding:6px 10px;color:var(--muted)">HR / Budget templates</td><td style="padding:6px 10px">Headcount + avg salary by department, non-payroll costs by category (monthly), IFRS 16 credits</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">CapEx</td><td style="padding:6px 10px;color:var(--muted)">Capital programme plan</td><td style="padding:6px 10px">Spend by project category (monthly), payment lag (months after commitment)</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Debt Service</td><td style="padding:6px 10px;color:var(--muted)">Auto-loaded from Debt Schedule template</td><td style="padding:6px 10px">Drawn down from DB automatically — enter in Debt Schedule first, then this loads from Supabase</td></tr>
+            <tr><td style="padding:6px 10px;font-weight:700">Derived P&amp;L</td><td style="padding:6px 10px;color:var(--muted)">Calculated — read only</td><td style="padding:6px 10px">Full P&amp;L preview built from all drivers above — validate before committing</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:10px;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.25);border-radius:6px;padding:9px 12px;font-size:11px;color:var(--text)">
+          <strong>How to use:</strong> Select Type (Budget / LE1 / LE2 / LE3) + Year → Complete sections in order (Macro → Volumes → Revenue → Fuel → O&amp;M → CapEx) → Load debt service from DB → Check Derived P&amp;L tab → <strong>Preview &amp; Commit</strong> to push to Supabase as a new version. The main platform will pick it up automatically on next refresh.
+        </div>
+      </div>
+
+      <div style="height:1px;background:var(--border)"></div>
+
+      <!-- DEBT SCHEDULE -->
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:20px">🏦</span>
+          <div>
+            <div style="font-size:14px;font-weight:800;color:var(--text)">Debt Schedule Upload</div>
+            <div style="font-size:11px;color:var(--muted)">Enter once per facility, update when terms change · <a href="/JPS_Debt_Schedule_Upload.html" target="_blank" style="color:var(--blue)">Open Template ↗</a></div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.7;padding:0 4px">
+          Step 1 — Select version code and download the CSV template &nbsp;·&nbsp;
+          Step 2 — Fill in facility details (lender, currency, principal, rate, draw-down date, tenor) &nbsp;·&nbsp;
+          Step 3 — Upload filled CSV for validation preview &nbsp;·&nbsp;
+          Step 4 — Commit to Supabase. Debt service auto-loads into the Budget/LE template.
+        </div>
+      </div>
+
+      <div style="height:1px;background:var(--border)"></div>
+
+      <!-- GENERAL RULES -->
+      <div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:8px">📌 General Rules for All Templates</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">
+          <div style="background:var(--card2);border-radius:6px;padding:9px 12px"><strong>Sign convention</strong><br>Enter all costs as <strong>positive</strong> numbers. The platform applies the P&L sign convention (expenses shown in brackets).</div>
+          <div style="background:var(--card2);border-radius:6px;padding:9px 12px"><strong>Currency</strong><br>All monetary values in <strong>USD $000</strong> unless the field says "J$" or "J$000".</div>
+          <div style="background:var(--card2);border-radius:6px;padding:9px 12px"><strong>Period lock</strong><br>Closed periods cannot be overwritten. Unlock via <em>Data Management Centre → Lock/Unlock</em> if a restatement is needed.</div>
+          <div style="background:var(--card2);border-radius:6px;padding:9px 12px"><strong>Derived rows</strong><br>Blue rows calculate automatically — do not enter values. Amber rows are your inputs.</div>
+          <div style="background:var(--card2);border-radius:6px;padding:9px 12px"><strong>Audit trail</strong><br>Every commit writes to <code>fpa_audit_log</code> with your name, timestamp, and change delta. View in the Audit tab.</div>
+          <div style="background:var(--card2);border-radius:6px;padding:9px 12px"><strong>File drop</strong><br>Drag &amp; drop your Excel/CSV exports into the upload zone. The system fingerprints the file and maps the columns automatically.</div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:4px">
+        <a href="/JPS_Actuals_Upload_Template.html" target="_blank" class="btn btn-ghost" style="font-size:11px;text-decoration:none;display:inline-flex;align-items:center;gap:5px">📥 Open Actuals Template ↗</a>
+        <a href="/JPS_Budget_LE_Upload_Template.html" target="_blank" class="btn btn-gold" style="font-size:11px;text-decoration:none;display:inline-flex;align-items:center;gap:5px">🏗️ Open Budget/LE Template ↗</a>
+        <button class="btn btn-ghost" onclick="closeModal('uploadGuideModal')">Close</button>
       </div>
     </div>
   </div>
@@ -10116,6 +10255,15 @@ function setPeriod(p,btn){const prev=period;period=p;document.querySelectorAll('
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.addEventListener('click',e=>{if(e.target.classList.contains('mbg'))e.target.classList.remove('open');});
+function toggleDataEntryMenu(e){
+  e.stopPropagation();
+  const m=document.getElementById('dataEntryMenu');
+  m.style.display=m.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',()=>{
+  const m=document.getElementById('dataEntryMenu');
+  if(m) m.style.display='none';
+});
 function exportCSV(){const rows=[['Year','Line','Section','2022','2023','2024','2025','2026','2027','2028']];plLines.forEach(l=>rows.push([YEARS[0],l.name,l.sect,...l.vals.slice(0,7)]));const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='JPS_FPA_Export_'+activeSc.replace(/ /g,'_')+'.csv';a.click();toast('Exported','ok');}
 
 // ── O&M Export ────────────────────────────────────────────────────────────────
@@ -13247,6 +13395,9 @@ function _initPlatform() {
             const nd = document.getElementById('userNameDisp'); if (nd) nd.textContent = currentUser.name;
             const rd = document.getElementById('userRoleDisp'); if (rd) { rd.textContent = currentUser.role.toUpperCase(); rd.style.color = currentUser.role==='admin'?'var(--gold)':currentUser.role==='analyst'?'var(--teal)':'var(--muted)'; }
             const av = document.getElementById('userAvatar'); if (av) av.textContent = currentUser.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+            // Show admin-only Data Entry button
+            const deBtn = document.getElementById('adminDataEntryBtn');
+            if (deBtn) deBtn.style.display = currentUser.role === 'admin' ? 'block' : 'none';
           });
           _sbStartRealtime();
           refreshAll();
