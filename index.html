@@ -12478,15 +12478,8 @@ function _restoreState() {
         b.classList.toggle('on', b.textContent.toLowerCase().includes(period));
       });
     }
-    // Restore active tab (after a short delay to let init complete)
-    // Skip if user chose Flash destination on login — flash routing takes priority
-    if (s.pane && s.pane !== 'dash' && _loginDestination !== 'flash') {
-      setTimeout(() => {
-        const tab = document.querySelector(`.tab[onclick*="'${s.pane}'"]`);
-        showPane(s.pane, tab);
-        if(tab){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));tab.classList.add('on');}
-      }, 400);
-    }
+    // Always open to Dashboard on login — do not restore last tab
+    // (Flash destination is handled separately in doLogin routing)
   } catch(e) {}
 }
 
