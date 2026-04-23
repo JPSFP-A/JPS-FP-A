@@ -5019,17 +5019,18 @@ let bsLines=[
 // DEPRECIATION COMPONENTS — year-keyed (replaces depLines as live data source)
 // 2026 seed from Depreciation_February_2026_LE_revised.xlsx
 // depLines[] kept as read-only reference
+// depreciationComponents — zeroed. Populate from uploads.
 function _mkDepComp(){
   const base={
-    faRegister:     Array(12).fill(Math.round(66655560/12)),
-    sjpc:           Array(12).fill(Math.round(22616466/12)),
-    otherLeases:    Array(12).fill(Math.round(15471092/12)),
-    capexTransfers: Array(12).fill(Math.round(14399331/12)),
-    capitalSpares:  Array(12).fill(Math.round(405000/12)),
-    decommissioning:Array(12).fill(Math.round(1073408/12)),
-    strandedMeters: Array(12).fill(0),
-    strandedLights: Array(12).fill(Math.round(149495/12)),
-    impairment:     Array(12).fill(0),
+    faRegister:     _z12(),
+    sjpc:           _z12(),
+    otherLeases:    _z12(),
+    capexTransfers: _z12(),
+    capitalSpares:  _z12(),
+    decommissioning:_z12(),
+    strandedMeters: _z12(),
+    strandedLights: _z12(),
+    impairment:     _z12(),
   };
   const obj={};
   [2026,2027,2028,2029,2030].forEach(y=>{
@@ -5059,27 +5060,27 @@ function calcDepTotals(yr,m){
   return {regular,impairment,total:regular+impairment};
 }
 
-// O&M DATA — year-keyed 2026-2030
-// Values in USD $'000
+// O&M DATA — year-keyed 2026-2030. Zeroed — populate from uploads.
+const _z12=()=>Array(12).fill(0);
 function _mkOMRows(){
   const base=[
-    {id:'payroll',  name:'01. Payroll',                cashLag:0,  vals:[5276,4992,4322,5702,5695,5637,5626,5598,5591,5592,5623,5595]},
-    {id:'overtime', name:'02. Overtime',               cashLag:0,  vals:[145,809,280,239,249,292,283,278,349,307,302,296]},
-    {id:'benefits', name:'03. Employee Benefits',      cashLag:0,  vals:[1318,1144,1154,1154,1153,1225,1144,1140,1139,1134,1137,1212]},
-    {id:'disc_ben', name:'04. Discretionary Benefits', cashLag:30, vals:[129,141,485,303,265,308,285,293,223,222,147,149]},
-    {id:'training', name:'05. Training',               cashLag:30, vals:[0,0,143,44,44,44,44,44,44,44,44,44]},
-    {id:'thirdpty', name:'06. 3rd Party Services',     cashLag:30, vals:[1435,3602,1744,2367,2405,2169,2252,2075,2400,2432,2555,2555]},
-    {id:'supplies', name:'07. Supplies',               cashLag:30, vals:[224,116,223,274,238,154,366,222,446,255,183,184]},
-    {id:'materials',name:'08. Materials',              cashLag:30, vals:[107,73,192,236,297,140,187,164,289,113,145,150]},
-    {id:'bdr',      name:'09. Bill Dlvry & Mtr Reading',cashLag:30,vals:[579,704,380,774,587,988,765,597,711,638,542,543]},
-    {id:'tech',     name:'10. Technology & Telecom',   cashLag:30, vals:[952,849,1633,1000,989,1361,1034,1143,1083,1033,1028,1028]},
-    {id:'office',   name:'11. Other Office Expenses',  cashLag:30, vals:[16,14,71,25,40,53,22,23,24,12,24,24]},
-    {id:'transport',name:'12. Transport',              cashLag:0,  vals:[1206,1223,1053,1070,1040,1041,896,1028,935,888,978,1001]},
-    {id:'misc',     name:'13. Miscellaneous',          cashLag:30, vals:[214,78,69,215,54,163,194,76,94,197,32,72]},
-    {id:'insurance',name:'14. Insurance',              cashLag:0,  vals:[696,696,637,717,717,722,719,746,746,746,746,746]},
-    {id:'building', name:'15. Building / Facilities',  cashLag:30, vals:[663,724,822,679,726,639,813,684,627,777,527,697]},
-    {id:'advert',   name:'16. Advertising',            cashLag:30, vals:[8,4,331,180,80,80,180,80,80,180,80,80]},
-    {id:'bad_debt', name:'17. Bad Debt',               cashLag:60, vals:[1085,595,558,768,760,751,751,751,751,751,751,751]},
+    {id:'payroll',  name:'01. Payroll',                cashLag:0,  vals:_z12()},
+    {id:'overtime', name:'02. Overtime',               cashLag:0,  vals:_z12()},
+    {id:'benefits', name:'03. Employee Benefits',      cashLag:0,  vals:_z12()},
+    {id:'disc_ben', name:'04. Discretionary Benefits', cashLag:30, vals:_z12()},
+    {id:'training', name:'05. Training',               cashLag:30, vals:_z12()},
+    {id:'thirdpty', name:'06. 3rd Party Services',     cashLag:30, vals:_z12()},
+    {id:'supplies', name:'07. Supplies',               cashLag:30, vals:_z12()},
+    {id:'materials',name:'08. Materials',              cashLag:30, vals:_z12()},
+    {id:'bdr',      name:'09. Bill Dlvry & Mtr Reading',cashLag:30,vals:_z12()},
+    {id:'tech',     name:'10. Technology & Telecom',   cashLag:30, vals:_z12()},
+    {id:'office',   name:'11. Other Office Expenses',  cashLag:30, vals:_z12()},
+    {id:'transport',name:'12. Transport',              cashLag:0,  vals:_z12()},
+    {id:'misc',     name:'13. Miscellaneous',          cashLag:30, vals:_z12()},
+    {id:'insurance',name:'14. Insurance',              cashLag:0,  vals:_z12()},
+    {id:'building', name:'15. Building / Facilities',  cashLag:30, vals:_z12()},
+    {id:'advert',   name:'16. Advertising',            cashLag:30, vals:_z12()},
+    {id:'bad_debt', name:'17. Bad Debt',               cashLag:60, vals:_z12()},
   ];
   const obj={};
   [2026,2027,2028,2029,2030].forEach(y=>{
@@ -5091,16 +5092,16 @@ let omRows=_mkOMRows();
 let omGrowthRates={};// {yr:{rowId:rate}} — populated by UI
 let selectedOMYear=2026;
 
-// CAPEX DATA — year-keyed 2026-2030
+// CAPEX DATA — year-keyed 2026-2030. Zeroed — populate from uploads.
 function _mkCapexRows(){
   const base=[
-    {id:'cx_gen',  name:'Generation – Routine & Overhauls',payLag:2,tLag:3,dYrs:15,  vals:[139,139,139,139,139,139,139,139,139,139,139,139]},
-    {id:'cx_tx',   name:'Transmission – Expansion & Upgrade',payLag:2,tLag:2,dYrs:25,vals:[6,6,6,6,6,6,6,6,6,6,6,6]},
-    {id:'cx_dist', name:'Distribution – System Upgrade',  payLag:2,tLag:1,dYrs:25,   vals:[1928,1928,1928,1928,1928,1928,1928,1928,1928,1928,1928,1928]},
-    {id:'cx_hurr', name:'Hurricane Melissa Restoration',  payLag:1,tLag:1,dYrs:22,   vals:[1500,1200,2100,2500,2500,2500,3000,3000,3000,3200,3200,4000]},
-    {id:'cx_cust', name:'Customer Growth (CCMA)',         payLag:2,tLag:1,dYrs:25,   vals:[18,18,18,18,18,18,18,18,18,18,18,18]},
-    {id:'cx_loss', name:'Loss Reduction Programme',       payLag:2,tLag:2,dYrs:15,   vals:[0,0,0,0,0,0,0,0,0,0,0,0]},
-    {id:'cx_ss',   name:'Support Services (IT, Facilities)',payLag:1,tLag:2,dYrs:5,  vals:[2,2,2,2,2,2,2,2,2,2,2,2]},
+    {id:'cx_gen',  name:'Generation – Routine & Overhauls',   payLag:2,tLag:3,dYrs:15, vals:_z12()},
+    {id:'cx_tx',   name:'Transmission – Expansion & Upgrade', payLag:2,tLag:2,dYrs:25, vals:_z12()},
+    {id:'cx_dist', name:'Distribution – System Upgrade',      payLag:2,tLag:1,dYrs:25, vals:_z12()},
+    {id:'cx_hurr', name:'Hurricane Melissa Restoration',      payLag:1,tLag:1,dYrs:22, vals:_z12()},
+    {id:'cx_cust', name:'Customer Growth (CCMA)',             payLag:2,tLag:1,dYrs:25, vals:_z12()},
+    {id:'cx_loss', name:'Loss Reduction Programme',           payLag:2,tLag:2,dYrs:15, vals:_z12()},
+    {id:'cx_ss',   name:'Support Services (IT, Facilities)',  payLag:1,tLag:2,dYrs:5,  vals:_z12()},
   ];
   const obj={};
   [2026,2027,2028,2029,2030].forEach(y=>{
@@ -5111,18 +5112,18 @@ function _mkCapexRows(){
 let capexRows=_mkCapexRows();
 let selectedCapexYear=2026;
 
-// COLLECTIONS — year-keyed 2026-2030
+// COLLECTIONS — year-keyed 2026-2030. Zeroed — populate from uploads.
 function _mkCollRows(){
   const base=[
-    {id:'billing',   name:'Total Billings (J$000s)',         unit:'J$000',vals:[279785,271224,275188,272001,277915,294628,304842,309363,299319,294723,286795,281044]},
-    {id:'cr_rt10',   name:'RT10 Collection Rate %',          unit:'%',    vals:[93.5,93.2,93.8,94.0,94.0,94.2,94.5,94.5,94.0,93.8,93.5,93.8]},
-    {id:'cr_rt20',   name:'RT20 Collection Rate %',          unit:'%',    vals:[96.0,95.8,96.2,96.5,96.5,96.8,97.0,97.0,96.5,96.2,96.0,96.2]},
-    {id:'cr_rt40',   name:'RT40/RT50 Collection Rate %',     unit:'%',    vals:[97.5,97.3,97.6,97.8,97.8,98.0,98.2,98.2,97.8,97.6,97.3,97.5]},
-    {id:'blended',   name:'Blended Collection Rate (derived)',unit:'%',    vals:null,derived:true},
-    {id:'prior',     name:'Prior Period Collections (US$000)',unit:'US$000',vals:[3200,2800,3100,3000,3100,3200,3300,3200,3100,3000,2900,3500]},
-    {id:'gcr',       name:'GCT Recoverable (US$000)',         unit:'US$000',vals:[800,720,750,780,840,900,920,900,870,820,795,880]},
-    {id:'receipts',  name:'Cash Receipts (US$000, derived)',  unit:'US$000',vals:null,derived:true},
-    {id:'dso',       name:'DSO Days (derived)',               unit:'days', vals:null,derived:true},
+    {id:'billing',   name:'Total Billings (J$000s)',          unit:'J$000',  vals:_z12()},
+    {id:'cr_rt10',   name:'RT10 Collection Rate %',           unit:'%',      vals:_z12()},
+    {id:'cr_rt20',   name:'RT20 Collection Rate %',           unit:'%',      vals:_z12()},
+    {id:'cr_rt40',   name:'RT40/RT50 Collection Rate %',      unit:'%',      vals:_z12()},
+    {id:'blended',   name:'Blended Collection Rate (derived)', unit:'%',      vals:null,derived:true},
+    {id:'prior',     name:'Prior Period Collections (US$000)', unit:'US$000', vals:_z12()},
+    {id:'gcr',       name:'GCT Recoverable (US$000)',          unit:'US$000', vals:_z12()},
+    {id:'receipts',  name:'Cash Receipts (US$000, derived)',   unit:'US$000', vals:null,derived:true},
+    {id:'dso',       name:'DSO Days (derived)',                unit:'days',   vals:null,derived:true},
   ];
   const obj={};
   [2026,2027,2028,2029,2030].forEach(y=>{
@@ -5144,8 +5145,7 @@ let otherOperatingRevenue={};
     {id:'reg_recov',   name:'Other Regulatory Recoveries',vals:Array(12).fill(0)},
     {id:'nonreg_rev',  name:'Non-Regulated Revenue',      vals:Array(12).fill(0)},
   ];
-  // Seed Feb = -404 in misc other
-  otherOperatingRevenue[y].find(r=>r.id==='reg_recov').vals[1]=-404;
+  // No seed values — populate from uploads
 });
 
 // Net Financing rows — year-keyed
@@ -5155,30 +5155,28 @@ let netFinancingRows={};
     intIncome:    {name:'Interest Income',         vals:Array(12).fill(0)},
     intExpense:   {name:'Interest Expense',        vals:Array(12).fill(0)},
     loanFees:     {name:'Loan Financing Fees',     vals:Array(12).fill(0)},
-    prefDivs:     {name:'Preference Dividends',    vals:Array(12).fill(179)},
+    prefDivs:     {name:'Preference Dividends',    vals:Array(12).fill(0)},
     budgetFX:     Array(12).fill(155),
     netFXPosition:Array(12).fill(0),
     interestRateOnCash: 4.5,  // % p.a. on closing cash balance — drives interest income calc
   };
-  // 2026 seeds from deck p25
-  netFinancingRows[2026].intIncome.vals=[479,580,0,0,0,0,0,0,0,0,0,0];
-  netFinancingRows[2026].intExpense.vals=[-7236,-5586,0,0,0,0,0,0,0,0,0,0];
-  netFinancingRows[2026].loanFees.vals=[0,-47,0,0,0,0,0,0,0,0,0,0];
+  // 2026 actuals populated from uploads — no hardcoded seed values
 });
 
+// revRows — zeroed. Populate from uploads.
 let revRows=[
-  {id:'cust_rt10',name:'RT10 Residential Customers (000s)',unit:'000s',vals:[628,626,627,632,639,649,656,660,662,660,658,657]},
-  {id:'cust_rt20',name:'RT20 Commercial Customers',       unit:'#',   vals:[5869,5878,5892,5904,5917,5931,5941,5947,5952,5953,5956,5959]},
-  {id:'cust_rt40',name:'RT40 LV Commercial Customers',    unit:'#',   vals:[1785,1787,1791,1795,1797,1800,1803,1806,1809,1812,1813,1815]},
-  {id:'gwh_rt10', name:'RT10 GWh Billed Sales',           unit:'GWh', vals:[86.2,78.1,81.3,82.4,89.6,96.3,99.7,104.6,96.0,94.4,89.5,84.4]},
-  {id:'gwh_rt20', name:'RT20 GWh Billed Sales',           unit:'GWh', vals:[46.2,43.5,45.6,45.9,49.8,54.6,57.4,60.4,54.3,51.7,47.7,43.1]},
-  {id:'gwh_rt40', name:'RT40 GWh Billed Sales (LV Comm.)',unit:'GWh', vals:[62.1,62.2,61.5,63.7,59.3,64.6,67.3,65.5,66.3,66.5,66.8,65.9]},
-  {id:'gwh_rt50', name:'RT50 GWh Billed Sales (MV Ind.)', unit:'GWh', vals:[52.0,48.3,49.6,49.5,47.5,51.5,54.9,53.4,53.8,53.9,53.4,54.0]},
-  {id:'gwh_rt60', name:'RT60 GWh Streetlights',           unit:'GWh', vals:[5.9,5.9,5.9,5.9,5.9,5.9,5.9,5.9,5.9,5.9,5.9,5.9]},
-  {id:'gwh_rt70', name:'RT70 GWh HV Industrial',          unit:'GWh', vals:[22.1,21.0,20.3,19.4,19.6,20.4,20.8,20.9,20.5,21.1,20.8,21.8]},
-  {id:'gwh_tot',  name:'Total GWh (derived)',              unit:'GWh', vals:null,derived:true},
-  {id:'sys_loss', name:'System Loss %',                   unit:'%',   vals:[26.5,26.6,26.5,26.4,26.3,26.2,26.1,26.0,26.1,26.3,26.5,26.6]},
-  {id:'peak_mw',  name:'Peak Demand (MW)',                 unit:'MW',  vals:[530,498,510,522,568,608,625,615,590,551,525,508]},
+  {id:'cust_rt10',name:'RT10 Residential Customers (000s)',unit:'000s',vals:_z12()},
+  {id:'cust_rt20',name:'RT20 Commercial Customers',        unit:'#',   vals:_z12()},
+  {id:'cust_rt40',name:'RT40 LV Commercial Customers',     unit:'#',   vals:_z12()},
+  {id:'gwh_rt10', name:'RT10 GWh Billed Sales',            unit:'GWh', vals:_z12()},
+  {id:'gwh_rt20', name:'RT20 GWh Billed Sales',            unit:'GWh', vals:_z12()},
+  {id:'gwh_rt40', name:'RT40 GWh Billed Sales (LV Comm.)', unit:'GWh', vals:_z12()},
+  {id:'gwh_rt50', name:'RT50 GWh Billed Sales (MV Ind.)',  unit:'GWh', vals:_z12()},
+  {id:'gwh_rt60', name:'RT60 GWh Streetlights',            unit:'GWh', vals:_z12()},
+  {id:'gwh_rt70', name:'RT70 GWh HV Industrial',           unit:'GWh', vals:_z12()},
+  {id:'gwh_tot',  name:'Total GWh (derived)',               unit:'GWh', vals:null,derived:true},
+  {id:'sys_loss', name:'System Loss %',                    unit:'%',   vals:_z12()},
+  {id:'peak_mw',  name:'Peak Demand (MW)',                  unit:'MW',  vals:_z12()},
 ];
 
 // TARIFF RATES
@@ -5359,20 +5357,21 @@ function buildStatTbl(lines,hEl,bEl){
 // ═══════════════════════════════════════════════════════
 // depYears — columns for the historic rpt-dep report (uses depLines[] read-only reference)
 const depYears = ['2021','2022','2023','2024','2025','2026','2027'];
-// depMonthly2026 — monthly additions seed used by rpt-dep chart
-const depMonthly2026 = [78476,149,283,339,1410,1617,1775,1775,1775,1775,1775,1877].map(v=>Math.round(v));
-// depLines — historic annual depreciation schedule (read-only reference, Depreciation_Feb_2026_LE_revised.xlsx)
+// depMonthly2026 — zeroed. Populate from uploads.
+const depMonthly2026 = Array(12).fill(0);
+// depLines — zeroed. Populate from uploads.
+const _z7=()=>Array(7).fill(0);
 const depLines = [
-  {name:'Depreciation expense (FA Register)',  vals:[68852,71567,78224,12840,66656,78113,49632]},
-  {name:'SJPC Depreciation',                   vals:[22616,22616,22616,22616,22616,22616,0],src:true},
-  {name:'Other Lease Assets (IFRS-16)',         vals:[16722,16989,18188,17649,15471,14748,0],src:true},
-  {name:'CapEx Transfers – New Additions',      vals:[0,0,0,0,14399,8640,32387]},
-  {name:'Capital Spares',                       vals:[405,294,251,51,405,405,405]},
-  {name:'Decommissioning (OH, HB, RF, BG)',     vals:[4096,2923,1237,190,1073,1073,0]},
-  {name:'Impairment / Hurricane Melissa',       vals:[0,0,6673,-500,5000,0,0]},
-  {name:'Stranded Assets (Meters)',             vals:[3297,3297,573,0,0,0,0]},
-  {name:'Stranded Assets (Streetlights)',       vals:[572,149,149,25,149,149,135]},
-  {name:'TOTAL DEPRECIATION',                  vals:[116603,117882,127912,52872,125770,125745,82559],tot:true},
+  {name:'Depreciation expense (FA Register)',  vals:_z7()},
+  {name:'SJPC Depreciation',                   vals:_z7(),src:true},
+  {name:'Other Lease Assets (IFRS-16)',         vals:_z7(),src:true},
+  {name:'CapEx Transfers – New Additions',      vals:_z7()},
+  {name:'Capital Spares',                       vals:_z7()},
+  {name:'Decommissioning (OH, HB, RF, BG)',     vals:_z7()},
+  {name:'Impairment / Hurricane Melissa',       vals:_z7()},
+  {name:'Stranded Assets (Meters)',             vals:_z7()},
+  {name:'Stranded Assets (Streetlights)',       vals:_z7()},
+  {name:'TOTAL DEPRECIATION',                  vals:_z7(),tot:true},
 ];
 
 function buildDepReport(){
@@ -5547,7 +5546,7 @@ function buildIndirectCF() {
   const loanDrawdowns = 0;
   const loanRepayments = 0;
   const interestPaid  = -interestExp;
-  const prefDivPaid   = -(appropriationRows.find(r=>r.id==='div_pref')?.vals[2026]?.[mo-1]||179);
+  const prefDivPaid   = -(appropriationRows.find(r=>r.id==='div_pref')?.vals[2026]?.[mo-1]||0);
   const ordDivPaid    = -(appropriationRows.find(r=>r.id==='div_ord')?.vals[2026]?.[mo-1]||0);
   const netCashFinancing = loanDrawdowns + loanRepayments + interestPaid + prefDivPaid + ordDivPaid;
 
@@ -10801,20 +10800,20 @@ let otherIncomeRows = [
   {id:'asset_disp', name:'Gain/(Loss) on Asset Disposal',  taxable:true,  cashItem:true,  cashLag:0,
    vals:{2026:[0,0,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
   {id:'inv_sale',   name:'Sale of Inventory/Scrap',        taxable:true,  cashItem:true,  cashLag:0,
-   vals:{2026:[2,2,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
+   vals:{2026:_z12(),2027:_z12(),2028:_z12(),2029:_z12(),2030:_z12()}},
   {id:'other_tax',  name:'Other Taxable Income/(Expense)', taxable:true,  cashItem:true,  cashLag:0,
    vals:{2026:[0,0,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
   {id:'div_rec',    name:'Dividend Received',              taxable:false, cashItem:true,  cashLag:0,
-   vals:{2026:[0,5869,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
+   vals:{2026:_z12(),2027:_z12(),2028:_z12(),2029:_z12(),2030:_z12()}},
   {id:'fx_gain',    name:'FX Gains/(Losses)',              taxable:false, cashItem:false, cashLag:0,
-   vals:{2026:[0,730,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
+   vals:{2026:_z12(),2027:_z12(),2028:_z12(),2029:_z12(),2030:_z12()}},
   {id:'other_nontax',name:'Other Non-Taxable Inc/(Exp)', taxable:false, cashItem:false, cashLag:0,
    vals:{2026:[0,0,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
 ];
 
 let appropriationRows = [
   {id:'div_pref', name:'Preference Dividends Paid',
-   vals:{2026:[179,179,179,179,179,179,179,179,179,179,179,179],2027:[179,179,179,179,179,179,179,179,179,179,179,179],2028:[179,179,179,179,179,179,179,179,179,179,179,179],2029:[179,179,179,179,179,179,179,179,179,179,179,179],2030:[179,179,179,179,179,179,179,179,179,179,179,179]}},
+   vals:{2026:_z12(),2027:_z12(),2028:_z12(),2029:_z12(),2030:_z12()}},
   {id:'div_ord',  name:'Ordinary Dividends Paid',
    vals:{2026:[0,0,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
   {id:'reserve',  name:'Transfer to Reserves',
@@ -10869,48 +10868,27 @@ for (let yr = 2028; yr <= 2030; yr++) {
   });
 }
 
+// sysLossTable — zeroed. Populate from uploads.
 let sysLossTable = {
-  2026:[26.4,26.6,26.5,26.4,26.3,26.2,26.1,26.0,26.1,26.3,26.5,26.6],
-  2027:[26.0,26.0,26.0,25.9,25.8,25.7,25.6,25.5,25.6,25.7,25.8,25.9],
-  2028:[25.5,25.5,25.4,25.3,25.2,25.1,25.0,25.0,25.1,25.2,25.3,25.4],
-  2029:[25.0,25.0,24.9,24.8,24.7,24.6,24.5,24.5,24.6,24.7,24.8,24.9],
-  2030:[24.5,24.5,24.4,24.3,24.2,24.1,24.0,24.0,24.1,24.2,24.3,24.4],
+  2026:_z12(), 2027:_z12(), 2028:_z12(), 2029:_z12(), 2030:_z12(),
 };
 
-let fuelPriceTable = {
-  2026:{
-    hfo:[12.09,11.85,11.85,11.71,11.82,11.85,11.71,11.85,11.82,11.71,11.62,11.50],
-    lng:[12.50,12.29,11.91,11.77,11.76,11.94,12.12,12.25,12.10,11.95,11.80,11.65],
-    ado:[18.30,18.11,17.89,17.64,17.40,17.24,17.22,17.40,17.24,17.06,16.90,16.75],
-  },
-};
-for (let yr = 2027; yr <= 2030; yr++) {
-  const prev = fuelPriceTable[yr-1];
-  fuelPriceTable[yr] = {};
-  ['hfo','lng','ado'].forEach(f=>{
-    fuelPriceTable[yr][f] = (prev[f]||[]).map(v=>Math.round(v*0.98*100)/100);
-  });
-}
+// fuelPriceTable — zeroed. Populate from uploads.
+let fuelPriceTable = {};
+[2026,2027,2028,2029,2030].forEach(yr=>{
+  fuelPriceTable[yr]={hfo:_z12(),lng:_z12(),ado:_z12()};
+});
 
 let selectedGenYear = 2026;
 let selectedRevYear = 2026;
 let selectedRevMonth = 0;
 
-// Fuel cost and revenue — year-keyed (US$000/month)
-// 2026 seed from generation module; 1-month lag: fuelRev[m] = fuelCost[m-1]
-const fuelCostByMonth = {
-  2026:[41619,38382,41000,39500,41000,43000,46000,48000,46000,44000,42000,40000],
-  2027:[43200,39800,42500,41000,42500,44600,47700,49700,47700,45600,43500,41500],
-  2028:[44800,41300,44100,42500,44100,46200,49500,51500,49500,47300,45100,43100],
-  2029:[46500,42800,45700,44100,45700,47900,51300,53400,51300,49000,46800,44700],
-  2030:[48200,44400,47400,45700,47400,49700,53200,55400,53200,50800,48600,46300],
-};
-// fuelRevByYear = fuelCost with 1-month lag (Jan fuel rev = Dec prior fuel cost)
+// fuelCostByMonth — zeroed. Populate from uploads.
+const fuelCostByMonth = {};
+[2026,2027,2028,2029,2030].forEach(yr=>{ fuelCostByMonth[yr]=_z12(); });
+// fuelRevByYear — zeroed until fuel costs are loaded
 const fuelRevByYear = {};
-[2026,2027,2028,2029,2030].forEach(yr=>{
-  const fc=fuelCostByMonth[yr]; const fcPrev=fuelCostByMonth[yr-1]||fuelCostByMonth[2026];
-  fuelRevByYear[yr]=fc.map((v,i)=>i===0?Math.round(fcPrev[11]*1.02):Math.round(fc[i-1]*1.02));
-});
+[2026,2027,2028,2029,2030].forEach(yr=>{ fuelRevByYear[yr]=_z12(); });
 
 function setRevYear(yr, btn) {
   selectedRevYear = yr;
@@ -11022,7 +11000,7 @@ function buildGenTables() {
       {n:'Total Net Gen (GWh) LE',vals:ng_total,act:null},
       {n:'Billed Sales (GWh) LE',vals:billedK,act:actBilled},
       {n:'Fuel Cost US$000 LE',vals:fc,act:actFuelCost},
-      {n:'VO&M Cost US$000',vals:vom,act:null},
+      {n:'VO&M Cost US$000',vals:_z12(),act:null},
     ];
     derBEl.innerHTML = leRows.map(r=>{
       const totalLE=r.vals.reduce((s,v)=>s+(v||0),0);
@@ -12291,7 +12269,7 @@ function buildMonthlyPL(yr){
   row('Loan Financing Fees', nfc.loanFees?.vals||Array(12).fill(0), {color:'var(--red)'});
   const leaseIntM=agg?agg.interestExpense:Array(12).fill(0);
   row('Lease Interest (IFRS 16)', leaseIntM, {derived:true, color:'var(--teal)'});
-  row('Preference Dividends', nfc.prefDivs?.vals||Array(12).fill(179), {color:'var(--muted)'});
+  row('Preference Dividends', nfc.prefDivs?.vals||Array(12).fill(0), {color:'var(--muted)'});
   const fxGainM=MO.map((_,m)=>Math.round(((fxTable.billing[m]||155)-(nfc.budgetFX[m]||155))*(nfc.netFXPosition[m]||0)));
   row('FX Gain/(Loss)', fxGainM, {derived:true, color:'var(--blue)'});
   const nfcM=MO.map((_,m)=>(nfc.intIncome?.vals[m]||0)+(nfc.intExpense?.vals[m]||0)+(nfc.loanFees?.vals[m]||0)+leaseIntM[m]+(nfc.prefDivs?.vals[m]||179)+fxGainM[m]);
