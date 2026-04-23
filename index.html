@@ -4453,8 +4453,8 @@ async function testSbConnection() {
   toast('Testing connection…', 'ok');
   try {
     const testClient = window.supabase.createClient(url, key);
-    const { error } = await testClient.from('audit_log').select('id').limit(1);
-    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = table not found (ok for now)
+    const { error } = await testClient.from('fpa_audit_log').select('id').limit(1);
+    if (error && error.code !== 'PGRST116') throw error;
     toast('✓ Connection successful!', 'ok');
   } catch(e) {
     toast('Connection failed: ' + (e.message||e), 'err');
