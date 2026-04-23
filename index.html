@@ -2777,13 +2777,14 @@ tr.der td{color:var(--teal)}
       <div class="sb" onclick="filterAudit('scenario',this)">Scenarios</div>
     </div>
     <input id="auditSearch" class="sel" type="text" placeholder="Search user, field, value..." style="width:200px;height:26px" oninput="renderAuditTable()">
-    <button class="btn btn-ghost" onclick="exportAuditCSV()" style="margin-left:auto">⬇ Export CSV</button>
+    <button class="btn btn-ghost" onclick="loadAuditFromDB()" style="margin-left:auto">⟳ Refresh</button>
+    <button class="btn btn-ghost" onclick="exportAuditCSV()">⬇ Export CSV</button>
     <button class="btn btn-ghost" onclick="clearAuditLog()" style="border-color:var(--red);color:var(--red)">🗑 Clear</button>
   </div>
   <div style="display:flex;gap:16px;margin-bottom:10px" id="auditStats"></div>
   <div class="tc2">
     <div class="th">
-      <div><div class="tt">Change Log <span id="auditCount" class="badge badge-act">0 entries</span></div><div class="ts">All user actions recorded in-session. Export to persist.</div></div>
+      <div><div class="tt">Change Log <span id="auditCount" class="badge badge-act">0 entries</span></div><div class="ts" id="auditSub">Loading from database…</div></div>
     </div>
     <div class="tscr"><table><thead><tr>
       <th style="text-align:left;min-width:90px">Time</th>
@@ -10250,39 +10251,66 @@ async function loadGlossary() {
 
 // Fetch historical audit entries from Supabase when audit tab opens
 async function loadAuditFromDB() {
-  if (!_sb) { renderAuditTable(); return; }
-  try {
-    const { data, error } = await _sb
-      .from('fpa_audit_log')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(500);
-    if (error) throw error;
-    // Merge DB records with in-memory store (avoid duplicates by db id)
-    const existingDbIds = new Set(_auditStore.map(e => e.dbId).filter(Boolean));
-    const newEntries = (data || [])
-      .filter(r => !existingDbIds.has(r.id))
-      .map(r => ({
-        id:       r.id,
-        dbId:     r.id,
-        userId:   r.user_id   || '—',
-        userName: r.user_name || '—',
-        userRole: r.user_role || '—',
-        cat:      _auditCat(r.action || ''),
-        action:   r.action    || '—',
-        target:   r.target    || '—',
-        oldVal:   r.old_val   ?? null,
-        newVal:   r.new_val   ?? null,
-        timestamp: new Date(r.created_at),
-      }));
-    // Combine and sort newest first
-    const merged = [..._auditStore, ...newEntries];
-    merged.sort((a, b) => b.timestamp - a.timestamp);
-    _auditStore.length = 0;
-    merged.forEach(e => _auditStore.push(e));
-  } catch(e) {
-    console.warn('Audit load from DB failed:', e.message);
+  // Show loading state
+  const body    = document.getElementById('auditBody');
+  const countEl = document.getElementById('auditCount');
+  const subEl   = document.getElementById('auditSub');
+  if (body)    body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;font-size:11px">⏳ Loading from database…</td></tr>';
+  if (countEl) countEl.textContent = 'loading…';
+
+  if (!_sb) {
+    if (subEl) subEl.textContent = 'Not connected to database — showing session entries only';
+    renderAuditTable();
+    return;
   }
+
+  const result = await _sbQ(sb => sb
+    .from('fpa_audit_log')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(500)
+  );
+
+  if (!result) {
+    // _sbQ already toasted the error
+    if (subEl) subEl.textContent = 'Failed to load from database';
+    renderAuditTable();
+    return;
+  }
+
+  const { data, error } = result;
+  if (error) {
+    toast('Audit load error: ' + error.message, 'err');
+    if (subEl) subEl.textContent = 'Error: ' + error.message;
+    renderAuditTable();
+    return;
+  }
+
+  // Merge DB records with any in-memory entries from this session
+  const existingDbIds = new Set(_auditStore.map(e => e.dbId).filter(Boolean));
+  const newEntries = (data || [])
+    .filter(r => !existingDbIds.has(r.id))
+    .map(r => ({
+      id:        r.id,
+      dbId:      r.id,
+      userId:    r.user_id   || '—',
+      userName:  r.user_name || '—',
+      userRole:  r.user_role || '—',
+      cat:       _auditCat(r.action || ''),
+      action:    r.action    || '—',
+      target:    r.target    || '—',
+      oldVal:    r.old_val   ?? null,
+      newVal:    r.new_val   ?? null,
+      timestamp: new Date(r.created_at),
+    }));
+
+  // Replace store with merged + sorted result
+  const merged = [..._auditStore.filter(e => !e.dbId), ...newEntries];
+  merged.sort((a, b) => b.timestamp - a.timestamp);
+  _auditStore.length = 0;
+  merged.forEach(e => _auditStore.push(e));
+
+  if (subEl) subEl.textContent = `${merged.length} entries loaded from database`;
   renderAuditTable();
 }
 
