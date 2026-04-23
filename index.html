@@ -11916,7 +11916,8 @@ function _restoreState() {
       });
     }
     // Restore active tab (after a short delay to let init complete)
-    if (s.pane && s.pane !== 'dash') {
+    // Skip if user chose Flash destination on login — flash routing takes priority
+    if (s.pane && s.pane !== 'dash' && _loginDestination !== 'flash') {
       setTimeout(() => {
         const tab = document.querySelector(`.tab[onclick*="'${s.pane}'"]`);
         showPane(s.pane, tab);
