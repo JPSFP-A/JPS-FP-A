@@ -6105,8 +6105,8 @@ function buildCFKpis() {
 }
 
 // Fuel cost lookup for CF forecast
-// fuelCostByMonth2026 — Jan/Feb actuals populated from uploads; Mar-Dec are AOP plan estimates
-const fuelCostByMonth2026 = [0,0,41000,39500,41000,43000,46000,48000,46000,44000,42000,40000];
+// fuelCostByMonth2026 — populated from uploads only; no hardcoded estimates
+const fuelCostByMonth2026 = Array(12).fill(0);
 
 function buildCFReport(){
   cfSelectedMonth = parseInt(document.getElementById('cfMo')?.value || 2);
@@ -6305,7 +6305,7 @@ function buildKpiScoreCards() {
     ? (ebit / Math.abs(getLine('interest expense'))) : 0;
 
   // System loss avg
-  const lossArr = sysLossTable[yr] || Array(12).fill(26.4);
+  const lossArr = sysLossTable[yr] || _z12();
   const avgLoss  = lossArr.reduce((s,v)=>s+v,0)/12;
 
   // Billed sales GWh
@@ -6343,11 +6343,37 @@ function buildKpiCovenantStrip() {
   const el = document.getElementById('kpiCovenantStrip');
   if (!el) return;
 
+  // Derive covenant values from DB-loaded plLines / bsLines (no hardcoded fallbacks)
+  const _yIdx = 4; // index for 2026 in plLines.vals (2021,2022,2023,2024,2025,2026,...)
+  const _plGet = (id, ...frags) => {
+    const l = plLines.find(l => l.id === id || frags.some(f => l.name?.toLowerCase().includes(f)));
+    return l?.vals?.[_yIdx] || null;
+  };
+  const _bsGet = (id) => {
+    const l = bsLines.find(l => l.id === id);
+    return l?.vals?.[_yIdx] || null;
+  };
+  const _ebit    = _plGet('ebit', 'operating income', 'ebit');
+  const _intExp  = Math.abs(_plGet('interest_exp', 'interest expense') || 0) || null;
+  const _ebitda  = _plGet('ebitda', 'ebitda');
+  const _bsCA    = _bsGet('total_ca');
+  const _bsCL    = _bsGet('total_cl');
+  const _cash    = _bsGet('cash');
+  // Total debt: sum non-current + current portion of loans from bsLines
+  const _ltDebt  = _bsGet('total_ncl') || _bsGet('long_term_debt');
+  const _curDebt = _bsGet('current_portion_debt') || 0;
+  const _totalDebt = (_ltDebt || 0) + (_curDebt || 0);
+  const _netDebt = (_totalDebt || 0) - (_cash || 0);
+
+  const _intCov  = (_ebit !== null && _intExp) ? +(_ebit / _intExp).toFixed(2) : null;
+  const _curRat  = (_bsCA !== null && _bsCL)   ? +(_bsCA / _bsCL).toFixed(2)   : null;
+  const _ndEbitda= (_ebitda && _ebitda !== 0)   ? +(_netDebt / _ebitda).toFixed(2) : null;
+
   const covenants = [
-    { name:'Current Ratio',      val: 1.18, threshold: 1.10, unit:'×',  dir:'gte', desc:'Current Assets / Current Liabilities' },
-    { name:'DSCR',               val: 1.31, threshold: 1.20, unit:'×',  dir:'gte', desc:'Net Cash from Ops / Total Debt Service' },
-    { name:'Net Debt / EBITDA',  val: 3.2,  threshold: 4.50, unit:'×',  dir:'lte', desc:'(Total Debt − Cash) / EBITDA' },
-    { name:'Interest Coverage',  val: 2.1,  threshold: 1.50, unit:'×',  dir:'gte', desc:'EBIT / Interest Expense' },
+    { name:'Current Ratio',      val: _curRat,   threshold: 1.10, unit:'×',  dir:'gte', desc:'Current Assets / Current Liabilities' },
+    { name:'DSCR',               val: null,       threshold: 1.20, unit:'×',  dir:'gte', desc:'Net Cash from Ops / Total Debt Service — upload actuals to populate' },
+    { name:'Net Debt / EBITDA',  val: _ndEbitda,  threshold: 4.50, unit:'×',  dir:'lte', desc:'(Total Debt − Cash) / EBITDA' },
+    { name:'Interest Coverage',  val: _intCov,    threshold: 1.50, unit:'×',  dir:'gte', desc:'EBIT / Interest Expense' },
   ];
 
   el.innerHTML = `
@@ -6355,17 +6381,21 @@ function buildKpiCovenantStrip() {
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">⚖ Covenant Monitor — ${selectedKpiYear}</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         ${covenants.map(c => {
-          const pass = c.dir==='gte' ? c.val >= c.threshold : c.val <= c.threshold;
-          const pct = c.dir==='gte'
+          const hasVal = c.val !== null && isFinite(c.val);
+          const pass = hasVal ? (c.dir==='gte' ? c.val >= c.threshold : c.val <= c.threshold) : false;
+          const pct = hasVal ? (c.dir==='gte'
             ? Math.min(100,(c.val/c.threshold)*100)
-            : Math.min(100,(c.threshold/c.val)*100);
-          const barColor = pass ? 'var(--green)' : 'var(--red)';
+            : Math.min(100,(c.threshold/c.val)*100)) : 0;
+          const barColor = hasVal ? (pass ? 'var(--green)' : 'var(--red)') : 'var(--dim)';
+          const statusBadge = !hasVal
+            ? `<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(61,95,128,.2);color:var(--muted);font-weight:700">– No data</span>`
+            : `<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:${pass?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)'};color:${pass?'var(--green)':'var(--red)'};font-weight:700">${pass?'✓ PASS':'✗ BREACH'}</span>`;
           return `<div style="flex:1;min-width:180px;background:var(--card2);border-radius:6px;padding:10px 12px;border-left:3px solid ${barColor}">
             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
               <span style="font-size:10px;color:var(--muted)">${c.name}</span>
-              <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:${pass?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)'};color:${pass?'var(--green)':'var(--red)'};font-weight:700">${pass?'✓ PASS':'✗ BREACH'}</span>
+              ${statusBadge}
             </div>
-            <div style="font-size:19px;font-weight:800;color:${barColor};font-family:var(--mono)">${c.val.toFixed(2)}${c.unit}</div>
+            <div style="font-size:19px;font-weight:800;color:${barColor};font-family:var(--mono)">${hasVal ? c.val.toFixed(2)+c.unit : '—'}</div>
             <div style="font-size:8px;color:var(--muted);margin-bottom:6px">Covenant: ${c.dir==='gte'?'≥':'≤'} ${c.threshold}${c.unit}</div>
             <div style="height:4px;background:var(--card3);border-radius:2px">
               <div style="height:4px;border-radius:2px;background:${barColor};width:${Math.min(100,pct).toFixed(0)}%;transition:width .4s"></div>
@@ -6713,7 +6743,9 @@ function _buildKpiChartsInner() {
   const dscrVals = YRS.map(yr => {
     const ebitda = getE(yr,'ebitda');
     const intExp = Math.abs(getE(yr,'interest expense'));
-    const debtSvc = intExp + ({2026:350000,2027:330000,2028:310000,2029:290000,2030:270000}[yr]||0)*0.07;
+    // Debt from projDebtSchedule (DB-backed); no hardcoded fallback
+    const debtPrincipal = projDebtSchedule.avgBalance?.vals?.[yr] || 0;
+    const debtSvc = intExp + debtPrincipal * 0.07;
     return debtSvc>0 ? +(ebitda/debtSvc).toFixed(2) : 0;
   });
   const tealColor  = style.getPropertyValue('--teal').trim()  || '#22d3ee';
@@ -6726,7 +6758,10 @@ function _buildKpiChartsInner() {
   // Net Debt / EBITDA
   const ndEbitda = YRS.map(yr => {
     const ebitda = getE(yr,'ebitda');
-    const netDebt = ({2026:350000,2027:330000,2028:310000,2029:290000,2030:270000}[yr]||0)-({2026:92000,2027:85000,2028:88000,2029:90000,2030:95000}[yr]||0);
+    // Debt/cash from projDebtSchedule and bsLines (DB-backed); no hardcoded fallback
+    const debtBal = projDebtSchedule.closingDebt?.vals?.[yr] || 0;
+    const cashBal = bsLines.find(l=>l.id==='cash')?.vals?.[{2026:4,2027:5,2028:6,2029:7,2030:8}[yr]??4] || 0;
+    const netDebt = debtBal - cashBal;
     return ebitda>0 ? +(netDebt/ebitda).toFixed(2) : 0;
   });
   mkChart('cKpiNetDebt',{type:'bar',data:{labels:YRS.map(String),datasets:[
@@ -6735,7 +6770,7 @@ function _buildKpiChartsInner() {
 
   // System Loss
   const avgLoss = YRS.map(yr => {
-    const arr = sysLossTable[yr]||Array(12).fill(26.4);
+    const arr = sysLossTable[yr]||_z12();
     return +(arr.reduce((s,v)=>s+v,0)/12).toFixed(2);
   });
   mkChart('cKpiLoss',{type:'line',data:{labels:YRS.map(String),datasets:[
@@ -9373,13 +9408,22 @@ function buildDashKpis(){
   const latestMo=loadedCount>0?loadedCount:null;
   const latestData=latestMo?actualsStore[latestMo]:null;
 
-  const budgetProp=[41619,38382,41000,39500,41000,43000,46000,48000,46000,44000,42000,40000];
-  const propSum=budgetProp.reduce((s,v)=>s+v,0);
-  const ytdFrac=loadedCount>0?(budgetProp.slice(0,loadedCount).reduce((s,v)=>s+v,0)/propSum):1;
+  // Equal monthly weights — no hardcoded seasonal skew
+  const budgetProp=Array(12).fill(1);
+  const propSum=12;
+  const ytdFrac=loadedCount>0?(loadedCount/12):1;
   const mthIdx=latestMo?latestMo-1:11;
   const mthFrac=budgetProp[mthIdx]/propSum;
 
-  const annRevLE=582000, annEBITDALE=242841, annNILE=45237, annDepLE=125770;
+  // Pull LE/AOP annual targets from plLines (DB-backed) — no hardcoded fallbacks
+  const _plLEGet = (id, ...frags) => {
+    const l = plLines.find(l => l.id === id || frags.some(f => l.name?.toLowerCase().includes(f)));
+    return l?.vals?.[4] || 0; // index 4 = 2026
+  };
+  const annRevLE    = _plLEGet('total_rev',     'total revenue', 'total sales');
+  const annEBITDALE = _plLEGet('ebitda',        'ebitda');
+  const annNILE     = _plLEGet('net_inc',        'net profit after', 'net income');
+  const annDepLE    = _plLEGet('depreciation',   'depreciation');
   const annCapexLE=sumArr(cxTot), annCashLE=sumArr(rec);
 
   const leYTDRev=Math.round(annRevLE*ytdFrac);
@@ -9547,12 +9591,13 @@ function buildDashKpis(){
     </div>`;
     html+=ratioCard;
   } else {
-    const annRevLE2=582000, ebitdaPct=((e26/annRevLE2)*100).toFixed(1);
+    const annRevLE2=(_plLEGet('total_rev','total revenue','total sales'))||0;
+    const ebitdaPct=annRevLE2?((e26/annRevLE2)*100).toFixed(1):'—';
     const ebitLine=plLines.find(l=>l.id==='ebitda'), ebitLine2=plLines.find(l=>l.id==='ebit');
     const ebit26=ebitLine2?Math.round(ebitLine2.vals[4]*(1+(sc?.eb||0)/100)):null;
-    const opMarginPct=ebit26!=null?((ebit26/annRevLE2)*100).toFixed(1):null;
+    const opMarginPct=(ebit26!=null&&annRevLE2)?((ebit26/annRevLE2)*100).toFixed(1):null;
     const avgFxCur=(fxTable.years[2026]?.billing.reduce((s,v)=>s+v,0)/12).toFixed(2);
-    html+=noActCard('Revenue','var(--blue)',582);
+    html+=noActCard('Revenue','var(--blue)',Math.round(annRevLE2/1000));
     html+=noActCard('EBITDA','var(--green)',e26);
     html+=`<div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);flex:1 1 155px;min-width:0">
       <div style="background:var(--gold);padding:5px 10px">
@@ -9775,7 +9820,7 @@ function buildScPanel(){
   document.getElementById('scCH').innerHTML=`<tr><th style="text-align:left;min-width:180px">Metric | 2026</th>${scNames.map(n=>`<th class="bc">${n}</th>`).join('')}</tr>`;
   document.getElementById('scCB').innerHTML=[
     {lbl:'EBITDA ($000s)',fn:n=>Math.round(ebi.vals[4]*(1+(scenarios[n].eb||0)/100))},
-    {lbl:'EBITDA Margin',fn:n=>((Math.round(ebi.vals[4]*(1+(scenarios[n].eb||0)/100))/582000)*100).toFixed(1)+'%',str:true},
+    {lbl:'EBITDA Margin',fn:n=>{const rv=plLines.find(l=>l.id==='total_rev'||l.name?.toLowerCase().includes('total revenue'))?.vals?.[4]||0;return rv?((Math.round(ebi.vals[4]*(1+(scenarios[n].eb||0)/100))/rv)*100).toFixed(1)+'%':'—';},str:true},
     {lbl:'Net Income ($000s)',fn:n=>Math.round(ni.vals[4]*(1+(scenarios[n].eb||0)/100))},
     {lbl:'Cash Receipts ($000s)',fn:n=>sumArr(getCashReceipts(2026))},
     {lbl:'Total O&M ($000s)',fn:n=>Math.round(sumArr(getOMTotal(2026))*(1+(scenarios[n].om||0)/100))},
@@ -10710,18 +10755,18 @@ function refreshAll(){
 // ═══════════════════════════════════════════════════════
 
 // LEVER 1 — volumeTable: 9 rate classes × 12 months × {cust, mwh, kva}
-// Pre-populated from existing revRows[] AOP 2026 data
-// RT10 split: ~70% hi-block, 30% lo-block (per customer mix)
+// Zeroed — populate from AOP_2026 assumptions in Supabase (fpaApplyToLegacyGlobals overwrites on load)
+const _zv = () => Array(12).fill(0);
 let volumeTable = {
-  RT10_lo: { cust:[188400,187800,188100,189600,191700,194700,196800,198000,198600,198000,197400,197100], mwh:[25860,23430,24390,24720,26880,28890,29910,31380,28800,28320,26850,25320], kva:null },
-  RT10_hi: { cust:[439600,438200,438900,442400,447300,454300,459200,462000,463400,462000,460600,459900], mwh:[60340,54670,56910,57680,62720,67410,69790,73220,67200,66080,62650,59080], kva:null },
-  RT20:    { cust:[5869,5878,5892,5904,5917,5931,5941,5947,5952,5953,5956,5959], mwh:[46200,43500,45600,45900,49800,54600,57400,60400,54300,51700,47700,43100], kva:null },
-  RT40_std:{ cust:[1517,1519,1522,1526,1528,1530,1532,1535,1538,1540,1541,1543], mwh:[52785,52870,52275,54145,50405,54910,57205,55675,56355,56525,56780,56015], kva:[5800,5810,5800,5820,5780,5900,5950,5910,5890,5870,5850,5840] },
-  RT40_tou:{ cust:[268,268,269,269,269,270,271,271,271,272,272,272], mwh:[9315,9330,9225,9555,8895,9690,10095,9825,9945,9975,10020,9885], kva:[980,980,978,982,975,995,1002,998,995,992,990,988] },
-  RT50_std:{ cust:[520,521,521,522,521,522,524,524,523,523,522,523], mwh:[44200,41055,42160,42075,40375,43775,46665,45390,45730,45815,45390,45900], kva:[3400,3350,3380,3370,3360,3400,3450,3430,3420,3410,3400,3410] },
-  RT50_tou:{ cust:[104,104,105,105,106,106,106,107,107,108,108,108], mwh:[7800,7245,7440,7425,7125,7725,8235,7995,8070,8085,8010,8100], kva:[520,515,518,516,514,522,530,527,525,523,521,522] },
-  RT60:    { cust:[null,null,null,null,null,null,null,null,null,null,null,null], mwh:[5900,5900,5900,5900,5900,5900,5900,5900,5900,5900,5900,5900], kva:null },
-  RT70:    { cust:[120,120,121,121,121,122,122,122,123,123,123,124], mwh:[22100,21000,20300,19400,19600,20400,20800,20900,20500,21100,20800,21800], kva:[1850,1820,1800,1780,1790,1840,1870,1880,1850,1870,1860,1890] },
+  RT10_lo: { cust:_zv(), mwh:_zv(), kva:null },
+  RT10_hi: { cust:_zv(), mwh:_zv(), kva:null },
+  RT20:    { cust:_zv(), mwh:_zv(), kva:null },
+  RT40_std:{ cust:_zv(), mwh:_zv(), kva:_zv() },
+  RT40_tou:{ cust:_zv(), mwh:_zv(), kva:_zv() },
+  RT50_std:{ cust:_zv(), mwh:_zv(), kva:_zv() },
+  RT50_tou:{ cust:_zv(), mwh:_zv(), kva:_zv() },
+  RT60:    { cust:_zv(), mwh:_zv(), kva:null },
+  RT70:    { cust:_zv(), mwh:_zv(), kva:_zv() },
 };
 
 // LEVER 2 — tariffTable: J$ rates per OUR 2024 approved non-fuel schedule
@@ -10782,11 +10827,11 @@ function getFxRate(yr, mo, type='billing') {
 }
 let selectedFxYear = 2026;
 
-// Fuel revenue by month (derived from plLines fuel_rev annual 2026 = $146,369K / 12, seasonally adjusted)
-const fuelRevByMonth = [10200, 9800, 11000, 11500, 12400, 13200, 13000, 13500, 12800, 12500, 12200, 14269];
+// Fuel revenue by month — zeroed; populated from uploads/fpa.facts
+const fuelRevByMonth = Array(12).fill(0);
 
-// Budget/LE reference revenue for bridge (non-fuel, US$K) — pre-engine baseline
-const leNonFuelByMonth = [4200,3900,4050,4100,4350,4700,4900,5100,4650,4400,4100,3950];
+// Budget/LE reference revenue for bridge (non-fuel, US$K) — zeroed; populated from fpa.facts AOP
+const leNonFuelByMonth = Array(12).fill(0);
 
 // ── Revenue Calculation Engine ──────────────────────────────────────────────
 function calcRevEngineMonth(mo) {
@@ -11266,29 +11311,12 @@ function calcTax(yr, month) {
   return Math.round(taxableIncome * (effectiveTaxRate[yr]||0.3333));
 }
 
-// ── Generation Data Arrays (Session 4/5) ──────────────
+// ── Generation Data Arrays ──────────────────────────────
+// Zeroed — populated from AOP_2026 assumptions in Supabase (fpaApplyToLegacyGlobals overwrites on load)
+const _zg = () => ({ jps_thermal:_z12(), old_harbour:_z12(), renewables:_z12(), ipp:_z12() });
 let netGenTable = {
-  2026: {
-    jps_thermal: [83.8,75.0,82.0,84.0,90.0,95.0,98.0,102.0,94.0,92.0,87.0,82.0],
-    old_harbour: [110.4,100.7,108.3,111.2,106.7,112.9,118.6,122.0,117.0,113.0,108.0,103.0],
-    renewables:  [29.5,27.8,29.1,27.6,32.2,40.2,38.5,41.0,36.5,34.0,31.5,28.0],
-    ipp:         [241.6,219.1,228.0,238.0,252.0,262.0,267.0,262.0,249.0,237.0,224.0,212.0],
-  },
-  2027: {
-    jps_thermal: [82.0,73.0,80.0,82.0,88.0,93.0,96.0,100.0,92.0,90.0,85.0,80.0],
-    old_harbour: [112.0,102.0,110.0,113.0,108.0,114.0,120.0,124.0,119.0,115.0,110.0,105.0],
-    renewables:  [31.0,29.0,30.5,29.0,34.0,42.0,40.0,43.0,38.0,35.5,33.0,29.5],
-    ipp:         [245.0,222.0,232.0,242.0,256.0,266.0,272.0,267.0,253.0,241.0,228.0,216.0],
-  },
+  2026: _zg(), 2027: _zg(), 2028: _zg(), 2029: _zg(), 2030: _zg(),
 };
-// Fill 2028-2030 with growth from 2027
-for (let yr = 2028; yr <= 2030; yr++) {
-  const prev = netGenTable[yr-1];
-  netGenTable[yr] = {};
-  ['jps_thermal','old_harbour','renewables','ipp'].forEach(g=>{
-    netGenTable[yr][g] = (prev[g]||[]).map(v=>Math.round(v*1.02*10)/10);
-  });
-}
 
 // sysLossTable — zeroed. Populate from uploads.
 let sysLossTable = {
@@ -12634,10 +12662,8 @@ function buildMonthlyPL(yr){
     const yIdx=YEARS.indexOf(String(yr)); if(yIdx<0) return Array(12).fill(0);
     // For monthly, spread annual by AOP monthly pattern
     const annualVal=l.vals[yIdx]||0;
-    // Use AOP proportions from actualsStore if available for 2026
-    const prop=[41619,38382,41000,39500,41000,43000,46000,48000,46000,44000,42000,40000];
-    const propSum=prop.reduce((s,v)=>s+v,0);
-    return MO.map((_,m)=>Math.round(annualVal*(prop[m]/propSum)));
+    // Spread annual value equally across 12 months (no hardcoded seasonal skew)
+    return MO.map(()=>Math.round(annualVal/12));
   };
 
   // Monthly revenue from engine for selected year
@@ -12668,7 +12694,7 @@ function buildMonthlyPL(yr){
     // 1. Actuals override (2026 uploaded months)
     if(yr===2026&&actualsStore[m+1]?.pl?.nonFuelSales) return actualsStore[m+1].pl.nonFuelSales;
     // 2. Revenue engine (2026 unuploaded + all other years using annual plLines scaled by fuel proportions)
-    const annNF = plLines.find(l=>l.id==='nonfuel')?.vals[YEARS.indexOf(String(yr))]||340501;
+    const annNF = plLines.find(l=>l.id==='nonfuel')?.vals[YEARS.indexOf(String(yr))]||0;
     // Use calcRevEngineMonth for 2026 (live engine), scale annually for 2027-2030
     if(yr===2026){
       try{ const r=calcRevEngineMonth(m); return r.nonFuelRevUSD||Math.round(annNF/12); }
@@ -12676,9 +12702,8 @@ function buildMonthlyPL(yr){
     }
     // For 2027-2030 apply scenario tariff adjustment to annual LE, spread evenly
     const scAdj=1+(getScAdj(activeSc,'rv',yr)||0)/100;
-    const fuelProp=[41619,38382,41000,39500,41000,43000,46000,48000,46000,44000,42000,40000];
-    const propSum=fuelProp.reduce((s,v)=>s+v,0);
-    return Math.round(annNF*scAdj*(fuelProp[m]/propSum));
+    // Equal monthly spread (no hardcoded seasonal skew)
+    return Math.round(annNF*scAdj/12);
   });
   row('Non-Fuel Revenue', nfRevM, {color:'var(--blue)'});
 
@@ -13026,16 +13051,17 @@ const projCapexBudgets = {
   cx_ss:    {name:'Support Services (IT/Facilities)',vals:{2026:sumArr(capexRows[2026].find(r=>r.id==='cx_ss')?.vals||[]),  2027:30,   2028:30,   2029:35,   2030:35}},
 };
 
-// Debt schedule (US$000)
+// Debt schedule (US$000) — zeroed; populate from loan engine / uploads
+const _zYrs = () => ({2026:0, 2027:0, 2028:0, 2029:0, 2030:0});
 const projDebtSchedule = {
-  openingDebt:  {name:'Opening Long-Term Debt',     vals:{2026:449000, 2027:430000, 2028:380000, 2029:340000, 2030:300000}},
-  drawdowns:    {name:'Loan Drawdowns',             vals:{2026:0,      2027:0,      2028:0,      2029:0,      2030:0}},
-  repayments:   {name:'Scheduled Repayments',       vals:{2026:19000,  2027:50000,  2028:40000,  2029:40000,  2030:40000}},
-  closingDebt:  {name:'Closing Long-Term Debt',     vals:{2026:430000, 2027:380000, 2028:340000, 2029:300000, 2030:260000}},
-  avgBalance:   {name:'Average Debt Balance',       vals:{2026:439500, 2027:405000, 2028:360000, 2029:320000, 2030:280000}},
-  interestRate: {name:'Weighted Avg Interest Rate (%)', vals:{2026:6.8,   2027:6.5,   2028:6.3,   2029:6.1,   2030:6.0}},
-  interestCost: {name:'Interest Expense ($K)',      vals:{2026:63077,  2027:0,      2028:0,      2029:0,      2030:0}}, // computed
-  loanFees:     {name:'Loan Financing Fees ($K)',   vals:{2026:47,     2027:500,    2028:400,    2029:300,    2030:200}},
+  openingDebt:  {name:'Opening Long-Term Debt',         vals:_zYrs()},
+  drawdowns:    {name:'Loan Drawdowns',                 vals:_zYrs()},
+  repayments:   {name:'Scheduled Repayments',           vals:_zYrs()},
+  closingDebt:  {name:'Closing Long-Term Debt',         vals:_zYrs()},
+  avgBalance:   {name:'Average Debt Balance',           vals:_zYrs()},
+  interestRate: {name:'Weighted Avg Interest Rate (%)', vals:{2026:0, 2027:0, 2028:0, 2029:0, 2030:0}},
+  interestCost: {name:'Interest Expense ($K)',          vals:_zYrs()},
+  loanFees:     {name:'Loan Financing Fees ($K)',       vals:_zYrs()},
 };
 
 // Tariff review events
@@ -13992,7 +14018,7 @@ function flashPopulatePeriods() {
   const opts = [..._flashClosedPeriods].sort((a,b)=>b-a); // newest first in picker
   sel.innerHTML = opts.length
     ? opts.map(pid=>`<option value="${pid}" ${pid===_flashCurrentPeriod?'selected':''}>${FLASH_MONTHS[pid]||flashPeriodLabel(pid)}</option>`).join('')
-    : `<option value="202602">Feb 2026</option><option value="202601">Jan 2026</option>`;
+    : `<option value="">— No closed periods —</option>`;
   const hidMo = document.getElementById('flashMoA');
   if (hidMo) hidMo.value = String(_flashCurrentPeriod);
 }
@@ -14112,6 +14138,12 @@ function flashVarCell(act, comp, fav=true) {
 // and makes the report render synchronously (no network wait).
 async function flashRefresh() {
   const periodId=_flashCurrentPeriod;
+  if (!periodId) {
+    // No closed periods loaded from DB — show empty state
+    const body = document.getElementById('flashTableBody');
+    if (body) body.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--muted)">No closed periods available. Upload actuals and mark periods as closed to populate this report.</td></tr>';
+    return;
+  }
   const y=Math.floor(periodId/100), m=periodId%100;
 
   // ── In-memory fact helpers ─────────────────────────────────────────────────
@@ -14569,9 +14601,10 @@ function flashInit() {
     _flashCurrentPeriod = _flashClosedPeriods[_flashClosedPeriods.length-1];
     _flashPeriodIdx     = _flashClosedPeriods.length-1;
   } else {
-    _flashClosedPeriods = [202601,202602];
-    _flashCurrentPeriod = 202602;
-    _flashPeriodIdx     = 1;
+    // No closed periods in DB — leave empty; flash will show no-data state
+    _flashClosedPeriods = [];
+    _flashCurrentPeriod = null;
+    _flashPeriodIdx     = -1;
   }
   flashPopulatePeriods();
   flashPopulateLEVersions();
