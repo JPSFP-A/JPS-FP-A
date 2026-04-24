@@ -2689,7 +2689,13 @@ tr.der td{color:var(--teal)}
 
     <!-- Upload zone -->
     <div style="padding:12px">
-      <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:8px">📤 Upload Document</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:700;color:var(--text)">📤 Upload Document</div>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button class="btn btn-ghost" style="font-size:10px;border-color:var(--teal);color:var(--teal)" onclick="dmDownloadTemplate('Actuals')" title="CSV template with all line IDs — fill in values and upload">⬇ Actuals Template</button>
+          <button class="btn btn-ghost" style="font-size:10px;border-color:var(--gold);color:var(--gold)" onclick="dmDownloadTemplate('Budget')" title="CSV template for budget/AOP data entry">⬇ Budget Template</button>
+        </div>
+      </div>
       <div class="dz" id="dmDz" style="margin-bottom:10px"
         ondragover="event.preventDefault();this.classList.add('drag')"
         ondragleave="this.classList.remove('drag')"
@@ -3299,17 +3305,12 @@ function fpaApplyToLegacyGlobals() {
     for (let m = 1; m <= 12; m++) {
       let v = null;
       if (fpa.isPeriodClosed(y, m)) {
-        // Try actual version first, fall back to LE if not in DB
-        v = fpa.fact(actVer, lineId, y, m) ?? fpa.fact(leVer, lineId, y, m);
-        // If still null, try seeded actualsStore (2026 only, month-indexed)
-        if (v === null && y === 2026) {
-          const seedPL = actualsStore[m]?.pl;
-          if (seedPL) {
-            // We can't map arbitrary lineId to actualsStore keys here;
-            // this is handled per-key in _getMonthlyPLLine. Use LE as fallback.
-            v = fpa.fact(leVer, lineId, y, m);
-          }
-        }
+        // First try per-month ACTUAL version (e.g. ACTUALS_2026_01, ACTUALS_2026_02…)
+        // This is the format auto-created by the upload workflow.
+        const monthActCode = `ACTUALS_${y}_${String(m).padStart(2,'0')}`;
+        v = fpa.fact(monthActCode, lineId, y, m)
+          ?? fpa.fact(actVer,      lineId, y, m)
+          ?? fpa.fact(leVer,       lineId, y, m);
       } else {
         v = fpa.fact(leVer, lineId, y, m);
       }
@@ -4049,8 +4050,10 @@ async function dmLoadCurrentFacts(year, month) {
   _dmCurrentFacts = {};
   if (!_sb) return;
   const periodId = year * 100 + month;
-  // Find ACTUAL version for this period
-  const actVer = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
+  // Find ACTUAL version for this period (covers both ACTUALS_YYYY_MM and older formats)
+  const monthCode = `ACTUALS_${year}_${String(month).padStart(2,'0')}`;
+  const actVer = (fpa.versions||[]).find(v=>v.code===monthCode)
+              || (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
   if (!actVer) return;
   const { data } = await _sb.from('fpa_facts')
     .select('line_id, value')
@@ -4115,12 +4118,29 @@ function dmToggleManual() {
   p.style.display = p.style.display === 'none' ? '' : 'none';
 }
 
+// Helper: find or auto-create the ACTUAL version for a given period
+async function _dmEnsureActualVersion(year, month) {
+  const periodId = year * 100 + month;
+  let ver = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
+  if (ver) return ver;
+  // Auto-create the monthly ACTUAL version
+  const code = `ACTUALS_${year}_${String(month).padStart(2,'0')}`;
+  const name = `${DM_MONTHS[month-1]} ${year} Actuals`;
+  const { data: newVer, error } = await _sb.from('fpa_versions')
+    .insert({ code, kind:'ACTUAL', year, name, period_id:periodId, is_locked:false })
+    .select().single();
+  if (error) { toast('Could not create version: '+error.message,'err'); return null; }
+  fpa.versions.push(newVer);
+  toast(`Created version ${code}`,'ok');
+  return newVer;
+}
+
 async function dmCommitManual() {
   if (!_sb) { toast('Not connected to database','w'); return; }
   if (!_dmMonth) { toast('Select a month first','w'); return; }
   const periodId = _dmYear * 100 + _dmMonth;
-  const actVer   = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
-  if (!actVer) { toast('No ACTUAL version for this period','w'); return; }
+  const actVer   = await _dmEnsureActualVersion(_dmYear, _dmMonth);
+  if (!actVer) return;
 
   const rows = [];
   DM_LINES.forEach(l => {
@@ -4140,6 +4160,8 @@ async function dmCommitManual() {
   if (error) { toast('Commit failed: '+error.message,'w'); return; }
   toast(`${rows.length} lines committed for ${DM_MONTHS[_dmMonth-1]} ${_dmYear}`,'ok');
   auditLog('upload','manual-entry',`${DM_MONTHS[_dmMonth-1]} ${_dmYear}`,{rows:rows.length});
+  await fpaBootstrap();
+  refreshAll();
   await dmSelectMonth(_dmYear, _dmMonth);
   dmToggleManual();
 }
@@ -4329,8 +4351,8 @@ async function dmCommitExtract() {
   if (!_dmMonth || !_dmExtractRows.length) { toast('Nothing to commit','w'); return; }
 
   const periodId = _dmYear * 100 + _dmMonth;
-  const actVer   = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
-  if (!actVer) { toast('No ACTUAL version for this period','w'); return; }
+  const actVer   = await _dmEnsureActualVersion(_dmYear, _dmMonth);
+  if (!actVer) return;
 
   const rows = _dmExtractRows.map(r => ({
     version_id: actVer.id, line_id: r.id, period_id: periodId,
@@ -4345,6 +4367,9 @@ async function dmCommitExtract() {
   auditLog('upload','smart-extract',`${DM_MONTHS[_dmMonth-1]} ${_dmYear}`,{rows:rows.length});
   _dmExtractRows = [];
   document.getElementById('dmExtractPanel').style.display = 'none';
+  // Re-bootstrap to pull committed facts into fpa.* then refresh all displays
+  await fpaBootstrap();
+  refreshAll();
   await dmSelectMonth(_dmYear, _dmMonth);
   dmLoadUploadLog();
 }
@@ -4353,6 +4378,29 @@ function dmDiscardExtract() {
   _dmExtractRows = [];
   document.getElementById('dmExtractPanel').style.display = 'none';
   toast('Extract discarded','ok');
+}
+
+// ── Download CSV upload template ─────────────────────────────────────────────
+function dmDownloadTemplate(type) {
+  const mLabel = _dmMonth ? `${DM_MONTHS[_dmMonth-1]}_${_dmYear}` : `${_dmYear}`;
+  // Header explains the format
+  const header = [
+    `# JPS FP&A — ${type} Upload Template`,
+    `# Period: ${_dmMonth ? DM_MONTHS[_dmMonth-1]+' '+_dmYear : _dmYear}`,
+    `# Instructions:`,
+    `#   1. Fill in the VALUE column (USD $000s unless marked otherwise)`,
+    `#   2. Delete these comment lines before uploading, or leave them — the parser ignores # lines`,
+    `#   3. Do not change the line_id column`,
+    `#   4. Save as CSV and upload via the drop zone above`,
+    `line_id,label,section,value`,
+  ].join('\n');
+  const rows = DM_LINES.map(l => `${l.id},"${l.label}",${l.section},`).join('\n');
+  const csv  = header + '\n' + rows;
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `JPS_${type}_Template_${mLabel}.csv`;
+  a.click();
+  toast(`${type} template downloaded — fill in the VALUE column and upload`,'ok');
 }
 
 async function dmToggleLock() {
