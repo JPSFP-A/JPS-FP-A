@@ -3265,55 +3265,25 @@ function showBootstrapError(msg) {
 function fpaApplyToLegacyGlobals() {
   if (!fpa.versions.length) return;  // no DB data loaded
 
-  // Version map for open/future periods:
-  //   Historical years  → HIST_ACTUAL_YYYY
-  //   2026 open months  → LE_2026_02   (closed months use actuals — blended below)
-  //   2027+             → FORECAST_BASE
-  const yearToVersion = {
-    2022: 'HIST_ACTUAL_2022', 2023: 'HIST_ACTUAL_2023',
-    2024: 'HIST_ACTUAL_2024', 2025: 'HIST_ACTUAL_2025',
-    2026: 'LE_2026_02',
-    2027: 'FORECAST_BASE', 2028: 'FORECAST_BASE',
-    2029: 'FORECAST_BASE', 2030: 'FORECAST_BASE',
-  };
-
-  // Helper: return the ACTUAL version code for a closed month of a given year.
-  // For 2026, actuals may live in fpa.facts under an ACTUAL_2026 version or a
-  // sub-month LE build. We try common naming patterns and fall back to the LE.
-  const actualVerFor = (y) => {
-    const candidates = [`ACTUAL_${y}`, `HIST_ACTUAL_${y}`, `ACT_${y}`];
-    for (const c of candidates) {
-      if (fpa.versions.find(v => v.code === c)) return c;
-    }
-    return yearToVersion[y]; // fall back to LE/history
-  };
+  // ── UPLOAD-ONLY MODE ─────────────────────────────────────────────────────────
+  // plLines / bsLines are populated ONLY from uploaded ACTUALS_YYYY_MM versions.
+  // Historical versions (HIST_ACTUAL_*), LE, and FORECAST_BASE are intentionally
+  // ignored here so the app shows a clean zero baseline until real data is uploaded.
+  // ─────────────────────────────────────────────────────────────────────────────
 
   // Helper: blended annual total for a P&L line in a year.
-  //   Closed months → ACTUAL version   (best available data)
-  //   Open  months  → LE / Forecast version
-  //   Historical years → single version annual total (no blend needed)
+  // Only sums months that have a committed ACTUALS_YYYY_MM upload — everything
+  // else returns null (stays zero in plLines).
   const blendedAnnual = (lineId, y) => {
-    const leVer = yearToVersion[y];
-    // Historical years: just use the annual total from the one version
-    if (y <= 2025) {
-      const ann = fpa.factAnnual(leVer, lineId, y);
-      return ann;
-    }
-    // 2026+: sum month-by-month
+    // Historical years (2022-2025): always zero — not populated from HIST_ACTUAL
+    if (y <= 2025) return null;
+    // 2027+: always zero — not populated from FORECAST_BASE
+    if (y >= 2027) return null;
+    // 2026: sum only months that have a committed ACTUALS_2026_MM upload
     let sum = 0, any = false;
-    const actVer = actualVerFor(y);
     for (let m = 1; m <= 12; m++) {
-      let v = null;
-      if (fpa.isPeriodClosed(y, m)) {
-        // First try per-month ACTUAL version (e.g. ACTUALS_2026_01, ACTUALS_2026_02…)
-        // This is the format auto-created by the upload workflow.
-        const monthActCode = `ACTUALS_${y}_${String(m).padStart(2,'0')}`;
-        v = fpa.fact(monthActCode, lineId, y, m)
-          ?? fpa.fact(actVer,      lineId, y, m)
-          ?? fpa.fact(leVer,       lineId, y, m);
-      } else {
-        v = fpa.fact(leVer, lineId, y, m);
-      }
+      const monthActCode = `ACTUALS_${y}_${String(m).padStart(2,'0')}`;
+      const v = fpa.fact(monthActCode, lineId, y, m);
       if (v !== null && !isNaN(v)) { sum += Number(v); any = true; }
     }
     return any ? sum : null;
@@ -3333,185 +3303,30 @@ function fpaApplyToLegacyGlobals() {
   } catch(e) { console.warn('[FPA] plLines bridge:', e); }
 
   // ── BS lines ──────────────────────────────────────
-  // Balance Sheet uses period-end (stock) values — no blending; take the
-  // latest closed month for 2026, year-end (Dec) for all others.
+  // Only populate 2026 from the latest uploaded ACTUALS_2026_MM.
+  // Historical years and future forecasts stay zero until data is uploaded.
   try {
-    const bsYears = [2022,2023,2024,2025,2026,2027,2028,2029,2030];
     if (typeof bsLines !== 'undefined') {
       bsLines.forEach(ln => {
-        bsYears.forEach((y, idx) => {
-          const leVer = yearToVersion[y];
-          let v = null;
-          if (y === 2026) {
-            // For 2026: prefer last closed month, fall back to Dec LE
-            const lastClosed = fpa.latestClosedMonth(2026);
-            const actVer     = actualVerFor(2026);
-            if (lastClosed > 0) {
-              v = fpa.fact(actVer, ln.id, 2026, lastClosed)
-               ?? fpa.fact(leVer,  ln.id, 2026, lastClosed);
-            }
-            // If no actuals in DB, use actualsStore seeded BS (cash/recv etc.)
-            if (v === null && lastClosed > 0) {
-              const seedBS = actualsStore[lastClosed]?.bs;
-              // seedBS keys won't map to line IDs here — fall through to LE Dec
-            }
-            v = v ?? fpa.fact(leVer, ln.id, 2026, 12) ?? fpa.factAnnual(leVer, ln.id, 2026);
-          } else {
-            v = fpa.fact(leVer, ln.id, y, 12) ?? fpa.fact(leVer, ln.id, y, 6) ?? fpa.factAnnual(leVer, ln.id, y);
-          }
-          if (v !== null && !isNaN(v)) ln.vals[idx] = Math.round(v);
-        });
+        // Only 2026 (index 4) — find the latest month with a committed upload
+        const lastClosed = fpa.latestClosedMonth(2026);
+        if (lastClosed > 0) {
+          const monthActCode = `ACTUALS_2026_${String(lastClosed).padStart(2,'0')}`;
+          const v = fpa.fact(monthActCode, ln.id, 2026, lastClosed);
+          if (v !== null && !isNaN(v)) ln.vals[4] = Math.round(v);
+        }
+        // All other year slots stay zero
       });
     }
   } catch(e) { console.warn('[FPA] bsLines bridge:', e); }
 
-  // ── Tariff, volume, FX — AOP 2026 assumption data ─
-  try {
-    const tariff2026 = fpa.assumptions?.AOP_2026?.tariff || {};
-    if (typeof tariffTable !== 'undefined') {
-      Object.keys(tariff2026).forEach(cls => {
-        if (!tariffTable[cls]) return;
-        Object.keys(tariff2026[cls]).forEach(field => {
-          if (!tariffTable[cls][field]) return; // field not in legacy shape — skip
-          const perMap = tariff2026[cls][field];
-          for (let m = 1; m <= 12; m++) {
-            const v = perMap[202600 + m];
-            if (v !== undefined) tariffTable[cls][field][m-1] = Number(v);
-          }
-        });
-      });
-    }
-  } catch(e) { console.warn('[FPA] tariff bridge:', e); }
+  // ── AOP assumption bridges (tariff/volume/FX/generation/OM/CapEx/Collections) ─
+  // DISABLED — all assumption data stays zeroed until explicitly uploaded.
+  // Tariff, volume, FX and operational planning data will be re-enabled here
+  // once the upload mechanism is validated end-to-end.
 
-  try {
-    const vol2026 = fpa.assumptions?.AOP_2026?.volume || {};
-    if (typeof volumeTable !== 'undefined') {
-      Object.keys(vol2026).forEach(cls => {
-        if (!volumeTable[cls]) return;
-        Object.keys(vol2026[cls]).forEach(field => {
-          const mapped = field === 'cust' ? 'customers' :
-                         (volumeTable[cls][field] !== undefined ? field : null);
-          // v28 uses 'customers' — our DB uses 'cust'. Map.
-          const target = (volumeTable[cls].customers !== undefined && field === 'cust') ? 'customers' : field;
-          if (volumeTable[cls][target] === undefined && volumeTable[cls][target] !== null) return;
-          const perMap = vol2026[cls][field];
-          const arr = volumeTable[cls][target];
-          if (!Array.isArray(arr)) return;
-          for (let m = 1; m <= 12; m++) {
-            const v = perMap[202600 + m];
-            if (v !== undefined) arr[m-1] = Number(v);
-          }
-        });
-      });
-    }
-  } catch(e) { console.warn('[FPA] volume bridge:', e); }
-
-  try {
-    // Bridge FX rates for all years from fpa_assumptions
-    const fxYears = [2026,2027,2028,2029,2030];
-    const versionMap = {2026:'AOP_2026',2027:'FORECAST_BASE',2028:'FORECAST_BASE',2029:'FORECAST_BASE',2030:'FORECAST_BASE'};
-    fxYears.forEach(yr => {
-      const vc = versionMap[yr] || 'FORECAST_BASE';
-      const fxB = fpa.assumpMonthly(vc, 'fx_billing', 'USD_JMD', '', yr);
-      const fxE = fpa.assumpMonthly(vc, 'fx_expense', 'USD_JMD', '', yr);
-      if (fxB && typeof fxTable !== 'undefined') {
-        if (!fxTable.years[yr]) fxTable.years[yr] = {billing:Array(12).fill(162),expense:Array(12).fill(162),source:Array(12).fill('projected')};
-        fxTable.years[yr].billing = fxB;
-        if (yr === 2026) fxTable.billing = fxB;
-      }
-      if (fxE && typeof fxTable !== 'undefined') {
-        if (!fxTable.years[yr]) fxTable.years[yr] = {billing:Array(12).fill(162),expense:Array(12).fill(162),source:Array(12).fill('projected')};
-        fxTable.years[yr].expense = fxE;
-        if (yr === 2026) fxTable.expense = fxE;
-      }
-    });
-  } catch(e) { console.warn('[FPA] fx bridge:', e); }
-
-  // ── Net generation, system loss, peak, fuel price, fuel cost, vom ─
-  try {
-    if (typeof netGenTable !== 'undefined' && netGenTable[2026]) {
-      ['jps_thermal','old_harbour','renewables','ipp'].forEach(g => {
-        const arr = fpa.assumpMonthly('AOP_2026', 'net_gen', g, '', 2026);
-        if (arr) netGenTable[2026][g] = arr;
-      });
-    }
-    if (typeof sysLossTable !== 'undefined') {
-      const sl = fpa.assumpMonthly('AOP_2026', 'sys_loss', 'total', '', 2026);
-      if (sl && sysLossTable[2026]) sysLossTable[2026] = sl;
-    }
-    if (typeof fuelCostByMonth !== 'undefined') {
-      const fc = fpa.assumpMonthly('AOP_2026', 'fuel_cost_monthly', 'total', '', 2026);
-      if (fc) fuelCostByMonth[2026] = fc;
-    }
-    if (typeof vomCostByMonth !== 'undefined') {
-      const vm = fpa.assumpMonthly('AOP_2026', 'vom_cost', 'total', '', 2026);
-      if (vm) vomCostByMonth[2026] = vm;
-    }
-    if (typeof peakDemandMW !== 'undefined') {
-      const pm = fpa.assumpMonthly('AOP_2026', 'peak_demand', 'system', '', 2026);
-      if (pm) peakDemandMW[2026] = pm;
-    }
-    if (typeof fuelPriceTable !== 'undefined' && fuelPriceTable[2026]) {
-      ['hfo','lng','ado'].forEach(f => {
-        const arr = fpa.assumpMonthly('AOP_2026', 'fuel_price', f, '', 2026);
-        if (arr) fuelPriceTable[2026][f] = arr;
-      });
-    }
-  } catch(e) { console.warn('[FPA] generation bridge:', e); }
-
-  // ── Leases, insurance, impairments ───────────────
-  try {
-    if (typeof ifrs16Leases !== 'undefined' && fpa.leases.length) {
-      const mapped = fpa.leases.map((l, i) => ({
-        id: l.id || `L${i}`,
-        name: l.name,
-        counterparty: l.counterparty,
-        description: l.description || '',
-        category: l.category,
-        type: l.lease_type,
-        treatment: l.treatment,
-        commencementDate: l.commencement_date,
-        expiryDate: l.expiry_date,
-        extensionOption: l.extension_option,
-        extensionMonths: l.extension_months,
-        currency: l.currency,
-        monthlyPayment: Number(l.monthly_payment) || 0,
-        interestRate: Number(l.interest_rate) || 0,
-        rouAssetOpening: Number(l.rou_opening) || 0,
-        liabilityOpening: Number(l.liab_opening) || 0,
-      }));
-      ifrs16Leases.length = 0;
-      mapped.forEach(l => ifrs16Leases.push(l));
-    }
-    if (typeof insurancePolicies !== 'undefined' && fpa.insurance.length) {
-      const mapped = fpa.insurance.map((p, i) => ({
-        id: p.id || `INS${i}`,
-        name: p.name,
-        currency: p.currency,
-        annualPremium: Number(p.annual_premium) || 0,
-        paymentSchedule: p.payment_months || [],
-        paymentAmounts: (p.payment_amounts || []).map(Number),
-      }));
-      insurancePolicies.length = 0;
-      mapped.forEach(p => insurancePolicies.push(p));
-    }
-    if (typeof impairmentEvents !== 'undefined' && fpa.impairments.length) {
-      const mapped = fpa.impairments.map((e, i) => ({
-        id: e.id || `IMP${i}`,
-        name: e.name,
-        description: e.description || '',
-        eventDate: e.event_date,
-        chargeAmount: Number(e.charge_amount) || 0,
-        reversalAmount: Number(e.reversal_amount) || 0,
-        trigger: e.trigger_type,
-        isReversible: e.is_reversible,
-        relatedInsuranceId: e.related_insurance_id,
-        affectsYears: e.affects_years || [],
-      }));
-      impairmentEvents.length = 0;
-      mapped.forEach(ev => impairmentEvents.push(ev));
-    }
-  } catch(e) { console.warn('[FPA] registers bridge:', e); }
+  // FX, generation, leases, insurance, impairments bridges — disabled.
+  // All operational assumption data stays zeroed until upload is validated.
 
   console.log('[FPA] Legacy globals hydrated from DB');
 }
@@ -3621,14 +3436,15 @@ function fpaApplyDepToLegacy() {
   } catch(e) { console.warn('[FPA] dep bridge:', e); }
 }
 
-// Extended bridge — call after initial apply so all globals are in sync.
+// Extended bridge — OM/CapEx/Coll/Dep AOP assumption bridges disabled.
+// Only the core plLines/bsLines upload bridge runs (ACTUALS_YYYY_MM only).
 const _origFpaApply = fpaApplyToLegacyGlobals;
 fpaApplyToLegacyGlobals = function() {
   _origFpaApply();
-  fpaApplyOMToLegacy();
-  fpaApplyCapexToLegacy();
-  fpaApplyCollToLegacy();
-  fpaApplyDepToLegacy();
+  // fpaApplyOMToLegacy();      // disabled — AOP data excluded
+  // fpaApplyCapexToLegacy();   // disabled — AOP data excluded
+  // fpaApplyCollToLegacy();    // disabled — AOP data excluded
+  // fpaApplyDepToLegacy();     // disabled — AOP data excluded
   _updateDbStatusBadge();
 };
 
@@ -5345,14 +5161,7 @@ function _mkDepComp(){
 let depreciationComponents = _mkDepComp();
 let selectedDepYear = 2026;
 
-let impairmentEvents = [
-  { id:'mel_2025', name:'Hurricane Melissa Write-down',
-    description:'Assets destroyed by Hurricane Melissa',
-    eventDate:'2025-09-01', chargeAmount:5000000,
-    reversalAmount:0, trigger:'hurricane',
-    isReversible:true, relatedInsuranceId:'ins_rec',
-    affectsYears:[2025] }
-];
+let impairmentEvents = []; // zeroed — populated from DB registers
 
 function calcDepTotals(yr,m){
   const c=depreciationComponents[yr]||depreciationComponents[2026];
