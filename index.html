@@ -4974,7 +4974,7 @@ function clearAuditLog() {
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const YEARS=['2022','2023','2024','2025','2026','2027','2028','2029','2030'];
 let period='quarterly', activeSc='Base Case';
-const fx=()=>{try{return fxTable?.billing?.[0]||162;}catch(e){return 162;}};
+const fx=()=>{try{return fxTable?.billing?.[0]||0;}catch(e){return 0;}};
 const toK=v=>{if(v===null||v===undefined)return'–';const a=Math.abs(v);return a>=1e6?'$'+(v/1e6).toFixed(1)+'B':a>=1e3?'$'+(v/1e3).toFixed(0)+'M':'$'+Math.round(v).toLocaleString();};
 const fmtN=v=>{if(v===null||v===undefined||isNaN(v))return'<span class="dim">–</span>';const n=Math.round(Math.abs(v)).toLocaleString();return v<0?`<span class="neg">(${n})</span>`:n;};
 const fmtV=v=>{if(!v&&v!==0)return'<span class="dim">–</span>';const n=Math.round(Math.abs(v)).toLocaleString();return v>=0?`<span class="pos">▲${n}</span>`:`<span class="neg">▼(${n})</span>`;};
@@ -11392,8 +11392,8 @@ function computeIFRS16Lease(lease, yr) {
     }
   }
 
-  const fx = (fxTable[yr] && fxTable[yr].expense) ? fxTable[yr].expense : (fxTable.expense ? fxTable.expense : Array(12).fill(162));
-  const monthlyPmt = lease.currency === 'JMD' ? (lease.monthlyPayment / (fx[0]||162)) : (lease.monthlyPayment || 0);
+  const fx = (fxTable[yr] && fxTable[yr].expense) ? fxTable[yr].expense : (fxTable.expense ? fxTable.expense : Array(12).fill(0));
+  const monthlyPmt = lease.currency === 'JMD' ? (lease.monthlyPayment / (fx[0]||0)) : (lease.monthlyPayment || 0);
   const monthlyROUDep = openROU > 0 ? openROU / Math.max(1, totalMonths - Math.round((new Date(yr+'-01-01') - commence) / (1000*60*60*24*30.44))) : 0;
 
   let cumROU = openROU;
@@ -11407,7 +11407,7 @@ function computeIFRS16Lease(lease, yr) {
       res.plCredit.push(0);res.cashPayment.push(0);res.currentLiab.push(0);res.ltLiab.push(0);
       continue;
     }
-    const pmt = lease.currency === 'JMD' ? (lease.monthlyPayment / (fx[m]||162)) : monthlyPmt;
+    const pmt = lease.currency === 'JMD' ? (lease.monthlyPayment / (fx[m]||0)) : monthlyPmt;
     const intAmt = curLiab * monthRate;
     const princ  = Math.max(0, pmt - intAmt);
     const closeL = Math.max(0, curLiab - princ);
@@ -12119,7 +12119,7 @@ function buildNFCTable(yr){
   rows.forEach(r=>{
     let vals;
     if(r.k==='leaseInt') vals=agg?agg.interestExpense:Array(12).fill(0);
-    else if(r.k==='fxGain') vals=MONTHS.map((_,i)=>{const aFX=fxTable.billing[i]||155;const bFX=nfc.budgetFX[i]||155;const pos=nfc.netFXPosition[i]||0;return Math.round((aFX-bFX)*pos);});
+    else if(r.k==='fxGain') vals=MONTHS.map((_,i)=>{const aFX=fxTable.billing[i]||0;const bFX=nfc.budgetFX[i]||0;const pos=nfc.netFXPosition[i]||0;return Math.round((aFX-bFX)*pos);});
     else vals=nfc[r.k]?.vals||Array(12).fill(0);
     const tot=vals.reduce((s,v)=>s+v,0);
     const isSpec=r.derived||r.cashDerived;
@@ -12143,7 +12143,7 @@ function buildNFCTable(yr){
   // Total NFC
   const totNFC=MONTHS.map((_,i)=>{
     const leaseI=agg?agg.interestExpense[i]:0;
-    const fxG=(()=>{const aFX=fxTable.billing[i]||155;const bFX=nfc.budgetFX[i]||155;const pos=nfc.netFXPosition[i]||0;return Math.round((aFX-bFX)*pos);})();
+    const fxG=(()=>{const aFX=fxTable.billing[i]||0;const bFX=nfc.budgetFX[i]||0;const pos=nfc.netFXPosition[i]||0;return Math.round((aFX-bFX)*pos);})();
     return (nfc.intIncome?.vals[i]||0)+(nfc.intExpense?.vals[i]||0)+(nfc.loanFees?.vals[i]||0)+leaseI+(nfc.prefDivs?.vals[i]||0)+fxG;
   });
   html+=`<tr class="tr"><td style="padding-left:10px"><strong>Total Net Financing Costs</strong></td>${totNFC.map(v=>`<td class="gld"><strong>${fmtN(v)}</strong></td>`).join('')}<td class="gld"><strong>${fmtN(totNFC.reduce((s,v)=>s+v,0))}</strong></td></tr>`;
@@ -12484,9 +12484,9 @@ function buildMonthlyPL(yr){
   const leaseIntM=agg?agg.interestExpense:Array(12).fill(0);
   row('Lease Interest (IFRS 16)', leaseIntM, {derived:true, color:'var(--teal)'});
   row('Preference Dividends', nfc.prefDivs?.vals||Array(12).fill(0), {color:'var(--muted)'});
-  const fxGainM=MO.map((_,m)=>Math.round(((fxTable.billing[m]||155)-(nfc.budgetFX[m]||155))*(nfc.netFXPosition[m]||0)));
+  const fxGainM=MO.map((_,m)=>Math.round(((fxTable.billing[m]||0)-(nfc.budgetFX[m]||0))*(nfc.netFXPosition[m]||0)));
   row('FX Gain/(Loss)', fxGainM, {derived:true, color:'var(--blue)'});
-  const nfcM=MO.map((_,m)=>(nfc.intIncome?.vals[m]||0)+(nfc.intExpense?.vals[m]||0)+(nfc.loanFees?.vals[m]||0)+leaseIntM[m]+(nfc.prefDivs?.vals[m]||179)+fxGainM[m]);
+  const nfcM=MO.map((_,m)=>(nfc.intIncome?.vals[m]||0)+(nfc.intExpense?.vals[m]||0)+(nfc.loanFees?.vals[m]||0)+leaseIntM[m]+(nfc.prefDivs?.vals[m]||0)+fxGainM[m]);
   rows.push({label:'Total Net Financing Costs', vals:nfcM, ann:sumArr(nfcM), sub:true, bold:true, derived:true, color:'var(--gold)'});
 
   const ebitRow=rows.find(r=>r.label==='Operating Income (EBIT)');
@@ -13022,7 +13022,7 @@ function buildProjTab() {
   if(rb){
     rb.innerHTML = Object.entries(projRevDrivers).map(([k,d])=>{
       const isInt = k==='fxPath';
-      const base26 = k==='fxPath' ? (fxTable?.billing?.[0]||162) : null;
+      const base26 = k==='fxPath' ? (fxTable?.billing?.[0]||0) : null;
       return `<tr>
         <td style="padding-left:10px;color:var(--text)">${d.name}</td>
         <td class="gld" style="text-align:right">${base26!=null?base26.toFixed(1):'—'}</td>
