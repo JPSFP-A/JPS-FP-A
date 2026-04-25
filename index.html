@@ -5267,9 +5267,9 @@ let netFinancingRows={};
     intExpense:   {name:'Interest Expense',        vals:Array(12).fill(0)},
     loanFees:     {name:'Loan Financing Fees',     vals:Array(12).fill(0)},
     prefDivs:     {name:'Preference Dividends',    vals:Array(12).fill(0)},
-    budgetFX:     Array(12).fill(155),
+    budgetFX:     Array(12).fill(0),
     netFXPosition:Array(12).fill(0),
-    interestRateOnCash: 4.5,  // % p.a. on closing cash balance — drives interest income calc
+    interestRateOnCash: 0,  // % p.a. — set via UI input; no default assumed
   };
   // 2026 actuals populated from uploads — no hardcoded seed values
 });
@@ -5331,16 +5331,16 @@ function computeAll(yr){
   // Blended collection rate
   const rIds=['cr_rt10','cr_rt20','cr_rt40']; const wts=[0.55,0.22,0.23];
   const bl=rows.find(r=>r.id==='blended');
-  if(bl) bl.vals=MONTHS.map((_,i)=>parseFloat((rIds.reduce((s,id,wi)=>s+(rows.find(x=>x.id===id)?.vals[i]||94)*wts[wi],0)).toFixed(1)));
+  if(bl) bl.vals=MONTHS.map((_,i)=>parseFloat((rIds.reduce((s,id,wi)=>s+(rows.find(x=>x.id===id)?.vals[i]||0)*wts[wi],0)).toFixed(1)));
   // Cash receipts
   const bill=rows.find(r=>r.id==='billing');
   const blR=rows.find(r=>r.id==='blended');
   const prior=rows.find(r=>r.id==='prior');
   const gcr=rows.find(r=>r.id==='gcr');
   const rec=rows.find(r=>r.id==='receipts');
-  if(rec) rec.vals=MONTHS.map((_,i)=>Math.round(((bill?.vals[i]||0)/fxR)*((blR?.vals[i]||94)/100)+(prior?.vals[i]||0)+(gcr?.vals[i]||0)));
+  if(rec) rec.vals=MONTHS.map((_,i)=>Math.round(((bill?.vals[i]||0)/fxR)*((blR?.vals[i]||0)/100)+(prior?.vals[i]||0)+(gcr?.vals[i]||0)));
   const dso=rows.find(r=>r.id==='dso');
-  if(dso) dso.vals=MONTHS.map((_,i)=>{const b=(bill?.vals[i]||0)/fxR;const rt=(blR?.vals[i]||94)/100;return Math.round((b*(1-rt))/Math.max(b,1)*30)||7;});
+  if(dso) dso.vals=MONTHS.map((_,i)=>{const b=(bill?.vals[i]||0)/fxR;const rt=(blR?.vals[i]||0)/100;return b>0?Math.round((b*(1-rt))/Math.max(b,1)*30):0;});
 }
 
 const getOMTotal=(yr)=>{const rows=getOMRows(yr);return MONTHS.map((_,i)=>rows.filter(r=>!r.derived).reduce((s,r)=>s+(r.vals?.[i]||0),0));};
@@ -6234,8 +6234,8 @@ function buildKpiLiquidityTable() {
       vals: Array(12).fill(0).map((_,m) => {
         // Approximate: use collections DSO as proxy
         const r = getCollRows(yr).find(x=>x.id==='dso');
-        const dso = r?.vals?.[m] || 45;
-        return Math.max(0.8, 1.0 + (60-dso)/200); // simplified model
+        const dso = r?.vals?.[m] || 0;
+        return dso > 0 ? Math.max(0.8, 1.0 + (60-dso)/200) : 0; // zero if no data
       })
     },
     {
@@ -6481,7 +6481,7 @@ function buildKpiOpsTable() {
   if (!el) return;
   const yr = selectedKpiYear;
 
-  const loss    = sysLossTable[yr] || Array(12).fill(26.4);
+  const loss    = sysLossTable[yr] || _z12();
   const billed  = calcBilledSales(yr);
   const netGen  = (() => { const g=netGenTable[yr]; return Array(12).fill(0).map((_,m)=>(g.jps_thermal[m]||0)+(g.old_harbour[m]||0)+(g.renewables[m]||0)+(g.ipp[m]||0)); })();
   const renPct  = netGenTable[yr].renewables.map((v,m)=>netGen[m]>0?v/netGen[m]*100:0);
@@ -6592,7 +6592,7 @@ function _buildKpiChartsInner() {
 function exportKpiCSV() {
   const yr = selectedKpiYear;
   const rows = [['KPI', ...MONTHS, 'Avg/Total']];
-  const loss = sysLossTable[yr]||Array(12).fill(26.4);
+  const loss = sysLossTable[yr]||_z12();
   const billed = calcBilledSales(yr).map(v=>v/1000);
   rows.push(['System Loss %',...loss.map(v=>v.toFixed(2)),( loss.reduce((s,v)=>s+v,0)/12).toFixed(2)]);
   rows.push(['Billed Sales GWh',...billed.map(v=>v.toFixed(1)),(billed.reduce((s,v)=>s+v,0)).toFixed(1)]);
@@ -6612,88 +6612,8 @@ let selectedDebtAmortYear = 2026;
 
 // ── Loan register data ───────────────────────────────
 // Seeded from AOP 2026 / Feb 2026 corporate data
-let loanRegister = [
-  {
-    id: 'loan_idb_a',
-    name: 'IDB Infrastructure Loan A',
-    lender: 'IDB Invest',
-    type: 'term',
-    currency: 'USD',
-    principal: 120000,
-    rate: 5.25,
-    rateType: 'fixed',
-    drawDate: '2021-06-01',
-    maturity: '2031-06-01',
-    repayFreq: 'semi',
-    openBal: 84000,   // opening balance Jan 2026
-    repayAmt: 6000,   // semi-annual repayment
-    covenant: 'DSCR ≥ 1.20×, Debt/EBITDA ≤ 4.5×',
-    notes: 'T&D infrastructure upgrade programme',
-    active: true,
-    drawdowns: {},    // yr -> [12 monthly drawdowns]
-    repayments: {},   // yr -> [12 monthly repayments — computed from schedule]
-  },
-  {
-    id: 'loan_idb_b',
-    name: 'IDB Climate Resilience Facility',
-    lender: 'IDB Invest',
-    type: 'term',
-    currency: 'USD',
-    principal: 60000,
-    rate: 4.75,
-    rateType: 'fixed',
-    drawDate: '2022-03-01',
-    maturity: '2030-03-01',
-    repayFreq: 'semi',
-    openBal: 36000,
-    repayAmt: 4500,
-    covenant: 'DSCR ≥ 1.20×',
-    notes: 'Renewable energy & grid resilience',
-    active: true,
-    drawdowns: {},
-    repayments: {},
-  },
-  {
-    id: 'loan_cdb_hurr',
-    name: 'CDB Hurricane Melissa Recovery',
-    lender: 'Caribbean Dev. Bank',
-    type: 'term',
-    currency: 'USD',
-    principal: 75000,
-    rate: 3.50,
-    rateType: 'fixed',
-    drawDate: '2025-10-01',
-    maturity: '2035-10-01',
-    repayFreq: 'quarterly',
-    openBal: 72000,
-    repayAmt: 1875,
-    covenant: 'Disbursement milestones per restoration plan',
-    notes: 'Post-Hurricane Melissa grid restoration',
-    active: true,
-    drawdowns: { 2026: [5000,0,0,0,0,0,0,0,0,0,0,0] },
-    repayments: {},
-  },
-  {
-    id: 'loan_rbc_revolver',
-    name: 'RBC Revolving Credit Facility',
-    lender: 'RBC Royal Bank',
-    type: 'revolving',
-    currency: 'USD',
-    principal: 30000,
-    rate: 7.25,
-    rateType: 'floating',
-    drawDate: '2024-01-01',
-    maturity: '2027-01-01',
-    repayFreq: 'monthly',
-    openBal: 18000,
-    repayAmt: 1500,
-    covenant: 'Current Ratio ≥ 1.10×',
-    notes: 'Working capital / short-term liquidity',
-    active: true,
-    drawdowns: {},
-    repayments: {},
-  },
-];
+// Loan register — empty. Add facilities through the Debt Management UI or upload.
+let loanRegister = [];
 
 // ── Loan amortisation engine ─────────────────────────
 function computeLoanSchedule(loan, yr) {
@@ -8783,7 +8703,7 @@ function buildRevBridgeDecomp(mo, act, ref, cmpLabel) {
 
     // Loss Effect = revenue uplift from system loss reduction
     // Loss reduction → more billed MWh at given tariff
-    const budLoss = sysLossTable[2026]?.[mIdx] || 26;
+    const budLoss = sysLossTable[2026]?.[mIdx] || 0;
     const genMWh = mthBilledSales > 0 ? (mthBilledSales / (1 - budLoss/100)) : 0;
     const actLoss = sysLossTable[2026]?.[mIdx] || budLoss;
     const lossAdjMWh = genMWh > 0 ? genMWh * ((budLoss - actLoss) / 100) : 0;
@@ -9122,7 +9042,7 @@ function buildCollImpact(yr){
   const blR=rows.find(r=>r.id==='blended')?.vals||[];
   const rec=rows.find(r=>r.id==='receipts')?.vals||[];
   const dso=rows.find(r=>r.id==='dso')?.vals||[];
-  const ar=MONTHS.map((_,i)=>Math.round((bill[i]||0)/fxR*(1-(blR[i]||94)/100)));
+  const ar=MONTHS.map((_,i)=>Math.round((bill[i]||0)/fxR*(1-(blR[i]||0)/100)));
   document.getElementById('collIH').innerHTML=`<tr><th style="text-align:left;min-width:220px">Metric</th>${MONTHS.map(m=>`<th class="ac">${m}</th>`).join('')}<th class="ac">Total/Avg</th></tr>`;
   const collIRows = [[`Billings (J$'000)`,bill,false,false],['Blended Rate %',blR,true,false],['→ Cash Receipts (US$000)',rec,false,true],['AR Balance (US$000)',ar,false,false],['DSO (days)',dso,false,false,true]];
   document.getElementById('collIB').innerHTML = collIRows.map(([n,v,pct,strong,days])=>`
@@ -11040,7 +10960,7 @@ function buildRevDerived() {
   const fuelR = all.map(m=>m.fuelRevUSD);
   const totR  = all.map(m=>m.totalRevUSD);
   const gwhTot = MONTHS.map((_,i)=>Object.values(volumeTable).reduce((s,v)=>s+(v.mwh?.[i]||0),0));
-  const sys = revRows.find(r=>r.id==='sys_loss')?.vals||MONTHS.map(()=>26.5);
+  const sys = revRows.find(r=>r.id==='sys_loss')?.vals||_z12();
 
   document.getElementById('revDH').innerHTML=`<tr>
     <th style="min-width:260px;text-align:left">Derived Output</th>
@@ -11178,7 +11098,7 @@ function calcNetGen(yr) {
 function calcBilledSales(yr) {
   const ng = calcNetGen(yr);
   const sl = sysLossTable[yr] || sysLossTable[2026];
-  return ng.map((v,i)=>Math.round(v*(1-(sl[i]||26)/100)));
+  return ng.map((v,i)=>Math.round(v*(1-(sl[i]||0)/100)));
 }
 function calcLossMWh(yr) {
   const ng = calcNetGen(yr); const bs = calcBilledSales(yr);
@@ -11249,7 +11169,7 @@ function buildGenTables() {
   if (derHEl) {
     derHEl.innerHTML = `<tr><th style="text-align:left;min-width:160px">Derived Metric</th>${MONTHS.map(m=>`<th class="bc">${m}</th>`).join('')}<th class="bc">Total</th></tr>`;
     const fc = fuelCostByMonth2026;
-    const vom = [4086,3757,3900,3750,3900,4100,4300,4500,4300,4100,3900,3700];
+    const vom = Array(12).fill(0); // zeroed — populate from uploads
     const billedK = calcBilledSales(yr).map(v=>Math.round(v/1000));
     // Actuals overlay for 2026 fuel cost
     const actFuelCost=yr===2026?MONTHS.map((_,m)=>actualsStore[m+1]?.pl?.fuelCost!=null?Math.abs(actualsStore[m+1].pl.fuelCost):null):MONTHS.map(()=>null);
@@ -11438,21 +11358,8 @@ function applyThemeOnLoad() {
 //   Non-current lease obligations:    $437,254K
 //   Total lease liability:             $467,165K
 
-let ifrs16Leases = [
-  // IPP CONTRACTS
-  { id:'l_sjpc',    name:'SJPC — Old Harbour CCGT',    counterparty:'SJPC',    category:'SJPC (Old Harbour 194MW)',       type:'ipp',      treatment:'ifrs16',   commencementDate:'2019-01-01', expiryDate:'2039-12-31', extensionOption:false, extensionMonths:0,  currency:'USD', monthlyPayment:2950, interestRate:6.5, rouAssetOpening:380000, liabilityOpening:295000, omLine:'ipp' },
-  { id:'l_jep',     name:'JEP — Jamaica Energy Partners', counterparty:'JEP',  category:'JEP (Jamaica Energy Partners)',  type:'ipp',      treatment:'ifrs16',   commencementDate:'2016-01-01', expiryDate:'2031-12-31', extensionOption:false, extensionMonths:0,  currency:'USD', monthlyPayment:720,  interestRate:6.0, rouAssetOpening:85000,  liabilityOpening:68000,  omLine:'ipp' },
-  { id:'l_jppc',    name:'JPPC — Jamaica Private Power', counterparty:'JPPC',  category:'JPPC (Jamaica Private Power Co.)',type:'ipp',     treatment:'ifrs16',   commencementDate:'2017-06-01', expiryDate:'2032-06-30', extensionOption:false, extensionMonths:0,  currency:'USD', monthlyPayment:580,  interestRate:6.0, rouAssetOpening:68000,  liabilityOpening:52000,  omLine:'ipp' },
-  { id:'l_wkpp',    name:'WKPP — West Kingston Power',   counterparty:'WKPP',  category:'WKPP (West Kingston Power Partners)',type:'ipp', treatment:'ifrs16',   commencementDate:'2015-01-01', expiryDate:'2035-01-31', extensionOption:false, extensionMonths:0,  currency:'USD', monthlyPayment:480,  interestRate:5.8, rouAssetOpening:55000,  liabilityOpening:42000,  omLine:'ipp' },
-  // VEHICLE LEASES
-  { id:'l_eppley',  name:'Eppley Fleet Vehicles',        counterparty:'Eppley Capital', category:'Operational Vehicles',   type:'vehicle',  treatment:'ifrs16',   commencementDate:'2023-04-01', expiryDate:'2028-03-31', extensionOption:true,  extensionMonths:24, currency:'USD', monthlyPayment:38,   interestRate:8.5, rouAssetOpening:1800,   liabilityOpening:1650,   omLine:'transport' },
-  { id:'l_jameco',  name:'Jameco Vehicles',               counterparty:'Jameco',        category:'Operational Vehicles',   type:'vehicle',  treatment:'exempt',   commencementDate:'2022-01-01', expiryDate:'2026-12-31', extensionOption:true,  extensionMonths:12, currency:'USD', monthlyPayment:22,   interestRate:0,   rouAssetOpening:0,      liabilityOpening:0,      omLine:'transport', manualVals:[22,22,22,22,22,22,22,22,22,22,22,22] },
-  { id:'l_ameco',   name:'AMECO Management Vehicles',     counterparty:'AMECO',         category:'Management Vehicles',    type:'vehicle',  treatment:'exempt',   commencementDate:'2025-01-01', expiryDate:'2026-06-30', extensionOption:false, extensionMonths:0,  currency:'USD', monthlyPayment:15,   interestRate:0,   rouAssetOpening:0,      liabilityOpening:0,      omLine:'transport', manualVals:[15,15,15,15,15,15,15,15,15,15,15,15] },
-  // PROPERTY LEASES
-  { id:'l_headoff', name:'Head Office — Maxfield Avenue', counterparty:'JAMPRO',        category:'Head Office',            type:'property', treatment:'ifrs16',   commencementDate:'2018-07-01', expiryDate:'2028-06-30', extensionOption:true,  extensionMonths:60, currency:'USD', monthlyPayment:42,   interestRate:7.5, rouAssetOpening:2900,   liabilityOpening:2600,   omLine:'building' },
-  { id:'l_eastpde', name:'East Parade Parking',           counterparty:'Kingston City',  category:'Parking Facilities',     type:'property', treatment:'ifrs16',   commencementDate:'2020-01-01', expiryDate:'2026-09-30', extensionOption:false, extensionMonths:0,  currency:'USD', monthlyPayment:8,    interestRate:7.0, rouAssetOpening:95,     liabilityOpening:65,     omLine:'building' },
-  { id:'l_bogue',   name:'Bogue Estate Office',           counterparty:'Private Lessor', category:'Operational Buildings',  type:'property', treatment:'ifrs16',   commencementDate:'2021-03-01', expiryDate:'2031-02-28', extensionOption:true,  extensionMonths:24, currency:'USD', monthlyPayment:12,   interestRate:7.0, rouAssetOpening:980,    liabilityOpening:850,    omLine:'building' },
-];
+// Lease register — empty. Add leases through the Lease Register UI or upload.
+let ifrs16Leases = [];
 
 // Computed lease aggregates cache
 let leaseAggregates = {};
@@ -11900,16 +11807,8 @@ function exportLeaseCSV() {
 }
 
 // ── INSURANCE ENGINE ──────────────────────────────────────
-// Seeded from O&M file — Insurance schedules
-// FX for JMD policies: ~162 J$/US$
-let insurancePolicies = [
-  { id:'ins_par',  name:'Property All Risk',          currency:'USD', annualPremium:3200, paymentMonths:[8,11],   paymentAmounts:[1600,1600] },
-  { id:'ins_pv',   name:'Political Violence',         currency:'USD', annualPremium:22,   paymentMonths:[8,11],   paymentAmounts:[11,11]    },
-  { id:'ins_pel',  name:'Public & Employers Liability',currency:'USD', annualPremium:119,  paymentMonths:[1],      paymentAmounts:[119]      },
-  { id:'ins_exct', name:'Excess Liability (Top Layer)',currency:'USD', annualPremium:67,   paymentMonths:[9],      paymentAmounts:[67]       },
-  { id:'ins_exc1', name:'Excess Liability (1st Layer)',currency:'USD', annualPremium:165,  paymentMonths:[9,10],   paymentAmounts:[83,82]    },
-  { id:'ins_mv',   name:'Motor Vehicle',              currency:'JMD', annualPremium:148,  paymentMonths:[10],     paymentAmounts:[148]      }, // JMD$24M÷162≈$148K USD
-];
+// Insurance register — empty. Add policies through the Insurance UI or upload.
+let insurancePolicies = [];
 let insEditId = null;
 
 function computeInsPolicy(pol) {
@@ -12220,7 +12119,7 @@ function buildNFCTable(yr){
     <td style="padding-left:10px;color:var(--green)"><strong>Interest Rate on Cash Balance (% p.a.)</strong>
       <span style="font-size:8px;color:var(--teal)"> — drives Interest Income row below</span></td>
     <td colspan="${MONTHS.length}" style="padding:4px 10px">
-      <input class="ei" style="width:72px;color:var(--green)" value="${(nfc.interestRateOnCash||4.5).toFixed(2)}"
+      <input class="ei" style="width:72px;color:var(--green)" value="${(nfc.interestRateOnCash||0).toFixed(2)}"
         onchange="updIntRate(this,${yr})" onfocus="this.select()">
       <span style="font-size:9px;color:var(--muted);margin-left:8px">% p.a. applied to monthly closing cash balance</span>
     </td><td></td></tr>`;
@@ -12281,7 +12180,7 @@ function updIntRate(inp,yr){
 // Uses actualsStore cash for actuals months, bsLines cash projection for forecast
 function calcInterestIncome(yr){
   const nfc=netFinancingRows[yr]; if(!nfc) return;
-  const rate=(nfc.interestRateOnCash||4.5)/100/12;
+  const rate=(nfc.interestRateOnCash||0)/100/12;
   // Build monthly closing cash array for the year
   const cashBal=MONTHS.map((_,m)=>{
     const mo=m+1;
@@ -12540,11 +12439,11 @@ function buildMonthlyPL(yr){
 
   // — Purchased Power —
   sec('Purchased Power');
-  const ippFR=MO.map((_,m)=>{if(yr===2026&&actualsStore[m+1]?.pl)return actualsStore[m+1].pl.ppaCost?Math.abs(actualsStore[m+1].pl.ppaCost)*0.7:0;return Math.round((plLines.find(l=>l.id==='ipp_fr')?.vals[YEARS.indexOf(String(yr))]||390052)/12);});
-  const ippNR=MO.map((_,m)=>Math.round((plLines.find(l=>l.id==='ipp_nr')?.vals[YEARS.indexOf(String(yr))]||189567)/12));
+  const ippFR=MO.map((_,m)=>{if(yr===2026&&actualsStore[m+1]?.pl)return actualsStore[m+1].pl.ppaCost?Math.abs(actualsStore[m+1].pl.ppaCost)*0.7:0;return Math.round((plLines.find(l=>l.id==='ipp_fr')?.vals[YEARS.indexOf(String(yr))]||0)/12);});
+  const ippNR=MO.map((_,m)=>Math.round((plLines.find(l=>l.id==='ipp_nr')?.vals[YEARS.indexOf(String(yr))]||0)/12));
   row('IPP Fuel Revenue', ippFR, {color:'var(--green)'});
   row('IPP Non-Fuel Revenue', ippNR, {color:'var(--green)'});
-  const ippCostBase=MO.map((_,m)=>{if(yr===2026&&actualsStore[m+1]?.pl)return actualsStore[m+1].pl.ppaCost||0;return -Math.round((plLines.find(l=>l.id==='ipp_cost')?.vals[YEARS.indexOf(String(yr))]||523191)/12);});
+  const ippCostBase=MO.map((_,m)=>{if(yr===2026&&actualsStore[m+1]?.pl)return actualsStore[m+1].pl.ppaCost||0;return -Math.round((plLines.find(l=>l.id==='ipp_cost')?.vals[YEARS.indexOf(String(yr))]||0)/12);});
   const ippCredit=agg?agg.ippCredit:Array(12).fill(0);
   const ippCostNet=MO.map((_,m)=>ippCostBase[m]+(ippCredit[m]||0));
   const ippCostGrossNeg=ippCostBase.map(v=>Math.abs(v)?-Math.abs(v):v);
@@ -12561,8 +12460,8 @@ function buildMonthlyPL(yr){
 
   // — Non-Regulated —
   sec('Non-Regulated Business');
-  const nrRev=MO.map((_,m)=>Math.round((plLines.find(l=>l.id==='nr_rev')?.vals[YEARS.indexOf(String(yr))]||9702)/12));
-  const nrCost=MO.map((_,m)=>-Math.round((plLines.find(l=>l.id==='nr_cost')?.vals[YEARS.indexOf(String(yr))]||3224)/12));
+  const nrRev=MO.map((_,m)=>Math.round((plLines.find(l=>l.id==='nr_rev')?.vals[YEARS.indexOf(String(yr))]||0)/12));
+  const nrCost=MO.map((_,m)=>-Math.round((plLines.find(l=>l.id==='nr_cost')?.vals[YEARS.indexOf(String(yr))]||0)/12));
   row('Non-Regulated Revenue', nrRev, {color:'var(--green)'});
   row('Non-Regulated Costs', nrCost, {color:'var(--red)'});
   der('Non-Reg Contribution', m=>nrRev[m]+nrCost[m], {sub:true, bold:true});
@@ -12849,15 +12748,16 @@ const projOMDrivers = {
   facilities: {name:'Facilities & Bad Debt', cats:['building','bad_debt'],                                 vals:{2027:3.0, 2028:3.0, 2029:2.5, 2030:2.5}},
 };
 
-// CapEx annual budgets per programme (US$000)
+// CapEx annual budgets per programme — 2027-2030 zeroed; populate from uploads
+const _zCx26 = (id) => sumArr(capexRows[2026].find(r=>r.id===id)?.vals||[]);
 const projCapexBudgets = {
-  cx_gen:   {name:'Generation – Routine',           vals:{2026:sumArr(capexRows[2026].find(r=>r.id==='cx_gen')?.vals||[]), 2027:2000, 2028:2000, 2029:2200, 2030:2200}},
-  cx_tx:    {name:'Transmission – Expansion',       vals:{2026:sumArr(capexRows[2026].find(r=>r.id==='cx_tx')?.vals||[]),  2027:100,  2028:100,  2029:150,  2030:150}},
-  cx_dist:  {name:'Distribution – Upgrade',         vals:{2026:sumArr(capexRows[2026].find(r=>r.id==='cx_dist')?.vals||[]),2027:26000,2028:28000,2029:30000,2030:32000}},
-  cx_hurr:  {name:'Hurricane Melissa Restoration',  vals:{2026:sumArr(capexRows[2026].find(r=>r.id==='cx_hurr')?.vals||[]),2027:20000,2028:15000,2029:8000, 2030:3000}},
-  cx_cust:  {name:'Customer Growth (CCMA)',          vals:{2026:sumArr(capexRows[2026].find(r=>r.id==='cx_cust')?.vals||[]),2027:250,  2028:250,  2029:300,  2030:300}},
-  cx_loss:  {name:'Loss Reduction Programme',        vals:{2026:sumArr(capexRows[2026].find(r=>r.id==='cx_loss')?.vals||[]),2027:2000, 2028:3000, 2029:4000, 2030:4000}},
-  cx_ss:    {name:'Support Services (IT/Facilities)',vals:{2026:sumArr(capexRows[2026].find(r=>r.id==='cx_ss')?.vals||[]),  2027:30,   2028:30,   2029:35,   2030:35}},
+  cx_gen:   {name:'Generation – Routine',           vals:{2026:_zCx26('cx_gen'),  2027:0, 2028:0, 2029:0, 2030:0}},
+  cx_tx:    {name:'Transmission – Expansion',       vals:{2026:_zCx26('cx_tx'),   2027:0, 2028:0, 2029:0, 2030:0}},
+  cx_dist:  {name:'Distribution – Upgrade',         vals:{2026:_zCx26('cx_dist'), 2027:0, 2028:0, 2029:0, 2030:0}},
+  cx_hurr:  {name:'Hurricane Melissa Restoration',  vals:{2026:_zCx26('cx_hurr'), 2027:0, 2028:0, 2029:0, 2030:0}},
+  cx_cust:  {name:'Customer Growth (CCMA)',          vals:{2026:_zCx26('cx_cust'), 2027:0, 2028:0, 2029:0, 2030:0}},
+  cx_loss:  {name:'Loss Reduction Programme',        vals:{2026:_zCx26('cx_loss'), 2027:0, 2028:0, 2029:0, 2030:0}},
+  cx_ss:    {name:'Support Services (IT/Facilities)',vals:{2026:_zCx26('cx_ss'),   2027:0, 2028:0, 2029:0, 2030:0}},
 };
 
 // Debt schedule (US$000) — zeroed; populate from loan engine / uploads
@@ -12896,7 +12796,7 @@ function runProjectionEngine() {
 
   // ── Step 2: Non-fuel revenue ───────────────────────
   // Base: 2026 annual non-fuel revenue from plLines
-  const base2026NF = plLines.find(l=>l.id==='nonfuel')?.vals[4] || 340501;
+  const base2026NF = plLines.find(l=>l.id==='nonfuel')?.vals[4] || 0;
   let cumNF = base2026NF;
   yrs.forEach(yr=>{
     const volGr = 1 + (projRevDrivers.volumeGrowth.vals[yr]||0)/100;
@@ -12907,7 +12807,7 @@ function runProjectionEngine() {
   });
 
   // ── Step 3: IPP costs ─────────────────────────────
-  const base2026IPPCost = plLines.find(l=>l.id==='ipp_cost')?.vals[4] || 523191;
+  const base2026IPPCost = plLines.find(l=>l.id==='ipp_cost')?.vals[4] || 0;
   let cumIPP = base2026IPPCost;
   yrs.forEach(yr=>{
     const gr = 1 + (projRevDrivers.ippCostGrowth.vals[yr]||0)/100;
@@ -12917,8 +12817,8 @@ function runProjectionEngine() {
   });
 
   // IPP revenues scale with cost (OUR recovery mechanism)
-  const base2026IPPFR = plLines.find(l=>l.id==='ipp_fr')?.vals[4] || 390052;
-  const base2026IPPNR = plLines.find(l=>l.id==='ipp_nr')?.vals[4] || 189567;
+  const base2026IPPFR = plLines.find(l=>l.id==='ipp_fr')?.vals[4] || 0;
+  const base2026IPPNR = plLines.find(l=>l.id==='ipp_nr')?.vals[4] || 0;
   let cumFR = base2026IPPFR, cumNR = base2026IPPNR;
   yrs.forEach(yr=>{
     const gr = 1 + (projRevDrivers.ippCostGrowth.vals[yr]||0)/100;
@@ -12930,7 +12830,7 @@ function runProjectionEngine() {
   });
 
   // Non-reg revenue
-  const base2026NR = plLines.find(l=>l.id==='nr_rev')?.vals[4] || 9702;
+  const base2026NR = plLines.find(l=>l.id==='nr_rev')?.vals[4] || 0;
   let cumNRev = base2026NR;
   yrs.forEach(yr=>{
     const gr = 1 + (projRevDrivers.nonRegGrowth.vals[yr]||0)/100;
@@ -12982,8 +12882,8 @@ function runProjectionEngine() {
 
   // ── Step 6: Depreciation roll-forward ────────────
   // Opening PPE NBV + CapEx additions - Avg life depn
-  let openNBV = bsLines.find(l=>l.id==='ppe')?.vals[4] || 1452748;
-  const avgDepnLife = 25; // years
+  let openNBV = bsLines.find(l=>l.id==='ppe')?.vals[4] || 0;
+  const avgDepnLife = 0; // years — set from uploads
   yrs.forEach(yr=>{
     const cxAnn = sumArr(getCxTotal(yr));
     const depnThisYear = Math.round(openNBV/avgDepnLife + cxAnn*0.5/avgDepnLife);
@@ -14141,8 +14041,8 @@ function flashBuildGenV4(fActMo,fBudMo,fLEMo,fActYTD,fBudYTD,fLEYTD,periodId) {
     }
     return null;
   };
-  const planSysLossMo  = sysLossTable?.[y]?.[moIdx] ?? 26.4;
-  const planSysLossYTD = sysLossTable?.[y]?.slice(0, m).reduce((s,v)=>s+v, 0) / m || 26.4;
+  const planSysLossMo  = sysLossTable?.[y]?.[moIdx] ?? 0;
+  const planSysLossYTD = sysLossTable?.[y]?.slice(0, m).reduce((s,v)=>s+v, 0) / m || 0;
 
   const rows=[
     {
