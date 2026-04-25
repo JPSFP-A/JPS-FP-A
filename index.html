@@ -2367,13 +2367,25 @@ tr.der td{color:var(--teal)}
 
   <!-- ── REVENUE BY RATE CLASS TABLE ── -->
   <div class="tc2">
-    <div class="th"><div class="tt">📊 Revenue by Rate Class — Selected Month <span class="badge badge-act">Calculated</span></div>
-      <div class="ta"><select class="sel" id="revClassMo" onchange="buildRevClassTable()" style="height:22px;font-size:10px">
-        <option value="0">Jan</option><option value="1">Feb</option><option value="2">Mar</option>
-        <option value="3">Apr</option><option value="4">May</option><option value="5">Jun</option>
-        <option value="6">Jul</option><option value="7">Aug</option><option value="8">Sep</option>
-        <option value="9">Oct</option><option value="10">Nov</option><option value="11">Dec</option>
-      </select></div>
+    <div class="th">
+      <div>
+        <div class="tt">📊 Billed Sales & Revenue by Rate Class <span class="badge badge-act">Calculated</span></div>
+        <div class="ts">Non-fuel revenue engine — customer charge + energy charge + demand charge by class. All J$ amounts in millions.</div>
+      </div>
+      <div class="ta" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <select class="sel" id="revClassView" onchange="buildRevClassTable()" style="height:22px;font-size:10px">
+          <option value="billing">Billing Components</option>
+          <option value="nfrates">Non-Fuel Tariff Rates</option>
+          <option value="annual">Annual Summary</option>
+        </select>
+        <select class="sel" id="revClassMo" onchange="buildRevClassTable()" style="height:22px;font-size:10px">
+          <option value="0">Jan</option><option value="1">Feb</option><option value="2">Mar</option>
+          <option value="3">Apr</option><option value="4">May</option><option value="5">Jun</option>
+          <option value="6">Jul</option><option value="7">Aug</option><option value="8">Sep</option>
+          <option value="9">Oct</option><option value="10">Nov</option><option value="11">Dec</option>
+        </select>
+        <span id="revClassNote" style="font-size:9px;color:var(--muted);margin-left:4px">(month selector disabled in Annual view)</span>
+      </div>
     </div>
     <div class="tscr"><table><thead id="revClassH"></thead><tbody id="revClassB"></tbody></table></div>
   </div>
@@ -11655,33 +11667,63 @@ function calcRevEngineMonth(mo) {
   };
 }
 
+// Returns per-class detail including billing component split and effective non-fuel rates
 function calcRevEngineMonthByClass(mo) {
   const fxBill = fxTable.billing[mo] || 0;
   const result = [];
   Object.keys(tariffTable).forEach(cls => {
     const vol = volumeTable[cls];
     const tar = tariffTable[cls];
-    const cust = (vol.cust?.[mo] || 0);
-    const mwh  = (vol.mwh?.[mo]  || 0);
-    const kva  = (vol.kva?.[mo]  || 0);
+    const cust   = vol.cust?.[mo] || 0;
+    const mwh    = vol.mwh?.[mo]  || 0;
+    const kva    = vol.kva?.[mo]  || 0;
     const mwhKwh = mwh * 1000;
+
+    // ── Customer charge ────────────────────────────────────────────────────
     const custRevJm = cust * (tar.custChg?.[mo] || 0);
-    let energyRevJm = 0;
+
+    // ── Energy (non-fuel) charge ───────────────────────────────────────────
+    let energyRevJm = 0, nfRateJkwh = 0;
     if (tar.energyStd) {
-      energyRevJm = mwhKwh * (tar.energyStd[mo] || 0);
+      nfRateJkwh = tar.energyStd[mo] || 0;
+      energyRevJm = mwhKwh * nfRateJkwh;
     } else if (tar.energyOff && tar.energyPP && tar.energyOn) {
-      energyRevJm = mwhKwh * ((tar.energyOff[mo]+tar.energyPP[mo]+tar.energyOn[mo])/3);
+      nfRateJkwh = ((tar.energyOff[mo]||0)+(tar.energyPP[mo]||0)+(tar.energyOn[mo]||0))/3;
+      energyRevJm = mwhKwh * nfRateJkwh;
     }
-    let demandRevJm = 0;
+
+    // ── Demand charge ──────────────────────────────────────────────────────
+    let demandRevJm = 0, demandRateJkva = 0;
     if (tar.demandStd) {
-      demandRevJm = kva * (tar.demandStd[mo] || 0);
+      demandRateJkva = tar.demandStd[mo] || 0;
+      demandRevJm = kva * demandRateJkva;
     } else if (tar.demandOff && tar.demandPP && tar.demandOn) {
-      demandRevJm = kva * ((tar.demandOff[mo]+tar.demandPP[mo]+tar.demandOn[mo])/3);
+      demandRateJkva = ((tar.demandOff[mo]||0)+(tar.demandPP[mo]||0)+(tar.demandOn[mo]||0))/3;
+      demandRevJm = kva * demandRateJkva;
     }
-    const totalJm = custRevJm + energyRevJm + demandRevJm;
-    const revUSD = Math.round(totalJm / fxBill / 1000);
-    const revPerKwh = mwh > 0 ? (totalJm / fxBill / (mwh * 1000)) * 100 : 0; // US¢/kWh
-    result.push({ cls, cust, mwh, revJmK: Math.round(totalJm/1000), revUSDK: revUSD, revPerKwh });
+
+    const totalJm    = custRevJm + energyRevJm + demandRevJm;
+    const revUSDK    = fxBill > 0 ? Math.round(totalJm / fxBill / 1000) : 0;
+    const revPerKwh  = mwh > 0 && fxBill > 0 ? (totalJm / fxBill / mwhKwh) * 100 : 0; // US¢/kWh
+    const custChgRt  = tar.custChg?.[mo] || 0;
+    const hasDemand  = kva > 0 || demandRateJkva > 0;
+
+    result.push({
+      cls,
+      cust, mwh, kva, hasDemand,
+      // Revenue components (J$'000)
+      custRevJmK:   Math.round(custRevJm   / 1000),
+      energyRevJmK: Math.round(energyRevJm / 1000),
+      demandRevJmK: Math.round(demandRevJm / 1000),
+      totalJmK:     Math.round(totalJm     / 1000),
+      // USD totals
+      revUSDK,
+      revPerKwh,
+      // Effective rates (for non-fuel rate summary)
+      custChgRt,       // J$/customer/month
+      nfRateJkwh,      // J$/kWh (non-fuel energy rate, or avg TOU)
+      demandRateJkva,  // J$/kVA (demand rate, or avg TOU)
+    });
   });
   return result;
 }
@@ -11802,33 +11844,142 @@ function buildRevTrendChart() {
 }
 
 // ── Revenue by Rate Class Table ───────────────────────────────────────────────
+const _RC_NAMES = {
+  RT10_lo:'RT10  Residential <100kWh', RT10_hi:'RT10  Residential >100kWh',
+  RT20:'RT20  Small Commercial',
+  RT40_std:'RT40  Med Commercial (Std)', RT40_tou:'RT40  Med Commercial (TOU)',
+  RT50_std:'RT50  Large Commercial (Std)', RT50_tou:'RT50  Large Commercial (TOU)',
+  RT60:'RT60  Industrial', RT70:'RT70  Large Industrial',
+};
+
 function buildRevClassTable() {
-  const mo = parseInt(document.getElementById('revClassMo')?.value||0);
+  const view = document.getElementById('revClassView')?.value || 'billing';
+  const mo   = parseInt(document.getElementById('revClassMo')?.value || 0);
+  // Show/hide month picker based on view
+  const moSel  = document.getElementById('revClassMo');
+  const moNote = document.getElementById('revClassNote');
+  if (moSel)  moSel.style.display  = view === 'annual' ? 'none' : '';
+  if (moNote) moNote.style.display = view === 'annual' ? ''     : 'none';
   const rows = calcRevEngineMonthByClass(mo);
-  const clsNames = {RT10_lo:'RT10 <100kWh',RT10_hi:'RT10 >100kWh',RT20:'RT20',RT40_std:'RT40 Std',RT40_tou:'RT40 TOU',RT50_std:'RT50 Std',RT50_tou:'RT50 TOU',RT60:'RT60',RT70:'RT70'};
-  document.getElementById('revClassH').innerHTML=`<tr>
-    <th style="text-align:left;min-width:160px">Rate Class</th>
-    <th class="bc">Customers</th><th class="bc">MWh</th>
-    <th class="bc">Rev J$M</th><th class="bc">Rev US$K</th><th class="ac">Rev/kWh US¢</th>
-  </tr>`;
-  let tCust=0,tMwh=0,tJm=0,tUSD=0;
-  document.getElementById('revClassB').innerHTML = rows.map(r=>{
-    tCust+=(r.cust||0); tMwh+=r.mwh; tJm+=r.revJmK/1000; tUSD+=r.revUSDK;
-    return `<tr><td style="padding-left:10px"><strong>${clsNames[r.cls]||r.cls}</strong></td>
-      <td style="text-align:right">${r.cust?r.cust.toLocaleString():'–'}</td>
-      <td style="text-align:right">${r.mwh.toFixed(1)}</td>
-      <td style="text-align:right">${(r.revJmK/1000).toFixed(2)}</td>
-      <td style="text-align:right;color:var(--teal)">${r.revUSDK.toLocaleString()}</td>
-      <td style="text-align:right;color:var(--gold)">${r.revPerKwh.toFixed(2)}¢</td>
+
+  const rc  = r => _RC_NAMES[r.cls] || r.cls;
+  const jmK = v => v != null ? (v/1000).toFixed(2) : '–';       // J$'000 → J$M
+  const jmr = v => v ? v.toFixed(2) : '–';                       // J$/kWh already
+  const n   = v => v != null ? Math.round(v).toLocaleString() : '–';
+
+  // ── VIEW 1: BILLING COMPONENTS ────────────────────────────────────────────
+  if (view === 'billing') {
+    document.getElementById('revClassH').innerHTML = `<tr>
+      <th style="text-align:left;min-width:190px">Rate Class</th>
+      <th class="bc" title="Number of billing accounts">Customers</th>
+      <th class="bc">MWh Billed</th>
+      <th class="bc" title="kVA billed (demand classes only)">kVA</th>
+      <th class="bc" style="background:#eef3fb" title="J$ customer/access charges">Cust Chg J$M</th>
+      <th class="bc" style="background:#eef3fb" title="J$ non-fuel energy charges">Energy J$M</th>
+      <th class="bc" style="background:#eef3fb" title="J$ demand charges">Demand J$M</th>
+      <th class="bc" style="background:#e8f5e9;font-weight:800">Total J$M</th>
+      <th class="bc" style="color:var(--teal)">US$K</th>
+      <th class="ac" style="color:var(--gold)">US¢/kWh</th>
     </tr>`;
-  }).join('') + `<tr class="tr">
-    <td><strong>TOTAL</strong></td>
-    <td style="text-align:right"><strong>${Math.round(tCust).toLocaleString()}</strong></td>
-    <td style="text-align:right"><strong>${tMwh.toFixed(1)}</strong></td>
-    <td style="text-align:right"><strong>${tJm.toFixed(2)}</strong></td>
-    <td style="text-align:right;color:var(--gold)"><strong>${Math.round(tUSD).toLocaleString()}</strong></td>
-    <td style="text-align:right;color:var(--gold)"><strong>${tMwh>0?((tUSD*1000)/(tMwh*1000)*100).toFixed(2)+'¢':'–'}</strong></td>
-  </tr>`;
+    let tC=0,tM=0,tK=0,tCJ=0,tEJ=0,tDJ=0,tJ=0,tU=0;
+    document.getElementById('revClassB').innerHTML = rows.map(r => {
+      tC+=r.cust; tM+=r.mwh; tK+=r.kva;
+      tCJ+=r.custRevJmK; tEJ+=r.energyRevJmK; tDJ+=r.demandRevJmK; tJ+=r.totalJmK; tU+=r.revUSDK;
+      return `<tr>
+        <td style="padding-left:8px">${rc(r)}</td>
+        <td style="text-align:right">${r.cust ? n(r.cust) : '–'}</td>
+        <td style="text-align:right">${r.mwh.toFixed(1)}</td>
+        <td style="text-align:right;color:var(--muted)">${r.kva ? n(r.kva) : '–'}</td>
+        <td style="text-align:right;background:#f7f9fe">${jmK(r.custRevJmK)}</td>
+        <td style="text-align:right;background:#f7f9fe">${jmK(r.energyRevJmK)}</td>
+        <td style="text-align:right;background:#f7f9fe">${jmK(r.demandRevJmK)}</td>
+        <td style="text-align:right;background:#f0f7f0;font-weight:700">${jmK(r.totalJmK)}</td>
+        <td style="text-align:right;color:var(--teal)">${n(r.revUSDK)}</td>
+        <td style="text-align:right;color:var(--gold)">${r.revPerKwh.toFixed(2)}¢</td>
+      </tr>`;
+    }).join('') + `<tr class="tr">
+      <td><strong>TOTAL</strong></td>
+      <td style="text-align:right"><strong>${n(tC)}</strong></td>
+      <td style="text-align:right"><strong>${tM.toFixed(1)}</strong></td>
+      <td style="text-align:right;color:var(--muted)">${n(tK)}</td>
+      <td style="text-align:right;background:#eef3fb"><strong>${jmK(tCJ)}</strong></td>
+      <td style="text-align:right;background:#eef3fb"><strong>${jmK(tEJ)}</strong></td>
+      <td style="text-align:right;background:#eef3fb"><strong>${jmK(tDJ)}</strong></td>
+      <td style="text-align:right;background:#e8f5e9;color:var(--green)"><strong>${jmK(tJ)}</strong></td>
+      <td style="text-align:right;color:var(--gold)"><strong>${n(tU)}</strong></td>
+      <td style="text-align:right;color:var(--gold)"><strong>${tM>0&&tU>0?((tU*1000)/(tM*1000)*100).toFixed(2)+'¢':'–'}</strong></td>
+    </tr>`;
+
+  // ── VIEW 2: NON-FUEL TARIFF RATES ─────────────────────────────────────────
+  } else if (view === 'nfrates') {
+    document.getElementById('revClassH').innerHTML = `<tr>
+      <th style="text-align:left;min-width:190px">Rate Class</th>
+      <th class="bc" title="Monthly fixed charge per customer">Cust Chg<br><span style="font-weight:400;color:var(--muted)">J$/account/mo</span></th>
+      <th class="bc" title="Non-fuel energy rate (standard or avg TOU)">Energy Rate<br><span style="font-weight:400;color:var(--muted)">J$/kWh</span></th>
+      <th class="bc" title="Demand rate (standard or avg TOU)">Demand Rate<br><span style="font-weight:400;color:var(--muted)">J$/kVA</span></th>
+      <th class="bc" title="Effective non-fuel rate in US cents per kWh">Effective NF Rate<br><span style="font-weight:400;color:var(--muted)">US¢/kWh</span></th>
+      <th class="bc">MWh Billed</th>
+      <th class="bc" style="background:#eef3fb">NF Energy Rev J$M</th>
+      <th class="bc" style="background:#eef3fb">Demand Rev J$M</th>
+      <th class="bc" style="background:#e8f5e9">NF Total J$M</th>
+    </tr>`;
+    const fxBill = fxTable.billing[mo] || 0;
+    let tEJ=0,tDJ=0,tJ=0,tM=0;
+    document.getElementById('revClassB').innerHTML = rows.map(r => {
+      tEJ+=r.energyRevJmK; tDJ+=r.demandRevJmK; tJ+=(r.energyRevJmK+r.demandRevJmK); tM+=r.mwh;
+      const effNFcent = r.mwh > 0 && fxBill > 0
+        ? ((r.energyRevJmK+r.demandRevJmK)*1000 / (r.mwh*1000) / fxBill * 100).toFixed(2)+'¢' : '–';
+      const hasDmd = r.kva > 0 || r.demandRateJkva > 0;
+      return `<tr>
+        <td style="padding-left:8px">${rc(r)}</td>
+        <td style="text-align:right">${r.custChgRt ? r.custChgRt.toLocaleString('en-JM',{minimumFractionDigits:2}) : '–'}</td>
+        <td style="text-align:right;font-weight:700;color:#003da5">${r.nfRateJkwh ? r.nfRateJkwh.toFixed(4) : '–'}</td>
+        <td style="text-align:right;color:#003da5">${hasDmd ? r.demandRateJkva.toFixed(2) : '<span style="color:var(--muted)">N/A</span>'}</td>
+        <td style="text-align:right;color:var(--gold)">${effNFcent}</td>
+        <td style="text-align:right">${r.mwh.toFixed(1)}</td>
+        <td style="text-align:right;background:#f7f9fe">${jmK(r.energyRevJmK)}</td>
+        <td style="text-align:right;background:#f7f9fe">${jmK(r.demandRevJmK)}</td>
+        <td style="text-align:right;background:#f0f7f0;font-weight:700">${jmK(r.energyRevJmK+r.demandRevJmK)}</td>
+      </tr>`;
+    }).join('') + `<tr class="tr">
+      <td colspan="5"><strong>TOTAL</strong></td>
+      <td style="text-align:right"><strong>${tM.toFixed(1)}</strong></td>
+      <td style="text-align:right;background:#eef3fb"><strong>${jmK(tEJ)}</strong></td>
+      <td style="text-align:right;background:#eef3fb"><strong>${jmK(tDJ)}</strong></td>
+      <td style="text-align:right;background:#e8f5e9;color:var(--green)"><strong>${jmK(tJ)}</strong></td>
+    </tr>`;
+
+  // ── VIEW 3: ANNUAL SUMMARY ────────────────────────────────────────────────
+  } else if (view === 'annual') {
+    document.getElementById('revClassH').innerHTML = `<tr>
+      <th style="text-align:left;min-width:190px">Rate Class</th>
+      ${Array(12).fill(0).map((_,i)=>`<th class="bc" style="font-size:9px">${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i]}</th>`).join('')}
+      <th class="bc" style="background:#e8f5e9">Annual J$M</th>
+      <th class="bc" style="background:#e8f5e9">Annual US$K</th>
+    </tr>`;
+    // Compute for all 12 months for each class
+    const allMonths = Array(12).fill(0).map((_,m) => calcRevEngineMonthByClass(m));
+    const totByMo   = Array(12).fill(0);
+    let grandJmK = 0, grandUSD = 0;
+    document.getElementById('revClassB').innerHTML = Object.keys(tariffTable).map(cls => {
+      let annJmK=0, annUSD=0;
+      const cells = allMonths.map((mRows,m) => {
+        const r = mRows.find(x=>x.cls===cls);
+        if (!r) return '<td style="text-align:right;color:var(--muted)">–</td>';
+        annJmK += r.totalJmK; annUSD += r.revUSDK; totByMo[m] += r.totalJmK;
+        return `<td style="text-align:right;font-size:10px">${(r.totalJmK/1000).toFixed(1)}</td>`;
+      }).join('');
+      grandJmK += annJmK; grandUSD += annUSD;
+      return `<tr><td style="padding-left:8px">${_RC_NAMES[cls]||cls}</td>${cells}
+        <td style="text-align:right;background:#f0f7f0;font-weight:700">${(annJmK/1000).toFixed(1)}</td>
+        <td style="text-align:right;background:#f0f7f0;color:var(--teal)">${n(annUSD)}</td>
+      </tr>`;
+    }).join('') + `<tr class="tr"><td><strong>TOTAL</strong></td>
+      ${totByMo.map(v=>`<td style="text-align:right;font-size:10px"><strong>${(v/1000).toFixed(1)}</strong></td>`).join('')}
+      <td style="text-align:right;background:#e8f5e9"><strong>${(grandJmK/1000).toFixed(1)}</strong></td>
+      <td style="text-align:right;background:#e8f5e9;color:var(--gold)"><strong>${n(grandUSD)}</strong></td>
+    </tr>`;
+  }
 }
 
 // ── Tariff Table ──────────────────────────────────────────────────────────────
