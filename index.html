@@ -6109,8 +6109,6 @@ const mkWaterfall=(id,steps,opts={})=>{
       running+=s.value;
     }
   });
-  const mc=getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485';
-  const gc=getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)';
   mkChart(id,{
     type:'bar',
     data:{labels,datasets:[{
@@ -6135,19 +6133,39 @@ const mkWaterfall=(id,steps,opts={})=>{
         ...( opts.plugins||{} )
       },
       scales:{
-        x:{ticks:{color:mc,font:{size:9}},grid:{color:gc}},
-        y:{ticks:{color:mc,font:{size:9},callback:v=>toK(v)},grid:{color:gc}},
+        x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid}},
+        y:{ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}},
         ...(opts.scales||{})
       }
     }
   });
 };
 const CP=['#f0b429','#3b82f6','#10b981','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899','#14b8a6','#a78bfa','#34d399','#fb923c'];
-const bO=(yFmt)=>{
-  const mc=getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485';
-  const gc=getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)';
-  return {responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:mc,font:{size:9},boxWidth:9}}},scales:{x:{ticks:{color:mc,font:{size:9}},grid:{color:gc}},y:{ticks:{color:mc,font:{size:9},callback:v=>yFmt?yFmt(v):toK(v)},grid:{color:gc}}}};
-};
+
+// ── Theme Color Cache ──────────────────────────────────────────────────────────
+// Populated once at startup and refreshed on every theme switch.
+// Eliminates 42+ synchronous getComputedStyle() calls inside chart renderers
+// (each call triggers a style recalculation which blocks the main thread).
+let _TC = { muted:'#4a6485', grid:'rgba(255,255,255,.035)', text:'#c8d8f0', gold:'#f0b429', teal:'#00b4d8' };
+function _cacheThemeColors() {
+  const s = getComputedStyle(document.documentElement);
+  _TC.muted = s.getPropertyValue('--muted').trim()      || '#4a6485';
+  _TC.grid  = s.getPropertyValue('--chart-grid').trim() || 'rgba(255,255,255,.035)';
+  _TC.text  = s.getPropertyValue('--text').trim()       || '#c8d8f0';
+  _TC.gold  = s.getPropertyValue('--gold').trim()       || '#f0b429';
+  _TC.teal  = s.getPropertyValue('--teal').trim()       || '#00b4d8';
+}
+_cacheThemeColors(); // populate immediately so bO() works before _initPlatform
+
+// Shared Chart.js options factory — uses cached _TC, never reads DOM
+const bO = (yFmt) => ({
+  responsive:true, maintainAspectRatio:false,
+  plugins:{ legend:{ labels:{ color:_TC.muted, font:{size:9}, boxWidth:9 } } },
+  scales:{
+    x:{ ticks:{ color:_TC.muted, font:{size:9} }, grid:{ color:_TC.grid } },
+    y:{ ticks:{ color:_TC.muted, font:{size:9}, callback:v=>yFmt?yFmt(v):toK(v) }, grid:{ color:_TC.grid } }
+  }
+});
 
 // ═══════════════════════════════════════════════════════
 //  SCENARIOS
@@ -6593,7 +6611,7 @@ function buildDepReport(){
     ]},
     options:{
       ...bO(),
-      plugins:{legend:{labels:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},boxWidth:10}},
+      plugins:{legend:{labels:{color:_TC.muted,font:{size:9},boxWidth:10}},
                tooltip:{callbacks:{label:ctx=>(ctx.dataset.label||'')+': $'+Math.round(Math.abs(ctx.raw||0)).toLocaleString()+'K'}}},
     }
   });
@@ -6605,7 +6623,7 @@ function buildDepReport(){
     {label:'Lease Assets',data:depLines[2].vals,backgroundColor:'rgba(6,182,212,.6)',stack:'s'},
     {label:'CapEx Transfers',data:depLines[3].vals,backgroundColor:'rgba(240,180,41,.6)',stack:'s'},
     {label:'Other',data:depLines.slice(4,8).map((_,i)=>depLines.slice(4,8).reduce((s,r)=>s+(r.vals[i]||0),0)),backgroundColor:'rgba(100,116,139,.5)',stack:'s'},
-  ]},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
+  ]},options:{...bO(),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}}}}});
 
   // Actuals strip below charts
   if(loadedMos.length){
@@ -6831,8 +6849,8 @@ function buildIndirectCF() {
   ];
   mkChart('cCFR',{type:'bar',data:{labels:MONTHS,datasets:cfDatasets},options:{
     ...bO(),
-    plugins:{legend:{labels:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},boxWidth:10}}},
-    scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},y:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}
+    plugins:{legend:{labels:{color:_TC.muted,font:{size:9},boxWidth:10}}},
+    scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid}},y:{ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}}}
   }});
 
   // Reconciliation note when actuals differ from model
@@ -6939,9 +6957,9 @@ function buildDirectCF() {
     {label:'Net Inflow/(Outflow)',data:netArr,backgroundColor:netArr.map(v=>v>=0?'rgba(16,185,129,.55)':'rgba(239,68,68,.45)')},
     {label:'Closing Balance',data:closeArr,type:'line',borderColor:CP[1],borderWidth:2,tension:.3,pointRadius:3,yAxisID:'y2'},
   ]},options:{...bO(),scales:{
-    x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},
-    y:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}},
-    y2:{position:'right',ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{drawOnChartArea:false}},
+    x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid}},
+    y:{ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}},
+    y2:{position:'right',ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{drawOnChartArea:false}},
   }}});
 
   return directCFSeed.closingBalance[3] || 0; // closing cash from actuals if loaded
@@ -7606,16 +7624,13 @@ function buildKpiCharts() {
 function _buildKpiChartsInner() {
   const YRS = [2026,2027,2028,2029,2030];
   const YIDX = {2026:4,2027:5,2028:6,2029:7,2030:8};
-  // Resolve CSS variables to actual colors for Chart.js (it can't parse var(--x))
-  const style = getComputedStyle(document.documentElement);
-  const mutedColor    = style.getPropertyValue('--muted').trim()   || '#7da0c4';
-  const gridColor     = style.getPropertyValue('--chart-grid').trim() || 'rgba(255,255,255,.045)';
+  // Use cached theme colors (_TC) — populated at startup and on every theme switch
   const bO2 = () => ({
     responsive:true, maintainAspectRatio:false,
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.formattedValue}}},
     scales:{
-      x:{ticks:{color:mutedColor,font:{size:9}},grid:{color:gridColor}},
-      y:{ticks:{color:mutedColor,font:{size:9}},grid:{color:gridColor}}
+      x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid}},
+      y:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid}}
     }
   });
 
@@ -8002,12 +8017,13 @@ function buildCovenantTracker() {
 
 function buildDebtCharts() {
   const YRS = [2026,2027,2028,2029,2030];
+  // FIX: Chart.js cannot parse 'var(--x)' CSS strings — use cached _TC values
   const bO2 = () => ({
     responsive:true, maintainAspectRatio:false,
     plugins:{ legend:{ display:false } },
     scales:{
-      x:{ ticks:{color:'var(--muted)',font:{size:9}}, grid:{color:'var(--chart-grid)'} },
-      y:{ ticks:{color:'var(--muted)',font:{size:9}, callback:v=>'$'+Math.round(v/1000)+'M'}, grid:{color:'var(--chart-grid)'} }
+      x:{ ticks:{color:_TC.muted,font:{size:9}}, grid:{color:_TC.grid} },
+      y:{ ticks:{color:_TC.muted,font:{size:9}, callback:v=>'$'+Math.round(v/1000)+'M'}, grid:{color:_TC.grid} }
     }
   });
 
@@ -8265,7 +8281,7 @@ function buildRevReport() {
         { label:'Budget', data: revCompBud, backgroundColor: ['rgba(239,68,68,.2)','rgba(6,182,212,.2)','rgba(139,92,246,.2)'], borderRadius: 4, borderColor: ['rgba(239,68,68,.6)','rgba(6,182,212,.6)','rgba(139,92,246,.6)'], borderWidth: 1 },
       ],
     },
-    options: { ...bO(), plugins:{ legend:{ labels:{ color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485', font:{size:9}, boxWidth:9 } } } },
+    options: { ...bO(), plugins:{ legend:{ labels:{ color:_TC.muted, font:{size:9}, boxWidth:9 } } } },
   });
 
   // ── CHART 2: GWh by Rate Class — Actuals loaded months ──────────────────
@@ -8289,10 +8305,10 @@ function buildRevReport() {
     },
     options: {
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ labels:{ color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485', font:{size:9}, boxWidth:9 } } },
+      plugins:{ legend:{ labels:{ color:_TC.muted, font:{size:9}, boxWidth:9 } } },
       scales:{
-        x:{ ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}}, grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}, stacked:true },
-        y:{ ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}, callback:v=>v+' GWh'}, grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}, stacked:true },
+        x:{ ticks:{color:_TC.muted,font:{size:9}}, grid:{color:_TC.grid}, stacked:true },
+        y:{ ticks:{color:_TC.muted,font:{size:9}, callback:v=>v+' GWh'}, grid:{color:_TC.grid}, stacked:true },
       },
     },
   });
@@ -8301,7 +8317,7 @@ function buildRevReport() {
   // Sum YTD generation for loaded months
   const genKeys   = Object.keys(genMixData);
   const genTotals = genKeys.map(k => moRange.reduce((s,mi) => s + (genMixData[k].vals[mi]||0), 0));
-  const genMutedColor = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#4a6485';
+  const genMutedColor = _TC.muted; // use cached theme color
   // Filter out zero-value slices so the donut renders correctly
   const genNonZero = genKeys.filter((_,i) => genTotals[i] > 0);
   const genTotalsNZ = genNonZero.map(k => moRange.reduce((s,mi) => s + (genMixData[k].vals[mi]||0), 0));
@@ -8336,10 +8352,10 @@ function buildRevReport() {
     },
     options: {
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ labels:{ color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485', font:{size:9}, boxWidth:9 } } },
+      plugins:{ legend:{ labels:{ color:_TC.muted, font:{size:9}, boxWidth:9 } } },
       scales:{
-        x:{ ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}}, grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}, stacked:true },
-        y:{ stacked:true, ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)}, grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'} },
+        x:{ ticks:{color:_TC.muted,font:{size:9}}, grid:{color:_TC.grid}, stacked:true },
+        y:{ stacked:true, ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)}, grid:{color:_TC.grid} },
       },
     },
   });
@@ -8367,8 +8383,8 @@ function buildRevReport() {
     options: {
       ...bO(v => v + '¢'),
       scales:{
-        x:{ ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}}, grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'} },
-        y:{ ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>v+'¢'}, grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'} },
+        x:{ ticks:{color:_TC.muted,font:{size:9}}, grid:{color:_TC.grid} },
+        y:{ ticks:{color:_TC.muted,font:{size:9},callback:v=>v+'¢'}, grid:{color:_TC.grid} },
       },
     },
   });
@@ -9524,7 +9540,7 @@ function buildVarReport() {
         labels: MONTHS,
         datasets: [{ label: 'YTD Revenue (Actuals)', data: actualRevSeries, backgroundColor: 'rgba(6,182,212,.65)', borderRadius: 4 }],
       },
-      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, title:{display:true,text:'YTD Cumulative Revenue – Actuals Loaded',color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:10}} }, scales:{ x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}}, y:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}} } },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, title:{display:true,text:'YTD Cumulative Revenue – Actuals Loaded',color:_TC.muted,font:{size:10}} }, scales:{ x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid}}, y:{ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}} } },
     });
     // EBITDA actuals trend
     const ebitdaSeries = MONTHS.map((_,i) => actualsStore[i+1]?.ytdActual?.ebitda ?? null);
@@ -10540,24 +10556,24 @@ function buildDashCharts(){
   const omCats=['payroll','overtime','benefits','thirdpty','transport','insurance','bad_debt'];
   const omLabels=['Payroll','OT','Benefits','3rd Pty','Transport','Insurance','Bad Debt'];
   const omR=getOMRows(2026);
-  mkChart('cOM',{type:'bar',data:{labels:_pLabels(),datasets:omCats.map((id,i)=>({label:omLabels[i],data:_pData(omR.find(r=>r.id===id)?.vals||[]),backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
+  mkChart('cOM',{type:'bar',data:{labels:_pLabels(),datasets:omCats.map((id,i)=>({label:omLabels[i],data:_pData(omR.find(r=>r.id===id)?.vals||[]),backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}}}}});
   // Depreciation — stacked by component, responds to period filter
   {const _dc=depreciationComponents[2026]||{};
   const _dk=['faRegister','sjpc','otherLeases','capexTransfers','capitalSpares','decommissioning','strandedMeters','strandedLights','impairment'];
   const _dl=['FA Register','SJPC','Leases','CX Transfers','Cap Spares','Decommission.','Str. Meters','Str. Lights','Impairment'];
   const _dclr=['rgba(139,92,246,.8)','rgba(59,130,246,.8)','rgba(16,185,129,.8)','rgba(245,158,11,.8)','rgba(239,68,68,.8)','rgba(20,184,166,.8)','rgba(249,115,22,.8)','rgba(168,85,247,.8)','rgba(236,72,153,.8)'];
-  mkChart('cDep',{type:'bar',data:{labels:_pLabels(),datasets:_dk.map((k,i)=>({label:_dl[i],data:_pData((_dc[k]||Array(12).fill(0)).map(v=>Math.round(v/1000))),backgroundColor:_dclr[i],stack:'s'}))},options:{...bO(),plugins:{legend:{labels:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:8},boxWidth:8}}},scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}}});}
+  mkChart('cDep',{type:'bar',data:{labels:_pLabels(),datasets:_dk.map((k,i)=>({label:_dl[i],data:_pData((_dc[k]||Array(12).fill(0)).map(v=>Math.round(v/1000))),backgroundColor:_dclr[i],stack:'s'}))},options:{...bO(),plugins:{legend:{labels:{color:_TC.muted,font:{size:8},boxWidth:8}}},scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}}});}
   const cxR=getCxRows(2026);
-  mkChart('cCx',{type:'bar',data:{labels:_pLabels(),datasets:cxR.map((r,i)=>({label:r.name.slice(0,20),data:_pData(r.vals||[]),backgroundColor:CP[i%CP.length]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
+  mkChart('cCx',{type:'bar',data:{labels:_pLabels(),datasets:cxR.map((r,i)=>({label:r.name.slice(0,20),data:_pData(r.vals||[]),backgroundColor:CP[i%CP.length]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}}}}});
   const gwhMap=['gwh_rt10','gwh_rt20','gwh_rt40','gwh_rt50','gwh_rt60','gwh_rt70'];
   const gwhLbls=['RT10 Res','RT20 SME','RT40 LV','RT50 MV','RT60 Lights','RT70 HV'];
-  mkChart('cGWh',{type:'bar',data:{labels:_pLabels(),datasets:gwhMap.map((id,i)=>({label:gwhLbls[i],data:_pData(revRows.find(r=>r.id===id)?.vals||[]),backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(v=>v+' GWh'),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>v+' GWh'},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
+  mkChart('cGWh',{type:'bar',data:{labels:_pLabels(),datasets:gwhMap.map((id,i)=>({label:gwhLbls[i],data:_pData(revRows.find(r=>r.id===id)?.vals||[]),backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(v=>v+' GWh'),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>v+' GWh'},grid:{color:_TC.grid}}}}});
 }
 
 function buildOMCharts(){
   const yr=selectedOMYear; const rows=getOMRows(yr);
   const top8=rows.slice(0,8);
-  mkChart('cOMst',{type:'bar',data:{labels:MONTHS,datasets:top8.map((r,i)=>({label:r.name.slice(4,22),data:r.vals||[],backgroundColor:CP[i]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
+  mkChart('cOMst',{type:'bar',data:{labels:MONTHS,datasets:top8.map((r,i)=>({label:r.name.slice(4,22),data:r.vals||[],backgroundColor:CP[i]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}}}}});
   const omTot=getOMTotal(yr); const omCash=getOMCash(yr);
   mkChart('cOMcash',{type:'line',data:{labels:MONTHS,datasets:[
     {label:'O&M Expense',data:omTot,borderColor:CP[1],borderWidth:2.5,tension:.3,pointRadius:3},
@@ -10580,7 +10596,7 @@ function buildCollCharts(yr){
 
   mkChart('cCollR',{type:'line',data:{labels:MONTHS,datasets:[
     {label:'Blended Collection Rate % (LE)',data:blend,borderColor:CP[2],backgroundColor:'rgba(16,185,129,.1)',fill:true,borderWidth:2.5,tension:.3,pointRadius:4},
-  ]},options:{...bO(v=>v+'%'),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},y:{min:90,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>v+'%'},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
+  ]},options:{...bO(v=>v+'%'),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid}},y:{min:90,ticks:{color:_TC.muted,font:{size:9},callback:v=>v+'%'},grid:{color:_TC.grid}}}}});
 
   const receiptDatasets=[
     {label:'Billings (US$000s)',data:billUSD,backgroundColor:'rgba(59,130,246,.35)',stack:'s'},
@@ -10589,14 +10605,14 @@ function buildCollCharts(yr){
   if(hasAct){
     receiptDatasets.push({label:'Actual Revenue',data:actRevArr,type:'line',borderColor:'rgba(16,185,129,.9)',borderWidth:2,tension:.3,pointRadius:5,pointBackgroundColor:'rgba(16,185,129,1)',borderDash:[4,3]});
   }
-  mkChart('cCollB',{type:'bar',data:{labels:MONTHS,datasets:receiptDatasets},options:{...bO(),plugins:{legend:{labels:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},boxWidth:10}}}}});
+  mkChart('cCollB',{type:'bar',data:{labels:MONTHS,datasets:receiptDatasets},options:{...bO(),plugins:{legend:{labels:{color:_TC.muted,font:{size:9},boxWidth:10}}}}});
 }
 
 function buildCxCharts(){
   const yr=selectedCapexYear; const rows=getCxRows(yr);
   const cxTot=getCxTotal(yr); let cum=0; const cumArr=cxTot.map(v=>{cum+=v;return cum;});
   const cxCash=getCxCash(yr);
-  mkChart('cCxBar',{type:'bar',data:{labels:MONTHS,datasets:rows.map((r,i)=>({label:r.name.slice(0,20),data:r.vals||[],backgroundColor:CP[i%CP.length]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>toK(v)},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
+  mkChart('cCxBar',{type:'bar',data:{labels:MONTHS,datasets:rows.map((r,i)=>({label:r.name.slice(0,20),data:r.vals||[],backgroundColor:CP[i%CP.length]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}}}}});
   mkChart('cCxCum',{type:'bar',data:{labels:MONTHS,datasets:[
     {label:'Monthly CapEx',data:cxTot,backgroundColor:'rgba(59,130,246,.4)',yAxisID:'y'},
     {label:'Cumulative',data:cumArr,type:'line',borderColor:CP[0],borderWidth:2.5,tension:.3,pointRadius:4,yAxisID:'y'},
@@ -11836,8 +11852,8 @@ function buildRevTrendChart() {
     ]},
     options:{...bO(v=>'$'+Math.round(v).toLocaleString()+'K'),
       scales:{
-        x:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},
-        y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>'$'+Math.round(v)+'K'},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}},
+        x:{stacked:true,ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid}},
+        y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>'$'+Math.round(v)+'K'},grid:{color:_TC.grid}},
       }
     }
   });
@@ -12432,7 +12448,7 @@ function buildGenTables() {
   mkChart('cGenMix',{type:'bar',data:{labels:MONTHS,datasets:genGroups.map((g,i)=>({
     label:['JPS Thermal','Old Harbour CCGT','Renewables','IPP'][i],
     data:ng[g]||[],backgroundColor:genColors[i],stack:'s',
-  }))},options:{...bO(),scales:{x:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>v+'GWh'},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}});
+  }))},options:{...bO(),scales:{x:{stacked:true,ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid}},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>v+'GWh'},grid:{color:_TC.grid}}}}});
 
   // System loss + billed sales actuals
   const sysLossDatasets = [
@@ -12452,7 +12468,7 @@ function buildGenTables() {
   }
   mkChart('cSysLoss',{type:'bar',data:{labels:MONTHS,datasets:billedDatasets},
     options:{...bO(v=>v.toFixed(0)+' GWh'),
-      plugins:{legend:{labels:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},boxWidth:10}}},
+      plugins:{legend:{labels:{color:_TC.muted,font:{size:9},boxWidth:10}}},
     }
   });
 }
@@ -12542,6 +12558,8 @@ function setTheme(name, btn) { auditLog('theme','UI Theme',null,name);
   localStorage.setItem('jps_theme', name);
   document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
+  // Refresh theme color cache so all charts pick up the new palette
+  _cacheThemeColors();
   // Re-render charts with updated colors
   setTimeout(()=>refreshAll(), 50);
   toast('Theme: ' + name.charAt(0).toUpperCase()+name.slice(1), 'ok');
@@ -12860,7 +12878,6 @@ function buildLeaseAggTable() {
   }).join('');
 
   // Chart
-  const cp = getComputedStyle(document.documentElement);
   mkChart('cLeaseAgg',{type:'bar',
     data:{labels:MONTHS,datasets:[
       {label:'IPP Credit',     data:agg.ippCredit,      backgroundColor:'rgba(6,182,212,.65)',  stack:'s'},
@@ -12868,7 +12885,7 @@ function buildLeaseAggTable() {
       {label:'ROU Depreciation',data:agg.rouDepreciation,backgroundColor:'rgba(240,180,41,.65)',stack:'s'},
       {label:'Interest',       data:agg.interestExpense, backgroundColor:'rgba(239,68,68,.65)',  stack:'s'},
     ]},
-    options:{...bO(),scales:{x:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}}},y:{stacked:true,ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>fmtN(v)+'K'}}}}
+    options:{...bO(),scales:{x:{stacked:true,ticks:{color:_TC.muted,font:{size:9}}},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>fmtN(v)+'K'}}}}
   });
 }
 
@@ -13067,7 +13084,7 @@ function buildInsPanel() {
       {label:'Monthly Expense', data:expLine,  borderColor:'var(--teal)',borderWidth:2,tension:.4,type:'line',fill:false,pointRadius:3,yAxisID:'y'},
       {label:'Prepaid Balance', data:prepaid,  borderColor:'var(--green)',borderWidth:1.5,tension:.4,type:'line',fill:false,pointRadius:2,borderDash:[4,3],yAxisID:'y'},
     ]},
-    options:{...bO(),scales:{x:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9}},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.025)'}},y:{ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#4a6485',font:{size:9},callback:v=>fmtN(v)+'K'},grid:{color:getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim()||'rgba(255,255,255,.035)'}}}}
+    options:{...bO(),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid}},y:{ticks:{color:_TC.muted,font:{size:9},callback:v=>fmtN(v)+'K'},grid:{color:_TC.grid}}}}
   });
 }
 
