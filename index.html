@@ -3148,53 +3148,45 @@ async function fpaBootstrap() {
     // Default active version = LE_2026_02
     fpa.activeVersionId = fpa.vid('LE_2026_02') || fpa.versions[0]?.id;
 
-    showBootstrapOverlay(`Loading ${fpa.versions.length} versions of facts...`);
-    // Paginate fpa_v_facts in batches of 2000 to avoid Supabase's default 1000-row cap.
+    // ── Upload-only mode: only load ACTUALS_YYYY_MM fact rows ─────────────────
+    // HIST_ACTUAL_*, LE_*, FORECAST_BASE, AOP_*, SCENARIO_* are intentionally
+    // excluded so the app shows zero until the user uploads real data.
+    // Re-enable the unfiltered query once the upload mechanism is validated.
+    showBootstrapOverlay('Loading uploaded actuals...');
+    const actualsVersionIds = fpa.versions
+      .filter(v => /^ACTUALS_\d{4}_\d{2}$/.test(v.code))
+      .map(v => v.id);
+
     fpa.facts = {};
-    let factsOffset = 0;
-    const FACTS_PAGE = 5000;
-    while (true) {
-      const factsRes = await _sb.from('fpa_v_facts').select('*').range(factsOffset, factsOffset + FACTS_PAGE - 1);
-      if (factsRes.error) throw factsRes.error;
-      const rows = factsRes.data || [];
-      rows.forEach(r => {
-        (fpa.facts[r.version_code] ??= {});
-        (fpa.facts[r.version_code][r.line_id] ??= {});
-        fpa.facts[r.version_code][r.line_id][r.period_id] = Number(r.value);
-      });
-      if (rows.length < FACTS_PAGE) break; // last page
-      factsOffset += FACTS_PAGE;
+    if (actualsVersionIds.length > 0) {
+      let factsOffset = 0;
+      const FACTS_PAGE = 5000;
+      while (true) {
+        const factsRes = await _sb.from('fpa_v_facts')
+          .select('*')
+          .in('version_id', actualsVersionIds)
+          .range(factsOffset, factsOffset + FACTS_PAGE - 1);
+        if (factsRes.error) throw factsRes.error;
+        const rows = factsRes.data || [];
+        rows.forEach(r => {
+          (fpa.facts[r.version_code] ??= {});
+          (fpa.facts[r.version_code][r.line_id] ??= {});
+          fpa.facts[r.version_code][r.line_id][r.period_id] = Number(r.value);
+        });
+        if (rows.length < FACTS_PAGE) break;
+        factsOffset += FACTS_PAGE;
+      }
     }
 
-    showBootstrapOverlay('Loading assumptions...');
-    const assumpsRes = await _sb.from('fpa_assumptions').select('*, fpa_versions!inner(code)');
-    if (assumpsRes.error) throw assumpsRes.error;
+    // ── Upload-only mode: skip assumptions and DB registers ───────────────────
+    // AOP assumptions (tariff, volume, OM, CapEx, generation) and DB registers
+    // (leases, insurance, impairments, net_gen_historical) are excluded.
+    // Re-enable these fetches once the upload mechanism is validated end-to-end.
     fpa.assumptions = {};
-    (assumpsRes.data || []).forEach(r => {
-      const vc = r.fpa_versions.code;
-      const per = r.month ? r.year * 100 + r.month : r.year * 100;
-      (fpa.assumptions[vc] ??= {});
-      (fpa.assumptions[vc][r.category] ??= {});
-      (fpa.assumptions[vc][r.category][r.key] ??= {});
-      (fpa.assumptions[vc][r.category][r.key][r.sub_key || ''] ??= {});
-      fpa.assumptions[vc][r.category][r.key][r.sub_key || ''][per] = Number(r.value_num);
-    });
-
-    showBootstrapOverlay('Loading registers...');
-    const [leasesRes, insRes, impRes, netGenRes] = await Promise.all([
-      _sb.from('fpa_leases').select('*'),
-      _sb.from('fpa_insurance_policies').select('*'),
-      _sb.from('fpa_impairment_events').select('*'),
-      _sb.from('net_gen_historical').select('year,month,net_gen_mwh,peak_mw'),
-    ]);
-    fpa.leases      = leasesRes.data || [];
-    fpa.insurance   = insRes.data || [];
-    fpa.impairments = impRes.data || [];
-    // netGenHist[year*100+month] = { netGenMWh, peakMW }
+    fpa.leases      = [];
+    fpa.insurance   = [];
+    fpa.impairments = [];
     fpa.netGenHist  = {};
-    (netGenRes.data||[]).forEach(r=>{
-      fpa.netGenHist[r.year*100+r.month] = { netGenMWh: Number(r.net_gen_mwh), peakMW: Number(r.peak_mw) };
-    });
 
     fpa.loadedAt = new Date();
     const ms = Math.round(performance.now() - t0);
@@ -10498,18 +10490,19 @@ let volumeTable = {
   RT70:    { cust:_zv(), mwh:_zv(), kva:_zv() },
 };
 
-// LEVER 2 — tariffTable: J$ rates per OUR 2024 approved non-fuel schedule
-// Each class has per-month arrays (allows tariff trigger to update from month M forward)
+// LEVER 2 — tariffTable: J$ rates — zeroed; load from fpa_tariff_rates DB table (TODO: wire DB load)
+// All rates are 0 until uploaded. The revenue engine produces $0 until tariff data is loaded.
+const _zt = () => MONTHS.map(()=>0);
 let tariffTable = {
-  RT10_lo: { custChg:MONTHS.map(()=>603.54),   energyStd:MONTHS.map(()=>8.31),   energyOff:null, energyPP:null, energyOn:null, demandStd:null, demandOff:null, demandPP:null, demandOn:null },
-  RT10_hi: { custChg:MONTHS.map(()=>0),        energyStd:MONTHS.map(()=>23.86),  energyOff:null, energyPP:null, energyOn:null, demandStd:null, demandOff:null, demandPP:null, demandOn:null },
-  RT20:    { custChg:MONTHS.map(()=>1286.87),  energyStd:MONTHS.map(()=>10.25),  energyOff:null, energyPP:null, energyOn:null, demandStd:null, demandOff:null, demandPP:null, demandOn:null },
-  RT40_std:{ custChg:MONTHS.map(()=>9066.66),  energyStd:MONTHS.map(()=>6.91),   energyOff:null, energyPP:null, energyOn:null, demandStd:MONTHS.map(()=>3105.57), demandOff:null, demandPP:null, demandOn:null },
-  RT40_tou:{ custChg:MONTHS.map(()=>9066.66),  energyStd:null, energyOff:MONTHS.map(()=>5.81), energyPP:MONTHS.map(()=>5.96), energyOn:MONTHS.map(()=>6.66), demandStd:null, demandOff:MONTHS.map(()=>371.07), demandPP:MONTHS.map(()=>1278.40), demandOn:MONTHS.map(()=>1732.18) },
-  RT50_std:{ custChg:MONTHS.map(()=>9066.66),  energyStd:MONTHS.map(()=>4.90),   energyOff:null, energyPP:null, energyOn:null, demandStd:MONTHS.map(()=>2151.84), demandOff:null, demandPP:null, demandOn:null },
-  RT50_tou:{ custChg:MONTHS.map(()=>9066.66),  energyStd:null, energyOff:MONTHS.map(()=>4.82), energyPP:MONTHS.map(()=>4.95), energyOn:MONTHS.map(()=>5.52), demandStd:null, demandOff:MONTHS.map(()=>353.17), demandPP:MONTHS.map(()=>989.77), demandOn:MONTHS.map(()=>1335.70) },
-  RT60:    { custChg:MONTHS.map(()=>3655.91),  energyStd:MONTHS.map(()=>14.06),  energyOff:null, energyPP:null, energyOn:null, demandStd:null, demandOff:null, demandPP:null, demandOn:null },
-  RT70:    { custChg:MONTHS.map(()=>9066.66),  energyStd:MONTHS.map(()=>4.89),   energyOff:null, energyPP:null, energyOn:null, demandStd:MONTHS.map(()=>2852.04), demandOff:null, demandPP:null, demandOn:null },
+  RT10_lo: { custChg:_zt(), energyStd:_zt(), energyOff:null, energyPP:null, energyOn:null, demandStd:null, demandOff:null, demandPP:null, demandOn:null },
+  RT10_hi: { custChg:_zt(), energyStd:_zt(), energyOff:null, energyPP:null, energyOn:null, demandStd:null, demandOff:null, demandPP:null, demandOn:null },
+  RT20:    { custChg:_zt(), energyStd:_zt(), energyOff:null, energyPP:null, energyOn:null, demandStd:null, demandOff:null, demandPP:null, demandOn:null },
+  RT40_std:{ custChg:_zt(), energyStd:_zt(), energyOff:null, energyPP:null, energyOn:null, demandStd:_zt(), demandOff:null, demandPP:null, demandOn:null },
+  RT40_tou:{ custChg:_zt(), energyStd:null,  energyOff:_zt(), energyPP:_zt(), energyOn:_zt(), demandStd:null, demandOff:_zt(), demandPP:_zt(), demandOn:_zt() },
+  RT50_std:{ custChg:_zt(), energyStd:_zt(), energyOff:null, energyPP:null, energyOn:null, demandStd:_zt(), demandOff:null, demandPP:null, demandOn:null },
+  RT50_tou:{ custChg:_zt(), energyStd:null,  energyOff:_zt(), energyPP:_zt(), energyOn:_zt(), demandStd:null, demandOff:_zt(), demandPP:_zt(), demandOn:_zt() },
+  RT60:    { custChg:_zt(), energyStd:_zt(), energyOff:null, energyPP:null, energyOn:null, demandStd:null, demandOff:null, demandPP:null, demandOn:null },
+  RT70:    { custChg:_zt(), energyStd:_zt(), energyOff:null, energyPP:null, energyOn:null, demandStd:_zt(), demandOff:null, demandPP:null, demandOn:null },
 };
 
 // Snapshot of original tariff rates for reset
@@ -12887,7 +12880,7 @@ function runProjectionEngine() {
   yrs.forEach(yr=>{
     const cxAnn = sumArr(getCxTotal(yr));
     const depnThisYear = Math.round(openNBV/avgDepnLife + cxAnn*0.5/avgDepnLife);
-    const disposals = 5000; // nominal annual disposal
+    const disposals = 0; // zeroed — populate from asset disposal register upload
     const closeNBV = openNBV + cxAnn - depnThisYear - disposals;
 
     // Update depreciationComponents monthly values
@@ -13102,8 +13095,8 @@ function buildProjDepTable(){
     {n:'Opening PPE NBV ($K)',      fn:yr=>bsLines.find(l=>l.id==='ppe')?.vals[4+(yr-2026)]||0},
     {n:'Annual CapEx ($K)',          fn:yr=>sumArr(getCxTotal(yr))},
     {n:'Depreciation Charge ($K)',   fn:yr=>plLines.find(l=>l.id==='depn')?.vals[4+(yr-2026)]||0},
-    {n:'Disposals ($K)',             fn:yr=>5000},
-    {n:'Closing PPE NBV ($K)',       fn:yr=>{const o=bsLines.find(l=>l.id==='ppe')?.vals[4+(yr-2026)]||0;const cx=sumArr(getCxTotal(yr));const dep=plLines.find(l=>l.id==='depn')?.vals[4+(yr-2026)]||0;return o+cx-dep-5000;}},
+    {n:'Disposals ($K)',             fn:yr=>0},
+    {n:'Closing PPE NBV ($K)',       fn:yr=>{const o=bsLines.find(l=>l.id==='ppe')?.vals[4+(yr-2026)]||0;const cx=sumArr(getCxTotal(yr));const dep=plLines.find(l=>l.id==='depn')?.vals[4+(yr-2026)]||0;return o+cx-dep;}},
     {n:'Annual Depn / Opening NBV',  fn:yr=>{const dep=plLines.find(l=>l.id==='depn')?.vals[4+(yr-2026)]||0;const nbv=bsLines.find(l=>l.id==='ppe')?.vals[4+(yr-2026)]||0;return nbv>0?((dep/nbv)*100).toFixed(1)+'%':'–';},str:true},
   ];
   db.innerHTML=rows.map((r,i)=>`<tr class="${i===4?'sur':''}">
