@@ -3178,15 +3178,103 @@ async function fpaBootstrap() {
       }
     }
 
-    // ── Upload-only mode: skip assumptions and DB registers ───────────────────
-    // AOP assumptions (tariff, volume, OM, CapEx, generation) and DB registers
-    // (leases, insurance, impairments, net_gen_historical) are excluded.
-    // Re-enable these fetches once the upload mechanism is validated end-to-end.
+    // ── Load assumptions, registers, and historical data in parallel ──────────
+    showBootstrapOverlay('Loading planning data & registers...');
+    const [assumRes, leasesRes, insRes, impairRes, debtRes, netGenHistRes] = await Promise.all([
+      _sb.from('fpa_assumptions').select('*'),
+      _sb.from('fpa_leases').select('*'),
+      _sb.from('fpa_insurance_policies').select('*'),
+      _sb.from('fpa_impairment_events').select('*'),
+      _sb.from('fpa_debt_facilities').select('*').order('sort_order'),
+      _sb.from('net_gen_historical').select('*').order('year').order('month'),
+    ]);
+    if (assumRes.error)    console.warn('[FPA] assumptions load error:', assumRes.error.message);
+    if (leasesRes.error)   console.warn('[FPA] leases load error:',      leasesRes.error.message);
+    if (insRes.error)      console.warn('[FPA] insurance load error:',    insRes.error.message);
+    if (impairRes.error)   console.warn('[FPA] impairments load error:',  impairRes.error.message);
+    if (debtRes.error)     console.warn('[FPA] debt facilities error:',   debtRes.error.message);
+
+    // ── Build fpa.assumptions[versionCode][category][key][subKey][yearMonth] ─
     fpa.assumptions = {};
-    fpa.leases      = [];
-    fpa.insurance   = [];
-    fpa.impairments = [];
-    fpa.netGenHist  = {};
+    const _vcMap = Object.fromEntries(fpa.versions.map(v => [v.id, v.code]));
+    (assumRes.data || []).forEach(r => {
+      const vc = _vcMap[r.version_id] || 'UNKNOWN';
+      const sk = r.sub_key || '';
+      const pk = r.year * 100 + (r.month || 0);
+      (fpa.assumptions[vc]                        ??= {});
+      (fpa.assumptions[vc][r.category]            ??= {});
+      (fpa.assumptions[vc][r.category][r.key]     ??= {});
+      (fpa.assumptions[vc][r.category][r.key][sk] ??= {});
+      fpa.assumptions[vc][r.category][r.key][sk][pk] = Number(r.value_num);
+    });
+
+    // ── Map fpa_leases → ifrs16Leases (camelCase) ───────────────────────────
+    ifrs16Leases = (leasesRes.data || []).map(r => ({
+      id:               r.id,
+      name:             r.name,
+      counterparty:     r.counterparty    || '',
+      description:      r.description     || '',
+      category:         r.category        || '',
+      type:             r.lease_type      || 'other',
+      treatment:        r.treatment       || 'ifrs16',
+      commencementDate: r.commencement_date,
+      expiryDate:       r.expiry_date,
+      extensionOption:  r.extension_option || false,
+      extensionMonths:  r.extension_months || 0,
+      currency:         r.currency        || 'USD',
+      monthlyPayment:   Number(r.monthly_payment || 0),
+      interestRate:     Number(r.interest_rate   || 0),
+      rouAssetOpening:  Number(r.rou_opening     || 0),
+      liabilityOpening: Number(r.liab_opening    || 0),
+    }));
+
+    // ── Map fpa_insurance_policies → insurancePolicies ───────────────────────
+    insurancePolicies = (insRes.data || []).map(r => ({
+      id:             r.id,
+      name:           r.name,
+      currency:       r.currency       || 'USD',
+      annualPremium:  Number(r.annual_premium  || 0),
+      paymentMonths:  r.payment_months  || [],
+      paymentAmounts: r.payment_amounts || [],
+      notes:          r.notes || '',
+    }));
+
+    // ── Map fpa_impairment_events → impairmentEvents ─────────────────────────
+    impairmentEvents = (impairRes.data || []).map(r => ({
+      id:                 r.id,
+      name:               r.name,
+      description:        r.description    || '',
+      date:               r.event_date,
+      chargeAmount:       Number(r.charge_amount   || 0),
+      reversalAmount:     Number(r.reversal_amount  || 0),
+      triggerType:        r.trigger_type   || 'other',
+      isReversible:       r.is_reversible  || false,
+      relatedInsuranceId: r.related_insurance_id || null,
+      affectsYears:       r.affects_years  || [],
+    }));
+
+    // ── Map fpa_debt_facilities → loanRegister ───────────────────────────────
+    loanRegister = (debtRes.data || []).map(r => ({
+      id:                r.id,
+      name:              r.facility_name,
+      lender:            r.lender            || '',
+      currency:          r.currency          || 'JMD',
+      rate:              Number(r.interest_rate      || 0),
+      originalPrincipal: Number(r.original_principal || 0),
+      maturityDate:      r.maturity_date,
+      active:            true,
+      drawdowns:         [],
+      repayments:        [],
+    }));
+
+    // ── Map net_gen_historical → fpa.netGenHist[year][month] ─────────────────
+    fpa.netGenHist = {};
+    (netGenHistRes.data || []).forEach(r => {
+      (fpa.netGenHist[r.year] ??= {})[r.month] = {
+        netGenMwh: Number(r.net_gen_mwh || 0),
+        peakMw:    Number(r.peak_mw     || 0),
+      };
+    });
 
     fpa.loadedAt = new Date();
     const ms = Math.round(performance.now() - t0);
@@ -3428,15 +3516,114 @@ function fpaApplyDepToLegacy() {
   } catch(e) { console.warn('[FPA] dep bridge:', e); }
 }
 
-// Extended bridge — OM/CapEx/Coll/Dep AOP assumption bridges disabled.
-// Only the core plLines/bsLines upload bridge runs (ACTUALS_YYYY_MM only).
+// ── Bridge: AOP_2026 assumptions → tariff / volume / FX / gen / fuel ────────
+// Reads from fpa.assumptions['AOP_2026'] (loaded in fpaBootstrap) and writes
+// into the legacy global arrays consumed by the revenue engine and KPI tables.
+function fpaApplyAssumptionsToLegacy() {
+  if (!fpa.assumptions?.AOP_2026) return;
+  const aop = fpa.assumptions.AOP_2026;
+
+  // Helper: build 12-element monthly array for 2026 from assumption store
+  const mo12 = (cat, key, sk = '') => {
+    const src = aop[cat]?.[key]?.[sk] || {};
+    return Array(12).fill(0).map((_, m) => Number(src[2026 * 100 + m + 1] ?? 0));
+  };
+  // Helper: single annual value (stored with month=0 or month=null)
+  const single = (cat, key, sk = '') => {
+    const src = aop[cat]?.[key]?.[sk] || {};
+    if (src[2026 * 100] !== undefined) return Number(src[2026 * 100]);
+    const vals = Object.values(src).filter(v => !isNaN(v));
+    return vals.length ? Number(vals[0]) : 0;
+  };
+
+  // ── Tariff rates → tariffTable ────────────────────────────────────────────
+  Object.keys(tariffTable).forEach(cls => {
+    const tar = tariffTable[cls];
+    Object.keys(tar).forEach(subKey => {
+      if (tar[subKey] === null) return;     // rate type not applicable to this class
+      const vals = mo12('tariff', cls, subKey);
+      const hasData = vals.some(v => v !== 0);
+      if (hasData) tar[subKey] = vals;      // only overwrite if DB has non-zero data
+    });
+  });
+
+  // ── Customer / volume / kVA → volumeTable ────────────────────────────────
+  Object.keys(volumeTable).forEach(cls => {
+    const vol = volumeTable[cls];
+    ['cust', 'mwh', 'kva'].forEach(sk => {
+      if (vol[sk] === null) return;
+      const vals = mo12('volume', cls, sk);
+      if (vals.some(v => v !== 0)) vol[sk] = vals;
+    });
+  });
+
+  // ── FX rates (billing and expense) ───────────────────────────────────────
+  const fxBill = mo12('fx_billing', 'USD_JMD');
+  const fxExp  = mo12('fx_expense',  'USD_JMD');
+  if (fxBill.some(v => v)) {
+    fxTable.billing = fxBill.slice();
+    if (fxTable.years?.[2026]) fxTable.years[2026].billing = fxBill.slice();
+  }
+  if (fxExp.some(v => v)) {
+    fxTable.expense = fxExp.slice();
+    if (fxTable.years?.[2026]) fxTable.years[2026].expense = fxExp.slice();
+  }
+
+  // ── System loss % (monthly) ───────────────────────────────────────────────
+  const sysLoss = mo12('sys_loss', 'total');
+  if (sysLoss.some(v => v)) sysLossTable[2026] = sysLoss;
+
+  // ── Net generation by source (GWh/month) → netGenTable[2026] ─────────────
+  const ngSrcs = { jps_thermal:'jps_thermal', old_harbour:'old_harbour',
+                   renewables:'renewables',   ipp:'ipp' };
+  Object.entries(ngSrcs).forEach(([dbKey, jsKey]) => {
+    const vals = mo12('net_gen', dbKey);
+    if (vals.some(v => v)) netGenTable[2026][jsKey] = vals;
+  });
+
+  // ── Fuel cost and revenue (US$K monthly) ─────────────────────────────────
+  // sub_key can be 'value' or '' depending on how data was seeded
+  const _tryBoth = (cat, key) => {
+    const a = mo12(cat, key, 'value');
+    const b = mo12(cat, key, '');
+    return a.some(v => v) ? a : b;
+  };
+  const fuelCost = _tryBoth('fuel_cost_monthly', 'total');
+  if (fuelCost.some(v => v)) {
+    for (let m = 0; m < 12; m++) {
+      fuelCostByMonth[2026][m]   = fuelCost[m];
+      fuelCostByMonth2026[m]     = fuelCost[m];     // legacy alias
+    }
+  }
+  const fuelRev = _tryBoth('fuel_rev_monthly', 'total');
+  if (fuelRev.some(v => v)) {
+    for (let m = 0; m < 12; m++) fuelRevByMonth[m] = fuelRev[m];
+  }
+
+  // ── Fuel prices (US$/MMBtu or US$/bbl) ───────────────────────────────────
+  ['hfo', 'lng', 'ado'].forEach(fuel => {
+    const prices = mo12('fuel_price', fuel);
+    if (prices.some(v => v)) fuelPriceTable[2026][fuel] = prices;
+  });
+
+  // ── Heat rates (GJ/MWh) ──────────────────────────────────────────────────
+  ['jps_thermal', 'old_harbour', 'ipp_thermal', 'system_avg'].forEach(k => {
+    const v = single('heat_rate', k);
+    if (v) heatRateTable[k] = v;
+  });
+
+  console.log('[FPA] Assumptions applied: tariff, volume, FX, sysLoss, netGen, fuel, heatRate');
+}
+
+// ── Extended bridge — wires all assumption and register data into legacy globals
 const _origFpaApply = fpaApplyToLegacyGlobals;
 fpaApplyToLegacyGlobals = function() {
   _origFpaApply();
-  // fpaApplyOMToLegacy();      // disabled — AOP data excluded
-  // fpaApplyCapexToLegacy();   // disabled — AOP data excluded
-  // fpaApplyCollToLegacy();    // disabled — AOP data excluded
-  // fpaApplyDepToLegacy();     // disabled — AOP data excluded
+  fpaApplyAssumptionsToLegacy();  // tariff, volume, FX, sysLoss, netGen, fuel
+  fpaApplyOMToLegacy();           // O&M line values from AOP_2026
+  fpaApplyCapexToLegacy();        // CapEx line values from AOP_2026
+  fpaApplyCollToLegacy();         // Collections assumptions from AOP_2026
+  fpaApplyDepToLegacy();          // Depreciation components from AOP_2026
   _updateDbStatusBadge();
 };
 
@@ -10509,43 +10696,23 @@ let tariffTable = {
 const _tariffBaseline = JSON.parse(JSON.stringify(tariffTable));
 
 // LEVER 3 — fxTable: monthly billing and expense FX rates (J$/US$)
+// Populated from fpa_assumptions (category=fx_billing/fx_expense) in fpaBootstrap.
 // Multi-year structure: years[yr].billing/expense = 12-element arrays
 // source[mo] = 'actual' (locked, from Supabase) | 'projected' (editable)
+const _zfx = () => Array(12).fill(0);
 let fxTable = {
-  // 2026 slices kept as top-level for backward compat with revenue engine
-  billing: [157.50,158.10,158.20,158.80,159.50,160.20,161.00,161.80,162.60,163.40,164.20,165.00],
-  expense: [157.50,158.10,158.20,158.80,159.50,160.20,161.00,161.80,162.60,163.40,164.20,165.00],
+  billing: _zfx(), expense: _zfx(),
   years: {
-    2026: {
-      billing: [157.50,158.10,158.20,158.80,159.50,160.20,161.00,161.80,162.60,163.40,164.20,165.00],
-      expense: [157.50,158.10,158.20,158.80,159.50,160.20,161.00,161.80,162.60,163.40,164.20,165.00],
-      source:  ['actual','actual','actual','projected','projected','projected','projected','projected','projected','projected','projected','projected'],
-    },
-    2027: {
-      billing: [165.80,166.60,167.40,168.20,169.00,169.80,170.60,171.40,172.20,173.00,173.80,174.60],
-      expense: [165.80,166.60,167.40,168.20,169.00,169.80,170.60,171.40,172.20,173.00,173.80,174.60],
-      source:  Array(12).fill('projected'),
-    },
-    2028: {
-      billing: [175.40,176.20,177.00,177.80,178.60,179.40,180.20,181.00,181.80,182.60,183.40,184.20],
-      expense: [175.40,176.20,177.00,177.80,178.60,179.40,180.20,181.00,181.80,182.60,183.40,184.20],
-      source:  Array(12).fill('projected'),
-    },
-    2029: {
-      billing: [185.00,185.80,186.60,187.40,188.20,189.00,189.80,190.60,191.40,192.20,193.00,193.80],
-      expense: [185.00,185.80,186.60,187.40,188.20,189.00,189.80,190.60,191.40,192.20,193.00,193.80],
-      source:  Array(12).fill('projected'),
-    },
-    2030: {
-      billing: [194.60,195.40,196.20,197.00,197.80,198.60,199.40,200.20,201.00,201.80,202.60,203.40],
-      expense: [194.60,195.40,196.20,197.00,197.80,198.60,199.40,200.20,201.00,201.80,202.60,203.40],
-      source:  Array(12).fill('projected'),
-    },
+    2026: { billing: _zfx(), expense: _zfx(), source: Array(12).fill('projected') },
+    2027: { billing: _zfx(), expense: _zfx(), source: Array(12).fill('projected') },
+    2028: { billing: _zfx(), expense: _zfx(), source: Array(12).fill('projected') },
+    2029: { billing: _zfx(), expense: _zfx(), source: Array(12).fill('projected') },
+    2030: { billing: _zfx(), expense: _zfx(), source: Array(12).fill('projected') },
   },
 };
-// Helper: get FX rate for any year+month combination
+// Helper: get FX rate for any year+month combination — DB-backed, zero fallback
 function getFxRate(yr, mo, type='billing') {
-  return fxTable.years[yr]?.[type]?.[mo] || fxTable[type]?.[mo] || 162;
+  return fxTable.years[yr]?.[type]?.[mo] || fxTable[type]?.[mo] || 0;
 }
 let selectedFxYear = 2026;
 
@@ -11044,6 +11211,10 @@ let netGenTable = {
 let sysLossTable = {
   2026:_z12(), 2027:_z12(), 2028:_z12(), 2029:_z12(), 2030:_z12(),
 };
+
+// heatRateTable — zeroed. Populated from fpa_assumptions (category=heat_rate) in bootstrap.
+// Values are in GJ/MWh; UI multiplies by 3.6 to convert to kJ/kWh.
+let heatRateTable = { jps_thermal: 0, old_harbour: 0, ipp_thermal: 0, system_avg: 0 };
 
 // fuelPriceTable — zeroed. Populate from uploads.
 let fuelPriceTable = {};
