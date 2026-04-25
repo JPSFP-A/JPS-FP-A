@@ -318,19 +318,31 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
 /* Notes */
 .flash-notes-area{padding:18px 28px;border-top:1px solid #d8e2ef;}
 .flash-notes-area h3{font-size:11px;font-weight:800;color:#003da5;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;}
-.flash-note-entry{display:flex;gap:10px;margin-bottom:10px;}
+.flash-note-entry{display:flex;gap:10px;margin-bottom:12px;align-items:flex-start;}
+/* Avatar: small initials chip — not the focus */
 .flash-note-avatar{
-  width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#003da5,#00aeef);
-  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;
+  width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#c8d8ec,#a0b8d8);
+  display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;
+  color:#4a6080;flex-shrink:0;margin-top:2px;
 }
 .flash-note-body{flex:1;background:#f8fafc;border:1px solid #dde5f0;border-radius:8px;padding:10px 14px;}
-.flash-note-meta{font-size:9px;color:#6b82a0;display:flex;gap:10px;flex-wrap:wrap;margin-bottom:5px;}
-.flash-note-author{font-weight:700;color:#1a2f4a;}
+/* Note text is the hero — prominent */
+.flash-note-text{font-size:13px;color:#0d1e3a;line-height:1.6;margin-bottom:6px;}
+/* Meta row: author + timestamp as subscript, not bolded */
+.flash-note-meta{font-size:9px;color:#a0b0c8;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.flash-note-author{font-weight:500;color:#8099b8;font-style:italic;}
 .flash-note-tag{
-  padding:1px 8px;border-radius:10px;background:#e8f0fc;color:#003da5;
-  font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+  padding:1px 7px;border-radius:10px;background:#e8f0fc;color:#003da5;
+  font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
 }
-.flash-note-text{font-size:12px;color:#1a2f4a;line-height:1.55;}
+/* Edit / delete actions — shown inline, muted until hover */
+.flash-note-actions{display:inline-flex;gap:4px;margin-left:auto;}
+.flash-note-action-btn{
+  background:none;border:none;cursor:pointer;padding:1px 5px;border-radius:4px;
+  font-size:9px;color:#b0c0d8;transition:color .15s,background .15s;line-height:1.4;
+}
+.flash-note-action-btn:hover{color:#003da5;background:#e8f0fc;}
+.flash-note-action-btn.del:hover{color:#dc2626;background:#fee2e2;}
 /* Input area */
 .flash-note-input-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px;}
 .flash-note-input-row select,.flash-note-input-row textarea{
@@ -368,6 +380,10 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
   body.printing-flash #flashReportBody{display:block!important;}
   body.printing-flash #flashLoadingState{display:none!important;}
   body.printing-flash .flash-notes-area{page-break-inside:avoid;}
+  /* Hide avatar, author attribution, and edit/delete actions when printing */
+  body.printing-flash .flash-note-avatar,
+  body.printing-flash .flash-note-meta,
+  body.printing-flash .flash-note-actions{display:none!important;}
   /* Ensure flash tables print with color */
   .flash-table thead th{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
   .flash-row-total td{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
@@ -3253,23 +3269,28 @@ async function fpaBootstrap() {
     // Default active version = LE_2026_02
     fpa.activeVersionId = fpa.vid('LE_2026_02') || fpa.versions[0]?.id;
 
-    // ── Upload-only mode: only load ACTUALS_YYYY_MM fact rows ─────────────────
-    // HIST_ACTUAL_*, LE_*, FORECAST_BASE, AOP_*, SCENARIO_* are intentionally
-    // excluded so the app shows zero until the user uploads real data.
-    // Re-enable the unfiltered query once the upload mechanism is validated.
-    showBootstrapOverlay('Loading uploaded actuals...');
-    const actualsVersionIds = fpa.versions
+    // ── Load facts: ACTUALS (1 month per upload) + AOP/LE (all 12 months) ──────
+    // fpa_v_facts exposes version_code (text), NOT version_id (UUID).
+    // ACTUALS_YYYY_MM: one version per closed month — only what user has uploaded.
+    // AOP_* and LE_*: full-year planning versions — all months loaded at once.
+    // All other kinds (HIST_ACTUAL_*, FORECAST_BASE, SCENARIO_*) stay excluded.
+    showBootstrapOverlay('Loading actuals & planning data...');
+    const actualsCodes  = fpa.versions
       .filter(v => /^ACTUALS_\d{4}_\d{2}$/.test(v.code))
-      .map(v => v.id);
+      .map(v => v.code);
+    const planningCodes = fpa.versions
+      .filter(v => /^(AOP_|LE_)/.test(v.code))
+      .map(v => v.code);
+    const allFactCodes  = [...actualsCodes, ...planningCodes];
 
     fpa.facts = {};
-    if (actualsVersionIds.length > 0) {
+    if (allFactCodes.length > 0) {
       let factsOffset = 0;
       const FACTS_PAGE = 5000;
       while (true) {
         const factsRes = await _sb.from('fpa_v_facts')
           .select('*')
-          .in('version_id', actualsVersionIds)
+          .in('version_code', allFactCodes)
           .range(factsOffset, factsOffset + FACTS_PAGE - 1);
         if (factsRes.error) throw factsRes.error;
         const rows = factsRes.data || [];
@@ -15040,22 +15061,66 @@ function flashRenderNotes() {
     feed.innerHTML=`<div style="font-size:11px;color:#8099b8;text-align:center;padding:18px 0">No commentary for this period yet.</div>`;
     return;
   }
+  const me = currentUser?.name || '';
+  const isAdmin = currentUser?.role === 'admin';
   feed.innerHTML=_flashNotesData.map(n=>{
     const dt=new Date(n.entered_at).toLocaleString('en-JM',{dateStyle:'medium',timeStyle:'short'});
-    const upd=n.updated_at?` · edited ${new Date(n.updated_at).toLocaleString('en-JM',{timeStyle:'short'})}`:'';
+    const upd=n.updated_at&&n.updated_at!==n.entered_at
+      ?` · edited ${new Date(n.updated_at).toLocaleString('en-JM',{timeStyle:'short'})}`:'' ;
     const initials=(n.entered_by||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    return `<div class="flash-note-entry">
-      <div class="flash-note-avatar">${initials}</div>
+    const vTag=n.version_code?`<span class="flash-note-tag">${n.version_code.replace(/_/g,' ')}</span>`:'';
+    const sTag=`<span class="flash-note-tag">${(n.section||'general').replace(/_/g,' ')}</span>`;
+    // Show edit/delete only to the note author or an admin
+    const canEdit = (n.entered_by===me) || isAdmin;
+    const actions = canEdit
+      ? `<span class="flash-note-actions">
+           <button class="flash-note-action-btn" onclick="flashEditNote('${n.id}')" title="Edit note">✏︎ Edit</button>
+           <button class="flash-note-action-btn del" onclick="flashDeleteNote('${n.id}')" title="Delete note">✕ Delete</button>
+         </span>`
+      : '';
+    return `<div class="flash-note-entry" data-note-id="${n.id}">
+      <div class="flash-note-avatar" title="${n.entered_by||''}">${initials}</div>
       <div class="flash-note-body">
-        <div class="flash-note-meta">
-          <span class="flash-note-author">${n.entered_by}</span>
-          <span>${dt}${upd}</span>
-          <span class="flash-note-tag">${(n.section||'general').replace(/_/g,' ')}</span>
-        </div>
         <div class="flash-note-text">${(n.note_text||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
+        <div class="flash-note-meta">
+          ${sTag}${vTag}
+          <span class="flash-note-author">${n.entered_by||''}${upd?` · ${upd}`:''}</span>
+          <span>${dt}</span>
+          ${actions}
+        </div>
       </div>
     </div>`;
   }).join('');
+}
+
+// ── Notes: edit ───────────────────────────────────────────────────────────────
+async function flashEditNote(id) {
+  const n = _flashNotesData.find(x=>x.id===id);
+  if (!n) return;
+  const newText = prompt('Edit note:', n.note_text||'');
+  if (newText===null) return;          // cancelled
+  const trimmed = newText.trim();
+  if (!trimmed) { toast('Note cannot be empty','w'); return; }
+  if (!_sb) { toast('No database connection','err'); return; }
+  const { error } = await _sb.from('fpa_flash_notes')
+    .update({ note_text: trimmed, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { toast('Edit failed: '+error.message,'err'); return; }
+  toast('Note updated','ok');
+  await flashLoadNotes();
+}
+
+// ── Notes: delete ─────────────────────────────────────────────────────────────
+async function flashDeleteNote(id) {
+  if (!confirm('Delete this note? This cannot be undone.')) return;
+  if (!_sb) { toast('No database connection','err'); return; }
+  // Soft-delete: set is_deleted=true so audit trail is preserved
+  const { error } = await _sb.from('fpa_flash_notes')
+    .update({ is_deleted: true, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { toast('Delete failed: '+error.message,'err'); return; }
+  toast('Note deleted','ok');
+  await flashLoadNotes();
 }
 
 // ── Notes: save ───────────────────────────────────────────────────────────────
@@ -15067,9 +15132,18 @@ async function flashSaveNote() {
   const periodId=_flashCurrentPeriod;
   const y=Math.floor(periodId/100), m=periodId%100;
   const rptPeriod=`${y}-${String(m).padStart(2,'0')}`;
+  // Resolve active version code for this period (prefer ACTUALS, fall back to active planning version)
+  const activeVer = (fpa.versions||[]).find(v=>v.code===`ACTUALS_${y}_${String(m).padStart(2,'0')}`)
+                 || (fpa.versions||[]).find(v=>v.id===fpa.activeVersionId)
+                 || null;
   const {error}=await _sb.from('fpa_flash_notes').insert({
-    report_period:rptPeriod, section, note_text:noteText,
-    entered_by:currentUser?.name||'Unknown',
+    report_period: rptPeriod,
+    section,
+    note_text:     noteText,
+    entered_by:    currentUser?.name||'Unknown',
+    version_code:  activeVer?.code || null,
+    year:          y,
+    month:         m,
   });
   if (error){toast('Save failed: '+error.message,'err');return;}
   document.getElementById('flashNoteInput').value='';
