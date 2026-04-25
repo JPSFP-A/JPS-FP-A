@@ -391,34 +391,89 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
   canvas{background:#fff!important;}
 }
 /* ── Data Management Hub ──────────────────────────────────────────────────────── */
-.hub-page{height:100%;overflow-y:auto;background:#f5f7fa;padding:24px 28px;}
-.hub-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px;}
-.hub-title{font-size:20px;font-weight:800;color:#003da5;margin:0 0 5px;}
-.hub-subtitle{font-size:12px;color:#6b82a0;margin:0;max-width:600px;line-height:1.5;}
-.hub-badge{font-size:10px;font-weight:700;padding:4px 12px;border-radius:20px;background:#e8f0fc;color:#003da5;white-space:nowrap;}
+/* ── HUB FULLSCREEN LANDING ─────────────────────────────────────────────────── */
+#pane-hub.on{
+  position:fixed!important;inset:0;z-index:500;
+  display:flex!important;flex-direction:column;gap:0;overflow-y:auto;
+}
+.hub-landing{
+  min-height:100%;flex:1;
+  background:linear-gradient(135deg,#001428 0%,#003da5 42%,#001428 100%);
+  display:flex;flex-direction:column;align-items:center;
+  padding:28px 32px 40px;position:relative;
+}
+/* Subtle star-field background texture */
+.hub-landing::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 600px 300px at 20% 50%,rgba(0,174,239,.07) 0%,transparent 70%),
+             radial-gradient(ellipse 400px 400px at 80% 30%,rgba(0,61,165,.12) 0%,transparent 70%);
+}
+.hub-lhdr{
+  width:100%;max-width:1020px;display:flex;align-items:center;
+  justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;position:relative;
+}
+.hub-lbrand{display:flex;align-items:center;gap:14px;}
+.hub-lbrand-icon{
+  width:38px;height:38px;border-radius:9px;
+  background:linear-gradient(135deg,#003da5,#00aeef);
+  display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;
+}
+.hub-lbrand-text .hub-ltitle{font-size:18px;font-weight:800;color:#fff;letter-spacing:-.01em;}
+.hub-lbrand-text .hub-lsub{font-size:10px;color:rgba(255,255,255,.5);font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:1px;}
+.hub-lwelcome{font-size:11px;color:rgba(255,255,255,.6);text-align:right;line-height:1.5;}
+.hub-lwelcome strong{color:#fff;font-weight:700;}
+.hub-badge{font-size:10px;font-weight:700;padding:4px 12px;border-radius:20px;
+  background:rgba(0,174,239,.18);border:1px solid rgba(0,174,239,.35);color:#00aeef;white-space:nowrap;}
 
-/* Flow diagram */
-.hub-flow-wrap{background:#fff;border:1px solid #d8e2ef;border-radius:14px;padding:20px 24px;margin-bottom:22px;overflow:hidden;}
-.hub-flow-label{font-size:10px;font-weight:800;color:#003da5;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;}
-.hub-flow-svg{width:100%;max-width:900px;display:block;margin:0 auto;}
-/* SVG styles */
-.hf-line{fill:none;stroke-width:1.5;stroke-dasharray:5 3;animation:hfDash 1.8s linear infinite;}
-.hf-line2{fill:none;stroke-width:1.5;stroke-dasharray:5 3;animation:hfDash 1.8s linear infinite reverse;}
+/* Diagram container */
+.hub-diagram-wrap{width:100%;max-width:1020px;position:relative;}
+.hub-diagram-label{
+  font-size:9.5px;font-weight:700;color:rgba(255,255,255,.35);
+  text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;text-align:center;
+}
+.hub-flow-svg{width:100%;display:block;overflow:visible;}
+
+/* SVG node styles — dark theme */
+.hf-line{fill:none;stroke-width:1.5;stroke-dasharray:5 3;animation:hfDash 2s linear infinite;}
+.hf-line2{fill:none;stroke-width:1.5;stroke-dasharray:5 3;animation:hfDash 2s linear infinite reverse;}
 @keyframes hfDash{to{stroke-dashoffset:-16}}
-.hf-rect-in{fill:#eff6ff;stroke:#3b82f6;stroke-width:1.5;transition:fill .2s;}
-.hf-node:hover .hf-rect-in{fill:#dbeafe;}
-.hf-rect-eng{fill:#0d1e3a;stroke:#00aeef;stroke-width:1.5;}
-.hf-node:hover .hf-rect-eng{fill:#1e3a5f;}
-.hf-rect-out{fill:#f0fdf4;stroke:#22c55e;stroke-width:1.5;}
-.hf-node:hover .hf-rect-out{fill:#dcfce7;}
-.hf-label{text-anchor:middle;font-size:11px;font-weight:700;fill:#1e40af;font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle;}
-.hf-sublabel{text-anchor:middle;font-size:8.5px;fill:#6b7280;font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle;}
-.hf-eng-label{text-anchor:middle;font-size:12px;font-weight:800;fill:#fff;font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle;}
-.hf-eng-sub{text-anchor:middle;font-size:9px;fill:rgba(255,255,255,.65);font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle;}
-.hf-out-label{text-anchor:middle;font-size:10.5px;font-weight:600;fill:#14532d;font-family:'IBM Plex Sans',sans-serif;dominant-baseline:central;}
 .hf-node{cursor:pointer;}
 
-/* Section cards */
+/* Role profile cards (left) */
+.hf-rect-role{fill:rgba(0,10,35,.75);stroke-width:1.5;rx:10;transition:fill .2s,stroke-opacity .2s;}
+.hf-node:hover .hf-rect-role{fill:rgba(0,40,100,.6);}
+.hf-role-label{text-anchor:start;font-size:11.5px;font-weight:700;fill:#fff;font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle;}
+.hf-role-sub{text-anchor:start;font-size:9px;fill:rgba(255,255,255,.45);font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle;}
+.hf-role-badge{text-anchor:middle;font-size:10px;font-weight:800;font-family:'IBM Plex Mono',monospace;dominant-baseline:middle;}
+
+/* Engine nodes (center) */
+.hf-rect-eng{fill:rgba(0,20,55,.85);stroke:#00aeef;stroke-width:1.5;}
+.hf-node:hover .hf-rect-eng{fill:rgba(0,40,100,.8);}
+.hf-eng-label{text-anchor:middle;font-size:12px;font-weight:800;fill:#fff;font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle;}
+.hf-eng-sub{text-anchor:middle;font-size:9px;fill:rgba(255,255,255,.6);font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle;}
+
+/* Output nodes (right) */
+.hf-rect-out{fill:rgba(0,10,35,.75);stroke:#22c55e;stroke-width:1.5;transition:fill .2s;}
+.hf-node:hover .hf-rect-out{fill:rgba(0,60,30,.45);}
+.hf-out-label{text-anchor:middle;font-size:10.5px;font-weight:600;fill:rgba(255,255,255,.85);font-family:'IBM Plex Sans',sans-serif;dominant-baseline:central;}
+
+/* Quick-access bar at bottom */
+.hub-quick-bar{
+  display:flex;align-items:center;gap:10px;margin-top:18px;
+  padding:12px 20px;border-radius:12px;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  flex-wrap:wrap;justify-content:center;position:relative;
+}
+.hub-quick-label{font-size:9.5px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-right:4px;}
+.hub-quick-btn{
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);
+  color:rgba(255,255,255,.75);font-size:10px;font-weight:600;font-family:var(--sans);
+  padding:6px 14px;border-radius:7px;cursor:pointer;transition:all .15s;
+  letter-spacing:.03em;
+}
+.hub-quick-btn:hover{background:rgba(0,174,239,.2);border-color:#00aeef;color:#fff;}
+
+/* Section cards (kept for hubBuildStatusCards, now hidden in landing view) */
 .hub-section-label{font-size:10px;font-weight:800;color:#003da5;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;}
 .hub-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-bottom:22px;}
 .hub-cards-sm{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));}
@@ -444,15 +499,26 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
 }
 .hub-card:hover .hub-card-open{opacity:1;}
 
+/* Hub status cards inherit dark look when inside the hub-landing overlay */
+.hub-landing .hub-card{
+  background:rgba(0,15,45,.7);border-color:rgba(0,174,239,.2);
+}
+.hub-landing .hub-card:hover{border-color:#00aeef;background:rgba(0,40,100,.6);box-shadow:0 4px 18px rgba(0,174,239,.2);}
+.hub-landing .hub-card-title{color:#fff;}
+.hub-landing .hub-card-desc{color:rgba(255,255,255,.45);}
+.hub-landing .hub-card-open{color:#00aeef;}
+.hub-landing .hub-card-dot.ok{background:#34d399;}
+.hub-landing .hub-card-dot.empty{background:rgba(255,255,255,.25);}
+
 /* Focus mode floating back button */
 #hubBackBtn{
   position:fixed;bottom:24px;right:24px;z-index:900;
-  background:#003da5;color:#fff;border:none;cursor:pointer;
+  background:linear-gradient(135deg,#003da5,#0055c8);color:#fff;border:none;cursor:pointer;
   padding:11px 22px;border-radius:28px;font-size:11px;font-weight:800;
-  box-shadow:0 4px 22px rgba(0,61,165,.38);display:none;
-  letter-spacing:.06em;text-transform:uppercase;transition:background .18s,transform .15s;
+  box-shadow:0 4px 22px rgba(0,61,165,.5);display:none;
+  letter-spacing:.06em;text-transform:uppercase;transition:all .18s;
 }
-#hubBackBtn:hover{background:#00aeef;transform:scale(1.04);}
+#hubBackBtn:hover{background:linear-gradient(135deg,#00aeef,#0088cc);box-shadow:0 6px 28px rgba(0,174,239,.45);transform:scale(1.04);}
 
 /* ── Security Page ─────────────────────────────────────────────────────────────── */
 .sec-page{height:100%;overflow-y:auto;padding:24px 28px;}
@@ -1162,7 +1228,7 @@ tr.der td{color:var(--teal)}
 <div class="tabbar">
 <div class="tabbar-inner">
   <div class="tg hub"><div class="tgl">HUB</div><div class="tabs">
-    <div class="tab" onclick="showPane('hub',this);hubBuildStatusCards()">🗂 Data Hub</div>
+    <div class="tab" onclick="showPane('hub',this);const _hn=document.getElementById('hubUserName');if(_hn)_hn.textContent=currentUser?.name?.split(' ')[0]||'User';hubBuildStatusCards()">🗂 Hub</div>
   </div></div>
   <div class="tg rep"><div class="tgl">REPORTS</div><div class="tabs">
     <div class="tab on" onclick="showPane('dash',this)">📊 Dashboard</div>
@@ -3004,165 +3070,218 @@ tr.der td{color:var(--teal)}
 
 <!-- ═══ DATA MANAGEMENT HUB ═══ -->
 <div id="pane-hub" class="pane">
-<div class="hub-page">
+<div class="hub-landing">
 
   <!-- Header -->
-  <div class="hub-hdr">
-    <div>
-      <div class="hub-title">Data Management Hub</div>
-      <div class="hub-subtitle">Integrated data entry and planning control centre — click any area to open it in focus mode, showing only that section's tabs.</div>
+  <div class="hub-lhdr">
+    <div class="hub-lbrand">
+      <div class="hub-lbrand-icon">⚡</div>
+      <div class="hub-lbrand-text">
+        <div class="hub-ltitle">JPS FP&amp;A Platform</div>
+        <div class="hub-lsub">Integrated Financial Planning &amp; Analysis</div>
+      </div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <span class="hub-badge" id="hubActualsBadge">● Checking data…</span>
-      <button class="btn" style="font-size:11px" onclick="hubBuildStatusCards()">↻ Refresh</button>
+      <div class="hub-lwelcome">Welcome back, <strong id="hubUserName">User</strong><br>Select your role to enter your workspace</div>
     </div>
   </div>
 
-  <!-- Flow Diagram -->
-  <div class="hub-flow-wrap">
-    <div class="hub-flow-label">How Your Data Flows — click any node to open that area</div>
-    <svg class="hub-flow-svg" viewBox="0 0 900 270" xmlns="http://www.w3.org/2000/svg">
+  <!-- Flow Diagram — role profiles left, engines centre, outputs right -->
+  <div class="hub-diagram-wrap">
+    <div class="hub-diagram-label">Select a role profile to open your area — only your relevant sections will be shown</div>
+    <svg class="hub-flow-svg" viewBox="0 0 1020 490" xmlns="http://www.w3.org/2000/svg">
       <defs>
+        <!-- Animated gradient lines: roles → engines -->
         <linearGradient id="hfgIn" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#3b82f6" stop-opacity=".7"/>
-          <stop offset="100%" stop-color="#00aeef" stop-opacity=".9"/>
+          <stop offset="0%" stop-color="rgba(0,174,239,.5)"/>
+          <stop offset="100%" stop-color="rgba(0,174,239,.15)"/>
         </linearGradient>
+        <!-- Animated gradient lines: engines → outputs -->
         <linearGradient id="hfgOut" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#0d1e3a" stop-opacity=".7"/>
-          <stop offset="100%" stop-color="#003da5" stop-opacity=".9"/>
+          <stop offset="0%" stop-color="rgba(34,197,94,.2)"/>
+          <stop offset="100%" stop-color="rgba(34,197,94,.6)"/>
         </linearGradient>
-        <marker id="hfArr" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="6" markerHeight="6" orient="auto">
-          <path d="M0,0 L8,3 L0,6 Z" fill="#00aeef" fill-opacity=".8"/>
+        <!-- Arrow markers -->
+        <marker id="hfArr"  viewBox="0 0 8 6" refX="7" refY="3" markerWidth="5" markerHeight="5" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="rgba(0,174,239,.6)"/>
         </marker>
-        <marker id="hfArr2" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="6" markerHeight="6" orient="auto">
-          <path d="M0,0 L8,3 L0,6 Z" fill="#003da5" fill-opacity=".8"/>
+        <marker id="hfArr2" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="5" markerHeight="5" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="rgba(34,197,94,.7)"/>
         </marker>
       </defs>
 
-      <!-- Input → Engine connections -->
-      <path d="M199,27 C250,27 312,95 314,95"  class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
-      <path d="M199,69 C250,69 314,95 314,95"  class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
-      <path d="M199,111 C250,111 314,95 314,95" class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
-      <path d="M199,153 C240,153 314,95 314,95"  class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)" stroke-opacity=".6"/>
-      <path d="M199,153 C240,153 314,200 314,200" class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)" stroke-opacity=".6"/>
-      <path d="M199,195 C250,195 314,200 314,200" class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
-      <path d="M199,237 C250,237 314,200 314,200" class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+      <!-- ── ROLE → ENGINE connections (right edge of role cards x=242) ── -->
+      <!-- Revenue Analyst (y=44) → P&L Engine (left x=390, mid y=175) -->
+      <path d="M242,44  C310,44  390,175 390,175" class="hf-line"  stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+      <!-- Operations Engineer (y=127) → P&L Engine -->
+      <path d="M242,127 C310,127 390,175 390,175" class="hf-line"  stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+      <!-- O&M Specialist (y=210) → P&L Engine -->
+      <path d="M242,210 C310,210 390,175 390,175" class="hf-line"  stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+      <!-- CapEx Manager (y=293) → P&L Engine AND CF Model (mid y=370) -->
+      <path d="M242,293 C310,293 390,175 390,175" class="hf-line"  stroke="url(#hfgIn)" stroke-opacity=".6" marker-end="url(#hfArr)"/>
+      <path d="M242,293 C310,293 390,370 390,370" class="hf-line"  stroke="url(#hfgIn)" stroke-opacity=".6" marker-end="url(#hfArr)"/>
+      <!-- Treasury Analyst (y=376) → CF Model -->
+      <path d="M242,376 C310,376 390,370 390,370" class="hf-line"  stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+      <!-- Collections Manager (y=459) → CF Model -->
+      <path d="M242,459 C310,459 390,370 390,370" class="hf-line"  stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
 
-      <!-- Engine → Output connections -->
-      <path d="M516,95 C548,95 568,35 570,35"   class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
-      <path d="M516,95 C548,95 570,73 570,73"   class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
-      <path d="M516,95 C548,95 570,111 570,111"  class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
-      <path d="M516,95 C548,95 570,149 570,149"  class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
-      <path d="M516,200 C548,200 570,187 570,187" class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
-      <path d="M516,200 C548,200 570,225 570,225" class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+      <!-- ── ENGINE → OUTPUT connections (right edge x=600) ── -->
+      <!-- P&L (y=175) → outputs -->
+      <path d="M600,175 C645,175 670,45  670,45"  class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+      <path d="M600,175 C645,175 670,120 670,120"  class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+      <path d="M600,175 C645,175 670,195 670,195"  class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+      <path d="M600,175 C645,175 670,270 670,270"  class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+      <!-- CF (y=370) → outputs -->
+      <path d="M600,370 C645,370 670,345 670,345"  class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+      <path d="M600,370 C645,370 670,420 670,420"  class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
 
-      <!-- INPUT NODES (left, x=5 width=192) -->
-      <g class="hf-node" onclick="openHubSection('revenue')">
-        <rect x="5" y="10" width="192" height="34" rx="8" class="hf-rect-in"/>
-        <text x="101" y="24" class="hf-label">📈 Revenue &amp; Tariff</text>
-        <text x="101" y="38" class="hf-sublabel">Tariff rates · billing volumes · fuel rev</text>
-      </g>
-      <g class="hf-node" onclick="openHubSection('gen')">
-        <rect x="5" y="52" width="192" height="34" rx="8" class="hf-rect-in"/>
-        <text x="101" y="66" class="hf-label">⚡ Generation &amp; Fuel</text>
-        <text x="101" y="80" class="hf-sublabel">Net gen · fuel cost · heat rates</text>
-      </g>
-      <g class="hf-node" onclick="openHubSection('om')">
-        <rect x="5" y="94" width="192" height="34" rx="8" class="hf-rect-in"/>
-        <text x="101" y="108" class="hf-label">🔧 O&amp;M Budget</text>
-        <text x="101" y="122" class="hf-sublabel">Operating costs · overheads</text>
-      </g>
-      <g class="hf-node" onclick="openHubSection('capex')">
-        <rect x="5" y="136" width="192" height="34" rx="8" class="hf-rect-in"/>
-        <text x="101" y="150" class="hf-label">🏗 CapEx &amp; Depreciation</text>
-        <text x="101" y="164" class="hf-sublabel">Project spend · asset roll-forward</text>
-      </g>
-      <g class="hf-node" onclick="openHubSection('debt')">
-        <rect x="5" y="178" width="192" height="34" rx="8" class="hf-rect-in"/>
-        <text x="101" y="192" class="hf-label">🏦 Debt &amp; Financing</text>
-        <text x="101" y="206" class="hf-sublabel">Loans · leases · interest · covenants</text>
-      </g>
-      <g class="hf-node" onclick="openHubSection('coll')">
-        <rect x="5" y="220" width="192" height="34" rx="8" class="hf-rect-in"/>
-        <text x="101" y="234" class="hf-label">💳 Collections &amp; A/R</text>
-        <text x="101" y="248" class="hf-sublabel">Cash receipts · DSO · A/R aging</text>
+      <!-- ══════════════════════════════════════════════════════
+           ROLE PROFILE NODES  (x=5  w=235  h=70  gap=13)
+           Each has a coloured left-accent bar + role title + area label
+           ══════════════════════════════════════════════════════ -->
+
+      <!-- 1 — Revenue Analyst  (blue #3b82f6) -->
+      <g class="hf-node" onclick="openHubSection('revenue')" title="Revenue Analyst workspace">
+        <rect x="5" y="9"   width="235" height="70" rx="10" class="hf-rect-role" stroke="#3b82f6"/>
+        <rect x="5" y="9"   width="5"   height="70" rx="3"  fill="#3b82f6" opacity=".9"/>
+        <text x="58" y="35" class="hf-role-badge" fill="#3b82f6">RA</text>
+        <circle cx="33" cy="44" r="14" fill="rgba(59,130,246,.18)" stroke="#3b82f6" stroke-width="1"/>
+        <text x="33" y="44" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#3b82f6" font-family="IBM Plex Sans,sans-serif" font-weight="800">$</text>
+        <text x="58" y="48" class="hf-role-label">Revenue Analyst</text>
+        <text x="58" y="63" class="hf-role-sub">Tariff rates · billing volumes · fuel revenue</text>
       </g>
 
-      <!-- ENGINE NODES (center, x=315 width=200) -->
-      <g class="hf-node" onclick="showPane('rpt-pl',null)">
-        <rect x="315" y="48" width="200" height="94" rx="10" class="hf-rect-eng"/>
-        <text x="415" y="78" class="hf-eng-label">P&amp;L Engine</text>
-        <text x="415" y="98"  class="hf-eng-sub">Revenue · COGS · EBITDA</text>
-        <text x="415" y="114" class="hf-eng-sub">Depreciation · Tax · Net Inc.</text>
-        <text x="415" y="130" class="hf-eng-sub">Calculates all 55 P&amp;L lines</text>
-      </g>
-      <g class="hf-node" onclick="showPane('rpt-cf',null)">
-        <rect x="315" y="162" width="200" height="80" rx="10" class="hf-rect-eng"/>
-        <text x="415" y="191" class="hf-eng-label">Cash Flow Model</text>
-        <text x="415" y="210" class="hf-eng-sub">Operating · Investing · Financing</text>
-        <text x="415" y="227" class="hf-eng-sub">A/R collections · Net cash</text>
+      <!-- 2 — Operations Engineer  (cyan #00aeef) -->
+      <g class="hf-node" onclick="openHubSection('gen')" title="Operations Engineer workspace">
+        <rect x="5" y="92"  width="235" height="70" rx="10" class="hf-rect-role" stroke="#00aeef"/>
+        <rect x="5" y="92"  width="5"   height="70" rx="3"  fill="#00aeef" opacity=".9"/>
+        <circle cx="33" cy="127" r="14" fill="rgba(0,174,239,.18)" stroke="#00aeef" stroke-width="1"/>
+        <text x="33" y="127" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#00aeef" font-family="IBM Plex Sans,sans-serif" font-weight="800">G</text>
+        <text x="58" y="118" class="hf-role-label">Operations Engineer</text>
+        <text x="58" y="133" class="hf-role-sub">Net generation · fuel cost · heat rates · system losses</text>
       </g>
 
-      <!-- OUTPUT NODES (right, x=571 width=180) -->
-      <g class="hf-node" onclick="showPane('rpt-pl',null)">
-        <rect x="571" y="20" width="180" height="30" rx="7" class="hf-rect-out"/>
-        <text x="661" y="40" class="hf-out-label">📋 Income Statement</text>
+      <!-- 3 — O&M Specialist  (amber #f59e0b) -->
+      <g class="hf-node" onclick="openHubSection('om')" title="O&M Specialist workspace">
+        <rect x="5" y="175" width="235" height="70" rx="10" class="hf-rect-role" stroke="#f59e0b"/>
+        <rect x="5" y="175" width="5"   height="70" rx="3"  fill="#f59e0b" opacity=".9"/>
+        <circle cx="33" cy="210" r="14" fill="rgba(245,158,11,.18)" stroke="#f59e0b" stroke-width="1"/>
+        <text x="33" y="210" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#f59e0b" font-family="IBM Plex Sans,sans-serif" font-weight="800">O</text>
+        <text x="58" y="201" class="hf-role-label">O&amp;M Specialist</text>
+        <text x="58" y="216" class="hf-role-sub">Operating costs · maintenance · overheads</text>
       </g>
-      <g class="hf-node" onclick="showPane('rpt-kpi',null)">
-        <rect x="571" y="58" width="180" height="30" rx="7" class="hf-rect-out"/>
-        <text x="661" y="78" class="hf-out-label">📐 KPIs &amp; Ratios</text>
+
+      <!-- 4 — CapEx Manager  (purple #a78bfa) -->
+      <g class="hf-node" onclick="openHubSection('capex')" title="CapEx Manager workspace">
+        <rect x="5" y="258" width="235" height="70" rx="10" class="hf-rect-role" stroke="#a78bfa"/>
+        <rect x="5" y="258" width="5"   height="70" rx="3"  fill="#a78bfa" opacity=".9"/>
+        <circle cx="33" cy="293" r="14" fill="rgba(167,139,250,.18)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="33" y="293" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#a78bfa" font-family="IBM Plex Sans,sans-serif" font-weight="800">C</text>
+        <text x="58" y="284" class="hf-role-label">CapEx Manager</text>
+        <text x="58" y="299" class="hf-role-sub">Project spend · depreciation · asset register</text>
       </g>
-      <g class="hf-node" onclick="showPane('rpt-flash',null)">
-        <rect x="571" y="96" width="180" height="30" rx="7" class="hf-rect-out"/>
-        <text x="661" y="116" class="hf-out-label">📰 Flash Report</text>
+
+      <!-- 5 — Treasury Analyst  (green #34d399) -->
+      <g class="hf-node" onclick="openHubSection('debt')" title="Treasury Analyst workspace">
+        <rect x="5" y="341" width="235" height="70" rx="10" class="hf-rect-role" stroke="#34d399"/>
+        <rect x="5" y="341" width="5"   height="70" rx="3"  fill="#34d399" opacity=".9"/>
+        <circle cx="33" cy="376" r="14" fill="rgba(52,211,153,.18)" stroke="#34d399" stroke-width="1"/>
+        <text x="33" y="376" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#34d399" font-family="IBM Plex Sans,sans-serif" font-weight="800">T</text>
+        <text x="58" y="367" class="hf-role-label">Treasury Analyst</text>
+        <text x="58" y="382" class="hf-role-sub">Loans · leases · interest · covenant ratios</text>
       </g>
-      <g class="hf-node" onclick="showPane('rpt-bs',null)">
-        <rect x="571" y="134" width="180" height="30" rx="7" class="hf-rect-out"/>
-        <text x="661" y="154" class="hf-out-label">⚖ Balance Sheet</text>
+
+      <!-- 6 — Collections Manager  (pink #f472b6) -->
+      <g class="hf-node" onclick="openHubSection('coll')" title="Collections Manager workspace">
+        <rect x="5" y="424" width="235" height="70" rx="10" class="hf-rect-role" stroke="#f472b6"/>
+        <rect x="5" y="424" width="5"   height="70" rx="3"  fill="#f472b6" opacity=".9"/>
+        <circle cx="33" cy="459" r="14" fill="rgba(244,114,182,.18)" stroke="#f472b6" stroke-width="1"/>
+        <text x="33" y="459" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#f472b6" font-family="IBM Plex Sans,sans-serif" font-weight="800">AR</text>
+        <text x="58" y="450" class="hf-role-label">Collections Manager</text>
+        <text x="58" y="465" class="hf-role-sub">Cash receipts · DSO · A/R aging · recovery</text>
       </g>
-      <g class="hf-node" onclick="showPane('rpt-cf',null)">
-        <rect x="571" y="172" width="180" height="30" rx="7" class="hf-rect-out"/>
-        <text x="661" y="192" class="hf-out-label">💧 Cash Flow Stmt</text>
+
+      <!-- ══════════════════════════════════════════════════════
+           ENGINE NODES  (centre, x=392 w=206)
+           ══════════════════════════════════════════════════════ -->
+
+      <!-- P&L Engine -->
+      <g class="hf-node" onclick="hubQuickNav('rpt-pl')">
+        <rect x="392" y="80"  width="206" height="190" rx="12" class="hf-rect-eng"/>
+        <!-- glow effect -->
+        <rect x="392" y="80"  width="206" height="190" rx="12" fill="none" stroke="#00aeef" stroke-width=".5" opacity=".4"/>
+        <text x="495" y="120" class="hf-eng-label">P&amp;L Engine</text>
+        <text x="495" y="142" class="hf-eng-sub">Revenue · COGS</text>
+        <text x="495" y="158" class="hf-eng-sub">EBITDA · Depreciation</text>
+        <text x="495" y="174" class="hf-eng-sub">Tax · Net Income</text>
+        <text x="495" y="193" class="hf-eng-sub" style="fill:rgba(0,174,239,.5);font-size:8px">55 calculated P&amp;L lines</text>
+        <text x="495" y="250" font-size="9" fill="rgba(255,255,255,.3)" text-anchor="middle" font-family="IBM Plex Sans,sans-serif">click to view report</text>
       </g>
-      <g class="hf-node" onclick="showPane('wrk-sc',null)">
-        <rect x="571" y="210" width="180" height="30" rx="7" class="hf-rect-out"/>
-        <text x="661" y="230" class="hf-out-label">🎯 Scenarios</text>
+
+      <!-- Cash Flow Model -->
+      <g class="hf-node" onclick="hubQuickNav('rpt-cf')">
+        <rect x="392" y="290" width="206" height="160" rx="12" class="hf-rect-eng"/>
+        <rect x="392" y="290" width="206" height="160" rx="12" fill="none" stroke="#00aeef" stroke-width=".5" opacity=".4"/>
+        <text x="495" y="330" class="hf-eng-label">Cash Flow Model</text>
+        <text x="495" y="352" class="hf-eng-sub">Operating · Investing</text>
+        <text x="495" y="368" class="hf-eng-sub">Financing · Net Cash</text>
+        <text x="495" y="420" font-size="9" fill="rgba(255,255,255,.3)" text-anchor="middle" font-family="IBM Plex Sans,sans-serif">click to view report</text>
       </g>
+
+      <!-- ══════════════════════════════════════════════════════
+           OUTPUT NODES  (right, x=672 w=192)
+           ══════════════════════════════════════════════════════ -->
+
+      <g class="hf-node" onclick="hubQuickNav('rpt-pl')">
+        <rect x="672" y="20"  width="192" height="50" rx="8" class="hf-rect-out"/>
+        <text x="768" y="45"  class="hf-out-label">Income Statement</text>
+      </g>
+      <g class="hf-node" onclick="hubQuickNav('rpt-kpi')">
+        <rect x="672" y="95"  width="192" height="50" rx="8" class="hf-rect-out"/>
+        <text x="768" y="120" class="hf-out-label">KPIs &amp; Ratios</text>
+      </g>
+      <g class="hf-node" onclick="hubQuickNav('rpt-flash')">
+        <rect x="672" y="170" width="192" height="50" rx="8" class="hf-rect-out"/>
+        <text x="768" y="195" class="hf-out-label">Flash Report</text>
+      </g>
+      <g class="hf-node" onclick="hubQuickNav('rpt-bs')">
+        <rect x="672" y="245" width="192" height="50" rx="8" class="hf-rect-out"/>
+        <text x="768" y="270" class="hf-out-label">Balance Sheet</text>
+      </g>
+      <g class="hf-node" onclick="hubQuickNav('rpt-cf')">
+        <rect x="672" y="320" width="192" height="50" rx="8" class="hf-rect-out"/>
+        <text x="768" y="345" class="hf-out-label">Cash Flow Statement</text>
+      </g>
+      <g class="hf-node" onclick="hubQuickNav('wrk-sc')">
+        <rect x="672" y="395" width="192" height="50" rx="8" class="hf-rect-out"/>
+        <text x="768" y="420" class="hf-out-label">Scenario Analysis</text>
+      </g>
+
+      <!-- Column labels -->
+      <text x="122" y="4"  text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,.3)" font-family="IBM Plex Sans,sans-serif" font-weight="700" text-transform="uppercase" letter-spacing="2">ROLE PROFILES</text>
+      <text x="495" y="68" text-anchor="middle" font-size="8.5" fill="rgba(0,174,239,.5)"   font-family="IBM Plex Sans,sans-serif" font-weight="700">CALCULATION ENGINES</text>
+      <text x="768" y="8"  text-anchor="middle" font-size="8.5" fill="rgba(34,197,94,.5)"   font-family="IBM Plex Sans,sans-serif" font-weight="700">REPORTS &amp; OUTPUTS</text>
     </svg>
   </div>
 
-  <!-- Section Cards -->
-  <div class="hub-section-label">Data Entry Areas</div>
-  <div class="hub-cards" id="hubCardsGrid">
-    <div style="font-size:11px;color:#8099b8;padding:12px">Loading data status…</div>
+  <!-- Quick-access bar -->
+  <div class="hub-quick-bar">
+    <span class="hub-quick-label">Quick Access:</span>
+    <button class="hub-quick-btn" onclick="hubBrowseAll()">Full Dashboard</button>
+    <button class="hub-quick-btn" onclick="hubQuickNav('rpt-flash')">Flash Report</button>
+    <button class="hub-quick-btn" onclick="hubQuickNav('rpt-kpi')">KPIs &amp; Ratios</button>
+    <button class="hub-quick-btn" onclick="hubQuickNav('adm-data')">Data Sources</button>
+    <button class="hub-quick-btn" onclick="hubBuildStatusCards();document.getElementById('hubStatusPanel').style.display=document.getElementById('hubStatusPanel').style.display==='none'?'block':'none'">Data Status</button>
   </div>
 
-  <!-- Quick-access Reports row -->
-  <div class="hub-section-label" style="margin-top:8px">Quick Access — Reports &amp; Outputs</div>
-  <div class="hub-cards hub-cards-sm">
-    <div class="hub-card hub-card-report" onclick="showPane('rpt-pl',null)">
-      <div class="hub-card-icon">📋</div><div class="hub-card-title">Income Statement</div>
-      <div class="hub-card-desc">Monthly &amp; YTD P&amp;L with budget variance</div>
-    </div>
-    <div class="hub-card hub-card-report" onclick="showPane('rpt-flash',null)">
-      <div class="hub-card-icon">📰</div><div class="hub-card-title">Flash Report</div>
-      <div class="hub-card-desc">Management one-pager with commentary</div>
-    </div>
-    <div class="hub-card hub-card-report" onclick="showPane('rpt-kpi',null)">
-      <div class="hub-card-icon">📐</div><div class="hub-card-title">KPIs &amp; Ratios</div>
-      <div class="hub-card-desc">Operating metrics, leverage, liquidity</div>
-    </div>
-    <div class="hub-card hub-card-report" onclick="showPane('wrk-sc',null)">
-      <div class="hub-card-icon">🎯</div><div class="hub-card-title">Scenarios</div>
-      <div class="hub-card-desc">Base vs upside vs downside comparison</div>
-    </div>
-    <div class="hub-card hub-card-report" onclick="showPane('adm-data',null)">
-      <div class="hub-card-icon">☁</div><div class="hub-card-title">Data Sources</div>
-      <div class="hub-card-desc">Upload actuals, manage versions, LE workflow</div>
-    </div>
+  <!-- Collapsible status panel -->
+  <div id="hubStatusPanel" style="display:none;width:100%;max-width:1020px;margin-top:14px;position:relative;">
+    <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Data Load Status</div>
+    <div id="hubCardsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;"></div>
   </div>
 
-</div><!-- /hub-page -->
+</div><!-- /hub-landing -->
 </div><!-- /pane-hub -->
 
 <!-- ═══ SECURITY & ACCESS (Admin only) ═══ -->
@@ -3244,7 +3363,7 @@ tr.der td{color:var(--teal)}
           <option value="admin">Admin</option>
         </select>
       </div>
-      <button class="btn btn-gold" onclick="secInviteUser()" style="font-size:11px">Send Invite ✉</button>
+      <button id="secInviteBtn" class="btn btn-gold" onclick="secInviteUser()" style="font-size:11px">Send Invite ✉</button>
     </div>
     <div style="font-size:10px;color:#8099b8;margin-top:10px">
       The invited user will receive a setup email from Supabase. They set their own password — you never see it.
@@ -5817,17 +5936,16 @@ async function doLogin() {
 
   _initPlatform();
 
-  // Route to Flash Report if selected on login screen
+  // ── Post-login routing ─────────────────────────────────────────────────────
   if (_loginDestination === 'flash') {
+    // Flash Report mode — full-screen presentation view
     document.getElementById('appShell')?.classList.add('flash-mode');
     const flashTab = document.querySelector('.tab[onclick*="rpt-flash"]');
     showPane('rpt-flash', flashTab);
     if (flashTab) { document.querySelectorAll('.tab').forEach(t => t.classList.remove('on')); flashTab.classList.add('on'); }
     setTimeout(() => flashInit(), 400);
-  }
-
-  // Route to Data Entry — go straight to Data Sources tab
-  if (_loginDestination === 'data-entry') {
+  } else if (_loginDestination === 'data-entry') {
+    // Data Sources tab for admin uploads
     setTimeout(() => {
       const dataTab = document.querySelector('.tab[onclick*="adm-data"]');
       if (dataTab) {
@@ -5836,6 +5954,16 @@ async function doLogin() {
         showPane('adm-data', dataTab);
       }
     }, 500);
+  } else {
+    // Default: open the hub landing page (fullscreen dark role-selection screen)
+    setTimeout(() => {
+      showPane('hub', null);
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+      // Set welcome name in hub
+      const hubName = document.getElementById('hubUserName');
+      if (hubName) hubName.textContent = currentUser?.name?.split(' ')[0] || 'User';
+      hubBuildStatusCards();
+    }, 350);
   }
 
   auditLog('login', 'session', null, { name, role: currentUser.role });
@@ -15682,42 +15810,66 @@ async function flashSaveNote() {
 
 // Section config: which tab groups to show in focus mode
 const HUB_SECTIONS = {
-  revenue: { pane:'ass-rev',   groups:['ass'],       label:'Revenue & Tariff' },
-  gen:     { pane:'wrk-gen',   groups:['wrk'],       label:'Generation & Fuel' },
-  om:      { pane:'ass-om',    groups:['ass'],       label:'O&M Budget' },
-  capex:   { pane:'ass-capex', groups:['ass'],       label:'CapEx & Depreciation' },
-  debt:    { pane:'wrk-debt',  groups:['wrk','ass'], label:'Debt & Financing' },
-  coll:    { pane:'wrk-coll',  groups:['wrk'],       label:'Collections' },
+  revenue: { pane:'ass-rev',   groups:['ass'],       label:'Revenue & Tariff',     role:'Revenue Analyst' },
+  gen:     { pane:'wrk-gen',   groups:['wrk'],       label:'Generation & Fuel',    role:'Operations Engineer' },
+  om:      { pane:'ass-om',    groups:['ass'],       label:'O&M Budget',           role:'O&M Specialist' },
+  capex:   { pane:'ass-capex', groups:['ass'],       label:'CapEx & Depreciation', role:'CapEx Manager' },
+  debt:    { pane:'wrk-debt',  groups:['wrk','ass'], label:'Debt & Financing',     role:'Treasury Analyst' },
+  coll:    { pane:'wrk-coll',  groups:['wrk'],       label:'Collections',          role:'Collections Manager' },
 };
 
+// Open a role-focused workspace — hides all other tab groups, shows only relevant section
 function openHubSection(key) {
   const cfg = HUB_SECTIONS[key];
   if (!cfg) return;
-  // Hide all tab groups except the selected section
+  // showPane() removes .on from hub pane automatically, collapsing the fullscreen overlay
+  // then show only the tab groups relevant to this role (hub tab group also hidden in focus mode)
   document.querySelectorAll('.tabbar-inner > .tg').forEach(tg => {
     const inFocus = cfg.groups.some(cls => tg.classList.contains(cls));
     tg.style.display = inFocus ? '' : 'none';
   });
-  // Navigate to section pane
   showPane(cfg.pane, null);
-  // Show floating back button
+  // Floating back-to-hub button
   const btn = document.getElementById('hubBackBtn');
-  if (btn) { btn.textContent = `← Back to Hub`; btn.style.display = 'block'; }
+  if (btn) { btn.textContent = `← ${cfg.role} Hub`; btn.style.display = 'block'; }
   window._hubFocusSection = key;
-  // Announce context for realtime presence
   if (typeof _rtAnnouncePresence === 'function') _rtAnnouncePresence(cfg.pane);
 }
 
+// Exit focus mode — restore all tabs and return to hub fullscreen landing page
 function hubExitFocus() {
-  // Restore all tab groups
   document.querySelectorAll('.tabbar-inner > .tg').forEach(tg => { tg.style.display = ''; });
-  // Hide back button
   const btn = document.getElementById('hubBackBtn');
   if (btn) btn.style.display = 'none';
   window._hubFocusSection = null;
-  // Return to hub
   showPane('hub', null);
+  // Refresh the welcome name and status badge
+  const hubName = document.getElementById('hubUserName');
+  if (hubName) hubName.textContent = currentUser?.name?.split(' ')[0] || 'User';
   hubBuildStatusCards();
+}
+
+// Navigate to a report from the hub (restores all tabs first, shows back-to-hub button)
+function hubQuickNav(paneId) {
+  document.querySelectorAll('.tabbar-inner > .tg').forEach(tg => { tg.style.display = ''; });
+  const tab = document.querySelector(`.tab[onclick*="'${paneId}'"]`);
+  showPane(paneId, tab);
+  if (tab) { document.querySelectorAll('.tab').forEach(t => t.classList.remove('on')); tab.classList.add('on'); }
+  if (paneId === 'rpt-flash') setTimeout(() => flashInit(), 100);
+  const btn = document.getElementById('hubBackBtn');
+  if (btn) { btn.textContent = '← Back to Hub'; btn.style.display = 'block'; }
+  window._hubFocusSection = null;
+}
+
+// Browse all — exit hub overlay to full platform view (all tabs visible)
+function hubBrowseAll() {
+  document.querySelectorAll('.tabbar-inner > .tg').forEach(tg => { tg.style.display = ''; });
+  const dashTab = document.querySelector('.tab[onclick*="\'dash\'"]');
+  showPane('dash', dashTab);
+  if (dashTab) { document.querySelectorAll('.tab').forEach(t => t.classList.remove('on')); dashTab.classList.add('on'); }
+  const btn = document.getElementById('hubBackBtn');
+  if (btn) { btn.textContent = '← Back to Hub'; btn.style.display = 'block'; }
+  window._hubFocusSection = null;
 }
 
 function hubBuildStatusCards() {
@@ -15886,10 +16038,24 @@ async function secInviteUser() {
   const email = document.getElementById('secInviteEmail')?.value?.trim();
   const role  = document.getElementById('secInviteRole')?.value || 'analyst';
   if (!name || !email) { toast('Name and email are required','w'); return; }
-  if (!_sb) return;
-  // Use Supabase edge function to invite (requires service role key on server side)
+  if (!_sb) { toast('No database connection — cannot invite users in offline mode','err'); return; }
+
+  // Check if we have a valid Supabase auth session (Edge Function requires JWT)
+  let session = null;
+  try { const r = await _sb.auth.getSession(); session = r?.data?.session; } catch(e) {}
+  if (!session) {
+    toast('Invite requires Supabase Auth sign-in. Sign in with email/password to use this feature.','w');
+    return;
+  }
+
+  const inviteBtn = document.getElementById('secInviteBtn');
+  if (inviteBtn) { inviteBtn.disabled = true; inviteBtn.textContent = 'Sending…'; }
+
   try {
-    const { data, error } = await _sb.functions.invoke('invite-user', { body: { name, email, role } });
+    const { data, error } = await _sb.functions.invoke('invite-user', {
+      body: { name, email, role },
+      headers: { Authorization: `Bearer ${session.access_token}` }
+    });
     if (error) throw error;
     toast(`Invite sent to ${email}`, 'ok');
     auditLog('admin','user-invited', email, { name, role });
@@ -15897,7 +16063,17 @@ async function secInviteUser() {
     document.getElementById('secInviteEmail').value = '';
     await secLoadUsers();
   } catch(e) {
-    toast('Invite failed: '+(e.message||String(e))+'  — Edge Function may need deployment','err');
+    const msg = e.message || String(e);
+    // Provide actionable error messages
+    if (msg.includes('Failed to send') || msg.includes('FunctionsFetchError')) {
+      toast('Invite failed: Edge Function unreachable. Check Supabase dashboard → Edge Functions → invite-user is deployed and active.','err');
+    } else if (msg.includes('JWT') || msg.includes('401') || msg.includes('403')) {
+      toast('Invite failed: Authentication error. Try signing out and back in.','err');
+    } else {
+      toast('Invite failed: ' + msg, 'err');
+    }
+  } finally {
+    if (inviteBtn) { inviteBtn.disabled = false; inviteBtn.textContent = 'Send Invite ✉'; }
   }
 }
 
