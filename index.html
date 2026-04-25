@@ -630,6 +630,12 @@ tr.der td{color:var(--teal)}
 /* SOURCE BADGE */
 .src{font-size:9px;color:var(--muted);font-style:italic;margin-top:2px}
 
+/* DM TABS */
+.dm-tab{padding:8px 14px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:.15s;white-space:nowrap}
+.dm-tab:hover{color:var(--text)}
+.dm-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+.dm-entry-derived{color:var(--muted);font-style:italic}
+
 /* WF */
 .wf{display:flex;gap:5px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
 .wfb{background:var(--card2);border-radius:5px;padding:7px 11px;flex:1;min-width:100px;border:1px solid var(--border)}
@@ -2674,9 +2680,20 @@ tr.der td{color:var(--teal)}
         <div class="ts" id="dmManagerSub">Upload documents, review extracted data, commit to database or enter manually</div>
       </div>
       <div class="ta" style="gap:6px">
+        <button class="btn btn-ghost" style="font-size:10px" onclick="dmExportCSV()">⬇ Export CSV</button>
         <button class="btn btn-ghost" style="font-size:10px;border-color:var(--amber);color:var(--amber)" id="dmClearBtn" onclick="dmClearMonth()" title="Delete all fact data for this period">🗑 Clear Month</button>
         <button class="btn btn-ghost" style="font-size:10px" id="dmLockBtn" onclick="dmToggleLock()">🔒 Lock Period</button>
       </div>
+    </div>
+
+    <!-- Seed from bar -->
+    <div style="padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Pre-fill from:</div>
+      <select id="dmSeedSelect" class="sel" style="height:26px;font-size:11px">
+        <option value="">— blank —</option>
+      </select>
+      <button class="btn btn-ghost" style="font-size:10px" onclick="dmApplySeed()">↙ Apply</button>
+      <div style="margin-left:auto;font-size:10px;color:var(--muted)" id="dmSeedNote">Select a version above to pre-fill the form with its values</div>
     </div>
 
     <!-- Status chips: what data is present for this month -->
@@ -2684,6 +2701,94 @@ tr.der td{color:var(--teal)}
       <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Data Status for Selected Month</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px" id="dmStatusChips">
         <span style="font-size:11px;color:var(--muted)">Select a month above…</span>
+      </div>
+    </div>
+
+    <!-- Tab bar -->
+    <div style="padding:0 12px;border-bottom:1px solid var(--border);display:flex;gap:0">
+      <div id="dmTabPL" class="dm-tab on" onclick="dmSetTab('PL')">📊 P&amp;L</div>
+      <div id="dmTabBS" class="dm-tab" onclick="dmSetTab('BS')">⚖ Balance Sheet</div>
+      <div id="dmTabCF" class="dm-tab" onclick="dmSetTab('CF')">💰 Cash Flow</div>
+      <div id="dmTabST" class="dm-tab" onclick="dmSetTab('ST')">📈 Stats</div>
+      <div id="dmTabLE" class="dm-tab" onclick="dmSetTab('LE')">🗂 LE Versions</div>
+    </div>
+
+    <!-- P&L panel -->
+    <div id="dmPanelPL" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 10px;background:var(--card2)">Line Item</th>
+          <th style="text-align:left;padding:6px 10px;background:var(--card2)">Source Document</th>
+          <th style="text-align:center;padding:6px 10px;background:var(--card2)">Type</th>
+          <th style="text-align:right;padding:6px 10px;background:var(--card2)">Current (DB)</th>
+          <th style="text-align:right;padding:6px 10px;background:var(--card2);min-width:120px">New Value (USD $000)</th>
+        </tr></thead>
+        <tbody id="dmEntryBody_PL"></tbody>
+      </table>
+    </div>
+
+    <!-- Balance Sheet panel -->
+    <div id="dmPanelBS" style="display:none;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 10px;background:var(--card2)">Line Item</th>
+          <th style="text-align:left;padding:6px 10px;background:var(--card2)">Source Document</th>
+          <th style="text-align:center;padding:6px 10px;background:var(--card2)">Type</th>
+          <th style="text-align:right;padding:6px 10px;background:var(--card2)">Current (DB)</th>
+          <th style="text-align:right;padding:6px 10px;background:var(--card2);min-width:120px">New Value (USD $000)</th>
+        </tr></thead>
+        <tbody id="dmEntryBody_BS"></tbody>
+      </table>
+    </div>
+
+    <!-- Cash Flow panel -->
+    <div id="dmPanelCF" style="display:none;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 10px;background:var(--card2)">Line Item</th>
+          <th style="text-align:left;padding:6px 10px;background:var(--card2)">Source Document</th>
+          <th style="text-align:center;padding:6px 10px;background:var(--card2)">Type</th>
+          <th style="text-align:right;padding:6px 10px;background:var(--card2)">Current (DB)</th>
+          <th style="text-align:right;padding:6px 10px;background:var(--card2);min-width:120px">New Value (USD $000)</th>
+        </tr></thead>
+        <tbody id="dmEntryBody_CF"></tbody>
+      </table>
+    </div>
+
+    <!-- Stats panel -->
+    <div id="dmPanelST" style="display:none;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 10px;background:var(--card2)">Line Item</th>
+          <th style="text-align:left;padding:6px 10px;background:var(--card2)">Source Document</th>
+          <th style="text-align:center;padding:6px 10px;background:var(--card2)">Type</th>
+          <th style="text-align:right;padding:6px 10px;background:var(--card2)">Current (DB)</th>
+          <th style="text-align:right;padding:6px 10px;background:var(--card2);min-width:120px">New Value (USD $000)</th>
+        </tr></thead>
+        <tbody id="dmEntryBody_ST"></tbody>
+      </table>
+    </div>
+
+    <!-- LE Versions panel -->
+    <div id="dmPanelLE" style="display:none">
+      <div style="padding:12px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;color:var(--text)">🗂 LE Versions for this Period</div>
+          <button class="btn btn-gold" style="font-size:10px" onclick="dmCreateLeVersion()">+ New LE Version</button>
+          <button class="btn btn-ghost" style="font-size:10px" id="dmCompareBtn" onclick="dmCompareVersions()" disabled>⇄ Compare Selected</button>
+        </div>
+        <div id="dmLeVersionList"><!-- populated by dmBuildLeVersionsPanel() --></div>
+        <div id="dmLeComparePanel" style="display:none;margin-top:12px"><!-- comparison table --></div>
+      </div>
+    </div>
+
+    <!-- Save bar -->
+    <div style="padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap" id="dmSaveBar">
+      <button class="btn btn-gold" style="font-size:11px" onclick="dmSaveAsActuals()">💾 Save as Actuals</button>
+      <button class="btn btn-ghost" style="font-size:11px;border-color:var(--teal);color:var(--teal)" onclick="dmSaveAsLE()">📋 Save as LE Version</button>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button class="btn btn-ghost" style="font-size:10px;border-color:var(--teal);color:var(--teal)" onclick="dmDownloadTemplate('Actuals')">⬇ CSV Template</button>
+        <label class="btn btn-ghost" style="font-size:10px;cursor:pointer">⬆ Upload CSV<input type="file" style="display:none" accept=".xlsx,.xlsm,.csv" onchange="dmHandleFile(this.files[0])"></label>
       </div>
     </div>
 
@@ -2705,14 +2810,14 @@ tr.der td{color:var(--teal)}
         <div class="ds">Supports .xlsx · .xlsm · .csv &nbsp;·&nbsp; The platform will extract data automatically</div>
       </div>
 
-      <!-- OR manual entry toggle -->
+      <!-- OR manual entry toggle (legacy path) -->
       <div style="text-align:center;margin-bottom:10px">
-        <button class="btn btn-ghost" style="font-size:10px" onclick="dmToggleManual()">✏ Enter Data Manually Instead</button>
+        <button class="btn btn-ghost" style="font-size:10px" onclick="dmToggleManual()">✏ Enter Data Manually Instead (legacy)</button>
       </div>
 
-      <!-- Manual entry panel (hidden by default) -->
+      <!-- Manual entry panel (hidden by default, legacy) -->
       <div id="dmManualPanel" style="display:none;background:var(--card2);border-radius:6px;padding:12px;margin-bottom:10px">
-        <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:10px">✏ Manual Entry — Key P&L Lines (USD $000)</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:10px">✏ Manual Entry — Key P&amp;L Lines (USD $000)</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px" id="dmManualFields">
           <!-- Populated by dmBuildManualFields() -->
         </div>
@@ -3885,24 +3990,91 @@ let _dmCurrentFacts= {};     // {line_id: value} already in DB for selected peri
 const DM_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 // Lines to track/display in manual entry and extract preview
+// section matches fpa_dim_line.statement: 'P&L' | 'Balance Sheet' | 'Cash Flow' | 'Stats'
 const DM_LINES = [
-  { id:'rev_total',      label:'Total Revenue',           section:'Revenue' },
-  { id:'cogs_fuel',      label:'Fuel Cost',               section:'COGS'    },
-  { id:'cogs_ipp',       label:'IPP Cost',                section:'COGS'    },
-  { id:'gross_profit',   label:'Gross Profit',            section:'P&L'     },
-  { id:'om_total',       label:'Total O&M',               section:'OpEx'    },
-  { id:'ebitda',         label:'EBITDA',                  section:'P&L'     },
-  { id:'depreciation',   label:'Depreciation',            section:'P&L'     },
-  { id:'ebit',           label:'EBIT',                    section:'P&L'     },
-  { id:'net_fin_costs',  label:'Net Financing Costs',     section:'P&L'     },
-  { id:'net_profit',     label:'Net Profit / (Loss)',     section:'P&L'     },
-  { id:'bs_total_assets',label:'Total Assets',            section:'B/S'     },
-  { id:'bs_total_debt',  label:'Total Debt',              section:'B/S'     },
-  { id:'bs_equity',      label:'Total Equity',            section:'B/S'     },
-  { id:'cf_ops',         label:'Cash from Operations',    section:'CF'      },
-  { id:'cf_capex',       label:'CapEx',                   section:'CF'      },
-  { id:'gen_gwh',        label:'Net Generation (GWh)',    section:'Ops'     },
-  { id:'sales_gwh',      label:'Net Sales (GWh)',         section:'Ops'     },
+  // ── P&L — Revenue ────────────────────────────────────────────────────────
+  { id:'fuel_rev',        label:'Fuel Revenue',                  section:'P&L', subsection:'Revenue',           type:'input',   source:'Fuel Settlement Report · Tab "Rev Calc"' },
+  { id:'nonfuel',         label:'Non-Fuel Revenue',              section:'P&L', subsection:'Revenue',           type:'input',   source:'SAP Revenue Report · F01 Non-Fuel' },
+  { id:'other_r',         label:'Other Operating Revenue',       section:'P&L', subsection:'Revenue',           type:'input',   source:'SAP Income Statement · Other Rev' },
+  { id:'pl_total_sales',  label:'Total Revenue',                 section:'P&L', subsection:'Revenue',           type:'derived', source:'fuel_rev + nonfuel + other_r' },
+  // ── P&L — Cost of Sales ──────────────────────────────────────────────────
+  { id:'fuel_cost',       label:'Fuel Costs',                    section:'P&L', subsection:'Cost of Sales',     type:'input',   source:'Fuel Settlement Report · "Costs" tab' },
+  { id:'ipp_cost',        label:'IPP / Purchased Power Cost',    section:'P&L', subsection:'Cost of Sales',     type:'input',   source:'IPP Invoice Summary' },
+  { id:'pl_ppa',          label:'Purchased Power (PPA)',         section:'P&L', subsection:'Cost of Sales',     type:'input',   source:'PPA Billing Statement' },
+  { id:'pl_other_cos',    label:'Other Cost of Sales',           section:'P&L', subsection:'Cost of Sales',     type:'input',   source:'SAP Cost Report' },
+  { id:'pl_total_cos',    label:'Total Cost of Sales',           section:'P&L', subsection:'Cost of Sales',     type:'derived', source:'fuel_cost + ipp_cost + pl_ppa + pl_other_cos' },
+  // ── P&L — Subtotals ──────────────────────────────────────────────────────
+  { id:'pl_gross_profit', label:'Gross Profit',                  section:'P&L', subsection:'P&L Subtotals',     type:'derived', source:'pl_total_sales − pl_total_cos' },
+  // ── P&L — Operating Expenses ─────────────────────────────────────────────
+  { id:'opex',            label:'Operating Expense (O&M)',       section:'P&L', subsection:'Operating Expenses', type:'input',   source:'SAP P&L · OpEx Section' },
+  { id:'pl_sga',          label:'Selling, General & Admin',      section:'P&L', subsection:'Operating Expenses', type:'input',   source:'SAP P&L · SG&A' },
+  { id:'pl_maintenance',  label:'Maintenance',                   section:'P&L', subsection:'Operating Expenses', type:'input',   source:'SAP P&L · Maintenance' },
+  // ── P&L — Subtotals ──────────────────────────────────────────────────────
+  { id:'ebitda',          label:'EBITDA',                        section:'P&L', subsection:'P&L Subtotals',     type:'derived', source:'pl_gross_profit − opex − pl_sga − pl_maintenance' },
+  // ── P&L — Below EBITDA ───────────────────────────────────────────────────
+  { id:'depn',            label:'Depreciation',                  section:'P&L', subsection:'Below EBITDA',      type:'input',   source:'SAP Fixed Assets Register' },
+  { id:'impair',          label:'Impairment',                    section:'P&L', subsection:'Below EBITDA',      type:'input',   source:'Impairment Assessment · IFRS 36' },
+  // ── P&L — Subtotals ──────────────────────────────────────────────────────
+  { id:'ebit',            label:'EBIT',                          section:'P&L', subsection:'P&L Subtotals',     type:'derived', source:'ebitda − depn − impair' },
+  // ── P&L — Net Financing ──────────────────────────────────────────────────
+  { id:'pl_int_income',   label:'Interest Income',               section:'P&L', subsection:'Net Financing',     type:'input',   source:'Treasury Report · Interest Earned' },
+  { id:'pl_int_expense',  label:'Interest Expense',              section:'P&L', subsection:'Net Financing',     type:'input',   source:'Debt Schedule · Interest Line' },
+  { id:'pl_loan_fees',    label:'Loan Financing Fees',           section:'P&L', subsection:'Net Financing',     type:'input',   source:'Debt Schedule · Fees' },
+  { id:'pl_pref_div',     label:'Preference Dividends',          section:'P&L', subsection:'Net Financing',     type:'input',   source:'Preference Share Register' },
+  { id:'pl_fx',           label:'FX Gain/(Loss)',                section:'P&L', subsection:'Net Financing',     type:'input',   source:'Treasury · FX Settlement' },
+  { id:'fin_cost',        label:'Net Financing Cost',            section:'P&L', subsection:'P&L Subtotals',     type:'derived', source:'pl_int_income − pl_int_expense − pl_loan_fees − pl_pref_div + pl_fx' },
+  // ── P&L — Below EBITDA (other) ───────────────────────────────────────────
+  { id:'oth_inc',         label:'Other Income/(Expense)',        section:'P&L', subsection:'Below EBITDA',      type:'input',   source:'SAP P&L · Other Income' },
+  // ── P&L — Subtotals ──────────────────────────────────────────────────────
+  { id:'pretax',          label:'Pre-Tax Income',                section:'P&L', subsection:'P&L Subtotals',     type:'derived', source:'ebit + fin_cost + oth_inc' },
+  // ── P&L — Taxation ───────────────────────────────────────────────────────
+  { id:'pl_curr_tax',     label:'Current Income Tax',            section:'P&L', subsection:'Taxation',          type:'input',   source:'SAP P&L · Tax Charge' },
+  { id:'pl_def_tax',      label:'Deferred Tax',                  section:'P&L', subsection:'Taxation',          type:'input',   source:'Tax Schedule' },
+  { id:'tax',             label:'Total Income Tax',              section:'P&L', subsection:'Taxation',          type:'derived', source:'pl_curr_tax + pl_def_tax' },
+  { id:'net_inc',         label:'NET INCOME',                    section:'P&L', subsection:'P&L Subtotals',     type:'derived', source:'pretax − tax' },
+
+  // ── Balance Sheet — Current Assets ───────────────────────────────────────
+  { id:'cash',            label:'Cash & Short Term Deposits',    section:'Balance Sheet', subsection:'Current Assets',          type:'input',   source:'Bank Reconciliation' },
+  { id:'recv',            label:'Receivables, Net',              section:'Balance Sheet', subsection:'Current Assets',          type:'input',   source:'A/R Aging Report' },
+  { id:'unbill',          label:'Unbilled Revenue',              section:'Balance Sheet', subsection:'Current Assets',          type:'input',   source:'Billing System · Unbilled' },
+  { id:'finv',            label:'Fuel Inventory',                section:'Balance Sheet', subsection:'Current Assets',          type:'input',   source:'Fuel Inventory Report' },
+  { id:'matls',           label:'Materials & Supplies',          section:'Balance Sheet', subsection:'Current Assets',          type:'input',   source:'Stores · Materials Report' },
+  { id:'cur_a',           label:'Total Current Assets',          section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived', source:'Sum of current assets' },
+  // ── Balance Sheet — Non-Current Assets ───────────────────────────────────
+  { id:'ppe',             label:'PP&E – Net',                    section:'Balance Sheet', subsection:'Non-Current Assets',      type:'input',   source:'Fixed Assets Register · NBV' },
+  { id:'cwip',            label:'Construction WIP',              section:'Balance Sheet', subsection:'Non-Current Assets',      type:'input',   source:'Capital Projects Report' },
+  { id:'rou_asset',       label:'Right-of-Use Assets (IFRS 16)', section:'Balance Sheet', subsection:'Non-Current Assets',      type:'derived', source:'IFRS 16 Schedule · ROU' },
+  { id:'tot_a',           label:'TOTAL ASSETS',                  section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived', source:'cur_a + non-current assets' },
+  // ── Balance Sheet — Current Liabilities ──────────────────────────────────
+  { id:'ap',              label:'Accounts Payable & Accruals',   section:'Balance Sheet', subsection:'Current Liabilities',     type:'input',   source:'SAP A/P Aging' },
+  { id:'bs_std',          label:'Short-Term Debt',               section:'Balance Sheet', subsection:'Current Liabilities',     type:'input',   source:'Debt Schedule' },
+  { id:'bs_curr_ltd',     label:'Current Maturity LTD',          section:'Balance Sheet', subsection:'Current Liabilities',     type:'input',   source:'Debt Schedule · CMLTD' },
+  { id:'lease_cl',        label:'Lease Obligations — Current',   section:'Balance Sheet', subsection:'Current Liabilities',     type:'derived', source:'IFRS 16 Schedule' },
+  { id:'cur_l',           label:'Total Current Liabilities',     section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived', source:'Sum of current liabilities' },
+  // ── Balance Sheet — Non-Current Liabilities ───────────────────────────────
+  { id:'ltd',             label:'Long Term Debt',                section:'Balance Sheet', subsection:'Non-Current Liabilities', type:'input',   source:'Debt Schedule · LTD' },
+  { id:'leases',          label:'Lease Liabilities LT (IFRS 16)',section:'Balance Sheet', subsection:'Non-Current Liabilities', type:'derived', source:'IFRS 16 Schedule' },
+  { id:'tot_l',           label:'TOTAL LIABILITIES',             section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived', source:'cur_l + non-current liabilities' },
+  // ── Balance Sheet — Equity ────────────────────────────────────────────────
+  { id:'equity',          label:'Total Equity',                  section:'Balance Sheet', subsection:'Equity',                  type:'input',   source:'SAP Balance Sheet · Equity' },
+  { id:'tot_le',          label:'TOTAL LIABILITIES & EQUITY',    section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived', source:'tot_l + equity' },
+
+  // ── Cash Flow — Operating ─────────────────────────────────────────────────
+  { id:'cf_ops_net',      label:'Net Cash from Operations',      section:'Cash Flow', subsection:'Operating',   type:'derived', source:'Indirect method reconciliation' },
+  // ── Cash Flow — Investing ─────────────────────────────────────────────────
+  { id:'cf_capex',        label:'Capital Expenditure',           section:'Cash Flow', subsection:'Investing',   type:'input',   source:'Capital Projects Cashflow' },
+  { id:'cf_inv_net',      label:'Net Cash from Investing',       section:'Cash Flow', subsection:'Investing',   type:'derived', source:'cf_capex + other investing' },
+  // ── Cash Flow — Financing ─────────────────────────────────────────────────
+  { id:'cf_drawdown',     label:'Loan Drawdowns',                section:'Cash Flow', subsection:'Financing',   type:'input',   source:'Treasury · Drawdown Schedule' },
+  { id:'cf_loanrep',      label:'Loan Repayments',               section:'Cash Flow', subsection:'Financing',   type:'input',   source:'Debt Schedule · Repayments' },
+
+  // ── Stats — Generation ────────────────────────────────────────────────────
+  { id:'stat_net_gen_gwh',  label:'Net Generation (GWh)',        section:'Stats', subsection:'Generation',    type:'input',   source:'Generation Report · Net Output' },
+  { id:'stat_billed_gwh',   label:'Net Sales (GWh)',             section:'Stats', subsection:'Generation',    type:'derived', source:'Net Gen × (1 − system loss %)' },
+  { id:'stat_sys_loss_pct', label:'System Loss %',               section:'Stats', subsection:'Generation',    type:'input',   source:'Loss Audit Report' },
+  { id:'stat_peak_mw',      label:'Peak Demand (MW)',            section:'Stats', subsection:'Generation',    type:'input',   source:'Generation Report · Peak' },
+  // ── Stats — Customers ────────────────────────────────────────────────────
+  { id:'stat_customers',    label:'Total Customers',             section:'Stats', subsection:'Customers',     type:'input',   source:'CIS · Active Customer Count' },
 ];
 
 function dmSelectYear(y, btn) {
@@ -4035,6 +4207,10 @@ async function dmSelectMonth(year, month) {
   await dmLoadCurrentFacts(year, month);
   dmBuildStatusChips(year, month);
   dmBuildManualFields();
+  await dmBuildSeedOptions();
+  dmBuildAllEntryTables();
+  dmSetTab('PL');
+  _dmLeSelected = [];
 
   // Reset extract panel
   document.getElementById('dmExtractPanel').style.display = 'none';
@@ -4064,7 +4240,7 @@ function dmBuildStatusChips(year, month) {
   const actVer   = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
   const hasDB    = !!_sb;
 
-  const sections = ['Revenue','COGS','P&L','OpEx','B/S','CF','Ops'];
+  const sections = ['P&L','Balance Sheet','Cash Flow','Stats'];
   let html = '';
   sections.forEach(sec => {
     const lines = DM_LINES.filter(l=>l.section===sec);
@@ -4470,6 +4646,345 @@ async function dmLoadUploadLog() {
       <td></td>
     </tr>`;
   }).join('');
+}
+
+// ── DM tab switching ───────────────────────────────────────────────────────
+let _dmActiveTab = 'PL';
+function dmSetTab(tab) {
+  _dmActiveTab = tab;
+  ['PL','BS','CF','ST','LE'].forEach(t => {
+    const tabEl = document.getElementById(`dmTab${t}`);
+    const panEl = document.getElementById(`dmPanel${t}`);
+    if (tabEl) tabEl.classList.toggle('on', t === tab);
+    if (panEl) panEl.style.display = t === tab ? '' : 'none';
+  });
+  if (tab === 'LE') dmBuildLeVersionsPanel();
+}
+
+// ── Build the entry table for a given tab section ─────────────────────────
+function dmBuildEntryTable(section) {
+  const sectionMap = { PL:'P&L', BS:'Balance Sheet', CF:'Cash Flow', ST:'Stats' };
+  const secLabel = sectionMap[section];
+  const lines = DM_LINES.filter(l => l.section === secLabel);
+  const tbody = document.getElementById(`dmEntryBody_${section}`);
+  if (!tbody) return;
+
+  let currentSub = '';
+  tbody.innerHTML = lines.map(l => {
+    const cur = _dmCurrentFacts[l.id];
+    const curFmt = cur != null ? Number(cur).toLocaleString() : '—';
+    const isDerived = l.type === 'derived';
+    const rowBg = isDerived ? 'background:rgba(125,160,196,.04)' : '';
+    const subHdr = l.subsection !== currentSub
+      ? (() => { currentSub = l.subsection; return `<tr><td colspan="5" style="padding:8px 10px 3px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;background:var(--card2)">${l.subsection}</td></tr>`; })()
+      : '';
+    return `${subHdr}<tr style="${rowBg}">
+      <td style="padding:5px 10px;font-weight:${isDerived?'400':'600'};color:${isDerived?'var(--muted)':'var(--text)'}">${l.label}</td>
+      <td style="padding:5px 10px;color:var(--muted);font-size:10px">${l.source}</td>
+      <td style="padding:5px 10px;text-align:center">
+        <span style="font-size:9px;padding:2px 7px;border-radius:10px;font-weight:700;${isDerived?'background:rgba(125,160,196,.15);color:var(--muted)':'background:rgba(251,191,36,.15);color:var(--gold)'}">${isDerived?'DERIVED':'INPUT'}</span>
+      </td>
+      <td style="padding:5px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--muted)">${curFmt}</td>
+      <td style="padding:4px 10px">
+        ${isDerived
+          ? '<span style="font-size:10px;color:var(--muted);display:block;text-align:right">auto-calculated</span>'
+          : `<input type="number" step="any" id="dmM_${l.id}" value="${cur!=null?cur:''}"
+              style="width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);font-size:11px;font-family:var(--mono);text-align:right"
+              placeholder="0">`
+        }
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function dmBuildAllEntryTables() {
+  ['PL','BS','CF','ST'].forEach(s => dmBuildEntryTable(s));
+}
+
+// ── Seed from version ─────────────────────────────────────────────────────
+async function dmBuildSeedOptions() {
+  const sel = document.getElementById('dmSeedSelect');
+  if (!sel) return;
+  const opts = [{ value:'', label:'— blank —' }];
+  const aop = fpa.versions.find(v => v.code === 'AOP_2026');
+  if (aop) opts.push({ value:'AOP_2026', label:'AOP 2026 (Budget)' });
+  fpa.versions.filter(v => v.kind === 'LE').forEach(v =>
+    opts.push({ value: v.code, label: `${v.name || v.code} (LE)` })
+  );
+  fpa.versions.filter(v => /^ACTUALS_/.test(v.code)).forEach(v =>
+    opts.push({ value: v.code, label: `${v.name || v.code} (Actual)` })
+  );
+  sel.innerHTML = opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+}
+
+async function dmApplySeed() {
+  const vc = document.getElementById('dmSeedSelect')?.value;
+  if (!vc || !_sb || !_dmMonth) { toast('Select a version to seed from', 'w'); return; }
+
+  const ver = fpa.versions.find(v => v.code === vc);
+  if (!ver) { toast('Version not found', 'w'); return; }
+
+  const periodId = _dmYear * 100 + _dmMonth;
+  const { data, error } = await _sb.from('fpa_facts')
+    .select('line_id, value')
+    .eq('version_id', ver.id)
+    .eq('period_id', periodId);
+
+  if (error) { toast('Seed load failed: ' + error.message, 'err'); return; }
+
+  let count = 0;
+  (data || []).forEach(r => {
+    const inp = document.getElementById(`dmM_${r.line_id}`);
+    if (inp) { inp.value = r.value; count++; }
+  });
+
+  const note = document.getElementById('dmSeedNote');
+  if (note) note.textContent = `✅ ${count} values pre-filled from ${vc}`;
+  toast(`Pre-filled ${count} fields from ${vc}`, 'ok');
+}
+
+// ── Save as Actuals ────────────────────────────────────────────────────────
+async function dmSaveAsActuals() {
+  if (!_sb || !_dmMonth) { toast('Select a month first', 'w'); return; }
+  const actVer = await _dmEnsureActualVersion(_dmYear, _dmMonth);
+  if (!actVer) return;
+  await _dmCommitFormToVersion(actVer.id, 'actuals');
+}
+
+// ── Save as LE Version ─────────────────────────────────────────────────────
+async function dmSaveAsLE() {
+  if (!_sb || !_dmMonth) { toast('Select a month first', 'w'); return; }
+
+  const name = prompt(`LE version name for ${DM_MONTHS[_dmMonth-1]} ${_dmYear}:\n(e.g. "Initial Estimate" or "Revised – Mgmt Review")`);
+  if (!name) return;
+
+  const periodId = _dmYear * 100 + _dmMonth;
+  const existing = fpa.versions.filter(v => v.kind === 'LE' && v.period_id === periodId);
+  const vNum = existing.length + 1;
+  const code = `LE_${_dmYear}_${String(_dmMonth).padStart(2,'0')}_v${vNum}`;
+
+  const { data: verData, error: verErr } = await _sb.from('fpa_versions').insert({
+    code, name, kind: 'LE', period_id: periodId, year: _dmYear,
+    description: name, tags: ['le']
+  }).select().single();
+
+  if (verErr) { toast('Could not create LE version: ' + verErr.message, 'err'); return; }
+
+  fpa.versions.push(verData);
+
+  await _dmCommitFormToVersion(verData.id, 'le');
+  dmBuildLeVersionsPanel();
+  dmBuildSeedOptions();
+  toast(`Saved as "${name}" (${code})`, 'ok');
+}
+
+// ── Commit form values to a version ───────────────────────────────────────
+async function _dmCommitFormToVersion(versionId, label) {
+  const periodId = _dmYear * 100 + _dmMonth;
+  const rows = [];
+  DM_LINES.filter(l => l.type === 'input').forEach(l => {
+    const inp = document.getElementById(`dmM_${l.id}`);
+    const v = inp ? parseFloat(inp.value) : NaN;
+    if (!isNaN(v)) rows.push({ version_id: versionId, line_id: l.id, period_id: periodId, value: v, source: 'manual' });
+  });
+
+  if (!rows.length) { toast('No values entered', 'w'); return; }
+
+  const { error } = await _sb.from('fpa_facts')
+    .upsert(rows, { onConflict: 'version_id,line_id,period_id', ignoreDuplicates: false });
+
+  if (error) { toast('Save failed: ' + error.message, 'err'); return; }
+
+  toast(`${rows.length} lines saved as ${label}`, 'ok');
+  auditLog('save', label, `${DM_MONTHS[_dmMonth-1]} ${_dmYear}`, { rows: rows.length, versionId });
+  await fpaBootstrap();
+  refreshAll();
+  await dmSelectMonth(_dmYear, _dmMonth);
+}
+
+// ── LE Versions panel ──────────────────────────────────────────────────────
+let _dmLeSelected = [];
+
+async function dmBuildLeVersionsPanel() {
+  const container = document.getElementById('dmLeVersionList');
+  if (!container || !_dmMonth) return;
+
+  const periodId = _dmYear * 100 + _dmMonth;
+  const leVers = fpa.versions.filter(v => v.kind === 'LE' && v.period_id === periodId);
+  const aopVer = fpa.versions.find(v => v.code === 'AOP_2026');
+
+  if (!leVers.length) {
+    container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">No LE versions saved for ${DM_MONTHS[_dmMonth-1]} ${_dmYear} yet.<br>Fill in the P&amp;L / BS / CF tabs and click "Save as LE Version".</div>`;
+    const cmpBtn = document.getElementById('dmCompareBtn');
+    if (cmpBtn) cmpBtn.disabled = true;
+    return;
+  }
+
+  const vIds = leVers.map(v => v.id);
+  if (aopVer) vIds.push(aopVer.id);
+
+  const { data: facts } = await _sb.from('fpa_facts')
+    .select('version_id, line_id, value')
+    .in('version_id', vIds)
+    .eq('period_id', periodId)
+    .in('line_id', ['pl_total_sales','ebitda','net_inc','cf_capex']);
+
+  const byVer = {};
+  (facts||[]).forEach(r => {
+    (byVer[r.version_id] ??= {})[r.line_id] = Number(r.value);
+  });
+
+  const aopFacts = aopVer ? (byVer[aopVer.id] || {}) : {};
+  const fmt = v => v != null ? '$' + Math.round(v).toLocaleString() : '—';
+  const varFmt = (le, aop) => {
+    if (le == null || !aop) return '';
+    const d = le - aop;
+    const pct = (d / Math.abs(aop) * 100).toFixed(1);
+    const clr = d >= 0 ? 'var(--green)' : 'var(--red)';
+    return `<span style="color:${clr}">${d>=0?'+':''}${pct}%</span>`;
+  };
+
+  container.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr>
+        <th style="padding:6px 10px;text-align:left;background:var(--card2)">
+          <input type="checkbox" onchange="if(this.checked)_dmLeSelected=leVers.map(v=>v.id);else _dmLeSelected=[]" style="margin-right:6px">
+          Version
+        </th>
+        <th style="padding:6px 10px;text-align:left;background:var(--card2)">Name</th>
+        <th style="padding:6px 10px;text-align:right;background:var(--card2)">Revenue</th>
+        <th style="padding:6px 10px;text-align:right;background:var(--card2)">EBITDA</th>
+        <th style="padding:6px 10px;text-align:right;background:var(--card2)">Net Income</th>
+        <th style="padding:6px 10px;text-align:right;background:var(--card2)">CapEx</th>
+        <th style="padding:6px 10px;text-align:center;background:var(--card2)">vs AOP</th>
+        <th style="padding:6px 10px;text-align:center;background:var(--card2)">Created</th>
+        <th style="padding:6px 10px;text-align:center;background:var(--card2)">Action</th>
+      </tr></thead>
+      <tbody>
+        ${leVers.map(v => {
+          const f = byVer[v.id] || {};
+          return `<tr>
+            <td style="padding:5px 10px">
+              <input type="checkbox" value="${v.id}" onchange="dmLeToggleSelect('${v.id}',this.checked)"
+                style="margin-right:6px">
+              <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">${v.code}</span>
+            </td>
+            <td style="padding:5px 10px;font-weight:600;color:var(--text)">${v.name || '—'}</td>
+            <td style="padding:5px 10px;text-align:right;font-family:var(--mono)">${fmt(f.pl_total_sales)}</td>
+            <td style="padding:5px 10px;text-align:right;font-family:var(--mono)">${fmt(f.ebitda)}</td>
+            <td style="padding:5px 10px;text-align:right;font-family:var(--mono)">${fmt(f.net_inc)}</td>
+            <td style="padding:5px 10px;text-align:right;font-family:var(--mono)">${fmt(f.cf_capex)}</td>
+            <td style="padding:5px 10px;text-align:center">${varFmt(f.ebitda, aopFacts.ebitda)}</td>
+            <td style="padding:5px 10px;text-align:center;font-size:10px;color:var(--muted)">${new Date(v.created_at).toLocaleDateString()}</td>
+            <td style="padding:5px 10px;text-align:center">
+              <button class="btn btn-ghost" style="font-size:9px;padding:2px 8px" onclick="dmLoadLeIntoForm('${v.id}')">Load</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+
+  const cmpBtn = document.getElementById('dmCompareBtn');
+  if (cmpBtn) cmpBtn.disabled = _dmLeSelected.length < 2;
+}
+
+function dmLeToggleSelect(id, checked) {
+  if (checked) { if (!_dmLeSelected.includes(id)) _dmLeSelected.push(id); }
+  else { _dmLeSelected = _dmLeSelected.filter(x => x !== id); }
+  const btn = document.getElementById('dmCompareBtn');
+  if (btn) btn.disabled = _dmLeSelected.length < 2;
+}
+
+async function dmLoadLeIntoForm(versionId) {
+  if (!_sb || !_dmMonth) return;
+  const periodId = _dmYear * 100 + _dmMonth;
+  const { data } = await _sb.from('fpa_facts').select('line_id,value').eq('version_id',versionId).eq('period_id',periodId);
+  (data||[]).forEach(r => {
+    const inp = document.getElementById(`dmM_${r.line_id}`);
+    if (inp) inp.value = r.value;
+  });
+  dmSetTab('PL');
+  toast('LE version loaded into form — edit and save as new version', 'ok');
+}
+
+async function dmCompareVersions() {
+  if (_dmLeSelected.length < 2) { toast('Check two LE versions to compare', 'w'); return; }
+  const [id1, id2] = _dmLeSelected.slice(0, 2);
+  const v1 = fpa.versions.find(v => v.id === id1);
+  const v2 = fpa.versions.find(v => v.id === id2);
+  const periodId = _dmYear * 100 + _dmMonth;
+
+  const { data } = await _sb.from('fpa_facts')
+    .select('version_id,line_id,value')
+    .in('version_id', [id1, id2])
+    .eq('period_id', periodId);
+
+  const f1 = {}, f2 = {};
+  (data||[]).forEach(r => {
+    if (r.version_id === id1) f1[r.line_id] = Number(r.value);
+    else f2[r.line_id] = Number(r.value);
+  });
+
+  const compareLines = DM_LINES.filter(l => l.section === 'P&L');
+  const fmt = v => v != null ? Number(v).toLocaleString() : '—';
+  const varFmt = (a, b) => {
+    if (a == null || b == null) return '—';
+    const d = b - a;
+    const pct = a ? (d/Math.abs(a)*100).toFixed(1) : '—';
+    const clr = d >= 0 ? 'var(--green)' : 'var(--red)';
+    return `<span style="color:${clr}">${d>=0?'+':''}${fmt(d)} (${d>=0?'+':''}${pct}%)</span>`;
+  };
+
+  const panel = document.getElementById('dmLeComparePanel');
+  panel.style.display = '';
+  panel.innerHTML = `
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">⇄ Comparison: ${v1?.name||id1} vs ${v2?.name||id2}</div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr>
+        <th style="text-align:left;padding:6px 10px;background:var(--card2)">Line</th>
+        <th style="text-align:right;padding:6px 10px;background:var(--card2)">${v1?.name||'v1'}</th>
+        <th style="text-align:right;padding:6px 10px;background:var(--card2)">${v2?.name||'v2'}</th>
+        <th style="text-align:right;padding:6px 10px;background:var(--card2)">Change</th>
+      </tr></thead>
+      <tbody>
+        ${compareLines.map(l => `<tr style="${l.type==='derived'?'background:rgba(125,160,196,.04)':''}">
+          <td style="padding:5px 10px;font-weight:${l.type==='derived'?'400':'600'};color:${l.type==='derived'?'var(--muted)':'var(--text)'}">${l.label}</td>
+          <td style="padding:5px 10px;text-align:right;font-family:var(--mono)">${fmt(f1[l.id])}</td>
+          <td style="padding:5px 10px;text-align:right;font-family:var(--mono)">${fmt(f2[l.id])}</td>
+          <td style="padding:5px 10px;text-align:right">${varFmt(f1[l.id], f2[l.id])}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+// ── Export current period data as CSV ─────────────────────────────────────
+function dmExportCSV() {
+  if (!_dmMonth) { toast('Select a month first', 'w'); return; }
+  const mLabel = `${DM_MONTHS[_dmMonth-1]}_${_dmYear}`;
+  const rows = [
+    `# JPS FP&A — Data Export — ${mLabel}`,
+    `# Generated: ${new Date().toLocaleString()}`,
+    `# All monetary values in USD $000`,
+    `line_id,label,section,subsection,type,source,current_db_value,new_value`
+  ];
+  DM_LINES.forEach(l => {
+    const cur = _dmCurrentFacts[l.id] ?? '';
+    const inp = document.getElementById(`dmM_${l.id}`);
+    const newv = inp ? (inp.value || '') : (l.type==='derived'?'[derived]':'');
+    rows.push(`${l.id},"${l.label}","${l.section}","${l.subsection}","${l.type}","${l.source}",${cur},${newv}`);
+  });
+  const csv = rows.join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `JPS_FPA_${mLabel}.csv`;
+  a.click();
+  toast('CSV exported', 'ok');
+}
+
+// ── Create new LE version prompt ──────────────────────────────────────────
+function dmCreateLeVersion() {
+  dmSaveAsLE();
 }
 
 // ── Period Status Panel (in adm-data tab) ────────────
