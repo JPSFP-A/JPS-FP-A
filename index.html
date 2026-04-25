@@ -390,6 +390,94 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
   /* Charts: white background when printing */
   canvas{background:#fff!important;}
 }
+/* ── Data Management Hub ──────────────────────────────────────────────────────── */
+.hub-page{height:100%;overflow-y:auto;background:#f5f7fa;padding:24px 28px;}
+.hub-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px;}
+.hub-title{font-size:20px;font-weight:800;color:#003da5;margin:0 0 5px;}
+.hub-subtitle{font-size:12px;color:#6b82a0;margin:0;max-width:600px;line-height:1.5;}
+.hub-badge{font-size:10px;font-weight:700;padding:4px 12px;border-radius:20px;background:#e8f0fc;color:#003da5;white-space:nowrap;}
+
+/* Flow diagram */
+.hub-flow-wrap{background:#fff;border:1px solid #d8e2ef;border-radius:14px;padding:20px 24px;margin-bottom:22px;overflow:hidden;}
+.hub-flow-label{font-size:10px;font-weight:800;color:#003da5;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;}
+.hub-flow-svg{width:100%;max-width:900px;display:block;margin:0 auto;}
+/* SVG styles */
+.hf-line{fill:none;stroke-width:1.5;stroke-dasharray:5 3;animation:hfDash 1.8s linear infinite;}
+.hf-line2{fill:none;stroke-width:1.5;stroke-dasharray:5 3;animation:hfDash 1.8s linear infinite reverse;}
+@keyframes hfDash{to{stroke-dashoffset:-16}}
+.hf-rect-in{fill:#eff6ff;stroke:#3b82f6;stroke-width:1.5;transition:fill .2s;}
+.hf-node:hover .hf-rect-in{fill:#dbeafe;}
+.hf-rect-eng{fill:#0d1e3a;stroke:#00aeef;stroke-width:1.5;}
+.hf-node:hover .hf-rect-eng{fill:#1e3a5f;}
+.hf-rect-out{fill:#f0fdf4;stroke:#22c55e;stroke-width:1.5;}
+.hf-node:hover .hf-rect-out{fill:#dcfce7;}
+.hf-label{text-anchor:middle;font-size:11px;font-weight:700;fill:#1e40af;font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle;}
+.hf-sublabel{text-anchor:middle;font-size:8.5px;fill:#6b7280;font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle;}
+.hf-eng-label{text-anchor:middle;font-size:12px;font-weight:800;fill:#fff;font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle;}
+.hf-eng-sub{text-anchor:middle;font-size:9px;fill:rgba(255,255,255,.65);font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle;}
+.hf-out-label{text-anchor:middle;font-size:10.5px;font-weight:600;fill:#14532d;font-family:'IBM Plex Sans',sans-serif;dominant-baseline:central;}
+.hf-node{cursor:pointer;}
+
+/* Section cards */
+.hub-section-label{font-size:10px;font-weight:800;color:#003da5;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;}
+.hub-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-bottom:22px;}
+.hub-cards-sm{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));}
+.hub-card{
+  background:#fff;border:1.5px solid #dde5f0;border-radius:12px;padding:18px 20px 14px;
+  cursor:pointer;transition:border-color .18s,box-shadow .18s,transform .15s;position:relative;overflow:hidden;
+}
+.hub-card:hover{border-color:#003da5;box-shadow:0 4px 18px rgba(0,61,165,.13);transform:translateY(-2px);}
+.hub-card-report{border-color:#e8f0fc;background:#f8faff;}
+.hub-card-report:hover{border-color:#00aeef;}
+.hub-card-icon{font-size:20px;margin-bottom:8px;}
+.hub-card-title{font-size:13px;font-weight:800;color:#0d1e3a;margin-bottom:4px;}
+.hub-card-desc{font-size:11px;color:#6b82a0;line-height:1.5;margin-bottom:10px;}
+.hub-card-status{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;}
+.hub-card-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.hub-card-dot.ok{background:#22c55e;}
+.hub-card-dot.warn{background:#f59e0b;}
+.hub-card-dot.empty{background:#d1d5db;}
+.hub-card-open{
+  position:absolute;bottom:12px;right:14px;font-size:10px;font-weight:700;
+  color:#003da5;text-transform:uppercase;letter-spacing:.06em;
+  opacity:0;transition:opacity .18s;pointer-events:none;
+}
+.hub-card:hover .hub-card-open{opacity:1;}
+
+/* Focus mode floating back button */
+#hubBackBtn{
+  position:fixed;bottom:24px;right:24px;z-index:900;
+  background:#003da5;color:#fff;border:none;cursor:pointer;
+  padding:11px 22px;border-radius:28px;font-size:11px;font-weight:800;
+  box-shadow:0 4px 22px rgba(0,61,165,.38);display:none;
+  letter-spacing:.06em;text-transform:uppercase;transition:background .18s,transform .15s;
+}
+#hubBackBtn:hover{background:#00aeef;transform:scale(1.04);}
+
+/* ── Security Page ─────────────────────────────────────────────────────────────── */
+.sec-page{height:100%;overflow-y:auto;padding:24px 28px;}
+.sec-section{background:#fff;border:1px solid #dde5f0;border-radius:12px;padding:20px 24px;margin-bottom:18px;}
+.sec-section-title{font-size:10px;font-weight:800;color:#003da5;text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #eef2f8;}
+.sec-user-table{width:100%;border-collapse:collapse;min-width:700px;}
+.sec-user-table th{text-align:left;font-size:10px;font-weight:800;color:#6b82a0;text-transform:uppercase;letter-spacing:.07em;padding:8px 12px;border-bottom:1px solid #e8f0fc;white-space:nowrap;}
+.sec-user-table td{padding:10px 12px;border-bottom:1px solid #f5f7fa;font-size:12px;color:#1a2f4a;vertical-align:middle;}
+.sec-user-table tr:last-child td{border-bottom:none;}
+.sec-role-badge{padding:2px 8px;border-radius:10px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;display:inline-block;}
+.sec-role-badge.admin{background:#fee2e2;color:#dc2626;}
+.sec-role-badge.analyst{background:#dbeafe;color:#1d4ed8;}
+.sec-role-badge.viewer{background:#f0fdf4;color:#16a34a;}
+.sec-role-badge.om{background:#fef3c7;color:#d97706;}
+.sec-status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;}
+.sec-status-dot.active{background:#22c55e;}
+.sec-status-dot.inactive{background:#d1d5db;}
+.sec-action-btn{
+  background:none;border:1px solid #d1dce8;border-radius:6px;padding:3px 9px;
+  font-size:10px;font-weight:700;cursor:pointer;color:#6b82a0;
+  transition:all .15s;margin-left:4px;white-space:nowrap;
+}
+.sec-action-btn:hover{border-color:#003da5;color:#003da5;background:#f0f4ff;}
+.sec-action-btn.danger:hover{border-color:#dc2626;color:#dc2626;background:#fff0f0;}
+
 /* hide app shell until logged in */
 .app-shell{display:none;}
 .app-shell.visible{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
@@ -1073,6 +1161,9 @@ tr.der td{color:var(--teal)}
 <!-- TABBAR -->
 <div class="tabbar">
 <div class="tabbar-inner">
+  <div class="tg hub"><div class="tgl">HUB</div><div class="tabs">
+    <div class="tab" onclick="showPane('hub',this);hubBuildStatusCards()">🗂 Data Hub</div>
+  </div></div>
   <div class="tg rep"><div class="tgl">REPORTS</div><div class="tabs">
     <div class="tab on" onclick="showPane('dash',this)">📊 Dashboard</div>
     <div class="tab" onclick="showPane('rpt-pl',this)">📋 Income Statement</div>
@@ -1105,6 +1196,7 @@ tr.der td{color:var(--teal)}
   <div class="tg adm"><div class="tgl">ADMIN</div><div class="tabs">
     <div class="tab" onclick="showPane('adm-data',this)">☁ Data Sources</div>
     <div class="tab" onclick="showPane('adm-audit',this)">🔍 Audit Trail</div>
+    <div class="tab" id="securityTab" style="display:none" onclick="showPane('adm-sec',this);secLoadUsers()">🔒 Security</div>
     <div class="tab" onclick="showPane('adm-guide',this)">📖 Guide</div>
   </div></div>
 </div><!-- /tabbar-inner -->
@@ -1886,7 +1978,10 @@ tr.der td{color:var(--teal)}
             <textarea id="flashNoteInput" rows="2"
               placeholder="Add commentary… (Ctrl+Enter to save)"
               onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){flashSaveNote();event.preventDefault();}"></textarea>
-            <button class="btn btn-gold" style="align-self:flex-start;font-size:11px" onclick="flashSaveNote()">Save</button>
+            <div style="display:flex;flex-direction:column;gap:5px;align-self:flex-start">
+              <button class="btn btn-gold" style="font-size:11px" onclick="flashSaveNote()">Save</button>
+              <button id="flashAIBtn" class="btn" style="font-size:10px;background:#f0f4ff;color:#003da5;border:1px solid #c8d8ec" onclick="flashGenerateAINote()" title="Generate an AI-drafted note based on the current period data">✦ AI Draft</button>
+            </div>
           </div>
           <div id="flashNotesFeed"></div>
         </div>
@@ -2894,6 +2989,261 @@ tr.der td{color:var(--teal)}
 
 </div>
 
+
+<!-- ═══ DATA MANAGEMENT HUB ═══ -->
+<div id="pane-hub" class="pane">
+<div class="hub-page">
+
+  <!-- Header -->
+  <div class="hub-hdr">
+    <div>
+      <div class="hub-title">Data Management Hub</div>
+      <div class="hub-subtitle">Integrated data entry and planning control centre — click any area to open it in focus mode, showing only that section's tabs.</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="hub-badge" id="hubActualsBadge">● Checking data…</span>
+      <button class="btn" style="font-size:11px" onclick="hubBuildStatusCards()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Flow Diagram -->
+  <div class="hub-flow-wrap">
+    <div class="hub-flow-label">How Your Data Flows — click any node to open that area</div>
+    <svg class="hub-flow-svg" viewBox="0 0 900 270" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="hfgIn" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#3b82f6" stop-opacity=".7"/>
+          <stop offset="100%" stop-color="#00aeef" stop-opacity=".9"/>
+        </linearGradient>
+        <linearGradient id="hfgOut" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#0d1e3a" stop-opacity=".7"/>
+          <stop offset="100%" stop-color="#003da5" stop-opacity=".9"/>
+        </linearGradient>
+        <marker id="hfArr" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#00aeef" fill-opacity=".8"/>
+        </marker>
+        <marker id="hfArr2" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#003da5" fill-opacity=".8"/>
+        </marker>
+      </defs>
+
+      <!-- Input → Engine connections -->
+      <path d="M199,27 C250,27 312,95 314,95"  class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+      <path d="M199,69 C250,69 314,95 314,95"  class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+      <path d="M199,111 C250,111 314,95 314,95" class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+      <path d="M199,153 C240,153 314,95 314,95"  class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)" stroke-opacity=".6"/>
+      <path d="M199,153 C240,153 314,200 314,200" class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)" stroke-opacity=".6"/>
+      <path d="M199,195 C250,195 314,200 314,200" class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+      <path d="M199,237 C250,237 314,200 314,200" class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+
+      <!-- Engine → Output connections -->
+      <path d="M516,95 C548,95 568,35 570,35"   class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+      <path d="M516,95 C548,95 570,73 570,73"   class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+      <path d="M516,95 C548,95 570,111 570,111"  class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+      <path d="M516,95 C548,95 570,149 570,149"  class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+      <path d="M516,200 C548,200 570,187 570,187" class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+      <path d="M516,200 C548,200 570,225 570,225" class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+
+      <!-- INPUT NODES (left, x=5 width=192) -->
+      <g class="hf-node" onclick="openHubSection('revenue')">
+        <rect x="5" y="10" width="192" height="34" rx="8" class="hf-rect-in"/>
+        <text x="101" y="24" class="hf-label">📈 Revenue &amp; Tariff</text>
+        <text x="101" y="38" class="hf-sublabel">Tariff rates · billing volumes · fuel rev</text>
+      </g>
+      <g class="hf-node" onclick="openHubSection('gen')">
+        <rect x="5" y="52" width="192" height="34" rx="8" class="hf-rect-in"/>
+        <text x="101" y="66" class="hf-label">⚡ Generation &amp; Fuel</text>
+        <text x="101" y="80" class="hf-sublabel">Net gen · fuel cost · heat rates</text>
+      </g>
+      <g class="hf-node" onclick="openHubSection('om')">
+        <rect x="5" y="94" width="192" height="34" rx="8" class="hf-rect-in"/>
+        <text x="101" y="108" class="hf-label">🔧 O&amp;M Budget</text>
+        <text x="101" y="122" class="hf-sublabel">Operating costs · overheads</text>
+      </g>
+      <g class="hf-node" onclick="openHubSection('capex')">
+        <rect x="5" y="136" width="192" height="34" rx="8" class="hf-rect-in"/>
+        <text x="101" y="150" class="hf-label">🏗 CapEx &amp; Depreciation</text>
+        <text x="101" y="164" class="hf-sublabel">Project spend · asset roll-forward</text>
+      </g>
+      <g class="hf-node" onclick="openHubSection('debt')">
+        <rect x="5" y="178" width="192" height="34" rx="8" class="hf-rect-in"/>
+        <text x="101" y="192" class="hf-label">🏦 Debt &amp; Financing</text>
+        <text x="101" y="206" class="hf-sublabel">Loans · leases · interest · covenants</text>
+      </g>
+      <g class="hf-node" onclick="openHubSection('coll')">
+        <rect x="5" y="220" width="192" height="34" rx="8" class="hf-rect-in"/>
+        <text x="101" y="234" class="hf-label">💳 Collections &amp; A/R</text>
+        <text x="101" y="248" class="hf-sublabel">Cash receipts · DSO · A/R aging</text>
+      </g>
+
+      <!-- ENGINE NODES (center, x=315 width=200) -->
+      <g class="hf-node" onclick="showPane('rpt-pl',null)">
+        <rect x="315" y="48" width="200" height="94" rx="10" class="hf-rect-eng"/>
+        <text x="415" y="78" class="hf-eng-label">P&amp;L Engine</text>
+        <text x="415" y="98"  class="hf-eng-sub">Revenue · COGS · EBITDA</text>
+        <text x="415" y="114" class="hf-eng-sub">Depreciation · Tax · Net Inc.</text>
+        <text x="415" y="130" class="hf-eng-sub">Calculates all 55 P&amp;L lines</text>
+      </g>
+      <g class="hf-node" onclick="showPane('rpt-cf',null)">
+        <rect x="315" y="162" width="200" height="80" rx="10" class="hf-rect-eng"/>
+        <text x="415" y="191" class="hf-eng-label">Cash Flow Model</text>
+        <text x="415" y="210" class="hf-eng-sub">Operating · Investing · Financing</text>
+        <text x="415" y="227" class="hf-eng-sub">A/R collections · Net cash</text>
+      </g>
+
+      <!-- OUTPUT NODES (right, x=571 width=180) -->
+      <g class="hf-node" onclick="showPane('rpt-pl',null)">
+        <rect x="571" y="20" width="180" height="30" rx="7" class="hf-rect-out"/>
+        <text x="661" y="40" class="hf-out-label">📋 Income Statement</text>
+      </g>
+      <g class="hf-node" onclick="showPane('rpt-kpi',null)">
+        <rect x="571" y="58" width="180" height="30" rx="7" class="hf-rect-out"/>
+        <text x="661" y="78" class="hf-out-label">📐 KPIs &amp; Ratios</text>
+      </g>
+      <g class="hf-node" onclick="showPane('rpt-flash',null)">
+        <rect x="571" y="96" width="180" height="30" rx="7" class="hf-rect-out"/>
+        <text x="661" y="116" class="hf-out-label">📰 Flash Report</text>
+      </g>
+      <g class="hf-node" onclick="showPane('rpt-bs',null)">
+        <rect x="571" y="134" width="180" height="30" rx="7" class="hf-rect-out"/>
+        <text x="661" y="154" class="hf-out-label">⚖ Balance Sheet</text>
+      </g>
+      <g class="hf-node" onclick="showPane('rpt-cf',null)">
+        <rect x="571" y="172" width="180" height="30" rx="7" class="hf-rect-out"/>
+        <text x="661" y="192" class="hf-out-label">💧 Cash Flow Stmt</text>
+      </g>
+      <g class="hf-node" onclick="showPane('wrk-sc',null)">
+        <rect x="571" y="210" width="180" height="30" rx="7" class="hf-rect-out"/>
+        <text x="661" y="230" class="hf-out-label">🎯 Scenarios</text>
+      </g>
+    </svg>
+  </div>
+
+  <!-- Section Cards -->
+  <div class="hub-section-label">Data Entry Areas</div>
+  <div class="hub-cards" id="hubCardsGrid">
+    <div style="font-size:11px;color:#8099b8;padding:12px">Loading data status…</div>
+  </div>
+
+  <!-- Quick-access Reports row -->
+  <div class="hub-section-label" style="margin-top:8px">Quick Access — Reports &amp; Outputs</div>
+  <div class="hub-cards hub-cards-sm">
+    <div class="hub-card hub-card-report" onclick="showPane('rpt-pl',null)">
+      <div class="hub-card-icon">📋</div><div class="hub-card-title">Income Statement</div>
+      <div class="hub-card-desc">Monthly &amp; YTD P&amp;L with budget variance</div>
+    </div>
+    <div class="hub-card hub-card-report" onclick="showPane('rpt-flash',null)">
+      <div class="hub-card-icon">📰</div><div class="hub-card-title">Flash Report</div>
+      <div class="hub-card-desc">Management one-pager with commentary</div>
+    </div>
+    <div class="hub-card hub-card-report" onclick="showPane('rpt-kpi',null)">
+      <div class="hub-card-icon">📐</div><div class="hub-card-title">KPIs &amp; Ratios</div>
+      <div class="hub-card-desc">Operating metrics, leverage, liquidity</div>
+    </div>
+    <div class="hub-card hub-card-report" onclick="showPane('wrk-sc',null)">
+      <div class="hub-card-icon">🎯</div><div class="hub-card-title">Scenarios</div>
+      <div class="hub-card-desc">Base vs upside vs downside comparison</div>
+    </div>
+    <div class="hub-card hub-card-report" onclick="showPane('adm-data',null)">
+      <div class="hub-card-icon">☁</div><div class="hub-card-title">Data Sources</div>
+      <div class="hub-card-desc">Upload actuals, manage versions, LE workflow</div>
+    </div>
+  </div>
+
+</div><!-- /hub-page -->
+</div><!-- /pane-hub -->
+
+<!-- ═══ SECURITY & ACCESS (Admin only) ═══ -->
+<div id="pane-adm-sec" class="pane">
+<div class="sec-page">
+  <div class="hub-hdr">
+    <div>
+      <div class="hub-title" style="font-size:18px">🔒 Access &amp; Security</div>
+      <div class="hub-subtitle">Manage user accounts, roles, and platform access. Only visible to Admins.</div>
+    </div>
+    <button class="btn btn-gold" onclick="secLoadUsers()" style="font-size:11px">↻ Refresh</button>
+  </div>
+
+  <!-- User Table -->
+  <div class="sec-section">
+    <div class="sec-section-title">Platform Users</div>
+    <div style="overflow-x:auto">
+    <table class="sec-user-table">
+      <thead>
+        <tr>
+          <th>Name</th><th>Email</th><th>Department</th><th>Role</th>
+          <th>Areas</th><th>Status</th><th>Joined</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="secUserTableBody">
+        <tr><td colspan="8" style="text-align:center;color:#8099b8;padding:20px">Loading users…</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- Role Definitions -->
+  <div class="sec-section">
+    <div class="sec-section-title">Role Definitions</div>
+    <div class="hub-cards hub-cards-sm" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">
+      <div class="hub-card" style="cursor:default">
+        <div class="hub-card-icon">🛡</div>
+        <div class="hub-card-title"><span class="sec-role-badge admin">Admin</span></div>
+        <div class="hub-card-desc">Full access to all areas including Security, Audit, and user management.</div>
+      </div>
+      <div class="hub-card" style="cursor:default">
+        <div class="hub-card-icon">📊</div>
+        <div class="hub-card-title"><span class="sec-role-badge analyst">Analyst</span></div>
+        <div class="hub-card-desc">Read/write to all input areas and reports. Cannot manage users or audit settings.</div>
+      </div>
+      <div class="hub-card" style="cursor:default">
+        <div class="hub-card-icon">👁</div>
+        <div class="hub-card-title"><span class="sec-role-badge viewer">Viewer</span></div>
+        <div class="hub-card-desc">Read-only access to all reports and the Flash Report. No data entry.</div>
+      </div>
+      <div class="hub-card" style="cursor:default">
+        <div class="hub-card-icon">🔧</div>
+        <div class="hub-card-title"><span class="sec-role-badge om">O&amp;M Specialist</span></div>
+        <div class="hub-card-desc">Read/write to O&amp;M inputs only. Read-only on all reports. No other areas.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invite new user -->
+  <div class="sec-section">
+    <div class="sec-section-title">Invite New User</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#6b82a0;margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Full Name</div>
+        <input id="secInviteName" type="text" placeholder="e.g. Sarah Thompson"
+          style="padding:8px 12px;border:1px solid #d1dce8;border-radius:7px;font-size:12px;width:200px"/>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#6b82a0;margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Email</div>
+        <input id="secInviteEmail" type="email" placeholder="name@jpsco.com"
+          style="padding:8px 12px;border:1px solid #d1dce8;border-radius:7px;font-size:12px;width:220px"/>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#6b82a0;margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Role</div>
+        <select id="secInviteRole" style="padding:8px 12px;border:1px solid #d1dce8;border-radius:7px;font-size:12px">
+          <option value="analyst">Analyst</option>
+          <option value="viewer">Viewer</option>
+          <option value="om">O&amp;M Specialist</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <button class="btn btn-gold" onclick="secInviteUser()" style="font-size:11px">Send Invite ✉</button>
+    </div>
+    <div style="font-size:10px;color:#8099b8;margin-top:10px">
+      The invited user will receive a setup email from Supabase. They set their own password — you never see it.
+    </div>
+  </div>
+
+</div><!-- /sec-page -->
+</div><!-- /pane-adm-sec -->
+
+<!-- Focus-mode back button (floats over everything) -->
+<button id="hubBackBtn" onclick="hubExitFocus()">← Back to Hub</button>
 
 <!-- ═══ AUDIT TRAIL ═══ -->
 <div id="pane-adm-audit" class="pane">
@@ -5445,6 +5795,13 @@ async function doLogin() {
   // Initialize Supabase client first, then bootstrap data from DB
   if (_sbConfig.enabled && _sbConfig.anonKey && !_sb) _sbInit();
   await fpaBootstrap();   // loads DB into fpa.* and hydrates legacy globals
+
+  // Apply role-based UI access (show Security tab only for admins)
+  hubApplyRoleAccess(currentUser.role);
+  // Persist email to profiles so Security page can send password resets
+  if (_sb && currentUser.email && currentUser.id !== 'local') {
+    _sb.from('profiles').update({ email: currentUser.email }).eq('id', currentUser.id).then(()=>{});
+  }
 
   _initPlatform();
 
@@ -11641,7 +11998,7 @@ function updFx3(inp) {
   if(isNaN(v)||v<50||v>500){toast('FX rate must be between 50 and 500 J$/US$','err');inp.style.borderColor='var(--red)';return;}
   inp.style.borderColor='';
   auditLog('fx-edit',`FX Rate · ${MONTHS[mo]} ${yr} · ${type}`,fxTable.years[yr]?.[type]?.[mo],v);
-  if(!fxTable.years[yr]) fxTable.years[yr]={billing:Array(12).fill(162),expense:Array(12).fill(162),source:Array(12).fill('projected')};
+  if(!fxTable.years[yr]) fxTable.years[yr]={billing:Array(12).fill(0),expense:Array(12).fill(0),source:Array(12).fill('projected')};
   fxTable.years[yr][type][mo] = v;
   // Keep 2026 top-level slice in sync for revenue engine
   if(yr===2026) fxTable[type][mo] = v;
@@ -15149,6 +15506,291 @@ async function flashSaveNote() {
   document.getElementById('flashNoteInput').value='';
   toast('Note saved','ok');
   await flashLoadNotes();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DATA MANAGEMENT HUB
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Section config: which tab groups to show in focus mode
+const HUB_SECTIONS = {
+  revenue: { pane:'ass-rev',   groups:['ass'],       label:'Revenue & Tariff' },
+  gen:     { pane:'wrk-gen',   groups:['wrk'],       label:'Generation & Fuel' },
+  om:      { pane:'ass-om',    groups:['ass'],       label:'O&M Budget' },
+  capex:   { pane:'ass-capex', groups:['ass'],       label:'CapEx & Depreciation' },
+  debt:    { pane:'wrk-debt',  groups:['wrk','ass'], label:'Debt & Financing' },
+  coll:    { pane:'wrk-coll',  groups:['wrk'],       label:'Collections' },
+};
+
+function openHubSection(key) {
+  const cfg = HUB_SECTIONS[key];
+  if (!cfg) return;
+  // Hide all tab groups except the selected section
+  document.querySelectorAll('.tabbar-inner > .tg').forEach(tg => {
+    const inFocus = cfg.groups.some(cls => tg.classList.contains(cls));
+    tg.style.display = inFocus ? '' : 'none';
+  });
+  // Navigate to section pane
+  showPane(cfg.pane, null);
+  // Show floating back button
+  const btn = document.getElementById('hubBackBtn');
+  if (btn) { btn.textContent = `← Back to Hub`; btn.style.display = 'block'; }
+  window._hubFocusSection = key;
+  // Announce context for realtime presence
+  if (typeof _rtAnnouncePresence === 'function') _rtAnnouncePresence(cfg.pane);
+}
+
+function hubExitFocus() {
+  // Restore all tab groups
+  document.querySelectorAll('.tabbar-inner > .tg').forEach(tg => { tg.style.display = ''; });
+  // Hide back button
+  const btn = document.getElementById('hubBackBtn');
+  if (btn) btn.style.display = 'none';
+  window._hubFocusSection = null;
+  // Return to hub
+  showPane('hub', null);
+  hubBuildStatusCards();
+}
+
+function hubBuildStatusCards() {
+  const container = document.getElementById('hubCardsGrid');
+  if (!container) return;
+
+  const sections = [
+    {
+      key:'revenue', icon:'📈', title:'Revenue & Tariff',
+      desc:'Tariff rates by customer class, billing volumes, fuel &amp; non-fuel revenue',
+      statusFn: () => {
+        const hasRates = tariffTable && Object.values(tariffTable.nonfuel||{}).some(v=>Number(v)>0);
+        const hasVol   = volumeTable && volumeTable.residential && volumeTable.residential.some(v=>v>0);
+        if (hasRates && hasVol) return { dot:'ok',  text:'Rates &amp; volumes loaded' };
+        if (hasRates || hasVol) return { dot:'warn', text:'Partial data' };
+        return { dot:'empty', text:'No data loaded' };
+      }
+    },
+    {
+      key:'gen', icon:'⚡', title:'Generation &amp; Fuel',
+      desc:'Net generation by plant, fuel costs, heat rates, system losses',
+      statusFn: () => {
+        const hasGen = netGenTable?.[2026] && Object.values(netGenTable[2026]).some(v=>Number(v)>0);
+        return hasGen ? { dot:'ok', text:'Net gen loaded' } : { dot:'empty', text:'No data loaded' };
+      }
+    },
+    {
+      key:'om', icon:'🔧', title:'O&amp;M Budget',
+      desc:'Operating costs, maintenance, overheads by cost centre',
+      statusFn: () => {
+        const hasOM = omTable?.total?.some(v=>Number(v)>0);
+        return hasOM ? { dot:'ok', text:'Budget loaded' } : { dot:'empty', text:'No data loaded' };
+      }
+    },
+    {
+      key:'capex', icon:'🏗', title:'CapEx &amp; Depreciation',
+      desc:'Capital project spend, asset register, depreciation schedule',
+      statusFn: () => {
+        const hasCapex = capexTable?.total?.some(v=>Number(v)>0);
+        return hasCapex ? { dot:'ok', text:'CapEx loaded' } : { dot:'empty', text:'No data loaded' };
+      }
+    },
+    {
+      key:'debt', icon:'🏦', title:'Debt &amp; Financing',
+      desc:'Loan register, lease obligations, interest rates, IFRS 16 schedule',
+      statusFn: () => {
+        const nLoans  = (fpa?.loans ||[]).length;
+        const nLeases = (ifrs16Leases||[]).length;
+        if (nLoans+nLeases > 0) return { dot:'ok', text:`${nLoans} loan(s) · ${nLeases} lease(s)` };
+        return { dot:'empty', text:'No register loaded' };
+      }
+    },
+    {
+      key:'coll', icon:'💳', title:'Collections &amp; A/R',
+      desc:'A/R collections, cash receipts, DSO trend by customer class',
+      statusFn: () => {
+        const hasColl = collTable?.collected?.some(v=>Number(v)>0);
+        return hasColl ? { dot:'ok', text:'Collections loaded' } : { dot:'empty', text:'Upload actuals to populate' };
+      }
+    },
+  ];
+
+  container.innerHTML = sections.map(s => {
+    const st = s.statusFn();
+    const dotColor = st.dot==='ok' ? '#16a34a' : st.dot==='warn' ? '#d97706' : '#9ca3af';
+    return `<div class="hub-card" onclick="openHubSection('${s.key}')">
+      <div class="hub-card-icon">${s.icon}</div>
+      <div class="hub-card-title">${s.title}</div>
+      <div class="hub-card-desc">${s.desc}</div>
+      <div class="hub-card-status">
+        <div class="hub-card-dot ${st.dot}"></div>
+        <span style="color:${dotColor};font-size:10px">${st.text}</span>
+      </div>
+      <div class="hub-card-open">Open →</div>
+    </div>`;
+  }).join('');
+
+  // Update actuals badge
+  const uploadedCount = (fpa?.versions||[]).filter(v=>/^ACTUALS_\d{4}_\d{2}$/.test(v.code) && (Object.keys(fpa?.facts?.[v.code]||{}).length > 0)).length;
+  const badge = document.getElementById('hubActualsBadge');
+  if (badge) badge.textContent = uploadedCount > 0 ? `● ${uploadedCount} month(s) of actuals uploaded` : '○ No actuals uploaded yet';
+}
+
+// Show Security tab only for admins — called after login
+function hubApplyRoleAccess(role) {
+  const secTab = document.getElementById('securityTab');
+  if (secTab) secTab.style.display = role === 'admin' ? '' : 'none';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SECURITY & ACCESS PAGE
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function secLoadUsers() {
+  const tbody = document.getElementById('secUserTableBody');
+  if (!tbody) return;
+  if (!_sb) { tbody.innerHTML = '<tr><td colspan="8" style="color:#dc2626;padding:14px">No database connection</td></tr>'; return; }
+
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#8099b8;padding:14px">Loading…</td></tr>';
+  const { data, error } = await _sb.from('profiles').select('*').order('created_at');
+  if (error) { tbody.innerHTML = `<tr><td colspan="8" style="color:#dc2626;padding:14px">Error: ${error.message}</td></tr>`; return; }
+
+  if (!data?.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#8099b8;padding:14px">No users found in profiles table</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map(u => {
+    const role       = u.role || 'analyst';
+    const isActive   = u.is_active !== false;
+    const areas      = (u.access_areas||[]).length ? u.access_areas.join(', ') : '<span style="color:#9ca3af">All areas</span>';
+    const joined     = u.created_at ? new Date(u.created_at).toLocaleDateString('en-JM',{dateStyle:'medium'}) : '—';
+    const emailHtml  = u.email ? `<span style="color:#003da5">${u.email}</span>` : '<span style="color:#d1d5db">—</span>';
+    return `<tr>
+      <td><strong>${u.name||'Unknown'}</strong></td>
+      <td>${emailHtml}</td>
+      <td style="color:#6b82a0;font-size:11px">${u.department||'—'}</td>
+      <td><span class="sec-role-badge ${role}">${role}</span></td>
+      <td style="font-size:10px;color:#6b82a0">${areas}</td>
+      <td><span class="sec-status-dot ${isActive?'active':'inactive'}"></span>${isActive?'Active':'Revoked'}</td>
+      <td style="font-size:11px;color:#8099b8">${joined}</td>
+      <td>
+        <select onchange="secUpdateRole('${u.id}',this.value)" style="font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid #d1dce8;margin-right:4px">
+          ${['admin','analyst','viewer','om'].map(r=>`<option ${r===role?'selected':''} value="${r}">${r}</option>`).join('')}
+        </select>
+        <button class="sec-action-btn" onclick="secResetPassword('${u.email||''}')" title="Send password reset email">Reset PW</button>
+        <button class="sec-action-btn danger" onclick="secToggleAccess('${u.id}',${isActive})" title="${isActive?'Revoke':'Restore'} access">${isActive?'Revoke':'Restore'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function secUpdateRole(userId, newRole) {
+  if (!_sb) return;
+  const { error } = await _sb.from('profiles').update({ role: newRole }).eq('id', userId);
+  if (error) { toast('Role update failed: '+error.message,'err'); return; }
+  toast(`Role updated to "${newRole}"`, 'ok');
+  auditLog('admin','role-change', userId, { newRole });
+  await secLoadUsers();
+}
+
+async function secToggleAccess(userId, currentlyActive) {
+  if (!_sb) return;
+  const newState = !currentlyActive;
+  const action   = newState ? 'restore' : 'revoke';
+  if (!confirm(`${action.charAt(0).toUpperCase()+action.slice(1)} access for this user?`)) return;
+  const { error } = await _sb.from('profiles').update({ is_active: newState }).eq('id', userId);
+  if (error) { toast('Update failed: '+error.message,'err'); return; }
+  toast(`Access ${newState?'restored':'revoked'}`,'ok');
+  auditLog('admin', action+'-access', userId, {});
+  await secLoadUsers();
+}
+
+async function secResetPassword(email) {
+  if (!email) { toast('No email on record — ask user to email you their address first','w'); return; }
+  if (!_sb) return;
+  if (!confirm(`Send password reset email to ${email}?`)) return;
+  const { error } = await _sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+  if (error) { toast('Reset email failed: '+error.message,'err'); return; }
+  toast(`Password reset email sent to ${email}`, 'ok');
+  auditLog('admin','password-reset-sent', email, {});
+}
+
+async function secInviteUser() {
+  const name  = document.getElementById('secInviteName')?.value?.trim();
+  const email = document.getElementById('secInviteEmail')?.value?.trim();
+  const role  = document.getElementById('secInviteRole')?.value || 'analyst';
+  if (!name || !email) { toast('Name and email are required','w'); return; }
+  if (!_sb) return;
+  // Use Supabase edge function to invite (requires service role key on server side)
+  try {
+    const { data, error } = await _sb.functions.invoke('invite-user', { body: { name, email, role } });
+    if (error) throw error;
+    toast(`Invite sent to ${email}`, 'ok');
+    auditLog('admin','user-invited', email, { name, role });
+    document.getElementById('secInviteName').value = '';
+    document.getElementById('secInviteEmail').value = '';
+    await secLoadUsers();
+  } catch(e) {
+    toast('Invite failed: '+(e.message||String(e))+'  — Edge Function may need deployment','err');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AI FLASH NOTE GENERATION
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function flashGenerateAINote() {
+  const btn = document.getElementById('flashAIBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '✦ Generating…'; }
+
+  try {
+    const periodId = _flashCurrentPeriod;
+    if (!periodId) throw new Error('No period selected');
+    const y = Math.floor(periodId/100), m = periodId%100;
+    const actCode = `ACTUALS_${y}_${String(m).padStart(2,'0')}`;
+    const actFacts = fpa?.facts?.[actCode] || {};
+
+    // Helper: sum all period values for a line
+    const getVal = lineId => {
+      const entries = actFacts[lineId];
+      if (!entries) return null;
+      return Object.values(entries).reduce((s,v)=>s+(Number(v)||0), 0);
+    };
+
+    // Build financial context for AI prompt
+    const ctx = {
+      period:       FLASH_MONTHS[periodId] || `${y}-${String(m).padStart(2,'0')}`,
+      totalRevenue: getVal('pl_total_sales'),
+      fuelRevenue:  getVal('fuel_rev'),
+      nonFuelRev:   getVal('nonfuel'),
+      ebitda:       getVal('ebitda'),
+      netIncome:    getVal('net_inc'),
+      om_total:     getVal('total_om'),
+      capex:        getVal('cf_capex'),
+      section:      document.getElementById('flashNoteSection')?.value || 'general',
+    };
+
+    if (!_sb) throw new Error('No database connection');
+
+    const { data, error } = await _sb.functions.invoke('generate-flash-note', { body: ctx });
+    if (error) throw error;
+
+    const suggested = data?.note;
+    if (!suggested) throw new Error('No note returned from AI');
+
+    const ta = document.getElementById('flashNoteInput');
+    if (ta) { ta.value = suggested; ta.focus(); ta.style.borderColor='#003da5'; }
+    toast('AI draft ready — review and edit before saving','ok');
+
+  } catch(e) {
+    const msg = e.message || String(e);
+    if (msg.includes('Edge Function') || msg.includes('not found') || msg.includes('FunctionsFetchError')) {
+      toast('AI service not yet deployed — see console for setup instructions','w');
+      console.info('[AI Notes] Edge Function "generate-flash-note" needs to be deployed to Supabase. Run: supabase functions deploy generate-flash-note');
+    } else {
+      toast('AI generation failed: '+msg,'err');
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✦ AI Draft'; }
+  }
 }
 
 // ── Export PDF ────────────────────────────────────────────────────────────────
