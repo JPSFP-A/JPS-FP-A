@@ -252,7 +252,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
 .flash-mode .topbar .sp      { display:none !important; }
 .flash-mode .topbar .btn-ai,
 .flash-mode .topbar .btn-gold,
-.flash-mode .topbar label.btn-teal { display:none !important; }
+.flash-mode .topbar .btn-print { display:none !important; }
 .flash-mode .topbar .btn-ghost { display:none !important; }
 .flash-mode .topbar .theme-seg { display:none !important; }
 .flash-mode .topbar .cl      { display:none !important; }
@@ -617,7 +617,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
 .brand-b{background:var(--gold);color:#000;font-weight:900;font-size:13px;width:32px;height:32px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);flex-shrink:0}
 .brand-n{font-size:13px;font-weight:700;color:var(--text);line-height:1.2}
 .brand-s{font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
-.tc{display:flex;align-items:center;gap:6px;padding:0 12px;flex:1;flex-wrap:nowrap;overflow-x:auto}
+.tc{display:flex;align-items:center;gap:6px;padding:0 12px;flex:1;flex-wrap:nowrap;overflow-x:auto;overflow-y:visible}
 .cg{display:flex;align-items:center;gap:5px;border-right:1px solid var(--border);padding-right:10px;margin-right:2px;flex-shrink:0}
 .cg:last-child{border-right:none}
 .cl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700;white-space:nowrap}
@@ -1369,33 +1369,10 @@ tr.der td{color:var(--teal)}
     </div>
     <div class="ml" style="display:flex;gap:6px;align-items:center">
       <button class="btn btn-ghost" onclick="exportCSV()" title="Export CSV (Ctrl+E)">⬇ Export</button>
-      <label class="btn btn-teal" style="cursor:pointer">☁ Upload<input type="file" style="display:none" multiple accept=".xlsx,.csv,.xlsm" onchange="handleUpload(event)"></label>
-      <label class="btn btn-gold" style="cursor:pointer" title="Upload AOP / Budget Template xlsx">📊 AOP<input type="file" style="display:none" accept=".xlsx" onchange="handleAOPUpload(event)"></label>
       <button class="btn btn-print" onclick="openPrintModal()" title="Print / Save PDF">🖨 Print</button>
-      <button class="btn btn-ai" onclick="showPane('ai-comm',null);document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.tab')[10]?.classList.add('on')">✦ AI Analysis</button>
+      <button class="btn btn-ai" onclick="showPane('ai-comm',null);document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.tab')[10]?.classList.add('on')">✦ AI</button>
       <button class="btn btn-gold" onclick="openModal('scModal')">＋ Scenario</button>
-      <div id="adminDataEntryBtn" style="display:none;position:relative">
-        <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;gap:5px" onclick="toggleDataEntryMenu(event)" title="Admin Data Entry">🗄 Data Entry ▾</button>
-        <div id="dataEntryMenu" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);min-width:260px;z-index:999;overflow:hidden">
-          <div style="padding:8px 12px;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border)">Admin · Data Entry</div>
-          <a href="/JPS_Actuals_Upload_Template.html" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:var(--text);text-decoration:none;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background=''">
-            <span style="font-size:18px">📥</span>
-            <div><div style="font-size:12px;font-weight:700">Actuals Upload</div><div style="font-size:10px;color:var(--muted)">Monthly P&L · BS · CF · Volumes</div></div>
-          </a>
-          <a href="/JPS_Budget_LE_Upload_Template.html" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:var(--text);text-decoration:none;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background=''">
-            <span style="font-size:18px">🏗️</span>
-            <div><div style="font-size:12px;font-weight:700">Budget / LE Upload</div><div style="font-size:10px;color:var(--muted)">Full year plan · Macro · Volumes · O&M · CapEx</div></div>
-          </a>
-          <a href="/JPS_Debt_Schedule_Upload.html" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:var(--text);text-decoration:none;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background=''">
-            <span style="font-size:18px">🏦</span>
-            <div><div style="font-size:12px;font-weight:700">Debt Schedule</div><div style="font-size:10px;color:var(--muted)">Loan facilities · Amortisation schedule</div></div>
-          </a>
-          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;color:var(--text)" onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background=''" onclick="openModal('uploadGuideModal');document.getElementById('dataEntryMenu').style.display='none'">
-            <span style="font-size:18px">📖</span>
-            <div><div style="font-size:12px;font-weight:700">Upload Guide</div><div style="font-size:10px;color:var(--muted)">File requirements · Field mapping · How-to</div></div>
-          </div>
-        </div>
-      </div>
+      <button class="btn" style="background:linear-gradient(135deg,#0d6b52,#0a8e6c);color:#fff;font-weight:700;letter-spacing:.02em" onclick="navToDataManager()" title="Upload data · Manage periods · View data status">📂 Data Manager</button>
       <div style="display:flex;align-items:center;gap:7px;padding:0 8px;border-left:1px solid var(--border);margin-left:4px">
         <!-- Online users panel -->
         <div id="onlineUsersPanel" style="display:flex;align-items:center"></div>
@@ -1446,7 +1423,7 @@ tr.der td{color:var(--teal)}
     <div class="tab" onclick="showPane('ai-comm',this)">✦ AI Commentary</div>
   </div></div>
   <div class="tg adm"><div class="tgl">ADMIN</div><div class="tabs">
-    <div class="tab" onclick="showPane('adm-data',this)">☁ Data Sources</div>
+    <div class="tab" onclick="showPane('adm-data',this)">📂 Data Manager</div>
     <div class="tab" onclick="showPane('adm-audit',this)">🔍 Audit Trail</div>
     <div class="tab" id="securityTab" style="display:none" onclick="showPane('adm-sec',this);secLoadUsers()">🔒 Security</div>
     <div class="tab" onclick="showPane('adm-guide',this)">📖 Guide</div>
@@ -3013,12 +2990,51 @@ tr.der td{color:var(--teal)}
   </div>
 </div>
 
-<!-- ═══ DATA SOURCES ═══ -->
+<!-- ═══ DATA MANAGER ═══ -->
 <div id="pane-adm-data" class="pane">
+
+  <!-- ── UPLOAD INSTRUCTIONS BANNER ────────────────────────────────────── -->
+  <div id="dmInstructBanner" style="background:linear-gradient(135deg,rgba(0,100,70,.12),rgba(0,100,70,.05));border:1px solid rgba(0,160,100,.25);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:12px;font-weight:800;color:var(--teal)">📋 How to Upload Data — Step by Step</div>
+      <button class="btn btn-ghost" style="font-size:10px;padding:2px 8px" onclick="document.getElementById('dmInstructSteps').style.display=document.getElementById('dmInstructSteps').style.display==='none'?'grid':'none';this.textContent=document.getElementById('dmInstructSteps').style.display==='none'?'▼ Show':'▲ Hide'">▲ Hide</button>
+    </div>
+    <div id="dmInstructSteps" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
+      <div style="background:var(--card2);border-radius:8px;padding:10px 12px;border-left:3px solid var(--teal)">
+        <div style="font-size:10px;font-weight:800;color:var(--teal);margin-bottom:4px">① SELECT YEAR</div>
+        <div style="font-size:11px;color:var(--text)">Choose the reporting year using the year buttons below (e.g. 2026).</div>
+      </div>
+      <div style="background:var(--card2);border-radius:8px;padding:10px 12px;border-left:3px solid var(--teal)">
+        <div style="font-size:10px;font-weight:800;color:var(--teal);margin-bottom:4px">② CLICK A MONTH</div>
+        <div style="font-size:11px;color:var(--text)">Click any month tile in the calendar below. 🔒 Closed = locked actuals. ⬆ Ready = awaiting upload.</div>
+      </div>
+      <div style="background:var(--card2);border-radius:8px;padding:10px 12px;border-left:3px solid var(--gold)">
+        <div style="font-size:10px;font-weight:800;color:var(--gold);margin-bottom:4px">③ DOWNLOAD TEMPLATE</div>
+        <div style="font-size:11px;color:var(--text)">In the panel that appears, click <strong>⬇ Actuals Template</strong> to get the CSV file. Open in Excel and fill in your numbers.</div>
+      </div>
+      <div style="background:var(--card2);border-radius:8px;padding:10px 12px;border-left:3px solid var(--gold)">
+        <div style="font-size:10px;font-weight:800;color:var(--gold);margin-bottom:4px">④ FILL TEMPLATE</div>
+        <div style="font-size:11px;color:var(--text)">Enter one value per line ID. <em>INPUT</em> lines only — derived lines (Total Revenue, EBITDA, Net Income, etc.) are calculated automatically.</div>
+      </div>
+      <div style="background:var(--card2);border-radius:8px;padding:10px 12px;border-left:3px solid #5c6bc0">
+        <div style="font-size:10px;font-weight:800;color:#a5b4fc;margin-bottom:4px">⑤ UPLOAD & REVIEW</div>
+        <div style="font-size:11px;color:var(--text)">Drag & drop or browse to upload the filled CSV. The platform will preview the data — check for errors before saving.</div>
+      </div>
+      <div style="background:var(--card2);border-radius:8px;padding:10px 12px;border-left:3px solid var(--green)">
+        <div style="font-size:10px;font-weight:800;color:var(--green);margin-bottom:4px">⑥ SAVE TO DATABASE</div>
+        <div style="font-size:11px;color:var(--text)">Click <strong>💾 Save as Actuals</strong> to commit to the database. All reports update instantly. Lock the period when confirmed.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,160,100,.2)">
+      <div style="font-size:10px;color:var(--muted)">Need a Budget or AOP upload?</div>
+      <label class="btn btn-ghost" style="font-size:10px;cursor:pointer;border-color:var(--gold);color:var(--gold)">📊 Upload AOP / Budget File<input type="file" style="display:none" accept=".xlsx" onchange="handleAOPUpload(event)"></label>
+      <label class="btn btn-ghost" style="font-size:10px;cursor:pointer">☁ Quick Upload (JPSCo Financials xlsx)<input type="file" style="display:none" multiple accept=".xlsx,.csv,.xlsm" onchange="handleUpload(event)"></label>
+    </div>
+  </div>
 
   <!-- ── TOP STRIP: Year picker + summary badges ────────────────────────── -->
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-    <div style="font-size:13px;font-weight:800;color:var(--text)">☁ Data Management Centre</div>
+    <div style="font-size:13px;font-weight:800;color:var(--text)">📂 Data Management Centre</div>
     <div class="seg" id="dmYearSeg">
       <div class="sb" onclick="dmSelectYear(2024,this)">2024</div>
       <div class="sb" onclick="dmSelectYear(2025,this)">2025</div>
@@ -11996,15 +12012,12 @@ function setPeriod(p,btn){const prev=period;period=p;document.querySelectorAll('
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.addEventListener('click',e=>{if(e.target.classList.contains('mbg'))e.target.classList.remove('open');});
-function toggleDataEntryMenu(e){
-  e.stopPropagation();
-  const m=document.getElementById('dataEntryMenu');
-  m.style.display=m.style.display==='none'?'block':'none';
+// Navigate to Data Manager tab — single entry point for all data uploads
+function navToDataManager(){
+  const adminTabs=document.querySelectorAll('.tg.adm .tab');
+  const dmTab=adminTabs[0]||null;
+  showPane('adm-data',dmTab);
 }
-document.addEventListener('click',()=>{
-  const m=document.getElementById('dataEntryMenu');
-  if(m) m.style.display='none';
-});
 function exportCSV(){const rows=[['Year','Line','Section','2022','2023','2024','2025','2026','2027','2028']];plLines.forEach(l=>rows.push([YEARS[0],l.name,l.sect,...l.vals.slice(0,7)]));const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='JPS_FPA_Export_'+activeSc.replace(/ /g,'_')+'.csv';a.click();toast('Exported','ok');}
 
 // ── O&M Export ────────────────────────────────────────────────────────────────
@@ -15226,9 +15239,7 @@ function _initPlatform() {
             const nd = document.getElementById('userNameDisp'); if (nd) nd.textContent = currentUser.name;
             const rd = document.getElementById('userRoleDisp'); if (rd) { rd.textContent = currentUser.role.toUpperCase(); rd.style.color = currentUser.role==='admin'?'var(--gold)':currentUser.role==='analyst'?'var(--teal)':'var(--muted)'; }
             const av = document.getElementById('userAvatar'); if (av) av.textContent = currentUser.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-            // Show admin-only Data Entry button
-            const deBtn = document.getElementById('adminDataEntryBtn');
-            if (deBtn) deBtn.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+            // Data Manager button is visible to all users (view status + upload for admin/analyst)
           });
           _sbStartRealtime();
           refreshAll();
