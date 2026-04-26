@@ -248,6 +248,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
 /* ── FLASH ISOLATION MODE — hides all platform chrome ───── */
 /* Applied to appShell when user logs in via Flash Report route */
 .flash-mode .tabbar          { display:none !important; }
+.flash-mode .navbar          { display:none !important; }
 .flash-mode .topbar .cg      { display:none !important; }
 .flash-mode .topbar .sp      { display:none !important; }
 .flash-mode .topbar .btn-ai,
@@ -435,7 +436,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
 }
 /* Print */
 @media print{
-  .topbar,.tabbar,.flash-ctrl-bar,#welcomeScreen{display:none!important;}
+  .topbar,.tabbar,.navbar,.flash-ctrl-bar,#welcomeScreen{display:none!important;}
   #pane-rpt-flash{display:flex!important;height:auto!important;overflow:visible!important;background:#fff!important;}
   #flashDocument{overflow:visible!important;padding:0!important;}
   .flash-page{box-shadow:none!important;max-width:100%!important;}
@@ -637,47 +638,76 @@ select.sel:focus{border-color:var(--gold)}
 .ml{margin-left:auto}
 
 /* TABBAR */
-.tabbar{
-  background:#ffffff;
-  border-bottom:1px solid #e2e8f0;
-  box-shadow:0 1px 4px rgba(0,0,0,.06);
-  display:flex;flex-shrink:0;
-  flex-direction:column;
-}
+/* Old tabbar — hidden; kept in DOM for role-visibility checks */
+.tabbar{display:none!important;}
 .tabbar-inner{display:flex;align-items:stretch;flex-wrap:wrap;}
 .tg{display:flex;flex-direction:column;border-right:1px solid #e8edf4;}
-.tgl{
-  writing-mode:horizontal-tb;transform:none;
-  font-size:8px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
-  padding:4px 12px 2px;
-  display:flex;align-items:center;gap:5px;
-  border-bottom:1px solid #e8edf4;
-  white-space:nowrap;
-}
+.tgl{font-size:8px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:4px 12px 2px;display:flex;align-items:center;gap:5px;border-bottom:1px solid #e8edf4;white-space:nowrap;}
 .tg.rep .tgl{color:#0891b2;background:#f0fafa;}
 .tg.wrk .tgl{color:#b45309;background:#fffbf0;}
 .tg.ass .tgl{color:#92681a;background:#fffdf0;}
 .tg.ai  .tgl{color:#6d28d9;background:#faf5ff;}
 .tg.adm .tgl{color:#475569;background:#f8fafc;}
 .tabs{display:flex;align-items:stretch;}
-.tab{
-  padding:0 13px;font-size:10px;font-weight:700;
-  color:#64748b;cursor:pointer;
-  border-bottom:2px solid transparent;
-  white-space:nowrap;transition:all .15s;letter-spacing:.03em;
-  display:flex;align-items:center;gap:5px;height:32px;margin-bottom:-1px;
-}
+.tab{padding:0 13px;font-size:10px;font-weight:700;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;letter-spacing:.03em;display:flex;align-items:center;gap:5px;height:32px;margin-bottom:-1px;}
 .tab:hover{color:#1e293b;background:#f8fafc;}
 .tab.on{color:#1e293b;border-bottom-color:var(--gold);background:#fffdf5;}
-/* Dark/JPS theme overrides */
-:root:not(.theme-light):not(.theme-jps) .tabbar{background:var(--s2);border-bottom:1px solid var(--border);box-shadow:none;}
-:root:not(.theme-light):not(.theme-jps) .tgl{border-bottom:1px solid var(--border);}
-:root:not(.theme-light):not(.theme-jps) .tg{border-right:1px solid var(--border);}
-:root:not(.theme-light):not(.theme-jps) .tg.rep .tgl{color:var(--teal);background:rgba(6,182,212,.05);}
-:root:not(.theme-light):not(.theme-jps) .tg.wrk .tgl{color:var(--amber);background:rgba(245,158,11,.05);}
-:root:not(.theme-light):not(.theme-jps) .tg.ass .tgl{color:var(--gold);background:rgba(240,180,41,.05);}
-:root:not(.theme-light):not(.theme-jps) .tg.ai  .tgl{color:var(--purple);background:rgba(139,92,246,.07);}
-:root:not(.theme-light):not(.theme-jps) .tg.adm .tgl{color:#64748b;background:rgba(100,116,139,.04);}
+
+/* ── NAVBAR — single-row dropdown menu (replaces 3-row tabbar) ── */
+.navbar{
+  background:var(--s1);border-bottom:1px solid var(--border);
+  box-shadow:0 1px 4px var(--shadow);
+  display:flex;align-items:stretch;flex-shrink:0;
+  position:relative;z-index:200;height:38px;
+}
+.nav-group{position:relative;display:flex;}
+.nav-grp-btn{
+  display:flex;align-items:center;gap:5px;
+  padding:0 14px;height:38px;
+  font-size:11px;font-weight:700;letter-spacing:.03em;
+  color:var(--muted);cursor:pointer;
+  border-right:1px solid var(--border);
+  border-bottom:3px solid transparent;
+  white-space:nowrap;user-select:none;
+  transition:color .15s,background .15s;
+}
+.nav-grp-btn:hover{color:var(--text);background:var(--card2);}
+.nav-grp-btn.nav-active{color:var(--text);border-bottom-color:var(--gold);background:rgba(240,180,41,.06);}
+.nav-dd{
+  display:none;position:absolute;top:100%;left:0;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:0 4px 8px 8px;
+  box-shadow:0 8px 28px rgba(0,0,0,.35);
+  min-width:200px;z-index:2000;padding:4px 0;
+}
+.nav-group.open>.nav-dd{display:block;}
+.nav-dd-item{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 16px;font-size:11px;font-weight:600;
+  color:var(--muted);cursor:pointer;white-space:nowrap;
+  transition:all .1s;
+}
+.nav-dd-item:hover{background:var(--card2);color:var(--text);}
+.nav-dd-item.on{color:var(--text);background:rgba(240,180,41,.09);border-left:2px solid var(--gold);padding-left:14px;}
+.nav-dd-sep{height:1px;background:var(--border);margin:4px 0;}
+.nav-crumb{
+  margin-left:auto;display:flex;align-items:center;
+  padding:0 16px;font-size:10px;font-weight:700;letter-spacing:.04em;
+  color:var(--muted);border-left:1px solid var(--border);
+  text-transform:uppercase;
+}
+/* JPS theme navbar */
+:root.theme-jps .navbar{background:#003da5;border-bottom:2px solid #00aeef;box-shadow:none;}
+:root.theme-jps .nav-grp-btn{color:rgba(255,255,255,.7);border-right-color:rgba(255,255,255,.15);border-bottom-color:transparent;}
+:root.theme-jps .nav-grp-btn:hover{color:#fff;background:rgba(255,255,255,.1);}
+:root.theme-jps .nav-grp-btn.nav-active{color:#fff;border-bottom-color:#00aeef;background:rgba(0,174,239,.2);}
+:root.theme-jps .nav-dd{background:#fff;border-color:#d0dcea;}
+:root.theme-jps .nav-dd-item{color:#4a6080;}
+:root.theme-jps .nav-dd-item:hover{background:#f0f4f9;color:#0d1e3a;}
+:root.theme-jps .nav-dd-item.on{background:#eef4fb;border-left-color:#003da5;color:#003da5;}
+:root.theme-jps .nav-crumb{color:rgba(255,255,255,.45);border-left-color:rgba(255,255,255,.15);}
+/* Dark theme navbar */
+:root:not(.theme-light):not(.theme-jps) .navbar{background:var(--s2);border-bottom:1px solid var(--border);box-shadow:none;}
 :root:not(.theme-light):not(.theme-jps) .tab{color:var(--muted);}
 :root:not(.theme-light):not(.theme-jps) .tab:hover{color:var(--text);background:transparent;}
 :root:not(.theme-light):not(.theme-jps) .tab.on{color:var(--text);border-bottom-color:var(--gold);background:rgba(240,180,41,.05);}
@@ -1367,7 +1397,17 @@ tr.der td{color:var(--teal)}
         <div class="sb" onclick="setPeriod('monthly',this)">Monthly</div>
         <div class="sb on" onclick="setPeriod('quarterly',this)">Quarterly</div>
         <div class="sb" onclick="setPeriod('annual',this)">Annual</div>
+        <div class="sb" onclick="setPeriod('ytd',this)" title="Year-to-date cumulative to selected month">YTD</div>
       </div>
+    </div>
+    <div class="cg">
+      <span class="cl">Month</span>
+      <select class="sel" id="monthSel" onchange="setActiveMonth(parseInt(this.value))" style="height:26px" title="Active reporting month — affects single-month views and YTD">
+        <option value="1">Jan</option><option value="2">Feb</option><option value="3" selected>Mar</option>
+        <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+        <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+        <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+      </select>
     </div>
     <div class="cg">
       <span class="cl">Scenario</span>
@@ -1419,11 +1459,74 @@ tr.der td{color:var(--teal)}
   </div>
 </div>
 
-<!-- TABBAR -->
-<div class="tabbar">
+<!-- NAVBAR — single-row dropdown navigation -->
+<nav class="navbar" id="navbar">
+  <!-- Hub (no dropdown) -->
+  <div class="nav-group" id="nav-hub">
+    <div class="nav-grp-btn nav-active" data-pane="hub" onclick="showPane('hub',null);navClose();const _hn=document.getElementById('hubUserName');if(_hn)_hn.textContent=currentUser?.name?.split(' ')[0]||'User';hubBuildStatusCards()">🗂 Hub</div>
+  </div>
+  <!-- Reports dropdown -->
+  <div class="nav-group" id="nav-reports">
+    <div class="nav-grp-btn" onclick="navToggle('nav-reports')">📊 Reports <span style="font-size:8px;opacity:.55">▾</span></div>
+    <div class="nav-dd">
+      <div class="nav-dd-item" data-pane="dash"      onclick="showPane('dash',null);navClose()">📊 Dashboard</div>
+      <div class="nav-dd-item" data-pane="rpt-pl"    onclick="showPane('rpt-pl',null);navClose()">📋 Income Statement</div>
+      <div class="nav-dd-item" data-pane="rpt-bs"    onclick="showPane('rpt-bs',null);navClose()">⚖ Balance Sheet</div>
+      <div class="nav-dd-item" data-pane="rpt-cf"    onclick="showPane('rpt-cf',null);navClose()">💧 Cash Flow</div>
+      <div class="nav-dd-item" data-pane="rpt-dep"   onclick="showPane('rpt-dep',null);navClose()">📉 Depreciation</div>
+      <div class="nav-dd-sep"></div>
+      <div class="nav-dd-item" data-pane="rpt-var"   onclick="showPane('rpt-var',null);navClose()">📊 Variance Analysis</div>
+      <div class="nav-dd-item" data-pane="rpt-kpi"   onclick="showPane('rpt-kpi',null);navClose()">📐 Ratios &amp; KPIs</div>
+      <div class="nav-dd-item" data-pane="rpt-rev"   onclick="showPane('rpt-rev',null);navClose()">⚡ Revenue &amp; Gen</div>
+      <div class="nav-dd-item" data-pane="rpt-flash" onclick="showPane('rpt-flash',null);navClose()">📰 Flash Report</div>
+    </div>
+  </div>
+  <!-- Workings dropdown -->
+  <div class="nav-group" id="nav-workings">
+    <div class="nav-grp-btn" onclick="navToggle('nav-workings')">📁 Workings <span style="font-size:8px;opacity:.55">▾</span></div>
+    <div class="nav-dd">
+      <div class="nav-dd-item" data-pane="wrk-sc"     onclick="showPane('wrk-sc',null);navClose()">🎯 Scenarios</div>
+      <div class="nav-dd-item" data-pane="wrk-gen"    onclick="showPane('wrk-gen',null);navClose()">⚡ Generation &amp; Fuel</div>
+      <div class="nav-dd-item" data-pane="wrk-coll"   onclick="showPane('wrk-coll',null);navClose()">💳 Collections</div>
+      <div class="nav-dd-item" data-pane="wrk-debt"   onclick="showPane('wrk-debt',null);navClose()">🏦 Debt &amp; Financing</div>
+      <div class="nav-dd-item" data-pane="wrk-leases" onclick="showPane('wrk-leases',null);navClose()">📄 Lease Register</div>
+    </div>
+  </div>
+  <!-- Assumptions dropdown -->
+  <div class="nav-group" id="nav-assumptions">
+    <div class="nav-grp-btn" onclick="navToggle('nav-assumptions')">⚙ Assumptions <span style="font-size:8px;opacity:.55">▾</span></div>
+    <div class="nav-dd">
+      <div class="nav-dd-item" data-pane="ass-rev"   onclick="showPane('ass-rev',null);navClose()">📈 Revenue &amp; Tariff</div>
+      <div class="nav-dd-item" data-pane="ass-om"    onclick="showPane('ass-om',null);navClose()">🔧 O&amp;M</div>
+      <div class="nav-dd-item" data-pane="ass-capex" onclick="showPane('ass-capex',null);navClose()">🏗 CapEx</div>
+      <div class="nav-dd-item" data-pane="ass-dep"   onclick="showPane('ass-dep',null);navClose()">📉 Depreciation</div>
+      <div class="nav-dd-item" data-pane="ass-other" onclick="showPane('ass-other',null);navClose()">📋 Other &amp; Financing</div>
+      <div class="nav-dd-item" data-pane="ass-proj"  onclick="showPane('ass-proj',null);navClose()">📈 5-Year Projection</div>
+    </div>
+  </div>
+  <!-- AI (no dropdown) -->
+  <div class="nav-group" id="nav-ai">
+    <div class="nav-grp-btn" data-pane="ai-comm" onclick="showPane('ai-comm',null);navClose()">✦ AI</div>
+  </div>
+  <!-- Admin dropdown -->
+  <div class="nav-group" id="nav-admin">
+    <div class="nav-grp-btn" onclick="navToggle('nav-admin')">🛠 Admin <span style="font-size:8px;opacity:.55">▾</span></div>
+    <div class="nav-dd">
+      <div class="nav-dd-item" data-pane="adm-data"  onclick="showPane('adm-data',null);navClose()">📂 Data Manager</div>
+      <div class="nav-dd-item" data-pane="adm-audit" onclick="showPane('adm-audit',null);navClose()">🔍 Audit Trail</div>
+      <div class="nav-dd-item" data-pane="adm-sec"   id="navSecItem" style="display:none" onclick="showPane('adm-sec',null);secLoadUsers();rbInit();navClose()">🔒 Security</div>
+      <div class="nav-dd-item" data-pane="adm-guide" onclick="showPane('adm-guide',null);navClose()">📖 Guide</div>
+    </div>
+  </div>
+  <!-- Active pane breadcrumb -->
+  <div class="nav-crumb" id="navCrumb">Dashboard</div>
+</nav>
+
+<!-- OLD TABBAR — hidden, kept for DOM-based role-visibility checks -->
+<div class="tabbar" id="oldTabbar">
 <div class="tabbar-inner">
   <div class="tg hub"><div class="tgl">HUB</div><div class="tabs">
-    <div class="tab" onclick="showPane('hub',this);const _hn=document.getElementById('hubUserName');if(_hn)_hn.textContent=currentUser?.name?.split(' ')[0]||'User';hubBuildStatusCards()">🗂 Hub</div>
+    <div class="tab" onclick="showPane('hub',this)">🗂 Hub</div>
   </div></div>
   <div class="tg rep"><div class="tgl">REPORTS</div><div class="tabs">
     <div class="tab on" onclick="showPane('dash',this)">📊 Dashboard</div>
@@ -1432,20 +1535,20 @@ tr.der td{color:var(--teal)}
     <div class="tab" onclick="showPane('rpt-cf',this)">💧 Cash Flow</div>
     <div class="tab" onclick="showPane('rpt-dep',this)">📉 Depreciation</div>
     <div class="tab" onclick="showPane('rpt-var',this)">📊 Variance</div>
-    <div class="tab" onclick="showPane('rpt-kpi',this)">📐 Ratios & KPIs</div>
-    <div class="tab" onclick="showPane('rpt-rev',this)">⚡ Revenue & Gen</div>
+    <div class="tab" onclick="showPane('rpt-kpi',this)">📐 Ratios &amp; KPIs</div>
+    <div class="tab" onclick="showPane('rpt-rev',this)">⚡ Revenue &amp; Gen</div>
     <div class="tab" onclick="showPane('rpt-flash',this)">📰 Flash Report</div>
   </div></div>
   <div class="tg wrk"><div class="tgl">WORKING</div><div class="tabs">
     <div class="tab" onclick="showPane('wrk-sc',this)">🎯 Scenarios</div>
-    <div class="tab" onclick="showPane('wrk-gen',this)">⚡ Generation & Fuel</div>
+    <div class="tab" onclick="showPane('wrk-gen',this)">⚡ Generation &amp; Fuel</div>
     <div class="tab" onclick="showPane('wrk-coll',this)">💳 Collections</div>
-    <div class="tab" onclick="showPane('wrk-debt',this)">🏦 Debt & Financing</div>
+    <div class="tab" onclick="showPane('wrk-debt',this)">🏦 Debt &amp; Financing</div>
     <div class="tab" onclick="showPane('wrk-leases',this)">📄 Lease Register</div>
   </div></div>
   <div class="tg ass"><div class="tgl">ASSUMPTIONS</div><div class="tabs">
-    <div class="tab" onclick="showPane('ass-rev',this)">📈 Revenue & Tariff</div>
-    <div class="tab" onclick="showPane('ass-om',this)">🔧 O&M</div>
+    <div class="tab" onclick="showPane('ass-rev',this)">📈 Revenue &amp; Tariff</div>
+    <div class="tab" onclick="showPane('ass-om',this)">🔧 O&amp;M</div>
     <div class="tab" onclick="showPane('ass-capex',this)">🏗 CapEx</div>
     <div class="tab" onclick="showPane('ass-dep',this)">📉 Depreciation</div>
     <div class="tab" onclick="showPane('ass-other',this)">📋 Other &amp; Financing</div>
@@ -1460,8 +1563,8 @@ tr.der td{color:var(--teal)}
     <div class="tab" id="securityTab" style="display:none" onclick="showPane('adm-sec',this);secLoadUsers();rbInit()">🔒 Security</div>
     <div class="tab" onclick="showPane('adm-guide',this)">📖 Guide</div>
   </div></div>
-</div><!-- /tabbar-inner -->
 </div>
+</div><!-- /oldTabbar -->
 
 <div class="main">
 
@@ -1492,9 +1595,9 @@ tr.der td{color:var(--teal)}
       <span class="cl">Year</span>
       <div id="plMoYrSeg" style="display:flex;gap:3px"></div>
       <div class="seg" id="plActualSeg" style="margin-left:8px">
-        <div class="sb on" onclick="setPlActualMode('le',this)" title="LE / Forecast — no actuals overlay">Actuals Only</div>
-        <div class="sb" onclick="setPlActualMode('actual_le',this)" title="Actuals for closed months + LE for balance of year">Current LE</div>
-        <div class="sb" onclick="setPlActualMode('variance',this)" title="Variance: Actual vs LE (closed months only)">Variance</div>
+        <div class="sb on" onclick="setPlActualMode('le',this)" title="LE / Forecast model — no actuals overlay">LE / Forecast</div>
+        <div class="sb" onclick="setPlActualMode('actual_le',this)" title="Closed months show uploaded actuals; open months show LE">Actuals + LE</div>
+        <div class="sb" onclick="setPlActualMode('variance',this)" title="Variance: Actual vs LE (closed months only)">Variance vs LE</div>
       </div>
     </div>
   </div>
@@ -1718,8 +1821,6 @@ tr.der td{color:var(--teal)}
   <div id="cfRecBadge" style="display:flex;gap:8px;align-items:center"></div>
   <!-- CF Reconciliation Note (shown when actuals differ from model) -->
   <div id="cfRecNote" style="display:none;margin-top:4px"></div>
-  <!-- Covenant Strip -->
-  <div id="cfCovenants" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px"></div>
   <!-- KPI Cards -->
   <div class="kpi-row" id="cfKpis"></div>
   <!-- CF Table -->
@@ -7996,24 +8097,7 @@ function checkCFReconciliation() {
   } catch(e){}
 }
 
-function buildCFCovenants() {
-  const febBS = actualsStore[2]?.bs;
-  const curRatio = (febBS && febBS.totalCurrentLiab) ? (febBS.totalCurrentAssets / febBS.totalCurrentLiab) : 0;
-  const dscr = 0; // populated from actuals when loaded
-  const covCards = [
-    {lbl:'Current Ratio',val:curRatio,min:1.10,fmt:v=>v.toFixed(2)+'×'},
-    {lbl:'DSCR',         val:dscr,    min:1.20,fmt:v=>v.toFixed(2)+'×'},
-  ];
-  document.getElementById('cfCovenants').innerHTML = covCards.map(c => {
-    const ok = c.val >= c.min;
-    const col = ok ? 'var(--green)' : 'var(--red)';
-    return `<div style="background:var(--card);border:1px solid ${ok?'rgba(16,185,129,.3)':'rgba(239,68,68,.3)'};border-left:3px solid ${col};border-radius:6px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
-      <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700">${c.lbl}</div>
-      <div style="font-size:16px;font-weight:800;color:${col};font-family:var(--mono);margin-top:2px">${c.fmt(c.val)}</div>
-      <div style="font-size:9px;color:var(--muted);margin-top:1px">Covenant min: ${c.fmt(c.min)}</div></div>
-      <div style="font-size:20px">${ok?'🟢':'🔴'}</div></div>`;
-  }).join('');
-}
+function buildCFCovenants() { /* removed — covenant cards hidden until actuals loaded */ }
 
 function buildCFKpis() {
   const mo = cfSelectedMonth;
@@ -12164,7 +12248,7 @@ jps_actuals (33K rows) · jps_budget (1.1K rows) — separate app, read-only her
         padding:7px 10px;border-radius:4px;margin:6px 0;white-space:pre-wrap;line-height:1.5}
       .guide-hl{background:rgba(240,180,41,.25)!important}
       @media print{.pane:not(#pane-adm-guide){display:none!important}
-        .guide-body{display:block!important}.topbar,.tabbar{display:none!important}}`;
+        .guide-body{display:block!important}.topbar,.tabbar,.navbar{display:none!important}}`;
     document.head.appendChild(s);
   }
   document.getElementById('guideGrid').innerHTML=sections.map((s,i)=>`
@@ -12352,6 +12436,56 @@ const _tabBuilders = {
   'adm-guide': ()=>{ buildGuide(); },
 };
 
+// ── Navbar helpers ───────────────────────────────────────────────────────────
+const _navPaneGroup = {
+  hub:'nav-hub',
+  dash:'nav-reports','rpt-pl':'nav-reports','rpt-bs':'nav-reports','rpt-cf':'nav-reports',
+  'rpt-dep':'nav-reports','rpt-var':'nav-reports','rpt-kpi':'nav-reports',
+  'rpt-rev':'nav-reports','rpt-flash':'nav-reports',
+  'wrk-sc':'nav-workings','wrk-gen':'nav-workings','wrk-coll':'nav-workings',
+  'wrk-debt':'nav-workings','wrk-leases':'nav-workings',
+  'ass-rev':'nav-assumptions','ass-om':'nav-assumptions','ass-capex':'nav-assumptions',
+  'ass-dep':'nav-assumptions','ass-other':'nav-assumptions','ass-proj':'nav-assumptions',
+  'ai-comm':'nav-ai',
+  'adm-data':'nav-admin','adm-audit':'nav-admin','adm-sec':'nav-admin','adm-guide':'nav-admin',
+};
+const _navPaneLabels = {
+  hub:'Hub',dash:'Dashboard','rpt-pl':'Income Statement','rpt-bs':'Balance Sheet',
+  'rpt-cf':'Cash Flow','rpt-dep':'Depreciation','rpt-var':'Variance Analysis',
+  'rpt-kpi':'Ratios & KPIs','rpt-rev':'Revenue & Gen','rpt-flash':'Flash Report',
+  'wrk-sc':'Scenarios','wrk-gen':'Generation & Fuel','wrk-coll':'Collections',
+  'wrk-debt':'Debt & Financing','wrk-leases':'Lease Register',
+  'ass-rev':'Revenue & Tariff','ass-om':'O&M','ass-capex':'CapEx',
+  'ass-dep':'Depreciation','ass-other':'Other & Financing','ass-proj':'5-Year Projection',
+  'ai-comm':'AI Commentary','adm-data':'Data Manager','adm-audit':'Audit Trail',
+  'adm-sec':'Security','adm-guide':'Guide',
+};
+function _navUpdateActive(paneId) {
+  document.querySelectorAll('.nav-grp-btn').forEach(b=>b.classList.remove('nav-active'));
+  document.querySelectorAll('.nav-dd-item').forEach(i=>i.classList.remove('on'));
+  const groupId = _navPaneGroup[paneId];
+  if (groupId) document.getElementById(groupId)?.querySelector('.nav-grp-btn')?.classList.add('nav-active');
+  document.querySelectorAll(`.nav-dd-item[data-pane="${paneId}"]`).forEach(i=>i.classList.add('on'));
+  // Also mark single-pane group buttons (hub, ai)
+  document.querySelectorAll(`.nav-grp-btn[data-pane="${paneId}"]`).forEach(b=>b.classList.add('nav-active'));
+  const crumb = document.getElementById('navCrumb');
+  if (crumb) crumb.textContent = _navPaneLabels[paneId] || paneId;
+}
+function navToggle(groupId) {
+  const grp = document.getElementById(groupId);
+  if (!grp) return;
+  const wasOpen = grp.classList.contains('open');
+  navClose();
+  if (!wasOpen) grp.classList.add('open');
+}
+function navClose() {
+  document.querySelectorAll('.nav-group.open').forEach(g=>g.classList.remove('open'));
+}
+// Close dropdowns when clicking outside navbar
+document.addEventListener('click', e => {
+  if (!e.target.closest('.nav-group') && !e.target.closest('.navbar')) navClose();
+}, true);
+
 function showPane(id,el){
   // Enforce pane-level access control
   if (currentUser && !canViewPane(id)) {
@@ -12360,7 +12494,11 @@ function showPane(id,el){
   }
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
   document.getElementById('pane-'+id)?.classList.add('on');
+  // Update old hidden tabs (kept for role-check DOM scanning)
   if(el){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');}
+  // Update new navbar active state
+  _navUpdateActive(id);
+  navClose();
   const builder = _tabBuilders[id];
   if(builder) {
     builder();
@@ -12370,23 +12508,61 @@ function showPane(id,el){
   if(typeof _rtAnnouncePresence === 'function') _rtAnnouncePresence(id);
 }
 
-// Hide tabs the current user cannot see (called after login)
+// Hide tabs / nav items the current user cannot see (called after login)
 function _applyTabVisibility() {
   if (!currentUser) return;
+  // Update hidden old tabs (for DOM role checks)
   document.querySelectorAll('.tab[onclick]').forEach(tab => {
     const match = tab.getAttribute('onclick')?.match(/showPane\(['"]([^'"]+)['"]/);
     if (!match) return;
-    const paneId = match[1];
-    tab.style.display = canViewPane(paneId) ? '' : 'none';
+    tab.style.display = canViewPane(match[1]) ? '' : 'none';
   });
-  // Hide entire tab groups that have no visible tabs
   document.querySelectorAll('.tg').forEach(tg => {
     const visibleTabs = [...tg.querySelectorAll('.tab')].filter(t => t.style.display !== 'none');
     tg.style.display = visibleTabs.length > 0 ? '' : 'none';
   });
+  // Update new navbar dropdown items
+  document.querySelectorAll('.nav-dd-item[data-pane]').forEach(item => {
+    item.style.display = canViewPane(item.dataset.pane) ? '' : 'none';
+  });
+  // Hide nav groups whose dropdown items are all hidden
+  document.querySelectorAll('.nav-group').forEach(grp => {
+    const items = grp.querySelectorAll('.nav-dd-item');
+    if (!items.length) return; // single-pane group (hub, ai) — check btn
+    const anyVisible = [...items].some(i => i.style.display !== 'none');
+    grp.style.display = anyVisible ? '' : 'none';
+  });
+  // Hide single-pane groups (hub, ai) if pane inaccessible
+  document.querySelectorAll('.nav-grp-btn[data-pane]').forEach(btn => {
+    btn.parentElement.style.display = canViewPane(btn.dataset.pane) ? '' : 'none';
+  });
+  // Security nav item — admins only
+  const navSec = document.getElementById('navSecItem');
+  if (navSec) navSec.style.display = currentUser?.role === 'admin' ? '' : 'none';
+  const oldSec = document.getElementById('securityTab');
+  if (oldSec) oldSec.style.display = currentUser?.role === 'admin' ? '' : 'none';
 }
 
-function setPeriod(p,btn){const prev=period;period=p;document.querySelectorAll('#perSeg .sb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');refreshAll();auditLog('period','Display Period',prev,p);_saveState();}
+function setPeriod(p,btn){const prev=period;period=p;document.querySelectorAll('#perSeg .sb').forEach(b=>b.classList.remove('on'));btn?.classList.add('on');refreshAll();auditLog('period','Display Period',prev,p);_saveState();}
+
+// ── Active month — governs single-month views and YTD cutoff ─────────────────
+let activeMonth = 3; // March (current reporting month; updated by month selector)
+function setActiveMonth(m){
+  activeMonth = Math.max(1,Math.min(12,m||3));
+  // Sync selector
+  const sel = document.getElementById('monthSel');
+  if (sel && parseInt(sel.value) !== activeMonth) sel.value = String(activeMonth);
+  // Update brand subtitle
+  const MO_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const brandSub = document.getElementById('brandSub');
+  if (brandSub) {
+    const verCode = fpa?.versions?.find(v=>v.id===fpa.activeVersionId)?.code || '';
+    const verLabel = verCode.startsWith('LE_') ? `LE ${verCode.replace('LE_','').replace('_',' ')}` : verCode || 'LE';
+    brandSub.textContent = `Jamaica Public Service Co. · ${MO_SHORT[activeMonth-1]} 2026 ${verLabel}`;
+  }
+  refreshAll();
+  _saveState();
+}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.addEventListener('click',e=>{if(e.target.classList.contains('mbg'))e.target.classList.remove('open');});
@@ -14710,11 +14886,17 @@ function buildMonthlyPL(yr){
   // Build the full P&L structure per spec
   const MO=MONTHS;
   const H=MO;
+  // YTD mode — limit columns to Jan → activeMonth
+  const ytdMode = (period === 'ytd');
+  const ytdN    = ytdMode ? Math.min(activeMonth, 12) : 12;
+  const dispMos = MO.slice(0, ytdN);
+  const totLabel= ytdMode ? `YTD ${MO[ytdN-1]||''}` : 'Annual';
+  const ytdAnn  = vals => (Array.isArray(vals) ? vals.slice(0,ytdN) : []).reduce((s,v)=>s+(v||0),0);
 
   document.getElementById('plMonH').innerHTML=`<tr>
     <th style="text-align:left;min-width:260px;position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2">Line Item</th>
-    ${MO.map(m=>`<th class="bc">${m}</th>`).join('')}
-    <th class="bc">Annual</th>
+    ${dispMos.map(m=>`<th class="bc">${m}</th>`).join('')}
+    <th class="bc">${totLabel}</th>
   </tr>`;
 
   // Helper to get P&L line values for the year
@@ -14925,19 +15107,21 @@ function buildMonthlyPL(yr){
   let bodyHtml='';
 
   if(!showActuals){
-    // ── Standard LE render (unchanged) ──────────────────────
+    // ── Standard LE render ──────────────────────────────────
     rows.forEach(r=>{
-      if(r.divider){bodyHtml+=`<tr><td colspan="${MO.length+2}" style="height:4px;background:var(--border)"></td></tr>`;return;}
-      if(r.sect!==undefined){if(r.sect)bodyHtml+=`<tr class="sr"><td colspan="${MO.length+2}" style="position:sticky;left:0">${r.sect}</td></tr>`;return;}
+      if(r.divider){bodyHtml+=`<tr><td colspan="${dispMos.length+2}" style="height:4px;background:var(--border)"></td></tr>`;return;}
+      if(r.sect!==undefined){if(r.sect)bodyHtml+=`<tr class="sr"><td colspan="${dispMos.length+2}" style="position:sticky;left:0">${r.sect}</td></tr>`;return;}
       const cls=r.tot?'tr':r.sub?'sur':'';
       const indent=r.tot||r.sub?'10px':'22px';
       const textColor=r.color||(r.amber?'var(--amber)':'');
       const italic=r.italic?'font-style:italic':'';
       const boldStyle=r.bold?'font-weight:700':'';
+      const dispVals=r.vals.slice(0,ytdN);
+      const dispAnn=ytdMode?ytdAnn(r.vals):r.ann;
       bodyHtml+=`<tr class="${cls}${r.amber?' amber-row':''}">
         <td style="padding-left:${indent};${textColor?'color:'+textColor+';':''}${italic};${boldStyle};position:sticky;left:0;background:var(--card)">${r.bold||r.tot||r.sub?`<strong>${r.label}</strong>`:r.label}${r.derived?' <span style="color:var(--teal);font-size:8px">⇐</span>':''}</td>
-        ${r.vals.map(v=>{const neg=v<0;const cls2=r.derived?'der':'';const col=r.tot||r.sub?'gld':'';return `<td class="${cls2||col}" style="${textColor?'color:'+textColor+';':''}">${neg?`<span class="neg">(${Math.abs(Math.round(v)).toLocaleString()})</span>`:v===0?'<span class="dim">–</span>':Math.round(v).toLocaleString()}</td>`;}).join('')}
-        <td class="${r.tot||r.sub?'gld':r.derived?'der':''}" style="${textColor?'color:'+textColor+';':''}">${r.ann<0?`<strong>(${Math.abs(Math.round(r.ann)).toLocaleString()})</strong>`:r.ann===0?'–':`<strong>${Math.round(r.ann).toLocaleString()}</strong>`}</td>
+        ${dispVals.map(v=>{const neg=v<0;const cls2=r.derived?'der':'';const col=r.tot||r.sub?'gld':'';return `<td class="${cls2||col}" style="${textColor?'color:'+textColor+';':''}">${neg?`<span class="neg">(${Math.abs(Math.round(v)).toLocaleString()})</span>`:v===0?'<span class="dim">–</span>':Math.round(v).toLocaleString()}</td>`;}).join('')}
+        <td class="${r.tot||r.sub?'gld':r.derived?'der':''}" style="${textColor?'color:'+textColor+';':''}">${dispAnn<0?`<strong>(${Math.abs(Math.round(dispAnn)).toLocaleString()})</strong>`:dispAnn===0?'–':`<strong>${Math.round(dispAnn).toLocaleString()}</strong>`}</td>
       </tr>`;
     });
   } else {
@@ -14976,27 +15160,27 @@ function buildMonthlyPL(yr){
     // Override actMap with extended version
     Object.assign(actMap, actMapExtended);
     const isVarianceMode=plActualMode==='variance';
-    // Header — if variance mode: Label|Var$Jan|Var$Feb... else: Label|ActJan|LEJan|ActFeb|LEFeb...
+    // Header — Actuals vs LE (respects YTD slice via dispMos)
     if(isVarianceMode){
       document.getElementById('plMonH').innerHTML=`<tr>
         <th style="text-align:left;min-width:260px;position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2">Line Item</th>
-        ${MO.map(m=>`<th class="bc" colspan="1">${m}</th>`).join('')}
-        <th class="bc">Annual LE</th>
+        ${dispMos.map(m=>`<th class="bc" colspan="1">${m}</th>`).join('')}
+        <th class="bc">${totLabel} LE</th>
       </tr>
       <tr style="background:var(--table-header-bg)">
         <th style="position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2;font-size:9px">Variance = Actual − LE</th>
-        ${MO.map((_,m)=>actualsStore[m+1]?`<th class="bc" style="font-size:9px;color:${actualsStore[m+1]?'var(--text)':'var(--muted)'}">Var $</th>`:`<th class="bc" style="color:var(--muted);font-size:9px">–</th>`).join('')}
+        ${dispMos.map((_,m)=>actualsStore[m+1]?`<th class="bc" style="font-size:9px;color:var(--text)">Var $</th>`:`<th class="bc" style="color:var(--muted);font-size:9px">–</th>`).join('')}
         <th class="bc" style="font-size:9px">Loaded</th>
       </tr>`;
     } else {
       document.getElementById('plMonH').innerHTML=`<tr>
         <th style="text-align:left;min-width:260px;position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2">Line Item</th>
-        ${MO.map(m=>`<th class="bc" colspan="2" style="border-left:1px solid var(--b2)">${m}</th>`).join('')}
-        <th class="bc">LE Ann</th>
+        ${dispMos.map(m=>`<th class="bc" colspan="2" style="border-left:1px solid var(--b2)">${m}</th>`).join('')}
+        <th class="bc">${totLabel}</th>
       </tr>
       <tr style="background:var(--table-header-bg)">
         <th style="position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2;font-size:9px">Actual (A) · LE (L)</th>
-        ${MO.map((_,m)=>`<th class="bc" style="font-size:9px;border-left:1px solid var(--b2);color:var(--green)">A</th><th class="bc" style="font-size:9px;color:var(--muted)">L</th>`).join('')}
+        ${dispMos.map((_,m)=>`<th class="bc" style="font-size:9px;border-left:1px solid var(--b2);color:var(--green)">A</th><th class="bc" style="font-size:9px;color:var(--muted)">L</th>`).join('')}
         <th class="bc" style="font-size:9px">LE</th>
       </tr>`;
     }
@@ -15016,12 +15200,12 @@ function buildMonthlyPL(yr){
       return `<td class="${cls}" style="color:${col};font-weight:${lev?700:400}">${d===0?'–':d>0?`+${Math.round(d).toLocaleString()}`:`(${Math.abs(Math.round(d)).toLocaleString()})`}</td>`;
     };
 
-    // Which rows are "positive = good" for variance colouring
     const posGoodSet=new Set(['Fuel Revenue','Non-Fuel Revenue','TOTAL EBITDA','Operating Income (EBIT)','Net Profit Before Tax','Net Profit After Tax']);
 
     rows.forEach(r=>{
-      if(r.divider){const span=isVarianceMode?MO.length+2:MO.length*2+2;bodyHtml+=`<tr><td colspan="${span}" style="height:4px;background:var(--border)"></td></tr>`;return;}
-      if(r.sect!==undefined){const span=isVarianceMode?MO.length+2:MO.length*2+2;if(r.sect)bodyHtml+=`<tr class="sr"><td colspan="${span}" style="position:sticky;left:0">${r.sect}</td></tr>`;return;}
+      const nCols=isVarianceMode?dispMos.length+2:dispMos.length*2+2;
+      if(r.divider){bodyHtml+=`<tr><td colspan="${nCols}" style="height:4px;background:var(--border)"></td></tr>`;return;}
+      if(r.sect!==undefined){if(r.sect)bodyHtml+=`<tr class="sr"><td colspan="${nCols}" style="position:sticky;left:0">${r.sect}</td></tr>`;return;}
       const cls=r.tot?'tr':r.sub?'sur':'';
       const indent=r.tot||r.sub?'10px':'22px';
       const textColor=r.color||(r.amber?'var(--amber)':'');
@@ -15031,13 +15215,15 @@ function buildMonthlyPL(yr){
       const actVals=ak?(actMapExtended[ak]||actMap[ak]):null;
       const posGood=posGoodSet.has(r.label);
       const lev=r.tot||r.sub;
+      const dispVals=r.vals.slice(0,ytdN);
+      const dispAnn=ytdMode?ytdAnn(r.vals):r.ann;
       bodyHtml+=`<tr class="${cls}${r.amber?' amber-row':''}">
         <td style="padding-left:${indent};${textColor?'color:'+textColor+';':''}${italic};${boldStyle};position:sticky;left:0;background:var(--card)">${r.bold||r.tot||r.sub?`<strong>${r.label}</strong>`:r.label}${r.derived?' <span style="color:var(--teal);font-size:8px">⇐</span>':''}</td>
         ${isVarianceMode
-          ? r.vals.map((le,m)=>actVals?fmtVar(actVals[m],le,lev,posGood):fmtCell(le,false,lev,textColor)).join('')
-          : r.vals.map((le,m)=>actVals?fmtCell(actVals[m],true,lev,'var(--green)')+fmtCell(le,false,lev,textColor):('<td style="opacity:.25">–</td>'+fmtCell(le,false,lev,textColor))).join('')
+          ? dispVals.map((le,m)=>actVals?fmtVar(actVals[m],le,lev,posGood):fmtCell(le,false,lev,textColor)).join('')
+          : dispVals.map((le,m)=>actVals?fmtCell(actVals[m],true,lev,'var(--green)')+fmtCell(le,false,lev,textColor):('<td style="opacity:.25">–</td>'+fmtCell(le,false,lev,textColor))).join('')
         }
-        <td class="${lev?'gld':r.derived?'der':''}" style="${textColor?'color:'+textColor+';':''}">${r.ann<0?`<strong>(${Math.abs(Math.round(r.ann)).toLocaleString()})</strong>`:r.ann===0?'–':`<strong>${Math.round(r.ann).toLocaleString()}</strong>`}</td>
+        <td class="${lev?'gld':r.derived?'der':''}" style="${textColor?'color:'+textColor+';':''}">${dispAnn<0?`<strong>(${Math.abs(Math.round(dispAnn)).toLocaleString()})</strong>`:dispAnn===0?'–':`<strong>${Math.round(dispAnn).toLocaleString()}</strong>`}</td>
       </tr>`;
     });
   }
@@ -16996,10 +17182,12 @@ function hubShowStatusModal() {
   overlay.style.display = 'flex';
 }
 
-// Show Security tab only for admins — called after login
+// Show Security nav items only for admins — called after login
 function hubApplyRoleAccess(role) {
-  const secTab = document.getElementById('securityTab');
+  const secTab = document.getElementById('securityTab');   // old hidden tab
   if (secTab) secTab.style.display = role === 'admin' ? '' : 'none';
+  const navSec = document.getElementById('navSecItem');     // new navbar item
+  if (navSec) navSec.style.display = role === 'admin' ? '' : 'none';
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
