@@ -610,7 +610,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
 
 /* hide app shell until logged in */
 .app-shell{display:none;}
-.app-shell.visible{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+.app-shell.visible{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;}
 /* TOPBAR */
 .topbar{background:var(--s1);border-bottom:1px solid var(--border);display:flex;align-items:stretch;flex-shrink:0}
 .brand{display:flex;align-items:center;gap:10px;padding:9px 18px;border-right:1px solid var(--border);background:linear-gradient(135deg,var(--s2),var(--card))}
@@ -1065,9 +1065,27 @@ tr.der td{color:var(--teal)}
   .btn { padding: 0 7px; font-size: 9px; }
 }
 
+/* ── SUITE NAV ────────────────────────────────────────────── */
+.suite-nav{height:30px;min-height:30px;background:#04090f;border-bottom:1px solid rgba(34,211,238,0.15);display:flex;align-items:center;padding:0 14px;gap:0;z-index:10000;flex-shrink:0;font-size:11px}
+.suite-nav .sn-brand{color:rgba(255,255,255,.32);font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-right:14px;white-space:nowrap}
+.suite-nav a.sn-link{display:flex;align-items:center;gap:5px;padding:0 11px;height:30px;color:rgba(255,255,255,.42);text-decoration:none;font-size:11px;font-weight:500;border-right:1px solid rgba(255,255,255,.07);transition:color .12s}
+.suite-nav a.sn-link:first-of-type{border-left:1px solid rgba(255,255,255,.07)}
+.suite-nav a.sn-link:hover{color:#fff;background:rgba(255,255,255,.06)}
+.suite-nav a.sn-link.sn-active{color:#22d3ee;background:rgba(34,211,238,.1)}
+.suite-nav a.sn-back{margin-left:auto;color:rgba(255,255,255,.32);font-size:10px;text-decoration:none;padding:0 10px;height:30px;display:flex;align-items:center;gap:4px}
+.suite-nav a.sn-back:hover{color:#22d3ee}
+
 </style>
 </head>
 <body>
+
+<!-- ═══ SUITE NAVIGATION BAR ═══ -->
+<div class="suite-nav">
+  <span class="sn-brand">JPS Analytics Suite</span>
+  <a class="sn-link" id="sn-sales-link" href="../JPS_Sales_Platform/index.html" target="_self">&#x2B21; Sales Platform</a>
+  <a class="sn-link sn-active" href="#">&#x1F4CA; FP&amp;A Platform</a>
+  <a class="sn-back" href="javascript:history.back()">&#x21A9; Back</a>
+</div>
 
 <!-- ═══ PRINT COVER PAGE — only visible when printing ═══ -->
 <div id="printCoverPage">
