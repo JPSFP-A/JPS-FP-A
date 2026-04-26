@@ -1986,7 +1986,8 @@ tr.der td{color:var(--teal)}
 
 <!-- ═══ 5-YEAR PROJECTION ENGINE ═══ -->
 <div id="pane-ass-proj" class="pane">
-  <div class="lock-banner" id="projLockBanner">📈 5-Year Projection Engine — Driver-based assumptions. Changes here recalculate 2027–2030 across all modules. <span id="projLastRun" style="color:var(--teal);margin-left:8px"></span></div>
+  <div class="lock-banner" id="projLockBanner">📈 5-Year Projection Engine — Enter growth rate assumptions below. Values auto-save to database. All 2027–2030 projections derive from these drivers. <span id="projLastRun" style="color:var(--teal);margin-left:8px"></span></div>
+  <div class="warn-bar" id="projNoDataWarn" style="display:none">⚠ No projection assumptions loaded from database — all drivers showing 0. Enter your assumptions below and they will be saved automatically.</div>
 
   <!-- SECTION 1: REVENUE DRIVERS -->
   <div class="tc2" style="margin-bottom:12px">
@@ -3174,8 +3175,10 @@ tr.der td{color:var(--teal)}
 
     <!-- Save bar -->
     <div style="padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap" id="dmSaveBar">
-      <button class="btn btn-gold" style="font-size:11px" onclick="dmSaveAsActuals()">💾 Save as Actuals</button>
-      <button class="btn btn-ghost" style="font-size:11px;border-color:var(--teal);color:var(--teal)" onclick="dmSaveAsLE()">📋 Save as LE Version</button>
+      <button class="btn btn-gold" style="font-size:11px" onclick="dmSaveAsActuals()" title="Save entered values as locked actuals for this month">💾 Save as Actuals</button>
+      <button class="btn btn-ghost" style="font-size:11px;border-color:var(--teal);color:var(--teal)" onclick="dmSaveAsLE()" title="Save as a named Latest Estimate version for this month">📋 Save as LE Version</button>
+      <button class="btn btn-ghost" style="font-size:11px;border-color:var(--gold);color:var(--gold)" onclick="dmSaveAsBudget()" title="Save as an AOP / Budget version (full-year plan)">📊 Save as Budget / AOP</button>
+      <div style="margin-left:4px;font-size:9px;color:var(--muted);border-left:1px solid var(--border);padding-left:10px">Actuals = locked history &nbsp;·&nbsp; LE = rolling estimate &nbsp;·&nbsp; Budget = approved plan</div>
       <div style="margin-left:auto;display:flex;gap:6px">
         <button class="btn btn-ghost" style="font-size:10px;border-color:var(--teal);color:var(--teal)" onclick="dmDownloadTemplate('Actuals')">⬇ CSV Template</button>
         <label class="btn btn-ghost" style="font-size:10px;cursor:pointer">⬆ Upload CSV<input type="file" style="display:none" accept=".xlsx,.xlsm,.csv" onchange="dmHandleFile(this.files[0])"></label>
@@ -4423,15 +4426,59 @@ function fpaApplyAssumptionsToLegacy() {
   console.log('[FPA] Assumptions applied: tariff, volume, FX, sysLoss, netGen, fuel, heatRate');
 }
 
+// ── Apply 5-Year Projection drivers from fpa_assumptions ────────────────────
+// Namespace: category='proj', sub-category='rev' or 'om', key=driver key, sub_key=year
+function fpaApplyProjDriversToLegacy() {
+  const pa = fpa.assumptions?.proj;
+  if (!pa) return;
+  const yrs = [2027, 2028, 2029, 2030];
+
+  // Revenue drivers
+  const rev = pa.rev || {};
+  Object.keys(projRevDrivers).forEach(k => {
+    yrs.forEach(yr => {
+      const dbVal = rev[k]?.[yr];
+      if (dbVal != null) projRevDrivers[k].vals[yr] = Number(dbVal);
+    });
+  });
+
+  // O&M inflation drivers
+  const om = pa.om || {};
+  Object.keys(projOMDrivers).forEach(k => {
+    yrs.forEach(yr => {
+      const dbVal = om[k]?.[yr];
+      if (dbVal != null) projOMDrivers[k].vals[yr] = Number(dbVal);
+    });
+  });
+}
+
+// Save a single proj driver value back to fpa_assumptions
+async function projSaveDriver(category, key, yr, val) {
+  if (!_sb) return;
+  const { error } = await _sb.from('fpa_assumptions').upsert({
+    version_code: 'GLOBAL',
+    category: 'proj',
+    sub_category: category,  // 'rev' or 'om'
+    key,
+    sub_key: String(yr),
+    period_key: String(yr),
+    value_num: val,
+    value_text: null,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'version_code,category,sub_category,key,sub_key,period_key' });
+  if (error) console.warn('[FPA] projSaveDriver error:', error.message);
+}
+
 // ── Extended bridge — wires all assumption and register data into legacy globals
 const _origFpaApply = fpaApplyToLegacyGlobals;
 fpaApplyToLegacyGlobals = function() {
   _origFpaApply();
-  fpaApplyAssumptionsToLegacy();  // tariff, volume, FX, sysLoss, netGen, fuel
-  fpaApplyOMToLegacy();           // O&M line values from AOP_2026
-  fpaApplyCapexToLegacy();        // CapEx line values from AOP_2026
-  fpaApplyCollToLegacy();         // Collections assumptions from AOP_2026
-  fpaApplyDepToLegacy();          // Depreciation components from AOP_2026
+  fpaApplyAssumptionsToLegacy();      // tariff, volume, FX, sysLoss, netGen, fuel
+  fpaApplyOMToLegacy();               // O&M line values from AOP_2026
+  fpaApplyCapexToLegacy();            // CapEx line values from AOP_2026
+  fpaApplyCollToLegacy();             // Collections assumptions from AOP_2026
+  fpaApplyDepToLegacy();              // Depreciation components from AOP_2026
+  fpaApplyProjDriversToLegacy();      // 5-Year projection growth drivers from DB
   _updateDbStatusBadge();
 };
 
@@ -5709,11 +5756,15 @@ async function dmBuildSeedOptions() {
   const sel = document.getElementById('dmSeedSelect');
   if (!sel) return;
   const opts = [{ value:'', label:'— blank —' }];
-  const aop = fpa.versions.find(v => v.code === 'AOP_2026');
-  if (aop) opts.push({ value:'AOP_2026', label:'AOP 2026 (Budget)' });
+  // Budget / AOP versions (any year)
+  fpa.versions.filter(v => v.kind === 'BUDGET' || v.kind === 'AOP' || v.code === 'AOP_2026').forEach(v =>
+    opts.push({ value: v.code, label: `${v.name || v.code} (Budget/AOP)` })
+  );
+  // LE versions
   fpa.versions.filter(v => v.kind === 'LE').forEach(v =>
     opts.push({ value: v.code, label: `${v.name || v.code} (LE)` })
   );
+  // Actuals versions
   fpa.versions.filter(v => /^ACTUALS_/.test(v.code)).forEach(v =>
     opts.push({ value: v.code, label: `${v.name || v.code} (Actual)` })
   );
@@ -5779,6 +5830,58 @@ async function dmSaveAsLE() {
   dmBuildLeVersionsPanel();
   dmBuildSeedOptions();
   toast(`Saved as "${name}" (${code})`, 'ok');
+}
+
+// ── Save as Budget / AOP Version ──────────────────────────────────────────
+// Budget versions are year-level plans. Each month's data is committed to the
+// same BUDGET_YYYY version (or AOP_YYYY). User can name the version.
+async function dmSaveAsBudget() {
+  if (!_sb || !_dmMonth) { toast('Select a month first', 'w'); return; }
+
+  const periodId = _dmYear * 100 + _dmMonth;
+  const mon = DM_MONTHS[_dmMonth - 1];
+
+  // Look for an existing budget version for this year — reuse or create
+  const existing = fpa.versions.filter(v =>
+    (v.kind === 'BUDGET' || v.kind === 'AOP') && v.year === _dmYear
+  );
+
+  let budVer;
+  if (existing.length > 0) {
+    // Show options: reuse existing or create new
+    const opts = existing.map((v, i) => `${i + 1}. ${v.code} — ${v.name}`).join('\n');
+    const choice = prompt(
+      `Budget versions for ${_dmYear}:\n${opts}\n${existing.length + 1}. Create new Budget version\n\nEnter number:`,
+      '1'
+    );
+    if (!choice) return;
+    const idx = parseInt(choice) - 1;
+    if (idx >= 0 && idx < existing.length) {
+      budVer = existing[idx];
+    } else {
+      // Create new
+      budVer = null;
+    }
+  }
+
+  if (!budVer) {
+    const name = prompt(`Name for the new Budget / AOP version for ${_dmYear}:\n(e.g. "AOP 2026" or "Revised Budget – Q2")`);
+    if (!name) return;
+    const vNum = existing.length + 1;
+    const code = `BUDGET_${_dmYear}_v${vNum}`;
+    const { data: verData, error: verErr } = await _sb.from('fpa_versions').insert({
+      code, name, kind: 'BUDGET', period_id: null, year: _dmYear,
+      description: `Budget / AOP plan for ${_dmYear} — ${name}`, tags: ['budget', 'aop']
+    }).select().single();
+    if (verErr) { toast('Could not create Budget version: ' + verErr.message, 'err'); return; }
+    budVer = verData;
+    fpa.versions.push(budVer);
+    dmBuildSeedOptions();
+  }
+
+  await _dmCommitFormToVersion(budVer.id, 'budget');
+  toast(`${mon} ${_dmYear} saved to "${budVer.name}" (${budVer.code})`, 'ok');
+  auditLog('budget-entry', budVer.code, `${mon} ${_dmYear}`, { period_id: periodId });
 }
 
 // ── Commit form values to a version ───────────────────────────────────────
@@ -14621,25 +14724,27 @@ function getYTDActuals(){
 // ═══════════════════════════════════════════════════════
 
 // ── PROJECTION ASSUMPTIONS ────────────────────────────
-// Revenue drivers: growth rates per year for volume, tariff, FX
+// ARCHITECTURAL RULE: All projection driver values come from fpa_assumptions (DB).
+// These objects are initialised to zero. fpaApplyProjDriversToLegacy() overlays DB values at bootstrap.
+// When no DB data exists → drivers show 0 → user must enter assumptions via the 5-Year Projection tab.
 const projRevDrivers = {
-  volumeGrowth:   {name:'Volume Growth (Billed MWh %)',    vals:{2027:2.0, 2028:2.5, 2029:2.5, 2030:3.0}, note:'Demand recovery + loss reduction'},
-  tariffIncrease: {name:'Tariff Review Uplift (%)',         vals:{2027:0.0, 2028:5.0, 2029:0.0, 2030:5.0}, note:'OUR review: 2028 & 2030'},
-  fxPath:         {name:'Avg J$/US$ Rate',                  vals:{2027:162, 2028:168, 2029:175, 2030:182},  note:'JMD gradual depreciation'},
-  fuelCostGrowth: {name:'Fuel Cost Growth (%)',             vals:{2027:3.5, 2028:3.0, 2029:3.0, 2030:2.5}, note:'Oil price + generation mix'},
-  ippCostGrowth:  {name:'IPP Cost Growth (%)',              vals:{2027:4.5, 2028:4.0, 2029:4.0, 2030:3.5}, note:'CPI-indexed PPA escalation'},
-  nonRegGrowth:   {name:'Non-Regulated Revenue Growth (%)', vals:{2027:6.0, 2028:6.0, 2029:6.0, 2030:6.0}, note:'FLOW & ancillary services'},
+  volumeGrowth:   {name:'Volume Growth (Billed MWh %)',    vals:{2027:0, 2028:0, 2029:0, 2030:0}, note:'Source: fpa_assumptions — proj.rev.volumeGrowth'},
+  tariffIncrease: {name:'Tariff Review Uplift (%)',         vals:{2027:0, 2028:0, 2029:0, 2030:0}, note:'Source: fpa_assumptions — proj.rev.tariffIncrease'},
+  fxPath:         {name:'Avg J$/US$ Rate',                  vals:{2027:0, 2028:0, 2029:0, 2030:0}, note:'Source: fpa_assumptions — proj.rev.fxPath'},
+  fuelCostGrowth: {name:'Fuel Cost Growth (%)',             vals:{2027:0, 2028:0, 2029:0, 2030:0}, note:'Source: fpa_assumptions — proj.rev.fuelCostGrowth'},
+  ippCostGrowth:  {name:'IPP Cost Growth (%)',              vals:{2027:0, 2028:0, 2029:0, 2030:0}, note:'Source: fpa_assumptions — proj.rev.ippCostGrowth'},
+  nonRegGrowth:   {name:'Non-Regulated Revenue Growth (%)', vals:{2027:0, 2028:0, 2029:0, 2030:0}, note:'Source: fpa_assumptions — proj.rev.nonRegGrowth'},
 };
 
-// O&M inflation drivers per category group
+// O&M inflation drivers — zeroed; loaded from fpa_assumptions at bootstrap
 const projOMDrivers = {
-  payroll:    {name:'Payroll & Benefits',    cats:['payroll','overtime','benefits','disc_ben','training'], vals:{2027:5.0, 2028:5.0, 2029:5.0, 2030:5.0}},
-  thirdparty: {name:'3rd Party Services',    cats:['thirdpty'],                                            vals:{2027:4.0, 2028:4.0, 2029:3.5, 2030:3.5}},
-  materials:  {name:'Materials & Supplies',  cats:['supplies','materials'],                                vals:{2027:3.5, 2028:3.5, 2029:3.0, 2030:3.0}},
-  admin:      {name:'Admin & Office',        cats:['office','bdr','tech','advert','misc'],                 vals:{2027:3.0, 2028:3.0, 2029:2.5, 2030:2.5}},
-  transport:  {name:'Transport',             cats:['transport'],                                           vals:{2027:4.0, 2028:4.0, 2029:3.5, 2030:3.5}},
-  insurance:  {name:'Insurance',             cats:['insurance'],                                           vals:{2027:8.0, 2028:6.0, 2029:6.0, 2030:5.0}},
-  facilities: {name:'Facilities & Bad Debt', cats:['building','bad_debt'],                                 vals:{2027:3.0, 2028:3.0, 2029:2.5, 2030:2.5}},
+  payroll:    {name:'Payroll & Benefits',    cats:['payroll','overtime','benefits','disc_ben','training'], vals:{2027:0, 2028:0, 2029:0, 2030:0}},
+  thirdparty: {name:'3rd Party Services',    cats:['thirdpty'],                                            vals:{2027:0, 2028:0, 2029:0, 2030:0}},
+  materials:  {name:'Materials & Supplies',  cats:['supplies','materials'],                                vals:{2027:0, 2028:0, 2029:0, 2030:0}},
+  admin:      {name:'Admin & Office',        cats:['office','bdr','tech','advert','misc'],                 vals:{2027:0, 2028:0, 2029:0, 2030:0}},
+  transport:  {name:'Transport',             cats:['transport'],                                           vals:{2027:0, 2028:0, 2029:0, 2030:0}},
+  insurance:  {name:'Insurance',             cats:['insurance'],                                           vals:{2027:0, 2028:0, 2029:0, 2030:0}},
+  facilities: {name:'Facilities & Bad Debt', cats:['building','bad_debt'],                                 vals:{2027:0, 2028:0, 2029:0, 2030:0}},
 };
 
 // CapEx annual budgets per programme — 2027-2030 zeroed; populate from uploads
@@ -14932,7 +15037,7 @@ function buildProjTab() {
         <td class="gld" style="text-align:right">${base26!=null?base26.toFixed(1):'—'}</td>
         ${yrs.map(yr=>`<td><input class="ei" style="width:60px;text-align:right;color:${isInt?'var(--teal)':'var(--gold)'}"
           value="${isInt?d.vals[yr].toFixed(0):d.vals[yr].toFixed(1)}"
-          onchange="projRevDrivers['${k}'].vals[${yr}]=parseFloat(this.value)||0;buildProjSummary()"
+          onchange="const _v=parseFloat(this.value)||0;projRevDrivers['${k}'].vals[${yr}]=_v;projSaveDriver('rev','${k}',${yr},_v);buildProjSummary()"
           onfocus="this.select()"></td>`).join('')}
         <td style="font-size:9px;color:var(--muted);padding:0 8px">${d.note}</td>
       </tr>`;
@@ -14954,7 +15059,7 @@ function buildProjTab() {
         <td class="ac">${Math.round(base26).toLocaleString()}</td>
         ${yrs.map(yr=>`<td><input class="ei" style="width:52px;text-align:right;color:var(--teal)"
           value="${d.vals[yr].toFixed(1)}"
-          onchange="projOMDrivers['${k}'].vals[${yr}]=parseFloat(this.value)||0;buildProjSummary()"
+          onchange="const _v=parseFloat(this.value)||0;projOMDrivers['${k}'].vals[${yr}]=_v;projSaveDriver('om','${k}',${yr},_v);buildProjSummary()"
           onfocus="this.select()">%</td>`).join('')}
         <td class="gld">${Math.round(proj30).toLocaleString()}</td>
       </tr>`;
@@ -14989,6 +15094,12 @@ function buildProjTab() {
 
   // §7 Tariff calendar
   buildProjTariffCalendar();
+
+  // Show warning if all drivers are still zero (no DB data loaded)
+  const allZero = Object.values(projRevDrivers).every(d=>Object.values(d.vals).every(v=>v===0))
+               && Object.values(projOMDrivers).every(d=>Object.values(d.vals).every(v=>v===0));
+  const warnEl = document.getElementById('projNoDataWarn');
+  if (warnEl) warnEl.style.display = allZero ? 'block' : 'none';
 }
 
 function buildProjDepTable(){
