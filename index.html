@@ -3507,15 +3507,12 @@ tr.der td{color:var(--teal)}
     <button class="hub-quick-btn" onclick="hubBrowseAll()">Full Dashboard</button>
     <button class="hub-quick-btn" onclick="hubQuickNav('rpt-flash')">Flash Report</button>
     <button class="hub-quick-btn" onclick="hubQuickNav('rpt-kpi')">KPIs &amp; Ratios</button>
-    <button class="hub-quick-btn" onclick="hubQuickNav('adm-data')">Data Sources</button>
-    <button class="hub-quick-btn" onclick="hubBuildStatusCards();document.getElementById('hubStatusPanel').style.display=document.getElementById('hubStatusPanel').style.display==='none'?'block':'none'">Data Status</button>
+    <button class="hub-quick-btn" onclick="navToDataManager()">📂 Data Manager</button>
+    <button class="hub-quick-btn" onclick="hubShowStatusModal()">📊 Data Status</button>
   </div>
 
-  <!-- Collapsible status panel -->
-  <div id="hubStatusPanel" style="display:none;width:100%;max-width:1020px;margin-top:14px;position:relative;">
-    <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Data Load Status</div>
-    <div id="hubCardsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;"></div>
-  </div>
+  <!-- Hidden status grid (still used by hubBuildStatusCards, not shown directly) -->
+  <div id="hubCardsGrid" style="display:none"></div>
 
 </div><!-- /hub-landing -->
 </div><!-- /pane-hub -->
@@ -4577,6 +4574,7 @@ fpaApplyToLegacyGlobals = function() {
   fpaApplyDepToLegacy();              // Depreciation components from AOP_2026
   fpaApplyProjDriversToLegacy();      // 5-Year projection growth drivers from DB
   rbPopulateInviteRoles();            // Sync invite dropdown with DB roles
+  hubBuildStatusCards();              // Refresh hub badge with real data state
   _updateDbStatusBadge();
 };
 
@@ -16887,85 +16885,115 @@ function hubBrowseAll() {
   window._hubFocusSection = null;
 }
 
-function hubBuildStatusCards() {
-  const container = document.getElementById('hubCardsGrid');
-  if (!container) return;
+function _hubSectionStatus(key) {
+  // Safe status checks — all use fpa.* or optional-chained globals only
+  try {
+    if (key === 'revenue') {
+      const hasTariff = fpa?.assumptions?.AOP_2026?.tariff && Object.values(fpa.assumptions.AOP_2026.tariff).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
+      const hasVol    = fpa?.assumptions?.AOP_2026?.volume && Object.values(fpa.assumptions.AOP_2026.volume).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
+      if (hasTariff && hasVol) return { dot:'ok',   text:'Rates & volumes loaded' };
+      if (hasTariff || hasVol) return { dot:'warn',  text:'Partial data' };
+      return { dot:'empty', text:'No data loaded' };
+    }
+    if (key === 'gen') {
+      const hasGen = netGenTable?.[2026] && Object.values(netGenTable[2026]).some(v=> v && (Array.isArray(v) ? v.some(x=>Number(x)>0) : Number(v)>0));
+      return hasGen ? { dot:'ok', text:'Net gen loaded' } : { dot:'empty', text:'No data loaded' };
+    }
+    if (key === 'om') {
+      const hasOM = fpa?.assumptions?.AOP_2026?.opex && Object.values(fpa.assumptions.AOP_2026.opex).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
+      return hasOM ? { dot:'ok', text:'Budget loaded' } : { dot:'empty', text:'No data loaded' };
+    }
+    if (key === 'capex') {
+      const hasCapex = fpa?.assumptions?.AOP_2026?.capex && Object.values(fpa.assumptions.AOP_2026.capex).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
+      return hasCapex ? { dot:'ok', text:'CapEx loaded' } : { dot:'empty', text:'No data loaded' };
+    }
+    if (key === 'debt') {
+      const nLoans  = (fpa?.loans||[]).length;
+      const nLeases = (typeof ifrs16Leases !== 'undefined' ? ifrs16Leases : []).length;
+      if (nLoans+nLeases > 0) return { dot:'ok', text:`${nLoans} loan(s) · ${nLeases} lease(s)` };
+      return { dot:'empty', text:'No register loaded' };
+    }
+    if (key === 'coll') {
+      const hasColl = fpa?.assumptions?.AOP_2026?.collections && Object.values(fpa.assumptions.AOP_2026.collections).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
+      return hasColl ? { dot:'ok', text:'Collections loaded' } : { dot:'empty', text:'Upload actuals to populate' };
+    }
+  } catch(e) {
+    return { dot:'warn', text:'Status unavailable' };
+  }
+  return { dot:'empty', text:'No data' };
+}
 
+function hubBuildStatusCards() {
   const sections = [
-    {
-      key:'revenue', icon:'📈', title:'Revenue & Tariff',
-      desc:'Tariff rates by customer class, billing volumes, fuel &amp; non-fuel revenue',
-      statusFn: () => {
-        const hasRates = tariffTable && Object.values(tariffTable.nonfuel||{}).some(v=>Number(v)>0);
-        const hasVol   = volumeTable && volumeTable.residential && volumeTable.residential.some(v=>v>0);
-        if (hasRates && hasVol) return { dot:'ok',  text:'Rates &amp; volumes loaded' };
-        if (hasRates || hasVol) return { dot:'warn', text:'Partial data' };
-        return { dot:'empty', text:'No data loaded' };
-      }
-    },
-    {
-      key:'gen', icon:'⚡', title:'Generation &amp; Fuel',
-      desc:'Net generation by plant, fuel costs, heat rates, system losses',
-      statusFn: () => {
-        const hasGen = netGenTable?.[2026] && Object.values(netGenTable[2026]).some(v=>Number(v)>0);
-        return hasGen ? { dot:'ok', text:'Net gen loaded' } : { dot:'empty', text:'No data loaded' };
-      }
-    },
-    {
-      key:'om', icon:'🔧', title:'O&amp;M Budget',
-      desc:'Operating costs, maintenance, overheads by cost centre',
-      statusFn: () => {
-        const hasOM = omTable?.total?.some(v=>Number(v)>0);
-        return hasOM ? { dot:'ok', text:'Budget loaded' } : { dot:'empty', text:'No data loaded' };
-      }
-    },
-    {
-      key:'capex', icon:'🏗', title:'CapEx &amp; Depreciation',
-      desc:'Capital project spend, asset register, depreciation schedule',
-      statusFn: () => {
-        const hasCapex = capexTable?.total?.some(v=>Number(v)>0);
-        return hasCapex ? { dot:'ok', text:'CapEx loaded' } : { dot:'empty', text:'No data loaded' };
-      }
-    },
-    {
-      key:'debt', icon:'🏦', title:'Debt &amp; Financing',
-      desc:'Loan register, lease obligations, interest rates, IFRS 16 schedule',
-      statusFn: () => {
-        const nLoans  = (fpa?.loans ||[]).length;
-        const nLeases = (ifrs16Leases||[]).length;
-        if (nLoans+nLeases > 0) return { dot:'ok', text:`${nLoans} loan(s) · ${nLeases} lease(s)` };
-        return { dot:'empty', text:'No register loaded' };
-      }
-    },
-    {
-      key:'coll', icon:'💳', title:'Collections &amp; A/R',
-      desc:'A/R collections, cash receipts, DSO trend by customer class',
-      statusFn: () => {
-        const hasColl = collTable?.collected?.some(v=>Number(v)>0);
-        return hasColl ? { dot:'ok', text:'Collections loaded' } : { dot:'empty', text:'Upload actuals to populate' };
-      }
-    },
+    { key:'revenue', icon:'📈', title:'Revenue & Tariff',      desc:'Tariff rates, billing volumes, fuel revenue' },
+    { key:'gen',     icon:'⚡', title:'Generation & Fuel',     desc:'Net generation, fuel costs, system losses' },
+    { key:'om',      icon:'🔧', title:'O&M Budget',            desc:'Operating costs, maintenance, overheads' },
+    { key:'capex',   icon:'🏗', title:'CapEx & Depreciation',  desc:'Capital projects, asset register, depreciation' },
+    { key:'debt',    icon:'🏦', title:'Debt & Financing',      desc:'Loans, leases, interest, covenant ratios' },
+    { key:'coll',    icon:'💳', title:'Collections & A/R',     desc:'Cash receipts, DSO, A/R aging' },
   ];
 
-  container.innerHTML = sections.map(s => {
-    const st = s.statusFn();
+  // Update actuals badge (safe — fpa is always defined)
+  const uploadedCount = (fpa?.versions||[]).filter(v=>/^ACTUALS_\d{4}_\d{2}$/.test(v.code)).length;
+  const badge = document.getElementById('hubActualsBadge');
+  if (badge) {
+    if (!fpa.loadedAt) {
+      badge.textContent = '○ Connecting to database…';
+    } else if (uploadedCount > 0) {
+      badge.textContent = `● ${uploadedCount} month(s) of actuals uploaded`;
+      badge.style.color = '#10b981';
+    } else {
+      badge.textContent = '○ No actuals uploaded yet';
+      badge.style.color = '';
+    }
+  }
+
+  // Build cards HTML (returned for use by hubShowStatusModal)
+  return sections.map(s => {
+    const st = _hubSectionStatus(s.key);
     const dotColor = st.dot==='ok' ? '#16a34a' : st.dot==='warn' ? '#d97706' : '#9ca3af';
-    return `<div class="hub-card" onclick="openHubSection('${s.key}')">
+    return `<div class="hub-card" onclick="openHubSection('${s.key}')" style="cursor:pointer">
       <div class="hub-card-icon">${s.icon}</div>
       <div class="hub-card-title">${s.title}</div>
       <div class="hub-card-desc">${s.desc}</div>
       <div class="hub-card-status">
-        <div class="hub-card-dot ${st.dot}"></div>
-        <span style="color:${dotColor};font-size:10px">${st.text}</span>
+        <span style="color:${dotColor};font-size:12px">●</span>
+        <span style="color:${dotColor};font-size:10px;margin-left:5px">${st.text}</span>
       </div>
       <div class="hub-card-open">Open →</div>
     </div>`;
   }).join('');
+}
 
-  // Update actuals badge
-  const uploadedCount = (fpa?.versions||[]).filter(v=>/^ACTUALS_\d{4}_\d{2}$/.test(v.code) && (Object.keys(fpa?.facts?.[v.code]||{}).length > 0)).length;
-  const badge = document.getElementById('hubActualsBadge');
-  if (badge) badge.textContent = uploadedCount > 0 ? `● ${uploadedCount} month(s) of actuals uploaded` : '○ No actuals uploaded yet';
+function hubShowStatusModal() {
+  hubBuildStatusCards(); // refresh badge
+  const cards = hubBuildStatusCards();
+  // Reuse existing generic modal or build a floating overlay
+  let overlay = document.getElementById('hubStatusOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'hubStatusOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9500;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box';
+    overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:14px;max-width:780px;width:100%;max-height:85vh;overflow-y:auto;padding:24px;box-sizing:border-box">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#0f1e2d">📊 Data Load Status</div>
+          <div style="font-size:11px;color:#8099b8;margin-top:2px">What data has been uploaded to the database. Click any section to open it.</div>
+        </div>
+        <button onclick="document.getElementById('hubStatusOverlay').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#8099b8;padding:4px 8px">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+        ${cards}
+      </div>
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid #e5ecf4;text-align:center">
+        <button class="btn btn-gold" onclick="document.getElementById('hubStatusOverlay').remove();navToDataManager()" style="font-size:11px">📂 Open Data Manager to upload data</button>
+      </div>
+    </div>`;
+  overlay.style.display = 'flex';
 }
 
 // Show Security tab only for admins — called after login
