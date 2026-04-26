@@ -2489,7 +2489,6 @@ tr.der td{color:var(--teal)}
       <thead id="leaseAggHead"></thead>
       <tbody id="leaseAggBody"></tbody>
     </table></div>
-    <div style="padding:12px"><div class="cb h200"><canvas id="cLeaseAgg"></canvas></div></div>
   </div>
 
   <!-- SECTION 4: Monitoring Panel -->
@@ -6765,8 +6764,10 @@ function computeAll(yr){
   const gwhIds=['gwh_rt10','gwh_rt20','gwh_rt40','gwh_rt50','gwh_rt60','gwh_rt70'];
   const totR=revRows.find(r=>r.id==='gwh_tot');
   if(totR) totR.vals=MONTHS.map((_,i)=>gwhIds.reduce((s,id)=>s+(revRows.find(x=>x.id===id)?.vals[i]||0),0));
-  // Blended collection rate
-  const rIds=['cr_rt10','cr_rt20','cr_rt40']; const wts=[0.55,0.22,0.23];
+  // Blended collection rate — equal-weight average of the three rate-class collection rates.
+  // ARCHITECTURAL RULE: weighted blending ratios must come from DB (fpa_assumptions).
+  // Until uploaded, equal weights (1/3 each) are used so the blended figure is the simple average.
+  const rIds=['cr_rt10','cr_rt20','cr_rt40']; const wts=[1/3,1/3,1/3];
   const bl=rows.find(r=>r.id==='blended');
   if(bl) bl.vals=MONTHS.map((_,i)=>parseFloat((rIds.reduce((s,id,wi)=>s+(rows.find(x=>x.id===id)?.vals[i]||0)*wts[wi],0)).toFixed(1)));
   // Cash receipts
@@ -6785,7 +6786,9 @@ const getOMCash=(yr)=>{
   const rows=getOMRows(yr);
   return MONTHS.map((_,i)=>{
     const s=rows.filter(r=>r.cashLag===0).reduce((s2,r)=>s2+(r.vals?.[i]||0),0);
-    const d=rows.filter(r=>r.cashLag>0).reduce((s2,r)=>s2+(i>0?r.vals?.[i-1]:i===0?r.vals?.[11]*0.5:0)||0,0);
+    // ARCHITECTURAL RULE: year-start carry-over fraction (0.5 = half Dec payment) must come from DB.
+    // Until uploaded, use 0 (no year-start carry-over; prior year December cash is excluded).
+    const d=rows.filter(r=>r.cashLag>0).reduce((s2,r)=>s2+(i>0?r.vals?.[i-1]:0)||0,0);
     return Math.round(s+d);
   });
 };
@@ -6817,8 +6820,10 @@ function colVal(line,col){
     else if(line.type==='I'&&!line.tot&&!line.sub&&!['Below EBITDA','TOTAL'].includes(line.sect))base=Math.round(base*(1+(s.rv||0)/100));
     else if(line.id==='opex')base=Math.round(base*(1+(s.om||0)/100));
   }
-  if(col.qi!==undefined){const qw=[.22,.24,.28,.26];return Math.round(base*qw[col.qi]);}
-  if(col.mi!==undefined){const mw=[.07,.07,.08,.08,.09,.1,.1,.09,.09,.08,.08,.07];return Math.round(base*mw[col.mi]);}
+  // ARCHITECTURAL RULE: seasonal distribution weights must come from DB (fpa_assumptions).
+  // Until uploaded, equal weights are used (no assumed seasonality).
+  if(col.qi!==undefined){const qw=[.25,.25,.25,.25];return Math.round(base*qw[col.qi]);}
+  if(col.mi!==undefined){const mw=Array(12).fill(1/12);return Math.round(base*mw[col.mi]);}
   return base;
 }
 function buildHead(hEl,cols,fw=175){
@@ -7221,8 +7226,12 @@ function buildDirectCF() {
     directCFSeed.collections[colIdx]    = rec[mi] || 0;
     directCFSeed.totalReceipts[colIdx]  = rec[mi] || 0;
     directCFSeed.fuel[colIdx]           = fuelCostByMonth2026[mi] || 0;
-    directCFSeed.ipp[colIdx]            = omC[mi] ? Math.round(omC[mi]*0.65) : 0;
-    directCFSeed.payroll[colIdx]        = omC[mi] ? Math.round(omC[mi]*0.35) : 0;
+    // ARCHITECTURAL RULE: IPP/payroll split of O&M cash must come from DB (fpa_assumptions).
+    // Until uploaded, full O&M cash is reported on the IPP line; payroll = 0.
+    const _ippFrac = fpa.assumptions?.cashFlow?.ippFraction ?? 1.0;
+    const _payFrac = fpa.assumptions?.cashFlow?.payrollFraction ?? 0.0;
+    directCFSeed.ipp[colIdx]            = omC[mi] ? Math.round(omC[mi]*_ippFrac) : 0;
+    directCFSeed.payroll[colIdx]        = omC[mi] ? Math.round(omC[mi]*_payFrac) : 0;
     directCFSeed.hurricaneRestoration[colIdx] = cxC[mi] || 0;
     const totDisb = (directCFSeed.fuel[colIdx]||0)+(directCFSeed.ipp[colIdx]||0)+(directCFSeed.payroll[colIdx]||0)+(directCFSeed.hurricaneRestoration[colIdx]||0);
     directCFSeed.totalDisbursements[colIdx] = totDisb;
@@ -7672,7 +7681,8 @@ function buildKpiLiquidityTable() {
         // Approximate: use collections DSO as proxy
         const r = getCollRows(yr).find(x=>x.id==='dso');
         const dso = r?.vals?.[m] || 0;
-        return dso > 0 ? Math.max(0.8, 1.0 + (60-dso)/200) : 0; // zero if no data
+        // ARCHITECTURAL RULE: collection efficiency floor must come from DB — no hardcoded minimum
+        return dso > 0 ? Math.max(0, 1.0 + (60-dso)/200) : 0; // zero if no data
       })
     },
     {
@@ -7682,7 +7692,8 @@ function buildKpiLiquidityTable() {
       dir: 'lte',
       vals: Array(12).fill(0).map((_,m) => {
         const r = getCollRows(yr).find(x=>x.id==='dso');
-        return r?.vals?.[m] || 45;
+        // ARCHITECTURAL RULE: DSO must derive from billed/collected actuals — no hardcoded fallback
+        return r?.vals?.[m] || 0;
       })
     },
     {
@@ -7691,8 +7702,9 @@ function buildKpiLiquidityTable() {
       thresh: 85,
       dir: 'gte',
       vals: Array(12).fill(0).map((_,m) => {
+        // ARCHITECTURAL RULE: collection rate must come from DB — no hardcoded fallback
         const cr = getCollRows(yr).find(x=>x.id==='blended');
-        return cr?.vals?.[m] || 88;
+        return cr?.vals?.[m] || 0;
       })
     },
     {
@@ -7970,7 +7982,7 @@ function _buildKpiChartsInner() {
   });
 
   const getE = (yr,frag) => { const l=plLines.find(l=>l.name&&l.name.toLowerCase().includes(frag)); return l?.vals?.[YIDX[yr]]||0; };
-  const getNF = yr => { const l=plLines.find(l=>l.name&&(l.name.toLowerCase().includes('non-fuel')||l.name.toLowerCase().includes('nonfuel'))); return l?.vals?.[YIDX[yr]]||1; };
+  const getNF = yr => { const l=plLines.find(l=>l.name&&(l.name.toLowerCase().includes('non-fuel')||l.name.toLowerCase().includes('nonfuel'))); return l?.vals?.[YIDX[yr]]||0; };
 
   // EBITDA Margin
   const ebitdaMargins = YRS.map(yr => {
@@ -7986,9 +7998,10 @@ function _buildKpiChartsInner() {
   const dscrVals = YRS.map(yr => {
     const ebitda = getE(yr,'ebitda');
     const intExp = Math.abs(getE(yr,'interest expense'));
-    // Debt from projDebtSchedule (DB-backed); no hardcoded fallback
-    const debtPrincipal = projDebtSchedule.avgBalance?.vals?.[yr] || 0;
-    const debtSvc = intExp + debtPrincipal * 0.07;
+    // ARCHITECTURAL RULE: principal repayment must come from DB debt schedule, not estimated at 7%
+    // Use actual scheduled repayments from projDebtSchedule; 0 until uploaded
+    const debtRepayment = projDebtSchedule.repayments?.vals?.[yr] || 0;
+    const debtSvc = intExp + debtRepayment;
     return debtSvc>0 ? +(ebitda/debtSvc).toFixed(2) : 0;
   });
   const tealColor  = style.getPropertyValue('--teal').trim()  || '#22d3ee';
@@ -8317,7 +8330,8 @@ function buildCovenantTracker() {
   })();
   const totalDebtSvc = agg.totalPrincipal.reduce((s,v)=>s+v,0) + agg.totalInterest.reduce((s,v)=>s+v,0);
   const dscr = totalDebtSvc>0 ? (ebitda/totalDebtSvc) : 0;
-  const netDebt = agg.closingBal - 92000;
+  // Cash balance must come from BS actuals (fpa_facts); no hardcoded offset
+  const netDebt = agg.closingBal - 0;
   const ndEbitda = ebitda>0 ? netDebt/ebitda : 0;
 
   el.innerHTML = `
@@ -8326,7 +8340,7 @@ function buildCovenantTracker() {
         const covTests = [
           loan.covenant?.includes('DSCR') ? { name:'DSCR', val:dscr, thresh:1.20, dir:'gte', fmt: v=>v.toFixed(2)+'×' } : null,
           loan.covenant?.includes('Debt/EBITDA') ? { name:'Net Debt/EBITDA', val:ndEbitda, thresh:4.50, dir:'lte', fmt:v=>v.toFixed(2)+'×' } : null,
-          loan.covenant?.includes('Current Ratio') ? { name:'Current Ratio', val:1.18, thresh:1.10, dir:'gte', fmt:v=>v.toFixed(2)+'×' } : null,
+          loan.covenant?.includes('Current Ratio') ? { name:'Current Ratio', val:0, thresh:1.10, dir:'gte', fmt:v=>v>0?v.toFixed(2)+'×':'—' } : null,
         ].filter(Boolean);
 
         return `<div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 14px">
@@ -8394,7 +8408,7 @@ function openLoanModal(id) {
   document.getElementById('ln-type').value    = loan?.type    || 'term';
   document.getElementById('ln-currency').value= loan?.currency|| 'USD';
   document.getElementById('ln-principal').value= loan?.principal||0;
-  document.getElementById('ln-rate').value    = loan?.rate    || 5.5;
+  document.getElementById('ln-rate').value    = loan?.rate    || '';
   document.getElementById('ln-rateType').value= loan?.rateType|| 'fixed';
   document.getElementById('ln-drawDate').value= loan?.drawDate|| '';
   document.getElementById('ln-maturity').value= loan?.maturity|| '';
@@ -8774,22 +8788,23 @@ function buildRevReport() {
   document.getElementById('revRptB').innerHTML = rHtml;
 
   // ── RATE CLASS TABLE ─────────────────────────────────────────────────────
+  // ARCHITECTURAL RULE: AOP share % must come from uploaded AOP version in fpa_v_facts — not hardcoded
   const rateClsData = [
-    { cls:'RT10 – Residential',  act: isYTD ? actData?.rate10 : data?.rev?.rate10, budPct:0.38 },
-    { cls:'RT20 – SME/Comm.',    act: isYTD ? actData?.rate20 : data?.rev?.rate20, budPct:0.22 },
-    { cls:'RT40 – LV Ind.',      act: isYTD ? actData?.rate40 : data?.rev?.rate40, budPct:0.21 },
-    { cls:'RT50 – MV Ind.',      act: isYTD ? actData?.rate50 : data?.rev?.rate50, budPct:0.14 },
-    { cls:'RT60 – Streetlights', act: isYTD ? actData?.rate60 : data?.rev?.rate60, budPct:0.03 },
-    { cls:'RT70 – LV/HV Large',  act: isYTD ? actData?.rate70 : data?.rev?.rate70, budPct:0.02 },
+    { cls:'RT10 – Residential',  act: isYTD ? actData?.rate10 : data?.rev?.rate10 },
+    { cls:'RT20 – SME/Comm.',    act: isYTD ? actData?.rate20 : data?.rev?.rate20 },
+    { cls:'RT40 – LV Ind.',      act: isYTD ? actData?.rate40 : data?.rev?.rate40 },
+    { cls:'RT50 – MV Ind.',      act: isYTD ? actData?.rate50 : data?.rev?.rate50 },
+    { cls:'RT60 – Streetlights', act: isYTD ? actData?.rate60 : data?.rev?.rate60 },
+    { cls:'RT70 – LV/HV Large',  act: isYTD ? actData?.rate70 : data?.rev?.rate70 },
   ];
   const totalActRC = (rateClsData.reduce((s,r)=>s+(r.act||0),0));
-  document.getElementById('rateClsH').innerHTML = `<tr><th style="text-align:left">Rate Class</th><th class="ac">Revenue ($000)</th><th class="ac">Share %</th><th class="bc">AOP Share %</th></tr>`;
+  document.getElementById('rateClsH').innerHTML = `<tr><th style="text-align:left">Rate Class</th><th class="ac">Revenue ($000)</th><th class="ac">Actual Share %</th></tr>`;
   document.getElementById('rateClsB').innerHTML = rateClsData.map(r => {
     const share = totalActRC > 0 && r.act ? ((r.act/totalActRC)*100).toFixed(1)+'%' : '–';
     const dispAct = r.act ? fmtN(r.act) : '<span class="dim">–</span>';
-    return `<tr><td style="padding-left:14px">${r.cls}</td><td class="ac">${dispAct}</td><td class="ac">${share}</td><td class="gld">${(r.budPct*100).toFixed(0)}%</td></tr>`;
+    return `<tr><td style="padding-left:14px">${r.cls}</td><td class="ac">${dispAct}</td><td class="ac">${share}</td></tr>`;
   }).join('') +
-  `<tr class="tr"><td style="padding-left:10px"><strong>Total (All Rate Classes)</strong></td><td class="ac"><strong>${fmtN(totalActRC)}</strong></td><td class="ac"><strong>100%</strong></td><td class="gld">–</td></tr>`;
+  `<tr class="tr"><td style="padding-left:10px"><strong>Total (All Rate Classes)</strong></td><td class="ac"><strong>${fmtN(totalActRC)}</strong></td><td class="ac"><strong>100%</strong></td></tr>`;
 
   // ── GENERATION MIX TABLE ─────────────────────────────────────────────────
   const genTotalMWh = genTotals.reduce((s,v) => s+v, 0);
@@ -9360,11 +9375,16 @@ async function handleActualsUpload(event) {
     // ── 15. Update MWh volumes for rate-class tables ──────────────────────────
     if (salesMWh > 0) {
       const mIdx = moNum - 1;
+      // ARCHITECTURAL RULE: tariff sub-class splits (lo/hi, std/tou) must come from DB (fpa_assumptions).
+      // Until uploaded, RT10 all goes to hi-block; RT40/RT50 all go to std (no TOU split assumed).
+      const _rt10Lo = fpa.assumptions?.tariffSplits?.rt10LowFrac ?? 0;
+      const _rt40Tou = fpa.assumptions?.tariffSplits?.rt40TouFrac ?? 0;
+      const _rt50Tou = fpa.assumptions?.tariffSplits?.rt50TouFrac ?? 0;
       const classMwh = [
-        ['RT10_lo', revAct.mwh_rt10 * 0.30], ['RT10_hi', revAct.mwh_rt10 * 0.70],
+        ['RT10_lo', revAct.mwh_rt10 * _rt10Lo], ['RT10_hi', revAct.mwh_rt10 * (1-_rt10Lo)],
         ['RT20',    revAct.mwh_rt20],
-        ['RT40_std',revAct.mwh_rt40 * 0.85],  ['RT40_tou',revAct.mwh_rt40 * 0.15],
-        ['RT50_std',revAct.mwh_rt50 * 0.85],  ['RT50_tou',revAct.mwh_rt50 * 0.15],
+        ['RT40_std',revAct.mwh_rt40 * (1-_rt40Tou)],  ['RT40_tou',revAct.mwh_rt40 * _rt40Tou],
+        ['RT50_std',revAct.mwh_rt50 * (1-_rt50Tou)],  ['RT50_tou',revAct.mwh_rt50 * _rt50Tou],
         ['RT60',    revAct.mwh_rt60],
         ['RT70',    revAct.mwh_rt70],
       ];
@@ -10099,9 +10119,9 @@ function buildRevBridgeDecomp(mo, act, ref, cmpLabel) {
   // Month index (0-based)
   const mIdx = mo - 1;
 
-  // FX rates
-  const actFX  = fxTable.billing[mIdx] || 162;
-  const budFX  = netFinancingRows[2026]?.budgetFX?.[mIdx] || 162;
+  // ARCHITECTURAL RULE: FX rates must come from DB (fxTable loaded from fpa_assumptions). No hardcoded fallback.
+  const actFX  = fxTable.billing[mIdx] || 0;
+  const budFX  = netFinancingRows[2026]?.budgetFX?.[mIdx] || 0;
 
   // Volume & tariff effects — use revenue engine
   let volEffect=0, tariffEffect=0, fxEffect=0, lossEffect=0;
@@ -10285,7 +10305,8 @@ function buildOMTable(){
   document.getElementById('omH').innerHTML=`<tr><th style="min-width:220px;text-align:left">Category</th><th>Cash Lag</th>${grHdr}${MONTHS.map(m=>`<th class="bc">${m}</th>`).join('')}<th class="bc">Total</th><th class="ac">→Cash</th></tr>`;
 
   const rowHtml=rows.filter(r=>!r.derived).map(r=>{
-    const tot=sumArr(r.vals); const cashTot=Math.round(tot*0.97);
+    // ARCHITECTURAL RULE: non-cash O&M fraction must come from DB — no hardcoded haircut
+    const tot=sumArr(r.vals); const cashTot=tot;
     const grPct=(r.growthRate||0);
     const grCell=showGrow?`<td><input class="ei" style="width:46px;color:var(--teal)" value="${grPct.toFixed(1)}" title="Growth % vs 2026 base" onchange="updOMGrowth('${r.id}',this.value,${yr})" onfocus="this.select()">%</td>`:'';
     const valCells=(r.vals||MONTHS.map(()=>0)).map((v,i)=>`<td><input class="ei" value="${v}" data-row="${r.id}" data-mo="${i}" onchange="updOMRow(this,${yr})" onfocus="this.select()"></td>`).join('');
@@ -11362,7 +11383,7 @@ function buildGuide(){
       <p>Feb 2026 actual heat rate: 9,146 kJ/kWh vs budget 9,340 (favourable).</p>`},
     {n:'4. P&L Structure',c:'var(--gold)',body:`
       <p>Regulated Business → Purchased Power → Non-Regulated → <strong>Total EBITDA</strong> → Depreciation (IAS 16) → <strong>Impairment (IAS 36 — separate amber line)</strong> → Operating Income → Net Financing Costs → Other Income Taxable → Other Income Non-Taxable → NPBT → Income Tax → NPAT → Appropriations (memo)</p>
-      <div class="gf">Tax = (EBIT + Σ Taxable Other Income) × 33.33%\nNote: non-taxable items excluded from tax base\nFeb 2026 result: $94K credit</div>
+      <div class="gf">Tax = (EBIT + Σ Taxable Other Income) × Effective Tax Rate (upload via Assumptions)\nNote: non-taxable items excluded from tax base</div>
       <div class="gf">FX G/(L) = (Actual FX − Budget FX) × Net FX Position\nFeb 2026: $730K gain</div>`},
     {n:'5. IPP Cost & OUR Recovery Logic',c:'var(--teal)',body:`
       <p>The P&L shows IPP Cost in three lines:</p>
@@ -12137,8 +12158,9 @@ function buildRevBridgeChart() {
 
   // Simplified bridge: vol effect, tariff effect, fx effect, fuel effect
   const baseVol   = volumeTable;
-  const fxCur = fxTable.billing[mo] || 162;
-  const fxBud = 162; // budget FX
+  // ARCHITECTURAL RULE: FX rates must come from DB. No hardcoded fallback.
+  const fxCur = fxTable.billing[mo] || 0;
+  const fxBud = netFinancingRows[2026]?.budgetFX?.[mo] || 0; // budget FX from DB
   // Volume effect: use budget tariff but actual volume vs budget volume
   // We approximate using proportional GWh change × budget tariff / fx
   const actMwh = Object.values(volumeTable).reduce((s,v)=>s+(v.mwh?.[mo]||0),0);
@@ -12571,7 +12593,9 @@ let appropriationRows = [
    vals:{2026:[0,0,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
 ];
 
-let effectiveTaxRate = {2026:0.3333, 2027:0.3333, 2028:0.3333, 2029:0.3333, 2030:0.3333};
+// ARCHITECTURAL RULE: tax rate must come from DB (fpa_assumptions). No hardcoded fallback.
+// Populated by fpaBootstrap() from uploaded assumptions. Until then, tax = 0.
+let effectiveTaxRate = {};
 
 // ── Tax Calculation ────────────────────────────────────
 // Feb result: EBIT=-281, taxable other=0 → taxableIncome=-281 → tax=-94 (credit)
@@ -12592,7 +12616,7 @@ function calcTax(yr, month) {
     .filter(r=>r.taxable)
     .reduce((s,r)=>s+(r.vals[yr]?.[month-1]||0), 0);
   const taxableIncome = ebit + taxableOther;
-  return Math.round(taxableIncome * (effectiveTaxRate[yr]||0.3333));
+  return Math.round(taxableIncome * (effectiveTaxRate[yr]||0));
 }
 
 // ── Generation Data Arrays ──────────────────────────────
@@ -12850,8 +12874,8 @@ function buildOtherIncTables() {
     `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
       <div style="font-size:9px;color:var(--muted);font-weight:700">${y}</div>
       ${can('editBase')
-        ? `<input class="ei" style="width:55px" value="${((effectiveTaxRate[y]||0.3333)*100).toFixed(1)}" data-yr="${y}" oninput="updTaxRate(this)">`
-        : `<div class="ader">${((effectiveTaxRate[y]||0.3333)*100).toFixed(1)}%</div>`}
+        ? `<input class="ei" style="width:55px" value="${effectiveTaxRate[y]!=null?((effectiveTaxRate[y])*100).toFixed(1):''}" placeholder="—" data-yr="${y}" oninput="updTaxRate(this)">`
+        : `<div class="ader">${effectiveTaxRate[y]!=null?((effectiveTaxRate[y])*100).toFixed(1)+'%':'—'}</div>`}
     </div>`
   ).join('');
 }
@@ -12868,7 +12892,10 @@ function updOtherInc(inp) {
 }
 
 function updTaxRate(inp) {
-  const yr=parseInt(inp.dataset.yr), v=parseFloat(inp.value)||33.33;
+  const yr=parseInt(inp.dataset.yr);
+  const raw=inp.value.trim();
+  if(raw===''){ delete effectiveTaxRate[yr]; return; }   // clear → no tax until DB or user re-enters
+  const v=parseFloat(raw)||0;
   auditLog('editTaxRate','effectiveTaxRate',effectiveTaxRate[yr],v/100);
   effectiveTaxRate[yr]=v/100;
 }
@@ -12881,8 +12908,8 @@ function buildTaxRateInputs() {
     `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
       <div style="font-size:9px;color:var(--muted);font-weight:700">${y}</div>
       ${can('editBase')
-        ? `<input class="ei" style="width:55px" value="${((effectiveTaxRate[y]||0.3333)*100).toFixed(1)}" data-yr="${y}" oninput="updTaxRate(this)">`
-        : `<div class="ader">${((effectiveTaxRate[y]||0.3333)*100).toFixed(1)}%</div>`}
+        ? `<input class="ei" style="width:55px" value="${effectiveTaxRate[y]!=null?((effectiveTaxRate[y])*100).toFixed(1):''}" placeholder="—" data-yr="${y}" oninput="updTaxRate(this)">`
+        : `<div class="ader">${effectiveTaxRate[y]!=null?((effectiveTaxRate[y])*100).toFixed(1)+'%':'—'}</div>`}
     </div>`
   ).join('');
 }
@@ -13212,16 +13239,7 @@ function buildLeaseAggTable() {
     return `<tr><td style="text-align:left;color:var(--${r.c})">${r.n}</td>${vals.map(v=>`<td>${fmtN(v)}</td>`).join('')}<td class="gld">${fmtN(tot)}</td></tr>`;
   }).join('');
 
-  // Chart
-  mkChart('cLeaseAgg',{type:'bar',
-    data:{labels:MONTHS,datasets:[
-      {label:'IPP Credit',     data:agg.ippCredit,      backgroundColor:'rgba(6,182,212,.65)',  stack:'s'},
-      {label:'Non-IPP Credit', data:agg.nonIPPCredit,   backgroundColor:'rgba(59,130,246,.65)', stack:'s'},
-      {label:'ROU Depreciation',data:agg.rouDepreciation,backgroundColor:'rgba(240,180,41,.65)',stack:'s'},
-      {label:'Interest',       data:agg.interestExpense, backgroundColor:'rgba(239,68,68,.65)',  stack:'s'},
-    ]},
-    options:{...bO(),scales:{x:{stacked:true,ticks:{color:_TC.muted,font:{size:9}}},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>fmtN(v)+'K'}}}}
-  });
+  // Lease chart removed — IFRS 16 schedule requires DB-backed lease data from fpa_leases
 }
 
 // ── MONITORING PANEL ──────────────────────────────────────
@@ -13999,7 +14017,10 @@ function buildMonthlyPL(yr){
 
   // — Purchased Power —
   sec('Purchased Power');
-  const ippFR=MO.map((_,m)=>{if(yr===2026&&actualsStore[m+1]?.pl)return actualsStore[m+1].pl.ppaCost?Math.abs(actualsStore[m+1].pl.ppaCost)*0.7:0;return Math.round((plLines.find(l=>l.id==='ipp_fr')?.vals[YEARS.indexOf(String(yr))]||0)/12);});
+  // ARCHITECTURAL RULE: IPP fuel-revenue allocation fraction must come from DB (fpa_assumptions).
+  // Until uploaded, use 1.0 (full PPA cost allocated to IPP fuel revenue).
+  const _ippFRFrac = fpa.assumptions?.ippFuelRevFraction ?? 1.0;
+  const ippFR=MO.map((_,m)=>{if(yr===2026&&actualsStore[m+1]?.pl)return actualsStore[m+1].pl.ppaCost?Math.abs(actualsStore[m+1].pl.ppaCost)*_ippFRFrac:0;return Math.round((plLines.find(l=>l.id==='ipp_fr')?.vals[YEARS.indexOf(String(yr))]||0)/12);});
   const ippNR=MO.map((_,m)=>Math.round((plLines.find(l=>l.id==='ipp_nr')?.vals[YEARS.indexOf(String(yr))]||0)/12));
   row('IPP Fuel Revenue', ippFR, {color:'var(--green)'});
   row('IPP Non-Fuel Revenue', ippNR, {color:'var(--green)'});
@@ -14082,7 +14103,7 @@ function buildMonthlyPL(yr){
   der('Net Profit Before Tax', m=>(opAfNFCRow?.vals[m]||0)+taxOtherM[m]+nTaxOtherM[m], {tot:true, bold:true});
 
   const npbtRow=rows.find(r=>r.label==='Net Profit Before Tax');
-  const taxRate=effectiveTaxRate[yr]||0.3333;
+  const taxRate=effectiveTaxRate[yr]||0;
   const taxM=MO.map((_,m)=>-Math.round((npbtRow?.vals[m]||0)*taxRate));
   row('Income Tax', taxM, {color:'var(--red)'});
   der('Net Profit After Tax', m=>(npbtRow?.vals[m]||0)+taxM[m], {tot:true, bold:true, color:'var(--gold)'});
@@ -14351,7 +14372,10 @@ function runProjectionEngine() {
   // Rebuild fuel rev with 1-month lag
   yrs.forEach(yr=>{
     const fc=fuelCostByMonth[yr]; const fcPrev=fuelCostByMonth[yr-1]||fuelCostByMonth[2026];
-    fuelRevByYear[yr]=fc.map((v,i)=>i===0?Math.round(fcPrev[11]*1.02):Math.round(fc[i-1]*1.02));
+    // ARCHITECTURAL RULE: fuel revenue uplift factor must come from DB (fpa_assumptions tariff uplift).
+    // Until uploaded, use 1.0 (no uplift — fuel revenue = prior month fuel cost, 1-month pass-through).
+    const _fuelUplift = fpa.assumptions?.fuelRevUplift ?? 1.0;
+    fuelRevByYear[yr]=fc.map((v,i)=>i===0?Math.round(fcPrev[11]*_fuelUplift):Math.round(fc[i-1]*_fuelUplift));
   });
 
   // ── Step 2: Non-fuel revenue ───────────────────────
@@ -14474,7 +14498,7 @@ function runProjectionEngine() {
   yrs.forEach(yr=>{
     const drawdown = projDebtSchedule.drawdowns.vals[yr]||0;
     const repay    = projDebtSchedule.repayments.vals[yr]||0;
-    const rate     = (projDebtSchedule.interestRate.vals[yr]||6.5)/100;
+    const rate     = (projDebtSchedule.interestRate.vals[yr]||0)/100;
     const avgBal   = openDebt + drawdown/2 - repay/2;
     const intCost  = Math.round(avgBal * rate);
     projDebtSchedule.interestCost.vals[yr] = intCost;
@@ -14550,7 +14574,7 @@ function runProjectionEngine() {
     const ptLine = plLines.find(l=>l.id==='pretax');
     if(ptLine) ptLine.vals[yi] = pretax;
     // Tax (33.33%)
-    const tax = Math.round(Math.max(0, pretax) * (effectiveTaxRate[yr]||0.3333));
+    const tax = Math.round(Math.max(0, pretax) * (effectiveTaxRate[yr]||0));
     const taxLine = plLines.find(l=>l.id==='tax');
     if(taxLine) taxLine.vals[yi] = tax;
     // Net income
@@ -14681,7 +14705,7 @@ function buildProjDebtTable(){
     const open=projDebtSchedule.openingDebt.vals[yr];
     const draw=projDebtSchedule.drawdowns.vals[yr]||0;
     const rep=projDebtSchedule.repayments.vals[yr]||0;
-    const rate=(projDebtSchedule.interestRate.vals[yr]||6.5)/100;
+    const rate=(projDebtSchedule.interestRate.vals[yr]||0)/100;
     const avg=open+draw/2-rep/2;
     projDebtSchedule.interestCost.vals[yr]=Math.round(avg*rate);
     projDebtSchedule.avgBalance.vals[yr]=Math.round(avg);
