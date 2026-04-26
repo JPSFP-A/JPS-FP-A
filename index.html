@@ -1373,6 +1373,20 @@ tr.der td{color:var(--teal)}
       <button class="btn btn-ai" onclick="showPane('ai-comm',null);document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.tab')[10]?.classList.add('on')">✦ AI</button>
       <button class="btn btn-gold" onclick="openModal('scModal')">＋ Scenario</button>
       <button class="btn" style="background:linear-gradient(135deg,#0d6b52,#0a8e6c);color:#fff;font-weight:700;letter-spacing:.02em" onclick="navToDataManager()" title="Upload data · Manage periods · View data status">📂 Data Manager</button>
+      <!-- Notification Bell -->
+      <div style="position:relative" id="notifBellWrap">
+        <button class="btn btn-ghost" onclick="toggleNotifPanel()" title="Notifications" style="font-size:15px;padding:0 8px;position:relative">
+          🔔
+          <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;border-radius:50%;width:14px;height:14px;font-size:8px;font-weight:800;line-height:14px;text-align:center"></span>
+        </button>
+        <div id="notifPanel" style="display:none;position:fixed;top:52px;right:12px;width:340px;max-height:440px;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.45);z-index:9000;overflow:hidden;flex-direction:column">
+          <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:11px;font-weight:800;color:var(--text)">🔔 Notifications</div>
+            <button class="btn btn-ghost" style="font-size:9px;padding:2px 8px" onclick="markAllNotifsRead()">Mark all read</button>
+          </div>
+          <div id="notifList" style="overflow-y:auto;max-height:380px;padding:6px 0"></div>
+        </div>
+      </div>
       <div style="display:flex;align-items:center;gap:7px;padding:0 8px;border-left:1px solid var(--border);margin-left:4px">
         <!-- Online users panel -->
         <div id="onlineUsersPanel" style="display:flex;align-items:center"></div>
@@ -1425,7 +1439,7 @@ tr.der td{color:var(--teal)}
   <div class="tg adm"><div class="tgl">ADMIN</div><div class="tabs">
     <div class="tab" onclick="showPane('adm-data',this)">📂 Data Manager</div>
     <div class="tab" onclick="showPane('adm-audit',this)">🔍 Audit Trail</div>
-    <div class="tab" id="securityTab" style="display:none" onclick="showPane('adm-sec',this);secLoadUsers()">🔒 Security</div>
+    <div class="tab" id="securityTab" style="display:none" onclick="showPane('adm-sec',this);secLoadUsers();rbInit()">🔒 Security</div>
     <div class="tab" onclick="showPane('adm-guide',this)">📖 Guide</div>
   </div></div>
 </div><!-- /tabbar-inner -->
@@ -3517,32 +3531,82 @@ tr.der td{color:var(--teal)}
     </div>
   </div>
 
-  <!-- Role Definitions -->
+  <!-- Role Builder (tabs: Cards | Matrix | New Role) -->
   <div class="sec-section">
-    <div class="sec-section-title">Role Definitions</div>
-    <div class="hub-cards hub-cards-sm" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">
-      <div class="hub-card" style="cursor:default">
-        <div class="hub-card-icon">🛡</div>
-        <div class="hub-card-title"><span class="sec-role-badge admin">Admin</span></div>
-        <div class="hub-card-desc">Full access to all areas including Security, Audit, and user management.</div>
-      </div>
-      <div class="hub-card" style="cursor:default">
-        <div class="hub-card-icon">📊</div>
-        <div class="hub-card-title"><span class="sec-role-badge analyst">Analyst</span></div>
-        <div class="hub-card-desc">Read/write to all input areas and reports. Cannot manage users or audit settings.</div>
-      </div>
-      <div class="hub-card" style="cursor:default">
-        <div class="hub-card-icon">👁</div>
-        <div class="hub-card-title"><span class="sec-role-badge viewer">Viewer</span></div>
-        <div class="hub-card-desc">Read-only access to all reports and the Flash Report. No data entry.</div>
-      </div>
-      <div class="hub-card" style="cursor:default">
-        <div class="hub-card-icon">🔧</div>
-        <div class="hub-card-title"><span class="sec-role-badge om">O&amp;M Specialist</span></div>
-        <div class="hub-card-desc">Read/write to O&amp;M inputs only. Read-only on all reports. No other areas.</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="sec-section-title" style="margin:0">Roles &amp; Permissions</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost" id="rbTabCards"  onclick="rbShowTab('cards')"  style="font-size:11px;background:var(--accent);color:#fff">Role Cards</button>
+        <button class="btn btn-ghost" id="rbTabMatrix" onclick="rbShowTab('matrix')" style="font-size:11px">Permission Matrix</button>
+        <button class="btn btn-ghost" id="rbTabNew"    onclick="rbShowTab('new')"    style="font-size:11px">＋ New Role</button>
       </div>
     </div>
-  </div>
+
+    <!-- Tab: Role Cards -->
+    <div id="rbPaneCards">
+      <div id="rbRoleCards" class="hub-cards hub-cards-sm" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))">
+        <!-- dynamically built by rbBuildCards() -->
+        <div style="color:#8099b8;font-size:12px;padding:12px">Loading roles…</div>
+      </div>
+    </div>
+
+    <!-- Tab: Permission Matrix -->
+    <div id="rbPaneMatrix" style="display:none">
+      <div style="font-size:11px;color:#8099b8;margin-bottom:10px">
+        Check/uncheck to grant or remove access. Admin always has full access and cannot be edited. Changes save instantly to the database.
+      </div>
+      <div style="overflow-x:auto">
+        <table id="rbMatrixTable" style="border-collapse:collapse;font-size:11px;width:100%;min-width:500px">
+          <!-- built by rbBuildMatrix() -->
+          <tbody><tr><td style="color:#8099b8;padding:16px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: New Role -->
+    <div id="rbPaneNew" style="display:none">
+      <div style="max-width:480px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#6b82a0;margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Role Name (slug)</div>
+            <input id="rbNewSlug" type="text" placeholder="e.g. treasury_viewer"
+              style="width:100%;padding:8px 12px;border:1px solid #d1dce8;border-radius:7px;font-size:12px;box-sizing:border-box"/>
+            <div style="font-size:10px;color:#aab;margin-top:3px">Lowercase letters, digits and underscores only.</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#6b82a0;margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Display Label</div>
+            <input id="rbNewLabel" type="text" placeholder="e.g. Treasury Viewer"
+              style="width:100%;padding:8px 12px;border:1px solid #d1dce8;border-radius:7px;font-size:12px;box-sizing:border-box"/>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:80px 1fr;gap:12px;margin-bottom:16px">
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#6b82a0;margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Icon</div>
+            <input id="rbNewIcon" type="text" placeholder="🔑" maxlength="4"
+              style="width:100%;padding:8px 12px;border:1px solid #d1dce8;border-radius:7px;font-size:16px;text-align:center;box-sizing:border-box"/>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#6b82a0;margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Description</div>
+            <input id="rbNewDesc" type="text" placeholder="Describe what this role can access"
+              style="width:100%;padding:8px 12px;border:1px solid #d1dce8;border-radius:7px;font-size:12px;box-sizing:border-box"/>
+          </div>
+        </div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:10px;font-weight:700;color:#6b82a0;margin-bottom:8px;text-transform:uppercase;letter-spacing:.07em">Copy Permissions From (optional)</div>
+          <select id="rbNewCopyFrom" style="padding:8px 12px;border:1px solid #d1dce8;border-radius:7px;font-size:12px;width:220px">
+            <option value="">— Start with no access —</option>
+            <option value="viewer">Viewer (read-only reports)</option>
+            <option value="analyst">Analyst (all inputs)</option>
+            <option value="om">O&amp;M Specialist</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-gold" onclick="rbCreateRole()" style="font-size:11px">Create Role</button>
+          <button class="btn btn-ghost" onclick="rbShowTab('cards')" style="font-size:11px">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div><!-- /Role Builder -->
 
   <!-- Invite new user -->
   <div class="sec-section">
@@ -3561,6 +3625,7 @@ tr.der td{color:var(--teal)}
       <div>
         <div style="font-size:10px;font-weight:700;color:#6b82a0;margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Role</div>
         <select id="secInviteRole" style="padding:8px 12px;border:1px solid #d1dce8;border-radius:7px;font-size:12px">
+          <!-- Populated dynamically by rbPopulateInviteRoles() -->
           <option value="analyst">Analyst</option>
           <option value="viewer">Viewer</option>
           <option value="om">O&amp;M Specialist</option>
@@ -3570,7 +3635,7 @@ tr.der td{color:var(--teal)}
       <button id="secInviteBtn" class="btn btn-gold" onclick="secInviteUser()" style="font-size:11px">Send Invite ✉</button>
     </div>
     <div style="font-size:10px;color:#8099b8;margin-top:10px">
-      The invited user will receive a setup email from Supabase. They set their own password — you never see it.
+      The invited user will receive a setup email. They set their own password — you never see it.
     </div>
   </div>
 
@@ -3866,6 +3931,9 @@ const fpa = {
   insurance: [],
   impairments: [],
   periods: [],               // [{ id, year, month, ym_label, is_closed }]
+  roles: [],                 // [{ role_name, label, description, icon, is_system }]
+  rolePermissions: {},       // rolePermissions[role_name][pane_id] = { can_view, can_edit }
+  notifications: [],         // unread in-app notifications for current user
   loadedAt: null,
   loadError: null,
 
@@ -3939,16 +4007,24 @@ async function fpaBootstrap() {
 
     // Parallel fetch everything
     showBootstrapOverlay('Loading versions & lines...');
-    const [versionsRes, linesRes, periodsRes] = await Promise.all([
+    const [versionsRes, linesRes, periodsRes, rolesRes, rolePermsRes] = await Promise.all([
       _sb.from('fpa_versions').select('*').order('code'),
       _sb.from('fpa_dim_line').select('*').order('statement').order('sort_order'),
       _sb.from('fpa_dim_period').select('*').order('id'),
+      _sb.from('fpa_custom_roles').select('*').order('role_name'),
+      _sb.from('fpa_role_permissions').select('*'),
     ]);
     if (versionsRes.error) throw versionsRes.error;
     if (linesRes.error)    throw linesRes.error;
     if (periodsRes.error)  throw periodsRes.error;
     fpa.versions = versionsRes.data || [];
     fpa.lines    = linesRes.data || [];
+    fpa.roles    = rolesRes.data  || [];
+    // Build rolePermissions lookup: rolePermissions[role][pane] = { can_view, can_edit }
+    fpa.rolePermissions = {};
+    (rolePermsRes.data || []).forEach(r => {
+      (fpa.rolePermissions[r.role_name] ??= {})[r.pane_id] = { can_view: r.can_view, can_edit: r.can_edit };
+    });
     fpa.periods  = periodsRes.data || [];
 
     // Default active version = LE_2026_02
@@ -4095,6 +4171,9 @@ async function fpaBootstrap() {
 
     // Apply DB data into legacy globals for existing UI compatibility
     fpaApplyToLegacyGlobals();
+
+    // Load unread notifications for current user (non-blocking)
+    _loadNotifications();
 
     return true;
   } catch (e) {
@@ -4479,6 +4558,7 @@ fpaApplyToLegacyGlobals = function() {
   fpaApplyCollToLegacy();             // Collections assumptions from AOP_2026
   fpaApplyDepToLegacy();              // Depreciation components from AOP_2026
   fpaApplyProjDriversToLegacy();      // 5-Year projection growth drivers from DB
+  rbPopulateInviteRoles();            // Sync invite dropdown with DB roles
   _updateDbStatusBadge();
 };
 
@@ -5702,6 +5782,23 @@ async function dmToggleLock() {
     by: currentUser.name,
   });
 
+  // Notify all admins when a period is locked / unlocked
+  if (locking) {
+    _notifyAdmins(
+      'period_locked',
+      `Period Locked — ${label}`,
+      `${label} has been locked by ${currentUser.name || currentUser.email}. Period calendar closed${versionLocked ? ` and version "${actVer.code}" locked at DB level` : ' (no actuals version found — upload recommended)'}. No further edits are permitted.`,
+      { period_label: label, version_code: actVer?.code || null, version_locked: versionLocked }
+    );
+  } else {
+    _notifyAdmins(
+      'period_unlocked',
+      `Period Unlocked — ${label}`,
+      `${label} has been re-opened by ${currentUser.name || currentUser.email}. Facts are now editable again.`,
+      { period_label: label, version_code: actVer?.code || null }
+    );
+  }
+
   await fpaBootstrap();
   dmBuildCalendar(_dmYear);
   dmSelectMonth(_dmYear, _dmMonth);
@@ -6661,8 +6758,9 @@ async function doLogin() {
   if (_sbConfig.enabled && _sbConfig.anonKey && !_sb) _sbInit();
   await fpaBootstrap();   // loads DB into fpa.* and hydrates legacy globals
 
-  // Apply role-based UI access (show Security tab only for admins)
+  // Apply role-based UI access using DB permissions
   hubApplyRoleAccess(currentUser.role);
+  _applyTabVisibility();
   // Persist email to profiles so Security page can send password resets
   if (_sb && currentUser.email && currentUser.id !== 'local') {
     _sb.from('profiles').update({ email: currentUser.email }).eq('id', currentUser.id).then(()=>{});
@@ -6748,28 +6846,61 @@ async function doLogout() {
   try { const pwEl = document.getElementById('loginPassword'); if (pwEl) pwEl.value = ''; } catch(e) {}
 }
 
+// ── Hardcoded action-permission baseline (used when no DB role loaded) ───────
+const _ACTION_PERMS = {
+  admin:    ['upload','editBase','editTariff','editVolume','editFX','editGeneration',
+             'editFuelPrice','editOM','editCapex','editCollections','editDepreciation',
+             'editOtherIncome','editFinancing','editIFRS16','editInsurance',
+             'createScenario','editScenario','approveScenario','shareScenario',
+             'manageUsers','viewAudit','viewReports','viewSharedScenarios','editTheme'],
+  analyst:  ['createScenario','editScenario','shareScenario',
+             'viewReports','viewSharedScenarios','editTheme'],
+  viewer:   ['viewReports','viewSharedScenarios','editTheme'],
+  om:       ['editOM','viewReports','viewSharedScenarios','editTheme'],
+};
+
+// Pane → action mapping: which action grants edit on this pane
+const _PANE_EDIT_ACTION = {
+  'hub':'editBase','dash':'viewReports','rpt-pl':'viewReports','rpt-bs':'viewReports',
+  'rpt-cf':'viewReports','rpt-dep':'viewReports','rpt-var':'viewReports',
+  'rpt-kpi':'viewReports','rpt-rev':'viewReports','rpt-flash':'viewReports',
+  'wrk-sc':'editScenario','wrk-gen':'editGeneration','wrk-coll':'editCollections',
+  'wrk-debt':'editFinancing','wrk-leases':'editIFRS16',
+  'ass-rev':'editTariff','ass-om':'editOM','ass-capex':'editCapex',
+  'ass-dep':'editDepreciation','ass-other':'editOtherIncome','ass-proj':'editBase',
+  'ai-comm':'viewReports',
+  'adm-data':'upload','adm-audit':'viewAudit','adm-sec':'manageUsers','adm-guide':'viewReports',
+};
+
 function can(action) {
-  const permissions = {
-    admin: [
-      'upload', 'editBase', 'editTariff', 'editVolume',
-      'editFX', 'editGeneration', 'editFuelPrice',
-      'editOM', 'editCapex', 'editCollections',
-      'editDepreciation', 'editOtherIncome',
-      'editFinancing', 'editIFRS16', 'editInsurance',
-      'createScenario', 'editScenario',
-      'approveScenario', 'shareScenario', 'manageUsers',
-      'viewAudit', 'viewReports', 'viewSharedScenarios', 'editTheme'
-    ],
-    analyst: [
-      'createScenario', 'editScenario', 'shareScenario',
-      'viewReports', 'viewSharedScenarios', 'editTheme'
-    ],
-    viewer: [
-      'viewReports', 'viewSharedScenarios', 'editTheme'
-    ]
-  };
-  return (permissions[currentUser.role] || [])
-    .includes(action);
+  if (!currentUser) return false;
+  const role = currentUser.role || 'viewer';
+  return (_ACTION_PERMS[role] || _ACTION_PERMS.viewer).includes(action);
+}
+
+// Check if current user can VIEW a pane (uses DB role permissions, falls back to action check)
+function canViewPane(paneId) {
+  if (!currentUser) return false;
+  const role = currentUser.role || 'viewer';
+  // Admin always can
+  if (role === 'admin') return true;
+  // Check DB-loaded permissions first
+  const dbPerm = fpa.rolePermissions?.[role]?.[paneId];
+  if (dbPerm !== undefined) return dbPerm.can_view;
+  // Fallback: if we have an action mapped for this pane, check it
+  const action = _PANE_EDIT_ACTION[paneId];
+  return action ? can(action) || can('viewReports') : true;
+}
+
+// Check if current user can EDIT a pane
+function canEditPane(paneId) {
+  if (!currentUser) return false;
+  const role = currentUser.role || 'viewer';
+  if (role === 'admin') return true;
+  const dbPerm = fpa.rolePermissions?.[role]?.[paneId];
+  if (dbPerm !== undefined) return dbPerm.can_edit;
+  const action = _PANE_EDIT_ACTION[paneId];
+  return action ? can(action) : false;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -12206,6 +12337,11 @@ const _tabBuilders = {
 };
 
 function showPane(id,el){
+  // Enforce pane-level access control
+  if (currentUser && !canViewPane(id)) {
+    toast(`You don't have access to this section (${id}). Contact your admin.`, 'w');
+    return;
+  }
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
   document.getElementById('pane-'+id)?.classList.add('on');
   if(el){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');}
@@ -12215,14 +12351,114 @@ function showPane(id,el){
     _markBuilt(id);
   }
   if(id === 'rpt-flash') { setTimeout(() => flashInit(), 100); }
-  // Announce tab navigation to other users
   if(typeof _rtAnnouncePresence === 'function') _rtAnnouncePresence(id);
+}
+
+// Hide tabs the current user cannot see (called after login)
+function _applyTabVisibility() {
+  if (!currentUser) return;
+  document.querySelectorAll('.tab[onclick]').forEach(tab => {
+    const match = tab.getAttribute('onclick')?.match(/showPane\(['"]([^'"]+)['"]/);
+    if (!match) return;
+    const paneId = match[1];
+    tab.style.display = canViewPane(paneId) ? '' : 'none';
+  });
+  // Hide entire tab groups that have no visible tabs
+  document.querySelectorAll('.tg').forEach(tg => {
+    const visibleTabs = [...tg.querySelectorAll('.tab')].filter(t => t.style.display !== 'none');
+    tg.style.display = visibleTabs.length > 0 ? '' : 'none';
+  });
 }
 
 function setPeriod(p,btn){const prev=period;period=p;document.querySelectorAll('#perSeg .sb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');refreshAll();auditLog('period','Display Period',prev,p);_saveState();}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.addEventListener('click',e=>{if(e.target.classList.contains('mbg'))e.target.classList.remove('open');});
+// ── Notification system ─────────────────────────────────────────────────────
+async function _loadNotifications() {
+  if (!_sb || !currentUser || currentUser.id === 'local') return;
+  try {
+    const { data } = await _sb.from('fpa_notifications')
+      .select('*').eq('is_read', false).order('created_at', { ascending: false }).limit(30);
+    fpa.notifications = data || [];
+    _renderNotifBell();
+  } catch(e) { /* non-critical */ }
+}
+
+function _renderNotifBell() {
+  const badge = document.getElementById('notifBadge');
+  const count = fpa.notifications.length;
+  if (badge) {
+    badge.textContent = count > 9 ? '9+' : String(count);
+    badge.style.display = count > 0 ? 'block' : 'none';
+  }
+  const list = document.getElementById('notifList');
+  if (!list) return;
+  if (count === 0) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">No unread notifications</div>';
+    return;
+  }
+  const icons = { period_locked:'🔒', period_unlocked:'🔓', user_invited:'👤', data_uploaded:'📥', general:'🔔' };
+  list.innerHTML = fpa.notifications.map(n => `
+    <div onclick="markNotifRead('${n.id}')" style="padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:.12s" onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background=''">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <span style="font-size:16px;flex-shrink:0">${icons[n.event_type]||'🔔'}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px">${n.title}</div>
+          ${n.body ? `<div style="font-size:10px;color:var(--muted);line-height:1.4">${n.body}</div>` : ''}
+          <div style="font-size:9px;color:var(--muted);margin-top:4px">${new Date(n.created_at).toLocaleString()}</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleNotifPanel() {
+  const panel = document.getElementById('notifPanel');
+  if (!panel) return;
+  const isOpen = panel.style.display === 'flex';
+  panel.style.display = isOpen ? 'none' : 'flex';
+  panel.style.flexDirection = 'column';
+  if (!isOpen) _renderNotifBell();
+}
+
+async function markNotifRead(id) {
+  if (!_sb) return;
+  await _sb.from('fpa_notifications').update({ is_read: true }).eq('id', id);
+  fpa.notifications = fpa.notifications.filter(n => String(n.id) !== String(id));
+  _renderNotifBell();
+}
+
+async function markAllNotifsRead() {
+  if (!_sb || fpa.notifications.length === 0) return;
+  const ids = fpa.notifications.map(n => n.id);
+  await _sb.from('fpa_notifications').update({ is_read: true }).in('id', ids);
+  fpa.notifications = [];
+  _renderNotifBell();
+  document.getElementById('notifPanel').style.display = 'none';
+}
+
+// Close notif panel on outside click
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('notifBellWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const panel = document.getElementById('notifPanel');
+    if (panel) panel.style.display = 'none';
+  }
+});
+
+// Send a notification to all admins via edge function
+async function _notifyAdmins(event_type, title, body, metadata = {}) {
+  if (!_sb || !currentUser) return;
+  try {
+    const { data: { session } } = await _sb.auth.getSession();
+    if (!session) return;
+    await _sb.functions.invoke('notify-admins', {
+      body: { event_type, title, body, metadata },
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+  } catch(e) { console.warn('[notify-admins]', e.message); }
+}
+
 // Navigate to Data Manager tab — single entry point for all data uploads
 function navToDataManager(){
   const adminTabs=document.querySelectorAll('.tg.adm .tab');
@@ -16793,6 +17029,233 @@ async function secResetPassword(email) {
   toast(`Password reset email sent to ${email}`, 'ok');
   auditLog('admin','password-reset-sent', email, {});
 }
+
+// ── Role Builder ─────────────────────────────────────────────────────────────
+// Pane groups for the permission matrix
+const _RB_PANE_GROUPS = [
+  { label: 'Dashboard & Reports', panes: [
+    { id:'hub',       label:'Hub / Home' },
+    { id:'dash',      label:'Dashboard' },
+    { id:'rpt-pl',    label:'P&L Report' },
+    { id:'rpt-bs',    label:'Balance Sheet' },
+    { id:'rpt-cf',    label:'Cash Flow' },
+    { id:'rpt-dep',   label:'Depreciation Report' },
+    { id:'rpt-var',   label:'Variance Analysis' },
+    { id:'rpt-kpi',   label:'KPI Dashboard' },
+    { id:'rpt-rev',   label:'Revenue Report' },
+    { id:'rpt-flash', label:'Flash Report' },
+  ]},
+  { label: 'Workbooks', panes: [
+    { id:'wrk-sc',     label:'Scenarios' },
+    { id:'wrk-gen',    label:'Generation' },
+    { id:'wrk-coll',   label:'Collections' },
+    { id:'wrk-debt',   label:'Debt & Financing' },
+    { id:'wrk-leases', label:'Leases (IFRS 16)' },
+  ]},
+  { label: 'Assumptions', panes: [
+    { id:'ass-rev',   label:'Revenue / Tariffs' },
+    { id:'ass-om',    label:'O&M Assumptions' },
+    { id:'ass-capex', label:'CapEx' },
+    { id:'ass-dep',   label:'Depreciation Settings' },
+    { id:'ass-other', label:'Other Income' },
+    { id:'ass-proj',  label:'5-Year Projections' },
+  ]},
+  { label: 'AI & Admin', panes: [
+    { id:'ai-comm',  label:'AI Commentary' },
+    { id:'adm-data', label:'Data Manager' },
+    { id:'adm-audit',label:'Audit Log' },
+    { id:'adm-sec',  label:'Security & Users' },
+    { id:'adm-guide',label:'User Guide' },
+  ]},
+];
+
+let _rbActiveTab = 'cards';
+
+function rbShowTab(tab) {
+  _rbActiveTab = tab;
+  const tabs = ['cards','matrix','new'];
+  tabs.forEach(t => {
+    const pane = document.getElementById('rbPane'+t.charAt(0).toUpperCase()+t.slice(1));
+    const btn  = document.getElementById('rbTab'+t.charAt(0).toUpperCase()+t.slice(1));
+    if (pane) pane.style.display = t === tab ? '' : 'none';
+    if (btn) { btn.style.background = t===tab ? 'var(--accent)' : ''; btn.style.color = t===tab ? '#fff' : ''; }
+  });
+  if (tab === 'cards') rbBuildCards();
+  if (tab === 'matrix') rbBuildMatrix();
+}
+
+function rbBuildCards() {
+  const wrap = document.getElementById('rbRoleCards');
+  if (!wrap) return;
+  const roles = fpa.roles || [];
+  if (!roles.length) {
+    wrap.innerHTML = '<div style="color:#8099b8;font-size:12px;padding:12px">No roles loaded. Refresh the page.</div>';
+    return;
+  }
+  wrap.innerHTML = roles.map(r => {
+    const isSystem = r.is_system;
+    const deleteBtn = !isSystem
+      ? `<button onclick="rbDeleteRole('${r.role_name}')" style="margin-top:10px;font-size:10px;color:#ef4444;background:none;border:none;cursor:pointer;padding:0">🗑 Delete role</button>`
+      : `<div style="margin-top:10px;font-size:10px;color:#8099b8">System role — cannot delete</div>`;
+    return `<div class="hub-card" style="cursor:default">
+      <div class="hub-card-icon">${r.icon||'👤'}</div>
+      <div class="hub-card-title"><span class="sec-role-badge ${r.role_name}">${r.label||r.role_name}</span></div>
+      <div class="hub-card-desc">${r.description||''}</div>
+      ${deleteBtn}
+    </div>`;
+  }).join('');
+}
+
+function rbBuildMatrix() {
+  const tbl = document.getElementById('rbMatrixTable');
+  if (!tbl) return;
+  const roles = (fpa.roles || []).filter(r => r.role_name !== 'admin'); // admin always full
+  if (!roles.length) {
+    tbl.innerHTML = '<tbody><tr><td style="color:#8099b8;padding:16px">No roles loaded.</td></tr></tbody>';
+    return;
+  }
+  // Header row
+  const cs = `style="padding:6px 10px;border:1px solid #e5ecf4;text-align:center;font-size:10px;font-weight:700;color:#6b82a0;text-transform:uppercase;letter-spacing:.06em;background:#f4f7fb"`;
+  const cs2 = `style="padding:6px 10px;border:1px solid #e5ecf4;background:#f4f7fb;font-size:10px;font-weight:700;color:#6b82a0"`;
+  let html = `<thead><tr><th ${cs2} style="min-width:160px;background:#f4f7fb;border:1px solid #e5ecf4;padding:6px 10px">Pane / Section</th>`;
+  roles.forEach(r => {
+    html += `<th colspan="2" ${cs}>${r.icon||''} ${r.label||r.role_name}</th>`;
+  });
+  html += '</tr><tr><th style="border:1px solid #e5ecf4"></th>';
+  roles.forEach(() => {
+    html += `<th ${cs}>View</th><th ${cs}>Edit</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  _RB_PANE_GROUPS.forEach(grp => {
+    // Group header row
+    html += `<tr><td colspan="${1+roles.length*2}" style="background:#eef3fa;font-size:10px;font-weight:700;color:#3a5a8c;padding:5px 10px;border:1px solid #e5ecf4;letter-spacing:.06em;text-transform:uppercase">${grp.label}</td></tr>`;
+    grp.panes.forEach(pane => {
+      html += `<tr><td style="padding:6px 10px;border:1px solid #e5ecf4;font-size:11px;color:#2c3e50">${pane.label}</td>`;
+      roles.forEach(r => {
+        const perm = fpa.rolePermissions?.[r.role_name]?.[pane.id] || { can_view:false, can_edit:false };
+        const vChk = perm.can_view ? 'checked' : '';
+        const eChk = perm.can_edit ? 'checked' : '';
+        const cd = `style="padding:4px 8px;border:1px solid #e5ecf4;text-align:center"`;
+        html += `<td ${cd}><input type="checkbox" ${vChk} onchange="rbSetPerm('${r.role_name}','${pane.id}','view',this.checked)"/></td>`;
+        html += `<td ${cd}><input type="checkbox" ${eChk} onchange="rbSetPerm('${r.role_name}','${pane.id}','edit',this.checked)"/></td>`;
+      });
+      html += '</tr>';
+    });
+  });
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+async function rbSetPerm(roleName, paneId, field, checked) {
+  // Optimistic update in memory
+  if (!fpa.rolePermissions) fpa.rolePermissions = {};
+  if (!fpa.rolePermissions[roleName]) fpa.rolePermissions[roleName] = {};
+  const existing = fpa.rolePermissions[roleName][paneId] || { can_view:false, can_edit:false };
+  if (field === 'view') {
+    existing.can_view = checked;
+    if (!checked) existing.can_edit = false; // can't edit if can't view
+  } else {
+    existing.can_edit = checked;
+    if (checked) existing.can_view = true; // edit implies view
+  }
+  fpa.rolePermissions[roleName][paneId] = existing;
+
+  if (!_sb) { toast('No DB connection','w'); return; }
+  const { error } = await _sb.from('fpa_role_permissions').upsert({
+    role_name: roleName,
+    pane_id: paneId,
+    can_view: existing.can_view,
+    can_edit: existing.can_edit,
+  }, { onConflict: 'role_name,pane_id' });
+  if (error) { toast('Permission save failed: '+error.message, 'w'); return; }
+  // Re-render matrix so view/edit sync is visible
+  rbBuildMatrix();
+  // Re-apply tab visibility if current user's role was changed
+  _applyTabVisibility();
+}
+
+async function rbCreateRole() {
+  const slug  = (document.getElementById('rbNewSlug')?.value||'').trim().toLowerCase().replace(/[^a-z0-9_]/g,'_');
+  const label = (document.getElementById('rbNewLabel')?.value||'').trim();
+  const icon  = (document.getElementById('rbNewIcon')?.value||'👤').trim();
+  const desc  = (document.getElementById('rbNewDesc')?.value||'').trim();
+  const copyFrom = document.getElementById('rbNewCopyFrom')?.value || '';
+
+  if (!slug) { toast('Role name (slug) is required','w'); return; }
+  if (!label) { toast('Display label is required','w'); return; }
+  if (slug === 'admin') { toast('"admin" is a reserved role name','w'); return; }
+  if ((fpa.roles||[]).find(r=>r.role_name===slug)) { toast(`Role "${slug}" already exists`,'w'); return; }
+  if (!_sb) { toast('No DB connection','w'); return; }
+
+  // Create the role
+  const { error: rErr } = await _sb.from('fpa_custom_roles').insert({
+    role_name: slug, label, icon, description: desc, is_system: false
+  });
+  if (rErr) { toast('Create role failed: '+rErr.message,'w'); return; }
+
+  // Seed permissions (copy from another role if requested)
+  if (copyFrom && fpa.rolePermissions?.[copyFrom]) {
+    const rows = [];
+    Object.entries(fpa.rolePermissions[copyFrom]).forEach(([paneId, perm]) => {
+      rows.push({ role_name: slug, pane_id: paneId, can_view: perm.can_view, can_edit: perm.can_edit });
+    });
+    if (rows.length) {
+      const { error: pErr } = await _sb.from('fpa_role_permissions').insert(rows);
+      if (pErr) toast('Role created but permissions copy failed: '+pErr.message,'w');
+    }
+  }
+
+  toast(`Role "${label}" created ✓`,'ok');
+  auditLog('admin','role-created', slug, { label, copyFrom });
+
+  // Reload roles into memory
+  const { data } = await _sb.from('fpa_custom_roles').select('*').order('role_name');
+  fpa.roles = data || fpa.roles;
+  const { data: pd } = await _sb.from('fpa_role_permissions').select('*');
+  fpa.rolePermissions = {};
+  (pd||[]).forEach(r => { (fpa.rolePermissions[r.role_name]??={})[r.pane_id]={can_view:r.can_view,can_edit:r.can_edit}; });
+
+  // Reset form
+  ['rbNewSlug','rbNewLabel','rbNewIcon','rbNewDesc'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+
+  rbPopulateInviteRoles();
+  rbShowTab('matrix'); // Switch to matrix so user can tweak the new role's permissions
+}
+
+async function rbDeleteRole(roleName) {
+  const role = (fpa.roles||[]).find(r=>r.role_name===roleName);
+  if (!role || role.is_system) { toast('System roles cannot be deleted','w'); return; }
+  if (!confirm(`Delete role "${role.label||roleName}"?\n\nUsers currently assigned this role will need to be reassigned. This cannot be undone.`)) return;
+  if (!_sb) return;
+
+  await _sb.from('fpa_role_permissions').delete().eq('role_name', roleName);
+  const { error } = await _sb.from('fpa_custom_roles').delete().eq('role_name', roleName);
+  if (error) { toast('Delete failed: '+error.message,'w'); return; }
+
+  toast(`Role "${role.label||roleName}" deleted`,'ok');
+  auditLog('admin','role-deleted', roleName, {});
+
+  fpa.roles = (fpa.roles||[]).filter(r=>r.role_name!==roleName);
+  delete fpa.rolePermissions?.[roleName];
+  rbPopulateInviteRoles();
+  rbShowTab('cards');
+}
+
+function rbPopulateInviteRoles() {
+  const sel = document.getElementById('secInviteRole');
+  if (!sel) return;
+  const roles = (fpa.roles||[]).filter(r => r.role_name !== 'admin' || true); // show all
+  if (!roles.length) return;
+  const cur = sel.value;
+  sel.innerHTML = roles.map(r => `<option value="${r.role_name}"${r.role_name===cur?' selected':''}>${r.label||r.role_name}</option>`).join('');
+}
+
+function rbInit() {
+  rbBuildCards();
+  rbPopulateInviteRoles();
+}
+// ── End Role Builder ──────────────────────────────────────────────────────────
 
 async function secInviteUser() {
   const name  = document.getElementById('secInviteName')?.value?.trim();
