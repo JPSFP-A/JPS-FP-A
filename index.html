@@ -1598,7 +1598,7 @@ tr.der td{color:var(--teal)}
             <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Revenue</td><td style="padding:6px 10px;color:var(--muted)">Oracle GL · Billing Revenue Report</td><td style="padding:6px 10px">Fuel revenue, non-fuel revenue by rate class, fuel surcharge, GCT collected</td></tr>
             <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">IPP / Pwr</td><td style="padding:6px 10px;color:var(--muted)">IPP Invoice Summary · Oracle Payables</td><td style="padding:6px 10px">PPA capacity charges, energy charges per IPP (JEA, JAMALCO, WRB, NEK, etc.)</td></tr>
             <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">O&amp;M</td><td style="padding:6px 10px;color:var(--muted)">Oracle GL Cost Centre Report</td><td style="padding:6px 10px">Payroll, overtime, benefits, 3rd party, insurance, bad debt — all as positive USD $000</td></tr>
-            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Depreciation</td><td style="padding:6px 10px;color:var(--muted)">FA Register Run · IFRS 16 Lease Schedule</td><td style="padding:6px 10px">Dep by component: FA Register, SJPC, leases, CX transfers, impairment</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Depreciation</td><td style="padding:6px 10px;color:var(--muted)">FA Register Run · IFRS 16 Lease Schedule</td><td style="padding:6px 10px">Dep by component: PP&amp;E, ROU assets, CX transfers, other · plus derecognition of assets (separate line)</td></tr>
             <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">CapEx</td><td style="padding:6px 10px;color:var(--muted)">CapEx Tracker · Oracle Projects</td><td style="padding:6px 10px">Spend by category: Generation, T&amp;D, IT, Hurricane, Other — USD $000</td></tr>
             <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Financing</td><td style="padding:6px 10px;color:var(--muted)">Treasury Report · Oracle GL</td><td style="padding:6px 10px">Interest income, interest expense, loan fees, preference dividends, FX gain/loss</td></tr>
             <tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;font-weight:700">Balance Sheet</td><td style="padding:6px 10px;color:var(--muted)">Oracle GL Trial Balance / Management Accounts</td><td style="padding:6px 10px">Cash, receivables, inventories, PPE net, total debt, equity — closing balances</td></tr>
@@ -2812,7 +2812,7 @@ tr.der td{color:var(--teal)}
 
 <!-- ═══ DEPRECIATION ASSUMPTIONS ═══ -->
 <div id="pane-ass-dep" class="pane">
-  <div class="info-bar"><div class="info-icon">📉</div><div class="info-text"><strong>Depreciation Assumptions.</strong> Seeded from <em>Depreciation_February_2026_LE_revised.xlsx</em>. Eight editable components per year. IFRS 16 ROU depreciation (otherLeases row) is automatically overridden by the Lease Register once populated. Impairment events are separate IAS 36 charges — never grouped with regular depreciation.</div></div>
+  <div class="info-bar"><div class="info-icon">📉</div><div class="info-text"><strong>Depreciation &amp; Derecognition Assumptions.</strong> Eight editable depreciation components per year. IFRS 16 ROU depreciation (otherLeases row) is automatically overridden by the Lease Register once populated. <strong>Derecognition of assets</strong> (IAS 16 para 67 / IFRS 5) is a separate non-recurring P&amp;L line — never grouped with regular depreciation.</div></div>
   <div id="depYrSeg" style="display:flex;gap:4px;margin-bottom:8px"></div>
 
   <!-- SECTION 1: Monthly Component Table -->
@@ -2821,11 +2821,11 @@ tr.der td{color:var(--teal)}
     <div class="tscr"><table><thead id="depCompH"></thead><tbody id="depCompB"></tbody></table></div>
   </div>
 
-  <!-- SECTION 2: Impairment Events -->
+  <!-- SECTION 2: Derecognition Events -->
   <div class="tc2" style="margin-top:8px">
     <div class="th">
-      <div><div class="tt">§2 Impairment Events (IAS 36) <span class="badge" style="background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.3)">Non-cash | Separate P&L line</span></div>
-      <div class="ts">Impairment charges are shown as a separate amber line in the P&L — never included in regular depreciation totals.</div></div>
+      <div><div class="tt">§2 Derecognition / Write-off of Assets <span class="badge" style="background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.3)">Non-recurring | Separate P&L line</span></div>
+      <div class="ts">Asset derecognition charges (IAS 16 para 67 / IFRS 5) — shown as a separate amber line in the P&amp;L and as a non-cash add-back in the cash flow statement. Never included in regular depreciation totals.</div></div>
       <div class="ta"><button class="btn btn-ghost" style="background:var(--amber);color:#000" onclick="if(can('editDepreciation'))openImpairModal();else toast('Admin only','err')">＋ Add Event</button></div>
     </div>
     <div class="tscr"><table>
@@ -2841,10 +2841,10 @@ tr.der td{color:var(--teal)}
   </div>
 </div>
 
-<!-- Impairment Modal -->
+<!-- Derecognition Event Modal -->
 <div class="mbg" id="impairModal">
   <div class="modal" style="max-width:480px">
-    <div class="mh"><div class="mt">Add Impairment Event</div><button class="mc" onclick="closeModal('impairModal')">✕</button></div>
+    <div class="mh"><div class="mt">Add Derecognition / Write-off Event</div><button class="mc" onclick="closeModal('impairModal')">✕</button></div>
     <div class="mb" style="display:flex;flex-direction:column;gap:10px">
       <div><label class="fi">Event Name</label><input class="fi-in" id="imp-name" placeholder="e.g. Hurricane Melissa Write-down"></div>
       <div><label class="fi">Description</label><input class="fi-in" id="imp-desc" placeholder="Brief description"></div>
@@ -4678,90 +4678,329 @@ const DM_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','
 
 // Lines to track/display in manual entry and extract preview
 // section matches fpa_dim_line.statement: 'P&L' | 'Balance Sheet' | 'Cash Flow' | 'Stats'
+// ─────────────────────────────────────────────────────────────────────────────
+// DM_LINES — Master upload template definition
+//
+// type:'input'   → user uploads this value; appears in CSV template & entry form
+// type:'derived' → auto-calculated from source lines; never uploaded directly
+//
+// All line IDs must exist in fpa_dim_line (Supabase) — FK enforced on fpa_facts.
+// ─────────────────────────────────────────────────────────────────────────────
 const DM_LINES = [
-  // ── P&L — Revenue ────────────────────────────────────────────────────────
-  { id:'fuel_rev',        label:'Fuel Revenue',                  section:'P&L', subsection:'Revenue',           type:'input',   source:'Fuel Settlement Report · Tab "Rev Calc"' },
-  { id:'nonfuel',         label:'Non-Fuel Revenue',              section:'P&L', subsection:'Revenue',           type:'input',   source:'SAP Revenue Report · F01 Non-Fuel' },
-  { id:'other_r',         label:'Other Operating Revenue',       section:'P&L', subsection:'Revenue',           type:'input',   source:'SAP Income Statement · Other Rev' },
-  { id:'pl_total_sales',  label:'Total Revenue',                 section:'P&L', subsection:'Revenue',           type:'derived', source:'fuel_rev + nonfuel + other_r' },
-  // ── P&L — Cost of Sales ──────────────────────────────────────────────────
-  { id:'fuel_cost',       label:'Fuel Costs',                    section:'P&L', subsection:'Cost of Sales',     type:'input',   source:'Fuel Settlement Report · "Costs" tab' },
-  { id:'ipp_cost',        label:'IPP / Purchased Power Cost',    section:'P&L', subsection:'Cost of Sales',     type:'input',   source:'IPP Invoice Summary' },
-  { id:'pl_ppa',          label:'Purchased Power (PPA)',         section:'P&L', subsection:'Cost of Sales',     type:'input',   source:'PPA Billing Statement' },
-  { id:'pl_other_cos',    label:'Other Cost of Sales',           section:'P&L', subsection:'Cost of Sales',     type:'input',   source:'SAP Cost Report' },
-  { id:'pl_total_cos',    label:'Total Cost of Sales',           section:'P&L', subsection:'Cost of Sales',     type:'derived', source:'fuel_cost + ipp_cost + pl_ppa + pl_other_cos' },
-  // ── P&L — Subtotals ──────────────────────────────────────────────────────
-  { id:'pl_gross_profit', label:'Gross Profit',                  section:'P&L', subsection:'P&L Subtotals',     type:'derived', source:'pl_total_sales − pl_total_cos' },
-  // ── P&L — Operating Expenses ─────────────────────────────────────────────
-  { id:'opex',            label:'Operating Expense (O&M)',       section:'P&L', subsection:'Operating Expenses', type:'input',   source:'SAP P&L · OpEx Section' },
-  { id:'pl_sga',          label:'Selling, General & Admin',      section:'P&L', subsection:'Operating Expenses', type:'input',   source:'SAP P&L · SG&A' },
-  { id:'pl_maintenance',  label:'Maintenance',                   section:'P&L', subsection:'Operating Expenses', type:'input',   source:'SAP P&L · Maintenance' },
-  // ── P&L — Subtotals ──────────────────────────────────────────────────────
-  { id:'ebitda',          label:'EBITDA',                        section:'P&L', subsection:'P&L Subtotals',     type:'derived', source:'pl_gross_profit − opex − pl_sga − pl_maintenance' },
-  // ── P&L — Below EBITDA ───────────────────────────────────────────────────
-  { id:'depn',            label:'Depreciation',                  section:'P&L', subsection:'Below EBITDA',      type:'input',   source:'SAP Fixed Assets Register' },
-  { id:'impair',          label:'Impairment',                    section:'P&L', subsection:'Below EBITDA',      type:'input',   source:'Impairment Assessment · IFRS 36' },
-  // ── P&L — Subtotals ──────────────────────────────────────────────────────
-  { id:'ebit',            label:'EBIT',                          section:'P&L', subsection:'P&L Subtotals',     type:'derived', source:'ebitda − depn − impair' },
-  // ── P&L — Net Financing ──────────────────────────────────────────────────
-  { id:'pl_int_income',   label:'Interest Income',               section:'P&L', subsection:'Net Financing',     type:'input',   source:'Treasury Report · Interest Earned' },
-  { id:'pl_int_expense',  label:'Interest Expense',              section:'P&L', subsection:'Net Financing',     type:'input',   source:'Debt Schedule · Interest Line' },
-  { id:'pl_loan_fees',    label:'Loan Financing Fees',           section:'P&L', subsection:'Net Financing',     type:'input',   source:'Debt Schedule · Fees' },
-  { id:'pl_pref_div',     label:'Preference Dividends',          section:'P&L', subsection:'Net Financing',     type:'input',   source:'Preference Share Register' },
-  { id:'pl_fx',           label:'FX Gain/(Loss)',                section:'P&L', subsection:'Net Financing',     type:'input',   source:'Treasury · FX Settlement' },
-  { id:'fin_cost',        label:'Net Financing Cost',            section:'P&L', subsection:'P&L Subtotals',     type:'derived', source:'pl_int_income − pl_int_expense − pl_loan_fees − pl_pref_div + pl_fx' },
-  // ── P&L — Below EBITDA (other) ───────────────────────────────────────────
-  { id:'oth_inc',         label:'Other Income/(Expense)',        section:'P&L', subsection:'Below EBITDA',      type:'input',   source:'SAP P&L · Other Income' },
-  // ── P&L — Subtotals ──────────────────────────────────────────────────────
-  { id:'pretax',          label:'Pre-Tax Income',                section:'P&L', subsection:'P&L Subtotals',     type:'derived', source:'ebit + fin_cost + oth_inc' },
-  // ── P&L — Taxation ───────────────────────────────────────────────────────
-  { id:'pl_curr_tax',     label:'Current Income Tax',            section:'P&L', subsection:'Taxation',          type:'input',   source:'SAP P&L · Tax Charge' },
-  { id:'pl_def_tax',      label:'Deferred Tax',                  section:'P&L', subsection:'Taxation',          type:'input',   source:'Tax Schedule' },
-  { id:'tax',             label:'Total Income Tax',              section:'P&L', subsection:'Taxation',          type:'derived', source:'pl_curr_tax + pl_def_tax' },
-  { id:'net_inc',         label:'NET INCOME',                    section:'P&L', subsection:'P&L Subtotals',     type:'derived', source:'pretax − tax' },
 
-  // ── Balance Sheet — Current Assets ───────────────────────────────────────
-  { id:'cash',            label:'Cash & Short Term Deposits',    section:'Balance Sheet', subsection:'Current Assets',          type:'input',   source:'Bank Reconciliation' },
-  { id:'recv',            label:'Receivables, Net',              section:'Balance Sheet', subsection:'Current Assets',          type:'input',   source:'A/R Aging Report' },
-  { id:'unbill',          label:'Unbilled Revenue',              section:'Balance Sheet', subsection:'Current Assets',          type:'input',   source:'Billing System · Unbilled' },
-  { id:'finv',            label:'Fuel Inventory',                section:'Balance Sheet', subsection:'Current Assets',          type:'input',   source:'Fuel Inventory Report' },
-  { id:'matls',           label:'Materials & Supplies',          section:'Balance Sheet', subsection:'Current Assets',          type:'input',   source:'Stores · Materials Report' },
-  { id:'cur_a',           label:'Total Current Assets',          section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived', source:'Sum of current assets' },
-  // ── Balance Sheet — Non-Current Assets ───────────────────────────────────
-  { id:'ppe',             label:'PP&E – Net',                    section:'Balance Sheet', subsection:'Non-Current Assets',      type:'input',   source:'Fixed Assets Register · NBV' },
-  { id:'cwip',            label:'Construction WIP',              section:'Balance Sheet', subsection:'Non-Current Assets',      type:'input',   source:'Capital Projects Report' },
-  { id:'rou_asset',       label:'Right-of-Use Assets (IFRS 16)', section:'Balance Sheet', subsection:'Non-Current Assets',      type:'derived', source:'IFRS 16 Schedule · ROU' },
-  { id:'tot_a',           label:'TOTAL ASSETS',                  section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived', source:'cur_a + non-current assets' },
-  // ── Balance Sheet — Current Liabilities ──────────────────────────────────
-  { id:'ap',              label:'Accounts Payable & Accruals',   section:'Balance Sheet', subsection:'Current Liabilities',     type:'input',   source:'SAP A/P Aging' },
-  { id:'bs_std',          label:'Short-Term Debt',               section:'Balance Sheet', subsection:'Current Liabilities',     type:'input',   source:'Debt Schedule' },
-  { id:'bs_curr_ltd',     label:'Current Maturity LTD',          section:'Balance Sheet', subsection:'Current Liabilities',     type:'input',   source:'Debt Schedule · CMLTD' },
-  { id:'lease_cl',        label:'Lease Obligations — Current',   section:'Balance Sheet', subsection:'Current Liabilities',     type:'derived', source:'IFRS 16 Schedule' },
-  { id:'cur_l',           label:'Total Current Liabilities',     section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived', source:'Sum of current liabilities' },
-  // ── Balance Sheet — Non-Current Liabilities ───────────────────────────────
-  { id:'ltd',             label:'Long Term Debt',                section:'Balance Sheet', subsection:'Non-Current Liabilities', type:'input',   source:'Debt Schedule · LTD' },
-  { id:'leases',          label:'Lease Liabilities LT (IFRS 16)',section:'Balance Sheet', subsection:'Non-Current Liabilities', type:'derived', source:'IFRS 16 Schedule' },
-  { id:'tot_l',           label:'TOTAL LIABILITIES',             section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived', source:'cur_l + non-current liabilities' },
-  // ── Balance Sheet — Equity ────────────────────────────────────────────────
-  { id:'equity',          label:'Total Equity',                  section:'Balance Sheet', subsection:'Equity',                  type:'input',   source:'SAP Balance Sheet · Equity' },
-  { id:'tot_le',          label:'TOTAL LIABILITIES & EQUITY',    section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived', source:'tot_l + equity' },
+  // ════════════════════════════════════════════════════════════════════════════
+  // INCOME STATEMENT (P&L)
+  // ════════════════════════════════════════════════════════════════════════════
 
-  // ── Cash Flow — Operating ─────────────────────────────────────────────────
-  { id:'cf_ops_net',      label:'Net Cash from Operations',      section:'Cash Flow', subsection:'Operating',   type:'derived', source:'Indirect method reconciliation' },
-  // ── Cash Flow — Investing ─────────────────────────────────────────────────
-  { id:'cf_capex',        label:'Capital Expenditure',           section:'Cash Flow', subsection:'Investing',   type:'input',   source:'Capital Projects Cashflow' },
-  { id:'cf_inv_net',      label:'Net Cash from Investing',       section:'Cash Flow', subsection:'Investing',   type:'derived', source:'cf_capex + other investing' },
-  // ── Cash Flow — Financing ─────────────────────────────────────────────────
-  { id:'cf_drawdown',     label:'Loan Drawdowns',                section:'Cash Flow', subsection:'Financing',   type:'input',   source:'Treasury · Drawdown Schedule' },
-  { id:'cf_loanrep',      label:'Loan Repayments',               section:'Cash Flow', subsection:'Financing',   type:'input',   source:'Debt Schedule · Repayments' },
+  // ── Revenue ─────────────────────────────────────────────────────────────────
+  { id:'fuel_rev',        label:'Fuel Revenue',                           section:'P&L', subsection:'Revenue', type:'input',
+    source:'Fuel Settlement Report · Tab "Rev Calc" · USD $000' },
 
-  // ── Stats — Generation ────────────────────────────────────────────────────
-  { id:'stat_net_gen_gwh',  label:'Net Generation (GWh)',        section:'Stats', subsection:'Generation',    type:'input',   source:'Generation Report · Net Output' },
-  { id:'stat_billed_gwh',   label:'Net Sales (GWh)',             section:'Stats', subsection:'Generation',    type:'derived', source:'Net Gen × (1 − system loss %)' },
-  { id:'stat_sys_loss_pct', label:'System Loss %',               section:'Stats', subsection:'Generation',    type:'input',   source:'Loss Audit Report' },
-  { id:'stat_peak_mw',      label:'Peak Demand (MW)',            section:'Stats', subsection:'Generation',    type:'input',   source:'Generation Report · Peak' },
-  // ── Stats — Customers ────────────────────────────────────────────────────
-  { id:'stat_customers',    label:'Total Customers',             section:'Stats', subsection:'Customers',     type:'input',   source:'CIS · Active Customer Count' },
+  // Non-Fuel Revenue — upload by rate class; total is derived
+  { id:'rev_rt10',        label:'  ↳ Revenue — Residential (RT10)',       section:'P&L', subsection:'Revenue', type:'input',
+    source:'Billing System · RT10 Monthly Revenue · USD $000' },
+  { id:'rev_rt20',        label:'  ↳ Revenue — SME / Commercial (RT20)', section:'P&L', subsection:'Revenue', type:'input',
+    source:'Billing System · RT20 Monthly Revenue · USD $000' },
+  { id:'rev_rt40',        label:'  ↳ Revenue — LV Industrial (RT40)',     section:'P&L', subsection:'Revenue', type:'input',
+    source:'Billing System · RT40 Monthly Revenue · USD $000' },
+  { id:'rev_rt50',        label:'  ↳ Revenue — MV Industrial (RT50)',     section:'P&L', subsection:'Revenue', type:'input',
+    source:'Billing System · RT50 Monthly Revenue · USD $000' },
+  { id:'rev_rt60',        label:'  ↳ Revenue — Streetlights (RT60)',      section:'P&L', subsection:'Revenue', type:'input',
+    source:'Billing System · RT60 Monthly Revenue · USD $000' },
+  { id:'rev_rt70',        label:'  ↳ Revenue — LV/HV Large (RT70)',       section:'P&L', subsection:'Revenue', type:'input',
+    source:'Billing System · RT70 Monthly Revenue · USD $000' },
+  { id:'nonfuel',         label:'Non-Fuel Revenue (Total)',                section:'P&L', subsection:'Revenue', type:'derived',
+    source:'rev_rt10 + rev_rt20 + rev_rt40 + rev_rt50 + rev_rt60 + rev_rt70' },
+
+  // Other Operating Revenue — upload by component; total is derived
+  { id:'other_r_rental',  label:'  ↳ Rental & Facilities Income',         section:'P&L', subsection:'Revenue', type:'input',
+    source:'SAP Income Statement · Rental / Facilities GL codes' },
+  { id:'other_r_ancil',   label:'  ↳ Ancillary Service Income',           section:'P&L', subsection:'Revenue', type:'input',
+    source:'SAP Income Statement · Ancillary Services GL codes' },
+  { id:'other_r_insrec',  label:'  ↳ Insurance Recoveries',               section:'P&L', subsection:'Revenue', type:'input',
+    source:'Treasury · Insurance Claims Settled / Received' },
+  { id:'other_r_scrap',   label:'  ↳ Scrap & Materials Sales',            section:'P&L', subsection:'Revenue', type:'input',
+    source:'Stores Report · Scrap Disposal Proceeds' },
+  { id:'other_r_misc',    label:'  ↳ Miscellaneous Other Revenue',        section:'P&L', subsection:'Revenue', type:'input',
+    source:'SAP Income Statement · Sundry Other Revenue codes' },
+  { id:'other_r',         label:'Other Operating Revenue (Total)',         section:'P&L', subsection:'Revenue', type:'derived',
+    source:'other_r_rental + other_r_ancil + other_r_insrec + other_r_scrap + other_r_misc' },
+
+  { id:'pl_total_sales',  label:'▶ TOTAL REVENUE',                        section:'P&L', subsection:'Revenue', type:'derived',
+    source:'fuel_rev + nonfuel + other_r' },
+
+  // ── Cost of Sales ───────────────────────────────────────────────────────────
+  { id:'fuel_cost',       label:'Fuel Costs',                             section:'P&L', subsection:'Cost of Sales', type:'input',
+    source:'Fuel Settlement Report · "Costs" tab · USD $000' },
+  { id:'ipp_cost',        label:'IPP / Purchased Power Cost',             section:'P&L', subsection:'Cost of Sales', type:'input',
+    source:'IPP Invoice Summary · Monthly PPA Billing' },
+  { id:'pl_ppa',          label:'Purchased Power — Other (PPA)',          section:'P&L', subsection:'Cost of Sales', type:'input',
+    source:'PPA Billing Statement · Non-IPP purchased power' },
+  { id:'pl_other_cos',    label:'Other Cost of Sales',                    section:'P&L', subsection:'Cost of Sales', type:'input',
+    source:'SAP Cost Report · Other direct costs' },
+  { id:'pl_total_cos',    label:'▶ TOTAL COST OF SALES',                  section:'P&L', subsection:'Cost of Sales', type:'derived',
+    source:'fuel_cost + ipp_cost + pl_ppa + pl_other_cos' },
+
+  // ── Gross Profit ────────────────────────────────────────────────────────────
+  { id:'pl_gross_profit', label:'▶ GROSS PROFIT',                         section:'P&L', subsection:'P&L Subtotals', type:'derived',
+    source:'pl_total_sales − pl_total_cos' },
+
+  // ── Operating Expenses — upload by component; totals are derived ────────────
+  { id:'opex_payroll',    label:'  ↳ Employee Costs (Payroll & Benefits)',  section:'P&L', subsection:'Operating Expenses', type:'input',
+    source:'HR / Payroll System · Total People Costs incl. NIS & pension' },
+  { id:'opex_contract',   label:'  ↳ Contract & Third-Party Services',      section:'P&L', subsection:'Operating Expenses', type:'input',
+    source:'Oracle GL · Contract Services cost centres' },
+  { id:'opex_materials',  label:'  ↳ Materials & Spare Parts',              section:'P&L', subsection:'Operating Expenses', type:'input',
+    source:'Stores Report · Materials & consumables expensed' },
+  { id:'opex_insurance',  label:'  ↳ Insurance Premiums (O&M)',             section:'P&L', subsection:'Operating Expenses', type:'input',
+    source:'Insurance Register · Monthly premium allocation' },
+  { id:'opex_baddebt',    label:'  ↳ Bad Debt Expense (IFRS 9 ECL)',        section:'P&L', subsection:'Operating Expenses', type:'input',
+    source:'Credit Risk Report · Expected Credit Loss provision movement' },
+  { id:'opex_other',      label:'  ↳ Other O&M Costs',                      section:'P&L', subsection:'Operating Expenses', type:'input',
+    source:'Oracle GL · Residual operating cost centres' },
+  { id:'opex',            label:'Total O&M (Operating & Maintenance)',       section:'P&L', subsection:'Operating Expenses', type:'derived',
+    source:'opex_payroll + opex_contract + opex_materials + opex_insurance + opex_baddebt + opex_other' },
+  { id:'pl_sga',          label:'Selling, General & Admin (SG&A)',           section:'P&L', subsection:'Operating Expenses', type:'input',
+    source:'SAP P&L · SG&A section cost centres' },
+  { id:'pl_maintenance',  label:'Maintenance (Planned & Corrective)',        section:'P&L', subsection:'Operating Expenses', type:'input',
+    source:'Maintenance Management System · Closed work orders' },
+  { id:'pl_total_opex',   label:'▶ TOTAL OPERATING EXPENSES',               section:'P&L', subsection:'Operating Expenses', type:'derived',
+    source:'opex + pl_sga + pl_maintenance' },
+
+  // ── EBITDA ──────────────────────────────────────────────────────────────────
+  { id:'ebitda',          label:'▶ EBITDA',                                section:'P&L', subsection:'P&L Subtotals', type:'derived',
+    source:'pl_gross_profit − pl_total_opex' },
+
+  // ── Depreciation — upload by component; total is derived ───────────────────
+  { id:'depn_ppe',        label:'  ↳ Depreciation — PP&E (IAS 16)',        section:'P&L', subsection:'Depreciation & Amortisation', type:'input',
+    source:'Fixed Asset Register · Monthly depreciation run · USD $000' },
+  { id:'depn_rou',        label:'  ↳ Depreciation — ROU Assets (IFRS 16)', section:'P&L', subsection:'Depreciation & Amortisation', type:'derived',
+    source:'IFRS 16 Lease Schedule · ROU amortisation — auto from Lease Register' },
+  { id:'depn_cx',         label:'  ↳ Depreciation — CapEx Transfers',      section:'P&L', subsection:'Depreciation & Amortisation', type:'input',
+    source:'Capital Projects · Assets commissioned & transferred this period' },
+  { id:'depn_other',      label:'  ↳ Other Depreciation & Amortisation',   section:'P&L', subsection:'Depreciation & Amortisation', type:'input',
+    source:'SAP Fixed Assets · Intangibles & other amortisation' },
+  { id:'depn',            label:'▶ Total Depreciation & Amortisation',     section:'P&L', subsection:'Depreciation & Amortisation', type:'derived',
+    source:'depn_ppe + depn_rou + depn_cx + depn_other' },
+
+  // Derecognition — replaces "Impairment" (separate non-recurring P&L line)
+  { id:'impair',          label:'Derecognition / Write-off of Assets',      section:'P&L', subsection:'Depreciation & Amortisation', type:'input',
+    source:'Asset Disposal Schedule · IAS 16 Para 67 · Net book value of assets derecognised' },
+
+  // ── EBIT ────────────────────────────────────────────────────────────────────
+  { id:'ebit',            label:'▶ EBIT (Operating Profit)',                section:'P&L', subsection:'P&L Subtotals', type:'derived',
+    source:'ebitda − depn − impair' },
+
+  // ── Net Financing Costs — upload by component; net total is derived ─────────
+  { id:'pl_int_income',   label:'  ↳ Interest Income',                     section:'P&L', subsection:'Net Financing Costs', type:'input',
+    source:'Treasury Report · Interest earned on cash deposits' },
+  { id:'pl_int_expense',  label:'  ↳ Interest Expense',                    section:'P&L', subsection:'Net Financing Costs', type:'input',
+    source:'Debt Schedule · Interest accrual for period' },
+  { id:'pl_loan_fees',    label:'  ↳ Loan Financing Fees (amortised)',      section:'P&L', subsection:'Net Financing Costs', type:'input',
+    source:'Debt Schedule · Amortisation of arrangement fees' },
+  { id:'pl_pref_div',     label:'  ↳ Preference Dividends',                section:'P&L', subsection:'Net Financing Costs', type:'input',
+    source:'Preference Share Register · Monthly dividend accrual' },
+  { id:'pl_fx',           label:'  ↳ FX Gain / (Loss)',                    section:'P&L', subsection:'Net Financing Costs', type:'input',
+    source:'Treasury · FX settlement report · JMD/USD translation gain or loss' },
+  { id:'fin_cost',        label:'▶ NET FINANCING COST',                    section:'P&L', subsection:'P&L Subtotals', type:'derived',
+    source:'pl_int_income − pl_int_expense − pl_loan_fees − pl_pref_div + pl_fx' },
+
+  // ── Other Income / (Expense) — upload by component; net total is derived ───
+  { id:'oth_inc_grant',   label:'  ↳ Government Grants & Subsidies',       section:'P&L', subsection:'Other Income & Expense', type:'input',
+    source:'Government Agreements · Grant receipts recognised this period' },
+  { id:'oth_inc_asso',    label:'  ↳ Share of Associates\' Profit',        section:'P&L', subsection:'Other Income & Expense', type:'input',
+    source:'Equity Method Accounting · Associate / JV results (IFRS equity method)' },
+  { id:'oth_inc_gain',    label:'  ↳ Gains / (Losses) on Financial Instruments', section:'P&L', subsection:'Other Income & Expense', type:'input',
+    source:'Treasury · Mark-to-market or realised gains on derivatives / investments' },
+  { id:'oth_inc_other',   label:'  ↳ Miscellaneous Other Income / (Expense)', section:'P&L', subsection:'Other Income & Expense', type:'input',
+    source:'SAP P&L · Sundry other income or expense GL codes' },
+  { id:'oth_inc',         label:'▶ NET OTHER INCOME / (EXPENSE)',           section:'P&L', subsection:'P&L Subtotals', type:'derived',
+    source:'oth_inc_grant + oth_inc_asso + oth_inc_gain + oth_inc_other' },
+
+  // ── Pre-Tax Income ──────────────────────────────────────────────────────────
+  { id:'pretax',          label:'▶ NET PROFIT BEFORE TAX',                 section:'P&L', subsection:'P&L Subtotals', type:'derived',
+    source:'ebit + fin_cost + oth_inc' },
+
+  // ── Taxation — upload current & deferred; total is derived ──────────────────
+  { id:'pl_curr_tax',     label:'  ↳ Current Income Tax Charge',           section:'P&L', subsection:'Taxation', type:'input',
+    source:'SAP P&L · Current tax charge per tax computation' },
+  { id:'pl_def_tax',      label:'  ↳ Deferred Tax (Income) / Expense',     section:'P&L', subsection:'Taxation', type:'input',
+    source:'Tax Schedule · Movement in deferred tax balances (IAS 12)' },
+  { id:'tax',             label:'▶ TOTAL INCOME TAX',                      section:'P&L', subsection:'Taxation', type:'derived',
+    source:'pl_curr_tax + pl_def_tax' },
+
+  // ── Net Income ──────────────────────────────────────────────────────────────
+  { id:'net_inc',         label:'▶ NET INCOME (PROFIT AFTER TAX)',         section:'P&L', subsection:'P&L Subtotals', type:'derived',
+    source:'pretax − tax' },
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // BALANCE SHEET
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Current Assets ──────────────────────────────────────────────────────────
+  { id:'cash',            label:'Cash & Short-Term Deposits',              section:'Balance Sheet', subsection:'Current Assets', type:'input',
+    source:'Bank Reconciliation · Closing cash balance' },
+  { id:'recv',            label:'Trade Receivables — Net of Impairment',   section:'Balance Sheet', subsection:'Current Assets', type:'input',
+    source:'A/R Aging Report · Net receivable after ECL provision' },
+  { id:'unbill',          label:'Unbilled Revenue',                        section:'Balance Sheet', subsection:'Current Assets', type:'input',
+    source:'Billing System · Accrued unbilled energy to period end' },
+  { id:'finv',            label:'Fuel Inventory',                          section:'Balance Sheet', subsection:'Current Assets', type:'input',
+    source:'Fuel Inventory Report · Closing stock at cost' },
+  { id:'matls',           label:'Materials & Supplies',                    section:'Balance Sheet', subsection:'Current Assets', type:'input',
+    source:'Stores Report · Materials & spare parts at cost' },
+  { id:'bs_prepaid',      label:'Prepaid Expenses & Deposits',             section:'Balance Sheet', subsection:'Current Assets', type:'input',
+    source:'SAP · Prepaid expense GL balance (insurance, advances)' },
+  { id:'cur_a',           label:'▶ TOTAL CURRENT ASSETS',                 section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived',
+    source:'cash + recv + unbill + finv + matls + bs_prepaid + other current assets' },
+
+  // ── Non-Current Assets ──────────────────────────────────────────────────────
+  { id:'ppe',             label:'Property, Plant & Equipment — Net',       section:'Balance Sheet', subsection:'Non-Current Assets', type:'input',
+    source:'Fixed Asset Register · Net Book Value (cost less accumulated depreciation)' },
+  { id:'cwip',            label:'Construction Work in Progress (CWIP)',    section:'Balance Sheet', subsection:'Non-Current Assets', type:'input',
+    source:'Capital Projects Report · Costs incurred on assets not yet commissioned' },
+  { id:'rou_asset',       label:'Right-of-Use Assets (IFRS 16)',           section:'Balance Sheet', subsection:'Non-Current Assets', type:'derived',
+    source:'IFRS 16 Lease Schedule · ROU asset NBV — auto from Lease Register' },
+  { id:'eqinv',           label:'Equity Investments (incl. SJPC)',         section:'Balance Sheet', subsection:'Non-Current Assets', type:'input',
+    source:'Investment Register · Carrying value under equity method' },
+  { id:'pension',         label:'Pension Asset',                           section:'Balance Sheet', subsection:'Non-Current Assets', type:'input',
+    source:'Actuarial Report · IAS 19 net pension asset' },
+  { id:'tot_a',           label:'▶ TOTAL ASSETS',                         section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived',
+    source:'cur_a + ppe + cwip + rou_asset + other non-current assets' },
+
+  // ── Current Liabilities ─────────────────────────────────────────────────────
+  { id:'ap',              label:'Accounts Payable & Accruals',             section:'Balance Sheet', subsection:'Current Liabilities', type:'input',
+    source:'SAP A/P Aging · Trade creditors + accrued liabilities' },
+  { id:'bs_corp_tax',     label:'Corporation Tax Payable',                 section:'Balance Sheet', subsection:'Current Liabilities', type:'input',
+    source:'Tax Schedule · Current tax liability due within 12 months' },
+  { id:'bs_cust_dep',     label:'Customer Deposits — Current',             section:'Balance Sheet', subsection:'Current Liabilities', type:'input',
+    source:'CIS · Customer security deposits repayable within 12 months' },
+  { id:'bs_std',          label:'Short-Term Debt',                         section:'Balance Sheet', subsection:'Current Liabilities', type:'input',
+    source:'Debt Schedule · Revolving credit & short-term borrowings' },
+  { id:'bs_curr_ltd',     label:'Current Maturity — Long-Term Debt',       section:'Balance Sheet', subsection:'Current Liabilities', type:'input',
+    source:'Debt Schedule · Principal repayable within 12 months' },
+  { id:'lease_cl',        label:'Lease Liabilities — Current (IFRS 16)',   section:'Balance Sheet', subsection:'Current Liabilities', type:'derived',
+    source:'IFRS 16 Schedule · Principal due within 12 months — auto from Lease Register' },
+  { id:'cur_l',           label:'▶ TOTAL CURRENT LIABILITIES',            section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived',
+    source:'ap + bs_corp_tax + bs_cust_dep + bs_std + bs_curr_ltd + lease_cl + other current liabilities' },
+
+  // ── Non-Current Liabilities ─────────────────────────────────────────────────
+  { id:'ltd',             label:'Long-Term Debt',                          section:'Balance Sheet', subsection:'Non-Current Liabilities', type:'input',
+    source:'Debt Schedule · Principal due beyond 12 months' },
+  { id:'leases',          label:'Lease Liabilities — Long-Term (IFRS 16)', section:'Balance Sheet', subsection:'Non-Current Liabilities', type:'derived',
+    source:'IFRS 16 Schedule · LT lease liability — auto from Lease Register' },
+  { id:'bs_dtl',          label:'Deferred Tax Liability',                  section:'Balance Sheet', subsection:'Non-Current Liabilities', type:'input',
+    source:'Tax Schedule · Net deferred tax liability balance (IAS 12)' },
+  { id:'bs_cust_dep_lt',  label:'Customer Deposits & Advances — LT',      section:'Balance Sheet', subsection:'Non-Current Liabilities', type:'input',
+    source:'CIS · Security deposits repayable beyond 12 months' },
+  { id:'tot_l',           label:'▶ TOTAL LIABILITIES',                    section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived',
+    source:'cur_l + ltd + leases + bs_dtl + other non-current liabilities' },
+
+  // ── Equity ──────────────────────────────────────────────────────────────────
+  { id:'bs_share_cap',    label:'Share Capital',                           section:'Balance Sheet', subsection:'Equity', type:'input',
+    source:'SAP · Share capital GL balance' },
+  { id:'bs_retained',     label:'Retained Earnings',                       section:'Balance Sheet', subsection:'Equity', type:'input',
+    source:'SAP · Retained earnings / accumulated deficit GL balance' },
+  { id:'equity',          label:'▶ TOTAL EQUITY',                         section:'Balance Sheet', subsection:'Equity', type:'derived',
+    source:'bs_share_cap + bs_retained + other equity reserves' },
+  { id:'tot_le',          label:'▶ TOTAL LIABILITIES & EQUITY',           section:'Balance Sheet', subsection:'Balance Sheet Subtotals', type:'derived',
+    source:'tot_l + equity   [must equal TOTAL ASSETS — check balance sheet]' },
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASH FLOW STATEMENT (Indirect Method)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Operating Activities ────────────────────────────────────────────────────
+  { id:'cf_ni',           label:'Net Profit for the Period',              section:'Cash Flow', subsection:'Operating Activities', type:'derived',
+    source:'= net_inc — automatically linked from P&L' },
+  { id:'cf_depn',         label:'Add: Depreciation & Amortisation',       section:'Cash Flow', subsection:'Operating Activities', type:'derived',
+    source:'= depn — non-cash add-back from P&L' },
+  { id:'cf_impair',       label:'Add: Loss on Derecognition / Write-off', section:'Cash Flow', subsection:'Operating Activities', type:'derived',
+    source:'= impair — non-cash add-back from P&L' },
+  { id:'cf_def_tax',      label:'Add: Deferred Tax Movement',             section:'Cash Flow', subsection:'Operating Activities', type:'derived',
+    source:'= pl_def_tax — non-cash add-back' },
+  { id:'cf_fx',           label:'Reverse: Unrealised FX Gains / (Losses)',section:'Cash Flow', subsection:'Operating Activities', type:'input',
+    source:'Treasury · Unrealised FX component only (exclude settled FX)' },
+  { id:'cf_wc_recv',      label:'Δ Trade & Other Receivables',            section:'Cash Flow', subsection:'Working Capital Changes', type:'input',
+    source:'BS movement: opening recv − closing recv (increase = use of cash)' },
+  { id:'cf_wc_inv',       label:'Δ Inventories (Fuel & Materials)',       section:'Cash Flow', subsection:'Working Capital Changes', type:'input',
+    source:'BS movement: opening inventories − closing inventories' },
+  { id:'cf_oth',          label:'Δ Payables & Other Working Capital',     section:'Cash Flow', subsection:'Working Capital Changes', type:'input',
+    source:'Net movement in AP, accruals, customer deposits, tax payable' },
+  { id:'cf_ops_net',      label:'▶ NET CASH FROM OPERATING ACTIVITIES',  section:'Cash Flow', subsection:'Cash Flow Subtotals', type:'derived',
+    source:'NPAT + non-cash add-backs + working capital movements' },
+
+  // ── Investing Activities ────────────────────────────────────────────────────
+  { id:'cf_capex',        label:'Capital Expenditure (cash paid)',        section:'Cash Flow', subsection:'Investing Activities', type:'input',
+    source:'Capital Projects · Cash payments for PP&E and CWIP additions' },
+  { id:'cf_disp',         label:'Proceeds from Asset Disposals',          section:'Cash Flow', subsection:'Investing Activities', type:'input',
+    source:'Asset Disposal Schedule · Cash received from derecognised assets' },
+  { id:'cf_rcash',        label:'Restricted Cash Movement',               section:'Cash Flow', subsection:'Investing Activities', type:'input',
+    source:'Treasury · Movement in EDF or other restricted cash accounts' },
+  { id:'cf_inv_net',      label:'▶ NET CASH FROM INVESTING ACTIVITIES',  section:'Cash Flow', subsection:'Cash Flow Subtotals', type:'derived',
+    source:'cf_capex + cf_disp + cf_rcash + other investing' },
+
+  // ── Financing Activities ────────────────────────────────────────────────────
+  { id:'cf_drawdown',     label:'Loan Drawdowns',                         section:'Cash Flow', subsection:'Financing Activities', type:'input',
+    source:'Treasury · Drawdown schedule — cash received from new borrowings' },
+  { id:'cf_loanrep',      label:'Loan Repayments (principal)',             section:'Cash Flow', subsection:'Financing Activities', type:'input',
+    source:'Debt Schedule · Principal repayments made in the period' },
+  { id:'cf_int_paid',     label:'Interest Paid',                          section:'Cash Flow', subsection:'Financing Activities', type:'input',
+    source:'Debt Schedule · Interest cash payments (may differ from accrual)' },
+  { id:'cf_pref_div_paid',label:'Preference Dividends Paid',              section:'Cash Flow', subsection:'Financing Activities', type:'input',
+    source:'Preference Share Register · Dividends actually paid in period' },
+  { id:'cf_financing_net',label:'▶ NET CASH FROM FINANCING ACTIVITIES',  section:'Cash Flow', subsection:'Cash Flow Subtotals', type:'derived',
+    source:'cf_drawdown − cf_loanrep − cf_int_paid − cf_pref_div_paid' },
+
+  // ── Net Change in Cash ──────────────────────────────────────────────────────
+  { id:'cf_net_change',   label:'▶ NET (DECREASE) / INCREASE IN CASH',   section:'Cash Flow', subsection:'Cash Flow Subtotals', type:'derived',
+    source:'cf_ops_net + cf_inv_net + cf_financing_net   [verify vs Δ cash on BS]' },
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STATISTICAL / OPERATIONAL DATA
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Generation ──────────────────────────────────────────────────────────────
+  { id:'stat_netgen_gwh', label:'Net Generation (GWh)',                   section:'Stats', subsection:'Generation', type:'input',
+    source:'Generation Report · Total net output after station use · GWh' },
+  { id:'stat_sysloss_pct',label:'System Loss %',                          section:'Stats', subsection:'Generation', type:'input',
+    source:'Loss Audit Report · (Net Gen − Billed Sales) / Net Gen × 100' },
+  { id:'stat_peak_mw',    label:'Peak Demand (MW)',                       section:'Stats', subsection:'Generation', type:'input',
+    source:'Generation Report · Coincident peak demand for the period · MW' },
+  { id:'stat_heatrate',   label:'System Heat Rate (kJ/kWh)',              section:'Stats', subsection:'Generation', type:'input',
+    source:'Generation Report · Weighted average thermal heat rate for period' },
+
+  // ── Net Sales (GWh) by Rate Class — upload by class; total is derived ───────
+  { id:'rev_mwh_rt10',    label:'  ↳ Net Sales — Residential (RT10) GWh', section:'Stats', subsection:'Net Sales by Rate Class', type:'input',
+    source:'Billing System · RT10 energy billed in GWh for the period' },
+  { id:'rev_mwh_rt20',    label:'  ↳ Net Sales — SME/Commercial (RT20) GWh',section:'Stats', subsection:'Net Sales by Rate Class', type:'input',
+    source:'Billing System · RT20 energy billed in GWh for the period' },
+  { id:'rev_mwh_rt40',    label:'  ↳ Net Sales — LV Industrial (RT40) GWh', section:'Stats', subsection:'Net Sales by Rate Class', type:'input',
+    source:'Billing System · RT40 energy billed in GWh for the period' },
+  { id:'rev_mwh_rt50',    label:'  ↳ Net Sales — MV Industrial (RT50) GWh', section:'Stats', subsection:'Net Sales by Rate Class', type:'input',
+    source:'Billing System · RT50 energy billed in GWh for the period' },
+  { id:'rev_mwh_rt60',    label:'  ↳ Net Sales — Streetlights (RT60) GWh',  section:'Stats', subsection:'Net Sales by Rate Class', type:'input',
+    source:'Billing System · RT60 energy billed in GWh for the period' },
+  { id:'rev_mwh_rt70',    label:'  ↳ Net Sales — LV/HV Large (RT70) GWh',   section:'Stats', subsection:'Net Sales by Rate Class', type:'input',
+    source:'Billing System · RT70 energy billed in GWh for the period' },
+  { id:'stat_billed_gwh', label:'▶ TOTAL NET SALES (GWh)',                section:'Stats', subsection:'Net Sales by Rate Class', type:'derived',
+    source:'rev_mwh_rt10 + rev_mwh_rt20 + rev_mwh_rt40 + rev_mwh_rt50 + rev_mwh_rt60 + rev_mwh_rt70' },
+
+  // ── Customers by Rate Class — upload by class; total is derived ─────────────
+  { id:'stat_cust_rt10',  label:'  ↳ Customers — Residential (RT10)',     section:'Stats', subsection:'Customers by Rate Class', type:'input',
+    source:'CIS · Count of active RT10 accounts at period end' },
+  { id:'stat_cust_rt20',  label:'  ↳ Customers — SME / Commercial (RT20)',section:'Stats', subsection:'Customers by Rate Class', type:'input',
+    source:'CIS · Count of active RT20 accounts at period end' },
+  { id:'stat_cust_rt40',  label:'  ↳ Customers — LV Industrial (RT40)',   section:'Stats', subsection:'Customers by Rate Class', type:'input',
+    source:'CIS · Count of active RT40 accounts at period end' },
+  { id:'stat_cust_rt50',  label:'  ↳ Customers — MV Industrial (RT50)',   section:'Stats', subsection:'Customers by Rate Class', type:'input',
+    source:'CIS · Count of active RT50 accounts at period end' },
+  { id:'stat_cust_rt60',  label:'  ↳ Customers — Streetlights (RT60)',    section:'Stats', subsection:'Customers by Rate Class', type:'input',
+    source:'CIS · Count of active RT60 accounts at period end' },
+  { id:'stat_cust_rt70',  label:'  ↳ Customers — LV/HV Large (RT70)',     section:'Stats', subsection:'Customers by Rate Class', type:'input',
+    source:'CIS · Count of active RT70 accounts at period end' },
+  { id:'stat_customers',  label:'▶ TOTAL CUSTOMERS',                      section:'Stats', subsection:'Customers by Rate Class', type:'derived',
+    source:'stat_cust_rt10 + stat_cust_rt20 + stat_cust_rt40 + stat_cust_rt50 + stat_cust_rt60 + stat_cust_rt70' },
+
 ];
 
 function dmSelectYear(y, btn) {
@@ -4930,7 +5169,8 @@ function dmBuildStatusChips(year, month) {
   const sections = ['P&L','Balance Sheet','Cash Flow','Stats'];
   let html = '';
   sections.forEach(sec => {
-    const lines = DM_LINES.filter(l=>l.section===sec);
+    // Only count input lines — derived lines are never uploaded directly
+    const lines  = DM_LINES.filter(l=>l.section===sec && l.type==='input');
     const loaded = lines.filter(l=>_dmCurrentFacts[l.id]!=null).length;
     const total  = lines.length;
     const all    = loaded === total;
@@ -4959,14 +5199,16 @@ function dmBuildStatusChips(year, month) {
 function dmBuildManualFields() {
   const container = document.getElementById('dmManualFields');
   if (!container) return;
-  container.innerHTML = DM_LINES.map(l => {
+  // Only render INPUT lines — derived lines auto-calculate and cannot be manually entered
+  container.innerHTML = DM_LINES.filter(l => l.type === 'input').map(l => {
     const cur = _dmCurrentFacts[l.id];
     const val = cur != null ? cur : '';
+    const lbl = l.label.replace(/^\s*↳\s*/, ''); // strip indent arrow for display
     return `<div>
-      <label style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;display:block;margin-bottom:3px">${l.label}</label>
+      <label style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;display:block;margin-bottom:3px">${lbl} <span style="color:var(--muted);font-weight:400;font-size:9px">${l.subsection}</span></label>
       <input type="number" step="any" id="dmM_${l.id}" value="${val}"
         style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);font-size:12px;font-family:var(--mono)"
-        placeholder="${l.section}">
+        placeholder="0">
     </div>`;
   }).join('');
 }
@@ -5166,19 +5408,22 @@ function dmShowExtractPreview(extracted, filename, sheets) {
   const status= document.getElementById('dmExtractStatus');
   const note  = document.getElementById('dmCommitNote');
 
-  const found  = Object.keys(extracted).length;
-  const total  = DM_LINES.length;
+  // Only INPUT lines can be matched from an uploaded file; derived lines auto-calculate
+  const inputLines = DM_LINES.filter(l => l.type === 'input');
+  const found  = inputLines.filter(l => extracted[l.id] != null).length;
+  const total  = inputLines.length;
 
   status.innerHTML = `<div style="font-size:11px;color:var(--muted)">
     File: <strong>${filename}</strong>${sheets.length?` · Sheets: ${sheets.join(', ')}`:''}
-    &nbsp;·&nbsp; <strong style="color:${found>0?'var(--green)':'var(--amber)'}">${found}/${total} lines matched</strong>
+    &nbsp;·&nbsp; <strong style="color:${found>0?'var(--green)':'var(--amber)'}">${found}/${total} input lines matched</strong>
+    &nbsp;·&nbsp; <span style="color:var(--muted)">${DM_LINES.filter(l=>l.type==='derived').length} derived lines auto-calculate</span>
   </div>`;
 
   note.textContent = found===0
-    ? '⚠ No lines matched — try uploading in the standard CSV format (line_id, value)'
-    : `${found} lines will be committed. Unmatched lines keep their current DB value.`;
+    ? '⚠ No input lines matched — try uploading in the standard CSV format (line_id, value)'
+    : `${found} input lines will be committed. Derived lines (▶ subtotals) are calculated automatically.`;
 
-  tbody.innerHTML = DM_LINES.map(l => {
+  tbody.innerHTML = inputLines.map(l => {
     const exVal  = extracted[l.id];
     const curVal = _dmCurrentFacts[l.id];
     const hasNew = exVal != null;
@@ -5192,8 +5437,9 @@ function dmShowExtractPreview(extracted, filename, sheets) {
 
     if (hasNew) _dmExtractRows.push({ id: l.id, label: l.label, value: exVal });
 
+    const dispLabel = l.label.replace(/^\s*↳\s*/,'');
     return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:5px 10px;color:var(--text)">${l.label} <span style="font-size:9px;color:var(--muted)">${l.section}</span></td>
+      <td style="padding:5px 10px;color:var(--text)">${dispLabel} <span style="font-size:9px;color:var(--muted)">${l.subsection}</span></td>
       <td style="padding:5px 10px;text-align:right;font-family:var(--mono);color:${hasNew?'var(--text)':'var(--muted)'}">${hasNew ? exVal.toLocaleString() : '—'}</td>
       <td style="padding:5px 10px;text-align:right;font-family:var(--mono);color:var(--muted)">${curVal!=null ? curVal.toLocaleString() : '—'}</td>
       <td style="padding:5px 10px;text-align:center">${statusHtml}</td>
@@ -5212,10 +5458,14 @@ async function dmCommitExtract() {
   const actVer   = await _dmEnsureActualVersion(_dmYear, _dmMonth);
   if (!actVer) return;
 
-  const rows = _dmExtractRows.map(r => ({
-    version_id: actVer.id, line_id: r.id, period_id: periodId,
-    value: r.value, source: 'upload'
-  }));
+  // Filter to input-only lines — never commit derived lines to fpa_facts
+  const inputIds = new Set(DM_LINES.filter(l=>l.type==='input').map(l=>l.id));
+  const rows = _dmExtractRows
+    .filter(r => inputIds.has(r.id))
+    .map(r => ({
+      version_id: actVer.id, line_id: r.id, period_id: periodId,
+      value: r.value, source: 'upload'
+    }));
 
   const { error } = await _sb.from('fpa_facts')
     .upsert(rows, { onConflict: 'version_id,line_id,period_id', ignoreDuplicates: false });
@@ -5241,24 +5491,46 @@ function dmDiscardExtract() {
 // ── Download CSV upload template ─────────────────────────────────────────────
 function dmDownloadTemplate(type) {
   const mLabel = _dmMonth ? `${DM_MONTHS[_dmMonth-1]}_${_dmYear}` : `${_dmYear}`;
-  // Header explains the format
-  const header = [
+  const period = _dmMonth ? `${DM_MONTHS[_dmMonth-1]} ${_dmYear}` : _dmYear;
+
+  const headerLines = [
+    `# ═══════════════════════════════════════════════════════════════════════`,
     `# JPS FP&A — ${type} Upload Template`,
-    `# Period: ${_dmMonth ? DM_MONTHS[_dmMonth-1]+' '+_dmYear : _dmYear}`,
-    `# Instructions:`,
-    `#   1. Fill in the VALUE column (USD $000s unless marked otherwise)`,
-    `#   2. Delete these comment lines before uploading, or leave them — the parser ignores # lines`,
-    `#   3. Do not change the line_id column`,
-    `#   4. Save as CSV and upload via the drop zone above`,
-    `line_id,label,section,value`,
+    `# Period: ${period}`,
+    `# Generated: ${new Date().toISOString().slice(0,10)}`,
+    `# ───────────────────────────────────────────────────────────────────────`,
+    `# INSTRUCTIONS`,
+    `#   1. Fill in the VALUE column only. Do not change line_id.`,
+    `#   2. Values are USD $000 unless the source column says otherwise.`,
+    `#   3. Use negative numbers for costs/expenses where the source report shows them as negative.`,
+    `#   4. Lines marked DERIVED are calculated automatically — do not upload them.`,
+    `#   5. Save as CSV and upload via the Data Manager drop zone.`,
+    `#   6. Parser ignores lines beginning with # so you may leave these comments in.`,
+    `# ═══════════════════════════════════════════════════════════════════════`,
+    `line_id,label,subsection,source,value`,
   ].join('\n');
-  const rows = DM_LINES.map(l => `${l.id},"${l.label}",${l.section},`).join('\n');
-  const csv  = header + '\n' + rows;
+
+  // Only include INPUT lines; group with subsection comment breaks
+  let currentSub = '';
+  const rows = DM_LINES
+    .filter(l => l.type === 'input')
+    .map(l => {
+      let prefix = '';
+      if (l.subsection !== currentSub) {
+        currentSub = l.subsection;
+        prefix = `# ── ${l.subsection} ${'─'.repeat(Math.max(0,55-l.subsection.length))}\n`;
+      }
+      const cleanLabel = l.label.replace(/^\s*↳\s*/, '').replace(/"/g, '""');
+      const cleanSource = (l.source||'').replace(/"/g, '""');
+      return `${prefix}${l.id},"${cleanLabel}","${l.subsection}","${cleanSource}",`;
+    }).join('\n');
+
+  const csv = headerLines + '\n' + rows;
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = `JPS_${type}_Template_${mLabel}.csv`;
   a.click();
-  toast(`${type} template downloaded — fill in the VALUE column and upload`,'ok');
+  toast(`Template downloaded — fill VALUE column and upload · ${DM_LINES.filter(l=>l.type==='input').length} input lines`,'ok');
 }
 
 async function dmToggleLock() {
@@ -5358,23 +5630,51 @@ function dmBuildEntryTable(section) {
 
   let currentSub = '';
   tbody.innerHTML = lines.map(l => {
-    const cur = _dmCurrentFacts[l.id];
-    const curFmt = cur != null ? Number(cur).toLocaleString() : '—';
+    const cur       = _dmCurrentFacts[l.id];
+    const curFmt    = cur != null ? Number(cur).toLocaleString() : '—';
     const isDerived = l.type === 'derived';
-    const rowBg = isDerived ? 'background:rgba(125,160,196,.04)' : '';
+    const isSubline = l.label.startsWith('  ↳');
+    const isTotal   = l.label.startsWith('▶');
+
     const subHdr = l.subsection !== currentSub
-      ? (() => { currentSub = l.subsection; return `<tr><td colspan="5" style="padding:8px 10px 3px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;background:var(--card2)">${l.subsection}</td></tr>`; })()
+      ? (() => {
+          currentSub = l.subsection;
+          return `<tr><td colspan="5" style="padding:8px 10px 3px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;background:var(--card2)">${l.subsection}</td></tr>`;
+        })()
       : '';
+
+    // Visual styling
+    let rowBg    = '';
+    let nameStyle= `color:var(--text);font-weight:600`;
+    let typeBadge= `background:rgba(251,191,36,.15);color:var(--gold)`;
+    let typeLabel= 'INPUT';
+    if (isDerived && isTotal) {
+      rowBg     = 'background:rgba(6,182,212,.06);border-top:1px solid rgba(6,182,212,.2)';
+      nameStyle = 'color:var(--teal);font-weight:700';
+      typeBadge = 'background:rgba(6,182,212,.15);color:var(--teal)';
+      typeLabel = 'DERIVED';
+    } else if (isDerived) {
+      rowBg     = 'background:rgba(125,160,196,.04)';
+      nameStyle = 'color:var(--muted);font-weight:400';
+      typeBadge = 'background:rgba(125,160,196,.15);color:var(--muted)';
+      typeLabel = 'DERIVED';
+    } else if (isSubline) {
+      rowBg     = 'background:rgba(251,191,36,.03)';
+      nameStyle = 'color:var(--text);font-weight:400;padding-left:18px';
+    }
+
+    const dispLabel = l.label.replace(/^\s*↳\s*/, '');
+
     return `${subHdr}<tr style="${rowBg}">
-      <td style="padding:5px 10px;font-weight:${isDerived?'400':'600'};color:${isDerived?'var(--muted)':'var(--text)'}">${l.label}</td>
-      <td style="padding:5px 10px;color:var(--muted);font-size:10px">${l.source}</td>
+      <td style="padding:5px 10px;${nameStyle}">${dispLabel}</td>
+      <td style="padding:5px 10px;color:var(--muted);font-size:10px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${l.source||''}">${l.source||'—'}</td>
       <td style="padding:5px 10px;text-align:center">
-        <span style="font-size:9px;padding:2px 7px;border-radius:10px;font-weight:700;${isDerived?'background:rgba(125,160,196,.15);color:var(--muted)':'background:rgba(251,191,36,.15);color:var(--gold)'}">${isDerived?'DERIVED':'INPUT'}</span>
+        <span style="font-size:9px;padding:2px 7px;border-radius:10px;font-weight:700;${typeBadge}">${typeLabel}</span>
       </td>
-      <td style="padding:5px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--muted)">${curFmt}</td>
+      <td style="padding:5px 10px;text-align:right;font-family:var(--mono);font-size:11px;color:${isDerived?'var(--teal)':'var(--text)'}">${curFmt}</td>
       <td style="padding:4px 10px">
         ${isDerived
-          ? '<span style="font-size:10px;color:var(--muted);display:block;text-align:right">auto-calculated</span>'
+          ? `<span style="font-size:9px;color:var(--muted);display:block;text-align:right;font-style:italic" title="${l.source||''}">${l.source?.split(' − ').join(' − ').substring(0,40)||'auto-calculated'}</span>`
           : `<input type="number" step="any" id="dmM_${l.id}" value="${cur!=null?cur:''}"
               style="width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);font-size:11px;font-family:var(--mono);text-align:right"
               placeholder="0">`
