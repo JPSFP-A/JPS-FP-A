@@ -5154,18 +5154,37 @@ async function dmQuickToggleLock(year, month, btn) {
   if (!_sb) { toast('Not connected to database','w'); return; }
   const period   = (fpa.periods||[]).find(p => p.year===year && p.month===month);
   const isClosed = period?.is_closed || false;
-  const newVal   = !isClosed;
+  const locking  = !isClosed;
   const label    = `${DM_MONTHS[month-1]} ${year}`;
-  if (!confirm(`${newVal ? 'Lock' : 'Unlock'} ${label}?\n${newVal ? 'This will prevent further edits to actuals for this period.' : 'This will allow edits to this closed period.'}`)) return;
-  const { error } = await _sb.from('fpa_dim_period')
-    .update({ is_closed: newVal })
+  const periodId = year * 100 + month;
+  const actVer   = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
+
+  if (!confirm(`${locking ? 'Lock' : 'Unlock'} ${label}?\n${locking
+    ? 'Closes the period calendar AND locks the actuals version at DB level.'
+    : 'Re-opens the period and unlocks the actuals version for editing.'}`)) return;
+
+  const now    = new Date().toISOString();
+  const userId = (currentUser.id && currentUser.id !== 'local') ? currentUser.id : null;
+
+  // 1. Period calendar
+  const { error: pErr } = await _sb.from('fpa_dim_period')
+    .update({ is_closed: locking, closed_at: locking ? now : null, closed_by: locking ? userId : null })
     .eq('year', year).eq('month', month);
-  if (error) { toast('DB error: ' + error.message, 'e'); return; }
-  toast(`${label} ${newVal ? 'locked 🔒' : 'unlocked 🔓'}`, 'ok');
-  auditLog('edit','period-lock',label,{is_closed:newVal});
+  if (pErr) { toast('DB error: ' + pErr.message, 'w'); return; }
+
+  // 2. Version lock
+  if (actVer) {
+    await _sb.from('fpa_versions').update({
+      is_locked: locking,
+      locked_at: locking ? now : null,
+      locked_by: locking ? userId : null,
+    }).eq('id', actVer.id);
+  }
+
+  toast(`${label} ${locking ? 'locked 🔒' : 'unlocked 🔓'}${actVer ? '' : ' (no actuals version found)'}`, 'ok');
+  auditLog('edit', locking ? 'period-lock' : 'period-unlock', label, { is_closed: locking, version_code: actVer?.code || null });
   await fpaBootstrap();
   dmBuildCalendar(year);
-  // Also refresh the manager panel if this month is currently selected
   if (_dmMonth === month) dmSelectMonth(year, month);
 }
 
@@ -5186,11 +5205,39 @@ async function dmSelectMonth(year, month) {
   title.textContent = `📂 ${mLabel} — Data Manager`;
   sub.textContent   = `Upload, review, or manually enter data for ${mLabel}`;
 
-  const period  = (fpa.periods||[]).find(p=>p.year===year&&p.month===month);
-  const isClosed= period?.is_closed||false;
+  const period   = (fpa.periods||[]).find(p=>p.year===year&&p.month===month);
+  const isClosed = period?.is_closed||false;
+  const periodId = year * 100 + month;
+  const actVer   = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
+  const isVerLocked = actVer?.is_locked || false;
+
+  // Lock button reflects the stronger of the two states
+  const fullyLocked = isClosed && isVerLocked;
   lockBtn.textContent   = isClosed ? '🔓 Unlock Period' : '🔒 Lock Period';
   lockBtn.style.borderColor = isClosed ? 'var(--amber)' : '';
   lockBtn.style.color       = isClosed ? 'var(--amber)' : '';
+  lockBtn.title = isClosed
+    ? `Period closed${isVerLocked ? ' + version locked (DB-enforced)' : ' but version NOT locked'}${actVer?.locked_at ? ` · Locked ${new Date(actVer.locked_at).toLocaleDateString()}` : ''}`
+    : 'Lock this period and its actuals version';
+
+  // Show lock status banner beneath the panel title if locked
+  let lockInfo = document.getElementById('dmLockInfo');
+  if (!lockInfo) {
+    lockInfo = document.createElement('div');
+    lockInfo.id = 'dmLockInfo';
+    sub.parentNode.insertAdjacentElement('afterend', lockInfo);
+  }
+  if (isClosed) {
+    const lockedWhen = actVer?.locked_at ? new Date(actVer.locked_at).toLocaleString() : (period?.closed_at ? new Date(period.closed_at).toLocaleString() : 'unknown time');
+    const protection = isVerLocked
+      ? '🔒 Period closed + actuals version locked — writes blocked at database level'
+      : '⚠ Period calendar closed but actuals version is NOT locked — DB writes still possible. Re-lock to enforce.';
+    lockInfo.innerHTML = `<div style="padding:6px 12px;background:${isVerLocked?'rgba(52,211,153,.08)':'rgba(245,158,11,.1)'};border-top:1px solid ${isVerLocked?'rgba(52,211,153,.2)':'rgba(245,158,11,.25)'};font-size:10px;color:${isVerLocked?'var(--green)':'var(--amber)'}">
+      ${protection}${actVer ? ` &nbsp;·&nbsp; Version: <strong>${actVer.code}</strong>` : ''} &nbsp;·&nbsp; ${lockedWhen}
+    </div>`;
+  } else {
+    lockInfo.innerHTML = '';
+  }
 
   // Load current DB facts for this period
   await dmLoadCurrentFacts(year, month);
@@ -5598,20 +5645,63 @@ function dmDownloadTemplate(type) {
 
 async function dmToggleLock() {
   if (!_sb || !_dmMonth) { toast('Select a month first','w'); return; }
-  const period  = (fpa.periods||[]).find(p=>p.year===_dmYear&&p.month===_dmMonth);
-  if (!period)  { toast('Period not found in DB','w'); return; }
-  const newVal  = !period.is_closed;
+  const period = (fpa.periods||[]).find(p=>p.year===_dmYear&&p.month===_dmMonth);
+  if (!period) { toast('Period not found in DB','w'); return; }
+  const locking = !period.is_closed;
   const label   = `${DM_MONTHS[_dmMonth-1]} ${_dmYear}`;
+  const periodId = _dmYear * 100 + _dmMonth;
+  const actVer   = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
 
-  if (newVal && !confirm(`Lock ${label}? This will prevent further edits to actuals.`)) return;
+  if (locking) {
+    const msg = actVer
+      ? `Lock ${label}?\n\nThis will:\n  🔒 Close the period calendar\n  🔒 Lock version "${actVer.code}" — no further writes to its facts\n\nThis is enforced at the database level.`
+      : `Lock ${label}?\n\nThis will close the period calendar.\n\n⚠ No actuals version found for this period — upload actuals first for full protection.`;
+    if (!confirm(msg)) return;
+  } else {
+    if (!confirm(`Unlock ${label}?\n\nThis will:\n  🔓 Re-open the period calendar\n  🔓 Unlock the actuals version (facts become editable again)\n\nWho unlocked and when will be recorded in the audit log.`)) return;
+  }
 
-  const { error } = await _sb.from('fpa_dim_period')
-    .update({ is_closed: newVal, closed_at: newVal ? new Date().toISOString() : null })
+  const now = new Date().toISOString();
+  const userId = (currentUser.id && currentUser.id !== 'local') ? currentUser.id : null;
+
+  // 1. Toggle fpa_dim_period.is_closed
+  const { error: pErr } = await _sb.from('fpa_dim_period')
+    .update({
+      is_closed:  locking,
+      closed_at:  locking ? now : null,
+      closed_by:  locking ? userId : null,
+    })
     .eq('id', period.id);
+  if (pErr) { toast('Period update failed: '+pErr.message,'w'); return; }
 
-  if (error) { toast('Update failed: '+error.message,'w'); return; }
-  toast(`${label} ${newVal?'locked 🔒':'unlocked 🔓'}`,'ok');
-  auditLog('edit','period-lock',label,{is_closed:newVal});
+  // 2. Toggle fpa_versions.is_locked on the ACTUALS version (if it exists)
+  let versionLocked = false;
+  if (actVer) {
+    const { error: vErr } = await _sb.from('fpa_versions')
+      .update({
+        is_locked:  locking,
+        locked_at:  locking ? now : null,
+        locked_by:  locking ? userId : null,
+      })
+      .eq('id', actVer.id);
+    if (vErr) {
+      toast(`Period ${locking?'closed':'opened'} but version lock failed: ${vErr.message}`, 'w');
+    } else {
+      versionLocked = true;
+    }
+  }
+
+  const resultMsg = locking
+    ? `${label} locked 🔒${versionLocked ? ' — period + version both locked' : ' — period only (no actuals version to lock)'}`
+    : `${label} unlocked 🔓`;
+  toast(resultMsg, 'ok');
+  auditLog('edit', locking ? 'period-lock' : 'period-unlock', label, {
+    is_closed: locking,
+    version_locked: versionLocked,
+    version_code: actVer?.code || null,
+    by: currentUser.name,
+  });
+
   await fpaBootstrap();
   dmBuildCalendar(_dmYear);
   dmSelectMonth(_dmYear, _dmMonth);
@@ -5625,7 +5715,15 @@ async function dmClearMonth() {
   const actVer = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
   if (!actVer) { toast('No ACTUAL version found for this period','w'); return; }
 
-  if (!confirm(`Delete ALL fact data for ${label} (version: ${actVer.code})? This cannot be undone.`)) return;
+  // Block if the version is locked — the DB trigger would reject it anyway, but give a clear UI message
+  if (actVer.is_locked) {
+    toast(`Cannot clear ${label} — actuals version "${actVer.code}" is locked. Unlock the period first.`, 'w');
+    return;
+  }
+
+  const period = (fpa.periods||[]).find(p=>p.year===_dmYear&&p.month===_dmMonth);
+  if (period?.is_closed && !confirm(`⚠ ${label} is a closed period. Are you sure you want to clear all fact data?\n\nVersion: ${actVer.code}\n\nThis cannot be undone.`)) return;
+  if (!period?.is_closed && !confirm(`Delete ALL fact data for ${label} (version: ${actVer.code})? This cannot be undone.`)) return;
 
   const { error } = await _sb.from('fpa_facts')
     .delete()
@@ -5800,6 +5898,16 @@ async function dmApplySeed() {
 // ── Save as Actuals ────────────────────────────────────────────────────────
 async function dmSaveAsActuals() {
   if (!_sb || !_dmMonth) { toast('Select a month first', 'w'); return; }
+  const periodId = _dmYear * 100 + _dmMonth;
+  const label    = `${DM_MONTHS[_dmMonth-1]} ${_dmYear}`;
+
+  // Check if the existing actuals version is locked before attempting write
+  const existing = (fpa.versions||[]).find(v=>v.kind==='ACTUAL'&&v.period_id===periodId);
+  if (existing?.is_locked) {
+    toast(`${label} actuals are locked — unlock the period before making changes.`, 'w');
+    return;
+  }
+
   const actVer = await _dmEnsureActualVersion(_dmYear, _dmMonth);
   if (!actVer) return;
   await _dmCommitFormToVersion(actVer.id, 'actuals');
