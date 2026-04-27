@@ -15926,8 +15926,98 @@ function _initPlatform() {
   });
 }
 
+// ── Auth callback handler — invite + password-reset links ────────────────────
+// Supabase emails include a link like: https://app.vercel.app/#access_token=X&type=invite
+// When the user clicks it they land here; we detect the hash and show a set-password modal.
+function _checkAuthCallback() {
+  const hash = window.location.hash || '';
+  if (!hash.includes('access_token')) return;
+  const params = Object.fromEntries(
+    hash.replace(/^#/,'').split('&').map(p => p.split('=').map(decodeURIComponent))
+  );
+  const type = params.type || '';
+  if (type === 'invite' || type === 'recovery') {
+    // Small delay so Supabase JS client has time to auto-detect the session from hash
+    setTimeout(() => _showSetPasswordModal(type), 400);
+    // Clean the hash from the browser URL bar so it's not visible
+    history.replaceState(null, document.title, window.location.pathname + window.location.search);
+  }
+}
+
+function _showSetPasswordModal(type) {
+  const isInvite = type === 'invite';
+  const title    = isInvite ? '👋 Welcome — set your password' : '🔐 Reset your password';
+  const subtext  = isInvite
+    ? 'You\'ve been invited to JPS FP&A Platform. Choose a password to activate your account.'
+    : 'Enter a new password for your JPS FP&A Platform account.';
+  const btnLabel = isInvite ? 'Activate Account' : 'Set New Password';
+
+  let overlay = document.getElementById('setPassOverlay');
+  if (overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'setPassOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:32px 28px;box-shadow:0 24px 64px rgba(0,0,0,.4);box-sizing:border-box">
+      <div style="text-align:center;margin-bottom:22px">
+        <img src="" id="setPassLogo" style="height:40px;margin-bottom:12px;display:none">
+        <div style="font-size:18px;font-weight:800;color:#0f1e2d">${title}</div>
+        <div style="font-size:12px;color:#8099b8;margin-top:6px;line-height:1.5">${subtext}</div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:5px;letter-spacing:.04em">NEW PASSWORD</label>
+        <input type="password" id="setPassPw1" placeholder="Minimum 8 characters"
+          style="width:100%;padding:10px 13px;border:1.5px solid #d1dce8;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;font-family:inherit">
+      </div>
+      <div style="margin-bottom:6px">
+        <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:5px;letter-spacing:.04em">CONFIRM PASSWORD</label>
+        <input type="password" id="setPassPw2" placeholder="Re-enter password"
+          style="width:100%;padding:10px 13px;border:1.5px solid #d1dce8;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;font-family:inherit">
+      </div>
+      <div id="setPassErr" style="min-height:20px;font-size:11px;color:#dc2626;margin-bottom:10px;padding-left:2px"></div>
+      <button id="setPassBtn" onclick="_doSetPassword()"
+        style="width:100%;background:#003da5;color:#fff;border:none;border-radius:9px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.03em;font-family:inherit">
+        ${btnLabel}
+      </button>
+      <div style="text-align:center;margin-top:14px;font-size:11px;color:#9ca3af">
+        JPS FP&amp;A Platform · Jamaica Public Service Co.
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  // Show logo if available
+  const logo = overlay.querySelector('#setPassLogo');
+  const logoEl = document.getElementById('wsLogo');
+  if (logo && logoEl?.src) { logo.src = logoEl.src; logo.style.display = 'block'; }
+  setTimeout(() => document.getElementById('setPassPw1')?.focus(), 100);
+  // Allow Enter key to submit
+  overlay.addEventListener('keydown', e => { if (e.key === 'Enter') _doSetPassword(); });
+}
+
+async function _doSetPassword() {
+  const pw1 = document.getElementById('setPassPw1')?.value || '';
+  const pw2 = document.getElementById('setPassPw2')?.value || '';
+  const err = document.getElementById('setPassErr');
+  const btn = document.getElementById('setPassBtn');
+  if (err) err.textContent = '';
+  if (pw1.length < 8) { if (err) err.textContent = 'Password must be at least 8 characters.'; return; }
+  if (pw1 !== pw2)    { if (err) err.textContent = 'Passwords do not match.'; return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    if (!_sb) throw new Error('No database connection. Please refresh and try again.');
+    const { error } = await _sb.auth.updateUser({ password: pw1 });
+    if (error) throw error;
+    document.getElementById('setPassOverlay')?.remove();
+    toast('Password set! Welcome to JPS FP&A Platform.', 'ok');
+  } catch(e) {
+    if (err) err.textContent = 'Error: ' + (e.message || 'Unknown error. Please try again.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Set New Password'; }
+  }
+}
+
 // DOMContentLoaded — set up welcome screen assets and login mode
 window.addEventListener('DOMContentLoaded',()=>{
+  // Check for Supabase auth callback first (invite / password reset links)
+  _checkAuthCallback();
   applyThemeOnLoad();
   const wsBg = document.getElementById('wsBg');
   if (wsBg) wsBg.style.backgroundImage = `url('${WELCOME_BG_DATA}')`;
@@ -17226,8 +17316,8 @@ async function secLoadUsers() {
         <select onchange="secUpdateRole('${u.id}',this.value)" style="font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid #d1dce8;margin-right:4px">
           ${['admin','analyst','viewer','om'].map(r=>`<option ${r===role?'selected':''} value="${r}">${r}</option>`).join('')}
         </select>
-        <button class="sec-action-btn" onclick="secResetPassword('${u.email||''}')" title="Send password reset email">Reset PW</button>
-        <button class="sec-action-btn danger" onclick="secToggleAccess('${u.id}',${isActive})" title="${isActive?'Revoke':'Restore'} access">${isActive?'Revoke':'Restore'}</button>
+        <button class="sec-action-btn" onclick="secResetPassword('${u.email||''}',this)" title="Click once to arm, click again to send reset email">Reset PW</button>
+        <button class="sec-action-btn danger" onclick="secToggleAccess('${u.id}',${isActive},this)" title="Click once to arm, click again to ${isActive?'revoke':'restore'} access">${isActive?'Revoke':'Restore'}</button>
       </td>
     </tr>`;
   }).join('');
@@ -17242,26 +17332,64 @@ async function secUpdateRole(userId, newRole) {
   await secLoadUsers();
 }
 
-async function secToggleAccess(userId, currentlyActive) {
-  if (!_sb) return;
-  const newState = !currentlyActive;
-  const action   = newState ? 'restore' : 'revoke';
-  if (!confirm(`${action.charAt(0).toUpperCase()+action.slice(1)} access for this user?`)) return;
-  const { error } = await _sb.from('profiles').update({ is_active: newState }).eq('id', userId);
-  if (error) { toast('Update failed: '+error.message,'err'); return; }
-  toast(`Access ${newState?'restored':'revoked'}`,'ok');
-  auditLog('admin', action+'-access', userId, {});
-  await secLoadUsers();
+// ── Inline two-click confirm — replaces window.confirm() which is blocked in many browser contexts ──
+function _secConfirm(btn, label, onConfirm) {
+  if (btn.dataset.confirming) {
+    // Second click — execute action
+    delete btn.dataset.confirming;
+    if (btn.nextElementSibling?.classList.contains('sec-cancel-btn')) btn.nextElementSibling.remove();
+    onConfirm();
+    return;
+  }
+  // First click — arm the button (turn red, show ✗ cancel)
+  btn.dataset.confirming = '1';
+  const origText = btn.textContent;
+  const origStyle = btn.getAttribute('style') || '';
+  btn.textContent = '✓ ' + label;
+  btn.setAttribute('style', origStyle + ';background:#dc2626!important;color:#fff!important;border-color:#dc2626!important');
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'sec-action-btn sec-cancel-btn';
+  cancelBtn.textContent = '✗';
+  cancelBtn.style.cssText = 'margin-left:3px;background:#6b7280;color:#fff;border-color:#6b7280';
+  cancelBtn.onclick = e => {
+    e.stopPropagation();
+    delete btn.dataset.confirming;
+    btn.textContent = origText;
+    btn.setAttribute('style', origStyle);
+    cancelBtn.remove();
+  };
+  btn.after(cancelBtn);
+  // Auto-cancel after 7 seconds if neither button clicked
+  setTimeout(() => { if (btn.dataset.confirming) cancelBtn.click(); }, 7000);
 }
 
-async function secResetPassword(email) {
-  if (!email) { toast('No email on record — ask user to email you their address first','w'); return; }
-  if (!_sb) return;
-  if (!confirm(`Send password reset email to ${email}?`)) return;
-  const { error } = await _sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
-  if (error) { toast('Reset email failed: '+error.message,'err'); return; }
-  toast(`Password reset email sent to ${email}`, 'ok');
-  auditLog('admin','password-reset-sent', email, {});
+async function secToggleAccess(userId, currentlyActive, btn) {
+  if (!_sb) { toast('No database connection', 'err'); return; }
+  const newState = !currentlyActive;
+  _secConfirm(btn, newState ? 'Confirm Restore' : 'Confirm Revoke', async () => {
+    btn.disabled = true;
+    const { error } = await _sb.from('profiles').update({ is_active: newState }).eq('id', userId);
+    btn.disabled = false;
+    if (error) { toast('Update failed: ' + error.message, 'err'); return; }
+    toast('Access ' + (newState ? 'restored ✓' : 'revoked ✓'), 'ok');
+    auditLog('admin', (newState ? 'restore' : 'revoke') + '-access', userId, {});
+    await secLoadUsers();
+  });
+}
+
+async function secResetPassword(email, btn) {
+  if (!email) { toast('No email on record for this user', 'w'); return; }
+  if (!_sb) { toast('No database connection', 'err'); return; }
+  _secConfirm(btn, 'Confirm Send', async () => {
+    btn.disabled = true;
+    // redirectTo = app URL without hash; Supabase appends #access_token&type=recovery
+    const appUrl = window.location.href.split('#')[0];
+    const { error } = await _sb.auth.resetPasswordForEmail(email, { redirectTo: appUrl });
+    btn.disabled = false;
+    if (error) { toast('Reset email failed: ' + error.message, 'err'); return; }
+    toast('Password reset email sent to ' + email + ' ✓', 'ok');
+    auditLog('admin', 'password-reset-sent', email, {});
+  });
 }
 
 // ── Role Builder ─────────────────────────────────────────────────────────────
