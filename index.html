@@ -3419,7 +3419,7 @@ tr.der td{color:var(--teal)}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <span class="hub-badge" id="hubActualsBadge">● Checking data…</span>
+      <span class="hub-badge" id="hubActualsBadge" style="display:none"></span>
       <div class="hub-lwelcome">Welcome back, <strong id="hubUserName">User</strong><br>Select your role to enter your workspace</div>
     </div>
   </div>
@@ -4822,10 +4822,15 @@ async function _sbGetSession() {
 // Map Supabase user metadata → currentUser shape
 function _sbUserToCurrentUser(sbUser, profile) {
   return {
-    id:    sbUser.id,
-    name:  profile?.name  || sbUser.user_metadata?.name || sbUser.email.split('@')[0],
-    email: sbUser.email,
-    role:  profile?.role  || sbUser.user_metadata?.role || 'analyst',
+    id:          sbUser.id,
+    name:        profile?.name        || sbUser.user_metadata?.name || sbUser.email.split('@')[0],
+    email:       sbUser.email,
+    role:        profile?.role        || sbUser.user_metadata?.role || 'analyst',
+    department:  profile?.department  || sbUser.user_metadata?.department  || null,
+    salesRole:   profile?.sales_role  || sbUser.user_metadata?.sales_role  || null,
+    territory:   profile?.territory   || sbUser.user_metadata?.territory   || null,
+    isActive:    profile?.is_active   !== false, // default true; false = revoked
+    accessAreas: profile?.access_areas || [],
     sbUser
   };
 }
@@ -6685,12 +6690,25 @@ create extension if not exists "uuid-ossp";
 
 -- User profiles (linked to auth.users)
 create table if not exists public.profiles (
-  id         uuid references auth.users primary key,
-  name       text not null,
-  role       text not null default 'viewer'
-             check (role in ('admin','analyst','viewer')),
-  created_at timestamptz default now()
+  id           uuid references auth.users primary key,
+  name         text not null,
+  email        text,
+  role         text not null default 'viewer'
+               check (role in ('admin','analyst','viewer','om')),
+  department   text,
+  sales_role   text,   -- e.g. 'account_manager', 'territory_manager', 'director'
+  territory    text,   -- e.g. 'Kingston', 'Western', 'North East'
+  is_active    boolean not null default true,
+  access_areas text[],
+  created_at   timestamptz default now()
 );
+-- Migration: add new columns to existing deployments
+alter table public.profiles add column if not exists email        text;
+alter table public.profiles add column if not exists department   text;
+alter table public.profiles add column if not exists sales_role   text;
+alter table public.profiles add column if not exists territory    text;
+alter table public.profiles add column if not exists is_active    boolean not null default true;
+alter table public.profiles add column if not exists access_areas text[];
 alter table public.profiles enable row level security;
 create policy "Users can view all profiles"
   on public.profiles for select using (true);
@@ -6762,10 +6780,15 @@ alter publication supabase_realtime add table public.actuals;`;
 //  Falls back to local mode when Supabase not configured
 // ═══════════════════════════════════════════════════════
 let currentUser = {
-  id: 'local',
-  name: 'Local Admin',
-  email: '',
-  role: 'admin' // admin | analyst | viewer
+  id:          'local',
+  name:        'Local Admin',
+  email:       '',
+  role:        'admin', // admin | analyst | viewer | om
+  department:  null,
+  salesRole:   null,
+  territory:   null,
+  isActive:    true,
+  accessAreas: [],
 };
 
 let _selectedLoginRole = 'admin';
@@ -6825,6 +6848,13 @@ async function doLogin() {
       const sbUser = await _sbSignIn(email, password);
       const { data: profile } = await _sb.from('profiles').select('*').eq('id', sbUser.id).single();
       currentUser = _sbUserToCurrentUser(sbUser, profile);
+      // Block access if account has been revoked
+      if (currentUser.isActive === false) {
+        await _sb.auth.signOut();
+        errEl.textContent = 'Your account access has been revoked. Please contact your administrator.';
+        if (loginBtn) { loginBtn.textContent = 'Sign In'; loginBtn.disabled = false; }
+        return;
+      }
     } catch(e) {
       errEl.textContent = e.message || 'Sign-in failed. Check email and password.';
       if (loginBtn) { loginBtn.textContent = 'Sign In'; loginBtn.disabled = false; }
@@ -10547,7 +10577,7 @@ function buildVarReport() {
   const mo = parseInt(document.getElementById('varMo')?.value || 1);
   const data = actualsStore[mo];
   if (!data) {
-    document.getElementById('varKpis').innerHTML = `<div class="warn-bar">⚠ No actuals loaded for this month. Drop a JPSCo_Financials_MM-YY.xlsx file above.</div>`;
+    document.getElementById('varKpis').innerHTML = `<div class="warn-bar">⚠ No actuals available for this month — data will appear automatically once uploaded via the Data Management pane.</div>`;
     document.getElementById('varB').innerHTML = '';
     document.getElementById('varH').innerHTML = '';
     return;
@@ -11237,15 +11267,9 @@ function buildCollTable(){
       ${v12.map((v,i)=>isDer?`<td class="der">${r.unit==='%'?v?.toFixed(1)+'%':fmtN(v)}</td>`:`<td><input class="ei" value="${v}" data-row="${r.id}" data-mo="${i}" onchange="updCollRow(this,${yr})" onfocus="this.select()"></td>`).join('')}
       <td class="${isDer?'der':'gld'}">${isAvg?tot.toFixed(1)+(r.unit==='%'?'%':''):fmtN(tot)}</td></tr>${actRow}`;
   }).join('');
-  // Update actuals banner
+  // Actuals banner hidden — upload indicators removed from UI
   const banner=document.getElementById('collActualsBanner');
-  if(banner){
-    const loadedMos=MONTHS.filter((_,m)=>actualsStore[m+1]&&yr===2026);
-    if(loadedMos.length){
-      banner.style.display='';
-      banner.innerHTML=`<span style="color:var(--green)">✓</span> <strong>${loadedMos.length} months actuals loaded</strong> — actual total revenue shown as proxy for cash receipts on uploaded months. Green sub-rows = actual.`;
-    } else { banner.style.display='none'; }
-  }
+  if(banner){ banner.style.display='none'; }
   buildCollImpact(yr); buildCollCharts(yr); buildCollWF(yr); buildCollActuals(yr);
 }
 function buildCollImpact(yr){
@@ -11478,10 +11502,8 @@ function buildDashKpis(){
           </div>
         </div>
         <div style="font-size:9px;color:var(--muted);line-height:1.5;padding:4px 0">
-          <strong style="color:var(--text)">${MONTHS[loadedCount-1]} 2026</strong> actuals loaded ·
           Scenario: <strong style="color:var(--gold)">${activeSc}</strong> ·
-          EBITDA margin YTD: <strong style="color:var(--text)">${actYTDRev&&actYTDEBITDA?((actYTDEBITDA/actYTDRev)*100).toFixed(1)+'%':'–'}</strong> ·
-          PY comparison: <span style="color:var(--muted);font-style:italic">upload PY actuals to enable</span>
+          EBITDA margin YTD: <strong style="color:var(--text)">${actYTDRev&&actYTDEBITDA?((actYTDEBITDA/actYTDRev)*100).toFixed(1)+'%':'–'}</strong>
         </div>
         <div style="height:1px;background:var(--border)"></div>
         <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;display:flex;align-items:center;justify-content:space-between">
@@ -11574,19 +11596,9 @@ function buildDashKpis(){
   }
   document.getElementById('dash-kpis').innerHTML=html;
 
+  // dashActualsBar \u2014 upload indicators removed from UI
   const loadedBar=document.getElementById('dashActualsBar');
-  if(loadedBar){
-    if(loadedCount){
-      const ebitdaVar=actYTDEBITDA!=null&&leYTDEBITDA?(actYTDEBITDA-leYTDEBITDA):null;
-      const varSign=ebitdaVar!=null?(ebitdaVar>=0?'\u25b2 +':'\u25bc '):null;
-      const varCol=ebitdaVar!=null?(ebitdaVar>=0?'var(--green)':'var(--red)'):null;
-      loadedBar.innerHTML=`<span style="color:var(--green)">\u2713</span> <strong>${loadedCount} month${loadedCount>1?'s':''} actuals</strong> \u00b7 Jan\u2013${MONTHS[loadedCount-1]} 2026 \u00b7 YTD Rev: <strong>$${(actYTDRev||0).toLocaleString()}K</strong> \u00b7 YTD EBITDA: <strong>$${(actYTDEBITDA||0).toLocaleString()}K</strong>${ebitdaVar!=null?` <span style="color:${varCol}">(${varSign}${Math.round(Math.abs(ebitdaVar)).toLocaleString()}K vs LE)</span>`:''} \u00b7 NI: <strong>$${(actYTDNI||0).toLocaleString()}K</strong>`;
-      loadedBar.style.background='rgba(16,185,129,.08)';loadedBar.style.borderColor='rgba(16,185,129,.3)';
-    } else {
-      loadedBar.innerHTML=`<span style="color:var(--amber)">\u2139</span> No actuals uploaded \u2014 drop a <strong>JPSCo_Financials_MM-YY.xlsx</strong> file above to enable MTD/YTD KPI cards`;
-      loadedBar.style.background='rgba(240,180,41,.06)';loadedBar.style.borderColor='rgba(240,180,41,.25)';
-    }
-  }
+  if(loadedBar){ loadedBar.style.display='none'; }
 }
 function buildOMKpis(){const yr=selectedOMYear;const tot=getOMTotal(yr);const an=sumArr(tot);const rows=getOMRows(yr);document.getElementById('omKpis').innerHTML=[
   {l:'Annual O&M',v:toK(an*1000),cls:'b'},{l:'Monthly Avg',v:toK(an/12*1000),cls:'t'},
@@ -13725,15 +13737,9 @@ function buildGenTables() {
       }
       return `<tr class="der"><td style="padding-left:10px">${r.n}</td>${r.vals.map(v=>`<td>${typeof v==='number'?v.toLocaleString():'–'}</td>`).join('')}<td class="gld">${totalLE.toLocaleString()}</td></tr>${actRow}`;
     }).join('');
-    // Update actuals banner
+    // genActualsBanner — upload indicators removed from UI
     const banner=document.getElementById('genActualsBanner');
-    if(banner){
-      if(yr===2026&&hasActuals){
-        const loadedMos=MONTHS.filter((_,m)=>actualsStore[m+1]);
-        banner.style.display='';
-        banner.innerHTML=`<span style="color:var(--green)">✓ Actuals loaded: ${loadedMos.length} months (${MONTHS[0]}–${loadedMos[loadedMos.length-1]})</span> · Actual rows shown in <span style="color:var(--green)">green</span> below LE rows for Billed Sales and Fuel Cost.`;
-      } else { banner.style.display='none'; }
-    }
+    if(banner){ banner.style.display='none'; }
   }
 
   // KPIs
@@ -14886,16 +14892,42 @@ function buildMonthlyPL(yr){
   // Build the full P&L structure per spec
   const MO=MONTHS;
   const H=MO;
-  // YTD mode — limit columns to Jan → activeMonth
-  const ytdMode = (period === 'ytd');
-  const ytdN    = ytdMode ? Math.min(activeMonth, 12) : 12;
-  const dispMos = MO.slice(0, ytdN);
-  const totLabel= ytdMode ? `YTD ${MO[ytdN-1]||''}` : 'Annual';
-  const ytdAnn  = vals => (Array.isArray(vals) ? vals.slice(0,ytdN) : []).reduce((s,v)=>s+(v||0),0);
+
+  // ── Period grouping ──────────────────────────────────────────────────────
+  // period: 'monthly' | 'quarterly' | 'annual' | 'ytd'
+  const ytdMode      = (period === 'ytd');
+  const quarterMode  = (period === 'quarterly');
+  const annualMode   = (period === 'annual');
+  const ytdN         = ytdMode ? Math.min(activeMonth, 12) : 12;
+
+  // Build column definitions: each col = { label, moIdxs: [0..11] }
+  let dispCols = [];
+  if (annualMode) {
+    dispCols = [{ label: `FY ${yr}`, moIdxs: [0,1,2,3,4,5,6,7,8,9,10,11] }];
+  } else if (quarterMode) {
+    dispCols = [
+      { label: 'Q1', moIdxs: [0,1,2] },
+      { label: 'Q2', moIdxs: [3,4,5] },
+      { label: 'Q3', moIdxs: [6,7,8] },
+      { label: 'Q4', moIdxs: [9,10,11] },
+    ];
+  } else if (ytdMode) {
+    dispCols = MO.slice(0, ytdN).map((m, i) => ({ label: m, moIdxs: [i] }));
+  } else {
+    // monthly (default)
+    dispCols = MO.map((m, i) => ({ label: m, moIdxs: [i] }));
+  }
+
+  const totLabel = ytdMode ? `YTD ${MO[ytdN-1]||''}` : 'Annual';
+  const ytdAnn   = vals => (Array.isArray(vals) ? vals.slice(0, ytdN) : []).reduce((s,v)=>s+(v||0),0);
+  // Collapse 12-element vals array into dispCols
+  const collapseVals = vals => dispCols.map(col => col.moIdxs.reduce((s, i) => s + (vals[i]||0), 0));
+
+  const dispMos = ytdMode ? MO.slice(0, ytdN) : MO; // kept for actuals-render compat
 
   document.getElementById('plMonH').innerHTML=`<tr>
     <th style="text-align:left;min-width:260px;position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2">Line Item</th>
-    ${dispMos.map(m=>`<th class="bc">${m}</th>`).join('')}
+    ${dispCols.map(c=>`<th class="bc">${c.label}</th>`).join('')}
     <th class="bc">${totLabel}</th>
   </tr>`;
 
@@ -15072,15 +15104,10 @@ function buildMonthlyPL(yr){
     rows.push({label:r.name, vals, ann:sumArr(vals), italic:true});
   });
 
-  // Update actuals badge
+  // plActualsBadge kept hidden — upload count removed from UI
   const loadedMos2026=[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>actualsStore[m]);
   const badge=document.getElementById('plActualsBadge');
-  if(badge){
-    if(yr===2026&&loadedMos2026.length){
-      badge.style.display='';
-      badge.textContent=`● ${loadedMos2026.length} mo actuals`;
-    } else { badge.style.display='none'; }
-  }
+  if(badge){ badge.style.display='none'; }
 
   // Helper: get actual P&L value for month m (1-indexed → actualsStore key = m+1)
   const getAct=(m,field)=>actualsStore[m+1]?.pl?.[field]??null;
@@ -15108,19 +15135,20 @@ function buildMonthlyPL(yr){
 
   if(!showActuals){
     // ── Standard LE render ──────────────────────────────────
+    const nColsStd = dispCols.length + 2; // label + cols + total
     rows.forEach(r=>{
-      if(r.divider){bodyHtml+=`<tr><td colspan="${dispMos.length+2}" style="height:4px;background:var(--border)"></td></tr>`;return;}
-      if(r.sect!==undefined){if(r.sect)bodyHtml+=`<tr class="sr"><td colspan="${dispMos.length+2}" style="position:sticky;left:0">${r.sect}</td></tr>`;return;}
+      if(r.divider){bodyHtml+=`<tr><td colspan="${nColsStd}" style="height:4px;background:var(--border)"></td></tr>`;return;}
+      if(r.sect!==undefined){if(r.sect)bodyHtml+=`<tr class="sr"><td colspan="${nColsStd}" style="position:sticky;left:0">${r.sect}</td></tr>`;return;}
       const cls=r.tot?'tr':r.sub?'sur':'';
       const indent=r.tot||r.sub?'10px':'22px';
       const textColor=r.color||(r.amber?'var(--amber)':'');
       const italic=r.italic?'font-style:italic':'';
       const boldStyle=r.bold?'font-weight:700':'';
-      const dispVals=r.vals.slice(0,ytdN);
-      const dispAnn=ytdMode?ytdAnn(r.vals):r.ann;
+      const collVals = collapseVals(r.vals);
+      const dispAnn  = ytdMode ? ytdAnn(r.vals) : r.ann;
       bodyHtml+=`<tr class="${cls}${r.amber?' amber-row':''}">
         <td style="padding-left:${indent};${textColor?'color:'+textColor+';':''}${italic};${boldStyle};position:sticky;left:0;background:var(--card)">${r.bold||r.tot||r.sub?`<strong>${r.label}</strong>`:r.label}${r.derived?' <span style="color:var(--teal);font-size:8px">⇐</span>':''}</td>
-        ${dispVals.map(v=>{const neg=v<0;const cls2=r.derived?'der':'';const col=r.tot||r.sub?'gld':'';return `<td class="${cls2||col}" style="${textColor?'color:'+textColor+';':''}">${neg?`<span class="neg">(${Math.abs(Math.round(v)).toLocaleString()})</span>`:v===0?'<span class="dim">–</span>':Math.round(v).toLocaleString()}</td>`;}).join('')}
+        ${collVals.map(v=>{const neg=v<0;const cls2=r.derived?'der':'';const col=r.tot||r.sub?'gld':'';return `<td class="${cls2||col}" style="${textColor?'color:'+textColor+';':''}">${neg?`<span class="neg">(${Math.abs(Math.round(v)).toLocaleString()})</span>`:v===0?'<span class="dim">–</span>':Math.round(v).toLocaleString()}</td>`;}).join('')}
         <td class="${r.tot||r.sub?'gld':r.derived?'der':''}" style="${textColor?'color:'+textColor+';':''}">${dispAnn<0?`<strong>(${Math.abs(Math.round(dispAnn)).toLocaleString()})</strong>`:dispAnn===0?'–':`<strong>${Math.round(dispAnn).toLocaleString()}</strong>`}</td>
       </tr>`;
     });
@@ -15160,27 +15188,27 @@ function buildMonthlyPL(yr){
     // Override actMap with extended version
     Object.assign(actMap, actMapExtended);
     const isVarianceMode=plActualMode==='variance';
-    // Header — Actuals vs LE (respects YTD slice via dispMos)
+    // Header — Actuals vs LE (respects period grouping via dispCols)
     if(isVarianceMode){
       document.getElementById('plMonH').innerHTML=`<tr>
         <th style="text-align:left;min-width:260px;position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2">Line Item</th>
-        ${dispMos.map(m=>`<th class="bc" colspan="1">${m}</th>`).join('')}
+        ${dispCols.map(c=>`<th class="bc" colspan="1">${c.label}</th>`).join('')}
         <th class="bc">${totLabel} LE</th>
       </tr>
       <tr style="background:var(--table-header-bg)">
         <th style="position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2;font-size:9px">Variance = Actual − LE</th>
-        ${dispMos.map((_,m)=>actualsStore[m+1]?`<th class="bc" style="font-size:9px;color:var(--text)">Var $</th>`:`<th class="bc" style="color:var(--muted);font-size:9px">–</th>`).join('')}
+        ${dispCols.map(c=>c.moIdxs.some(i=>actualsStore[i+1])?`<th class="bc" style="font-size:9px;color:var(--text)">Var $</th>`:`<th class="bc" style="color:var(--muted);font-size:9px">–</th>`).join('')}
         <th class="bc" style="font-size:9px">Loaded</th>
       </tr>`;
     } else {
       document.getElementById('plMonH').innerHTML=`<tr>
         <th style="text-align:left;min-width:260px;position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2">Line Item</th>
-        ${dispMos.map(m=>`<th class="bc" colspan="2" style="border-left:1px solid var(--b2)">${m}</th>`).join('')}
+        ${dispCols.map(c=>`<th class="bc" colspan="2" style="border-left:1px solid var(--b2)">${c.label}</th>`).join('')}
         <th class="bc">${totLabel}</th>
       </tr>
       <tr style="background:var(--table-header-bg)">
         <th style="position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2;font-size:9px">Actual (A) · LE (L)</th>
-        ${dispMos.map((_,m)=>`<th class="bc" style="font-size:9px;border-left:1px solid var(--b2);color:var(--green)">A</th><th class="bc" style="font-size:9px;color:var(--muted)">L</th>`).join('')}
+        ${dispCols.map(()=>`<th class="bc" style="font-size:9px;border-left:1px solid var(--b2);color:var(--green)">A</th><th class="bc" style="font-size:9px;color:var(--muted)">L</th>`).join('')}
         <th class="bc" style="font-size:9px">LE</th>
       </tr>`;
     }
@@ -15203,7 +15231,7 @@ function buildMonthlyPL(yr){
     const posGoodSet=new Set(['Fuel Revenue','Non-Fuel Revenue','TOTAL EBITDA','Operating Income (EBIT)','Net Profit Before Tax','Net Profit After Tax']);
 
     rows.forEach(r=>{
-      const nCols=isVarianceMode?dispMos.length+2:dispMos.length*2+2;
+      const nCols=isVarianceMode?dispCols.length+2:dispCols.length*2+2;
       if(r.divider){bodyHtml+=`<tr><td colspan="${nCols}" style="height:4px;background:var(--border)"></td></tr>`;return;}
       if(r.sect!==undefined){if(r.sect)bodyHtml+=`<tr class="sr"><td colspan="${nCols}" style="position:sticky;left:0">${r.sect}</td></tr>`;return;}
       const cls=r.tot?'tr':r.sub?'sur':'';
@@ -15212,16 +15240,24 @@ function buildMonthlyPL(yr){
       const italic=r.italic?'font-style:italic':'';
       const boldStyle=r.bold||r.tot||r.sub?'font-weight:700':'';
       const ak=actKey[r.label];
-      const actVals=ak?(actMapExtended[ak]||actMap[ak]):null;
+      const actValsRaw=ak?(actMapExtended[ak]||actMap[ak]):null;
       const posGood=posGoodSet.has(r.label);
       const lev=r.tot||r.sub;
-      const dispVals=r.vals.slice(0,ytdN);
+      // Collapse actuals and LE into period buckets
+      const collLE  = collapseVals(r.vals);
+      const collAct = actValsRaw
+        ? dispCols.map(col => {
+            const vals = col.moIdxs.map(i => actValsRaw[i]);
+            if (vals.every(v => v === null || v === undefined)) return null;
+            return vals.reduce((s, v) => s + (v || 0), 0);
+          })
+        : null;
       const dispAnn=ytdMode?ytdAnn(r.vals):r.ann;
       bodyHtml+=`<tr class="${cls}${r.amber?' amber-row':''}">
         <td style="padding-left:${indent};${textColor?'color:'+textColor+';':''}${italic};${boldStyle};position:sticky;left:0;background:var(--card)">${r.bold||r.tot||r.sub?`<strong>${r.label}</strong>`:r.label}${r.derived?' <span style="color:var(--teal);font-size:8px">⇐</span>':''}</td>
         ${isVarianceMode
-          ? dispVals.map((le,m)=>actVals?fmtVar(actVals[m],le,lev,posGood):fmtCell(le,false,lev,textColor)).join('')
-          : dispVals.map((le,m)=>actVals?fmtCell(actVals[m],true,lev,'var(--green)')+fmtCell(le,false,lev,textColor):('<td style="opacity:.25">–</td>'+fmtCell(le,false,lev,textColor))).join('')
+          ? collLE.map((le,ci)=>collAct?fmtVar(collAct[ci],le,lev,posGood):fmtCell(le,false,lev,textColor)).join('')
+          : collLE.map((le,ci)=>collAct?fmtCell(collAct[ci],true,lev,'var(--green)')+fmtCell(le,false,lev,textColor):('<td style="opacity:.25">–</td>'+fmtCell(le,false,lev,textColor))).join('')
         }
         <td class="${lev?'gld':r.derived?'der':''}" style="${textColor?'color:'+textColor+';':''}">${dispAnn<0?`<strong>(${Math.abs(Math.round(dispAnn)).toLocaleString()})</strong>`:dispAnn===0?'–':`<strong>${Math.round(dispAnn).toLocaleString()}</strong>`}</td>
       </tr>`;
@@ -15926,8 +15962,93 @@ function _initPlatform() {
   });
 }
 
+// ── Auth callback handler — invite links & password reset links ────────────
+// When Supabase sends an invite/reset email, the link contains #access_token=...&type=invite|recovery
+// We detect this on load, absorb the token into the Supabase session, then show a set-password modal.
+function _checkAuthCallback() {
+  const hash = window.location.hash || '';
+  if (!hash.includes('access_token')) return;
+  const params = Object.fromEntries(
+    hash.replace(/^#/, '').split('&').map(p => p.split('=').map(decodeURIComponent))
+  );
+  const type = params.type || '';
+  if (type === 'invite' || type === 'recovery') {
+    // Remove hash so it doesn't re-trigger on refresh
+    history.replaceState(null, document.title, window.location.pathname + window.location.search);
+    // Give Supabase JS time to absorb the session from the hash
+    setTimeout(() => _showSetPasswordModal(type), 600);
+  }
+}
+
+function _showSetPasswordModal(type) {
+  const isInvite = type === 'invite';
+  const title    = isInvite ? 'Set Your Password' : 'Reset Your Password';
+  const subtitle = isInvite
+    ? 'Welcome! Create a password to activate your JPS FP&A account.'
+    : 'Enter a new password for your account.';
+  // Remove any existing overlay
+  document.getElementById('setPassOverlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'setPassOverlay';
+  overlay.style.cssText = [
+    'position:fixed;inset:0;z-index:99999',
+    'background:rgba(0,0,0,.75)',
+    'display:flex;align-items:center;justify-content:center;padding:20px'
+  ].join(';');
+  overlay.innerHTML = `
+    <div style="background:#0d1a2e;border:1px solid #1e3350;border-radius:14px;padding:36px 40px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:28px;margin-bottom:10px">${isInvite?'🔑':'🔒'}</div>
+        <div style="font-size:17px;font-weight:700;color:#d4e2f4;margin-bottom:6px">${title}</div>
+        <div style="font-size:12px;color:#7da0c4">${subtitle}</div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;font-weight:600;color:#7da0c4;margin-bottom:5px">New Password</label>
+        <input id="setPassPw1" type="password" placeholder="At least 8 characters"
+          style="width:100%;padding:10px 12px;border:1px solid #1e3350;border-radius:7px;background:#162030;color:#d4e2f4;font-size:13px;outline:none"
+          onkeydown="if(event.key==='Enter')document.getElementById('setPassPw2').focus()">
+      </div>
+      <div style="margin-bottom:22px">
+        <label style="display:block;font-size:11px;font-weight:600;color:#7da0c4;margin-bottom:5px">Confirm Password</label>
+        <input id="setPassPw2" type="password" placeholder="Repeat password"
+          style="width:100%;padding:10px 12px;border:1px solid #1e3350;border-radius:7px;background:#162030;color:#d4e2f4;font-size:13px;outline:none"
+          onkeydown="if(event.key==='Enter')_doSetPassword()">
+      </div>
+      <div id="setPassErr" style="display:none;color:#f87171;font-size:11px;margin-bottom:12px;padding:8px 10px;background:rgba(248,113,113,.1);border-radius:6px"></div>
+      <button onclick="_doSetPassword()"
+        style="width:100%;padding:11px;background:#f0b429;color:#0d1a2e;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px">
+        ${isInvite ? 'Activate Account →' : 'Set New Password →'}
+      </button>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('setPassPw1')?.focus(), 100);
+}
+
+async function _doSetPassword() {
+  const pw1 = document.getElementById('setPassPw1')?.value || '';
+  const pw2 = document.getElementById('setPassPw2')?.value || '';
+  const errEl = document.getElementById('setPassErr');
+  const showErr = msg => { if(errEl){errEl.textContent=msg;errEl.style.display='block';} };
+  if (pw1.length < 8) { showErr('Password must be at least 8 characters.'); return; }
+  if (pw1 !== pw2)   { showErr('Passwords do not match.'); return; }
+  if (errEl) errEl.style.display = 'none';
+
+  if (!_sb) { showErr('Database connection unavailable. Please refresh and try again.'); return; }
+  try {
+    const { error } = await _sb.auth.updateUser({ password: pw1 });
+    if (error) throw error;
+    document.getElementById('setPassOverlay')?.remove();
+    toast('Password set successfully. Welcome to JPS FP&A Platform!', 'ok');
+    // Redirect to clean URL so the welcome screen loads properly
+    setTimeout(() => { window.location.href = window.location.pathname; }, 1500);
+  } catch(e) {
+    showErr('Failed to set password: ' + (e.message || String(e)));
+  }
+}
+
 // DOMContentLoaded — set up welcome screen assets and login mode
 window.addEventListener('DOMContentLoaded',()=>{
+  _checkAuthCallback(); // Handle invite / password-reset links
   applyThemeOnLoad();
   const wsBg = document.getElementById('wsBg');
   if (wsBg) wsBg.style.backgroundImage = `url('${WELCOME_BG_DATA}')`;
@@ -16454,7 +16575,7 @@ async function flashRefresh() {
   const verLE     = leId ? (fpa.versions||[]).find(v=>v.id===leId) : null;
 
   if (!verActual) {
-    flashShowEmpty(`No actuals loaded for ${FLASH_MONTHS[periodId]||periodId}. Upload the ${FLASH_MONTHS[periodId]||periodId} actuals file first.`);
+    flashShowEmpty(`No actuals available for ${FLASH_MONTHS[periodId]||periodId} — data will appear automatically once uploaded via the Data Management pane.`);
     return;
   }
 
@@ -17119,20 +17240,9 @@ function hubBuildStatusCards() {
     { key:'coll',    icon:'💳', title:'Collections & A/R',     desc:'Cash receipts, DSO, A/R aging' },
   ];
 
-  // Update actuals badge (safe — fpa is always defined)
-  const uploadedCount = (fpa?.versions||[]).filter(v=>/^ACTUALS_\d{4}_\d{2}$/.test(v.code)).length;
+  // Hub badge — show DB connection status only (no upload count)
   const badge = document.getElementById('hubActualsBadge');
-  if (badge) {
-    if (!fpa.loadedAt) {
-      badge.textContent = '○ Connecting to database…';
-    } else if (uploadedCount > 0) {
-      badge.textContent = `● ${uploadedCount} month(s) of actuals uploaded`;
-      badge.style.color = '#10b981';
-    } else {
-      badge.textContent = '○ No actuals uploaded yet';
-      badge.style.color = '';
-    }
-  }
+  if (badge) { badge.style.display = 'none'; }
 
   // Build cards HTML (returned for use by hubShowStatusModal)
   return sections.map(s => {
@@ -17226,8 +17336,8 @@ async function secLoadUsers() {
         <select onchange="secUpdateRole('${u.id}',this.value)" style="font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid #d1dce8;margin-right:4px">
           ${['admin','analyst','viewer','om'].map(r=>`<option ${r===role?'selected':''} value="${r}">${r}</option>`).join('')}
         </select>
-        <button class="sec-action-btn" onclick="secResetPassword('${u.email||''}')" title="Send password reset email">Reset PW</button>
-        <button class="sec-action-btn danger" onclick="secToggleAccess('${u.id}',${isActive})" title="${isActive?'Revoke':'Restore'} access">${isActive?'Revoke':'Restore'}</button>
+        <button class="sec-action-btn" onclick="secResetPassword(this,'${u.email||''}')" title="Send password reset email">Reset PW</button>
+        <button class="sec-action-btn danger" onclick="secToggleAccess(this,'${u.id}',${isActive})" title="${isActive?'Revoke':'Restore'} access">${isActive?'Revoke':'Restore'}</button>
       </td>
     </tr>`;
   }).join('');
@@ -17242,26 +17352,56 @@ async function secUpdateRole(userId, newRole) {
   await secLoadUsers();
 }
 
-async function secToggleAccess(userId, currentlyActive) {
-  if (!_sb) return;
-  const newState = !currentlyActive;
-  const action   = newState ? 'restore' : 'revoke';
-  if (!confirm(`${action.charAt(0).toUpperCase()+action.slice(1)} access for this user?`)) return;
-  const { error } = await _sb.from('profiles').update({ is_active: newState }).eq('id', userId);
-  if (error) { toast('Update failed: '+error.message,'err'); return; }
-  toast(`Access ${newState?'restored':'revoked'}`,'ok');
-  auditLog('admin', action+'-access', userId, {});
-  await secLoadUsers();
+// ── Two-click inline confirmation (replaces blocked window.confirm) ──────────
+function _secConfirm(btn, label, onConfirm) {
+  if (btn.dataset.confirming) {
+    delete btn.dataset.confirming;
+    btn.nextElementSibling?.classList.contains('sec-cancel-btn') && btn.nextElementSibling.remove();
+    onConfirm(); return;
+  }
+  btn.dataset.confirming = '1';
+  const origText  = btn.textContent;
+  const origStyle = btn.getAttribute('style') || '';
+  btn.textContent = '✓ ' + label;
+  btn.setAttribute('style', origStyle + ';background:#dc2626!important;color:#fff!important;border-color:#dc2626!important');
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'sec-action-btn sec-cancel-btn';
+  cancelBtn.textContent = '✗';
+  cancelBtn.onclick = e => {
+    e.stopPropagation();
+    delete btn.dataset.confirming;
+    btn.textContent = origText;
+    btn.setAttribute('style', origStyle);
+    cancelBtn.remove();
+  };
+  btn.after(cancelBtn);
+  setTimeout(() => { if (btn.dataset.confirming) cancelBtn.click(); }, 7000);
 }
 
-async function secResetPassword(email) {
+async function secToggleAccess(btn, userId, currentlyActive) {
+  const newState = !currentlyActive;
+  const action   = newState ? 'Restore' : 'Revoke';
+  _secConfirm(btn, action + '?', async () => {
+    if (!_sb) return;
+    const { error } = await _sb.from('profiles').update({ is_active: newState }).eq('id', userId);
+    if (error) { toast('Update failed: '+error.message,'err'); return; }
+    toast(`Access ${newState?'restored':'revoked'}`,'ok');
+    auditLog('admin', (newState?'restore':'revoke')+'-access', userId, {});
+    await secLoadUsers();
+  });
+}
+
+async function secResetPassword(btn, email) {
   if (!email) { toast('No email on record — ask user to email you their address first','w'); return; }
   if (!_sb) return;
-  if (!confirm(`Send password reset email to ${email}?`)) return;
-  const { error } = await _sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
-  if (error) { toast('Reset email failed: '+error.message,'err'); return; }
-  toast(`Password reset email sent to ${email}`, 'ok');
-  auditLog('admin','password-reset-sent', email, {});
+  _secConfirm(btn, 'Send Reset?', async () => {
+    const { error } = await _sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname
+    });
+    if (error) { toast('Reset email failed: '+error.message,'err'); return; }
+    toast(`Password reset email sent to ${email}`, 'ok');
+    auditLog('admin','password-reset-sent', email, {});
+  });
 }
 
 // ── Role Builder ─────────────────────────────────────────────────────────────
