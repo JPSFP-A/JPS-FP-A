@@ -1820,12 +1820,23 @@ tr.der td{color:var(--teal)}
       <div class="sb on" onclick="setCFView('indirect',this)">📊 Indirect (IFRS)</div>
       <div class="sb" onclick="setCFView('direct',this)">💧 Direct (Forecast)</div>
     </div>
-    <div style="margin-left:auto;display:flex;gap:6px">
+    <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+      <span class="cl">Year</span>
+      <select class="sel" id="cfYrSel" onchange="setCfYear(this.value)" style="height:26px">
+        <option value="2022">2022</option><option value="2023">2023</option>
+        <option value="2024">2024</option><option value="2025">2025</option>
+        <option value="2026" selected>2026</option><option value="2027">2027</option>
+        <option value="2028">2028</option><option value="2029">2029</option>
+        <option value="2030">2030</option>
+      </select>
       <span class="cl">Month</span>
       <select class="sel" id="cfMo" onchange="buildCFReport()" style="height:26px">
         <option value="1">Jan 2026</option><option value="2" selected>Feb 2026</option>
         <option value="3">Mar 2026</option><option value="4">Apr 2026</option>
         <option value="5">May 2026</option><option value="6">Jun 2026</option>
+        <option value="7">Jul 2026</option><option value="8">Aug 2026</option>
+        <option value="9">Sep 2026</option><option value="10">Oct 2026</option>
+        <option value="11">Nov 2026</option><option value="12">Dec 2026</option>
       </select>
       <button class="btn btn-ghost" onclick="exportCFCSV()">⬇ Export</button>
     </div>
@@ -1863,6 +1874,16 @@ tr.der td{color:var(--teal)}
 
   <!-- CONTROLS ROW -->
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div class="cg" style="border:none;padding:0">
+      <span class="cl">Year</span>
+      <select class="sel" id="varYrSel" onchange="setVarYear(this.value)" style="height:26px">
+        <option value="2022">2022</option><option value="2023">2023</option>
+        <option value="2024">2024</option><option value="2025">2025</option>
+        <option value="2026" selected>2026</option><option value="2027">2027</option>
+        <option value="2028">2028</option><option value="2029">2029</option>
+        <option value="2030">2030</option>
+      </select>
+    </div>
     <div class="cg" style="border:none;padding:0">
       <span class="cl">Month</span>
       <select class="sel" id="varMo" onchange="buildVarReport()">
@@ -7224,6 +7245,8 @@ const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov',
 const YEARS=['2022','2023','2024','2025','2026','2027','2028','2029','2030'];
 let period='quarterly', activeSc='Base Case';
 let dashYear = 2026;   // year shown on dashboard charts
+let cfYear   = 2026;   // year shown on cash flow report
+let varYear  = 2026;   // year shown on variance report
 const fx=()=>{try{return fxTable?.billing?.[0]||0;}catch(e){return 0;}};
 const toK=v=>{if(v===null||v===undefined)return'–';const a=Math.abs(v);return a>=1e6?'$'+(v/1e6).toFixed(1)+'B':a>=1e3?'$'+(v/1e3).toFixed(0)+'M':'$'+Math.round(v).toLocaleString();};
 const fmtN=v=>{if(v===null||v===undefined||isNaN(v))return'<span class="dim">–</span>';const n=Math.round(Math.abs(v)).toLocaleString();return v<0?`<span class="neg">(${n})</span>`:n;};
@@ -7860,12 +7883,12 @@ function getDirectCFForecast(idx) {
   // idx 4=Mar, 5=Apr, 6=May, 7=Jun (0-based vs Nov-25)
   const mo = idx - 2; // 1=Jan, so idx4=mo2... map: idx4->mo3, idx5->mo4...
   const moIdx = idx - 2; // actual month index 0-based: idx4 = month 3 (Mar) = moIdx 2
-  const rec = getCashReceipts(2026);
-  const omC = getOMCash(2026);
-  const cxC = getCxCash(2026);
+  const rec = getCashReceipts(cfYear);
+  const omC = getOMCash(cfYear);
+  const cxC = getCxCash(cfYear);
   const moI = moIdx; // 0-indexed month
   const receipts = rec[moI] || 0;
-  const disburs = omC[moI] + cxC[moI] + (fuelCostByMonth2026[moI]||0);
+  const disburs = omC[moI] + cxC[moI] + ((fuelCostByMonth[cfYear]||fuelCostByMonth2026)[moI]||0);
   return { receipts, disburs, net: receipts - disburs };
 }
 
@@ -7884,7 +7907,7 @@ function buildIndirectCF() {
   // If CF sheet available, use its depreciation add-back directly
   const deprAddBack   = hasActCF ? (act.cf.depreciation || depreciation) : depreciation;
   const interestExp   = act?.pl?.intExpense ? Math.abs(act.pl.intExpense) : 0;
-  const fxLossNonCash = otherIncomeRows.find(r=>r.id==='fx_gain')?.vals[2026]?.[mo-1] || 0;
+  const fxLossNonCash = otherIncomeRows.find(r=>r.id==='fx_gain')?.vals[cfYear]?.[mo-1] || 0;
   const gainDisposal  = 0;
   const restrictedCash= 0;
   const otherAdj      = 0;
@@ -7907,18 +7930,18 @@ function buildIndirectCF() {
   const netCashOps      = opsBeforeWC + wcTotal;
 
   // Investing — use model CapEx schedule
-  const modelCapex  = -(getCxCash(2026)[mo-1]||0);
+  const modelCapex  = -(getCxCash(cfYear)[mo-1]||0);
   const capex       = hasActCF ? modelCapex : modelCapex;
-  const proceeds    = otherIncomeRows.find(r=>r.id==='asset_disp')?.vals[2026]?.[mo-1]||0;
-  const divRec      = otherIncomeRows.find(r=>r.id==='div_rec')?.vals[2026]?.[mo-1]||0;
+  const proceeds    = otherIncomeRows.find(r=>r.id==='asset_disp')?.vals[cfYear]?.[mo-1]||0;
+  const divRec      = otherIncomeRows.find(r=>r.id==='div_rec')?.vals[cfYear]?.[mo-1]||0;
   const netCashInvesting = capex + proceeds + divRec;
 
   // Financing
   const loanDrawdowns = 0;
   const loanRepayments = 0;
   const interestPaid  = -interestExp;
-  const prefDivPaid   = -(appropriationRows.find(r=>r.id==='div_pref')?.vals[2026]?.[mo-1]||0);
-  const ordDivPaid    = -(appropriationRows.find(r=>r.id==='div_ord')?.vals[2026]?.[mo-1]||0);
+  const prefDivPaid   = -(appropriationRows.find(r=>r.id==='div_pref')?.vals[cfYear]?.[mo-1]||0);
+  const ordDivPaid    = -(appropriationRows.find(r=>r.id==='div_ord')?.vals[cfYear]?.[mo-1]||0);
   const netCashFinancing = loanDrawdowns + loanRepayments + interestPaid + prefDivPaid + ordDivPaid;
 
   // Closing — prefer actuals BS cash
@@ -7985,9 +8008,9 @@ function buildIndirectCF() {
   });
   bEl.innerHTML = html;
 
-  const actLabel = hasActuals ? `Actuals Loaded · ${MONTHS[mo-1]} 2026` : `Model Only · ${MONTHS[mo-1]} 2026`;
+  const actLabel = hasActuals ? `Actuals Loaded · ${MONTHS[mo-1]} ${cfYear}` : `Model Only · ${MONTHS[mo-1]} ${cfYear}`;
   document.getElementById('cfTableTitle').textContent = '📊 Indirect Cash Flow (IFRS) — ' + actLabel;
-  document.getElementById('cfChartTitle').textContent = 'Monthly Cash Position 2026 · Actuals vs Model';
+  document.getElementById('cfChartTitle').textContent = `Monthly Cash Position ${cfYear} · Actuals vs Model`;
 
   // Chart — show actuals closing cash (bars) + model closing cash (line)
   const actCloseArr = MONTHS.map((_,i)=>actualsStore[i+1]?.bs?.cash??null);
@@ -7996,7 +8019,7 @@ function buildIndirectCF() {
   MONTHS.forEach((_,i)=>{
     const m=i+1;
     if(actualsStore[m]?.bs?.cash){ modelClose.push(actualsStore[m].bs.cash); modelOpen=actualsStore[m].bs.cash; }
-    else{ const cxC=getCxCash(2026)[i]||0; const netP=(getOMTotal(2026)[i]||0)*(-1); const mc=modelOpen-cxC; modelClose.push(Math.round(mc)); modelOpen=Math.round(mc); }
+    else{ const cxC=getCxCash(cfYear)[i]||0; const netP=(getOMTotal(cfYear)[i]||0)*(-1); const mc=modelOpen-cxC; modelClose.push(Math.round(mc)); modelOpen=Math.round(mc); }
   });
   const hasActBSAny = actCloseArr.some(v=>v!==null);
   const cfDatasets = hasActBSAny ? [
@@ -8037,13 +8060,13 @@ function buildDirectCF() {
 
   // Populate forecast months (idx 4-7 = Mar-Jun) from model
   const forecastMonths = [2,3,4,5]; // 0-based month indices for Mar-Jun
-  const rec = getCashReceipts(2026); const omC = getOMCash(2026); const cxC = getCxCash(2026);
+  const rec = getCashReceipts(cfYear); const omC = getOMCash(cfYear); const cxC = getCxCash(cfYear);
   for (let i = 0; i < 4; i++) {
     const mi = forecastMonths[i];
     const colIdx = i + 4;
     directCFSeed.collections[colIdx]    = rec[mi] || 0;
     directCFSeed.totalReceipts[colIdx]  = rec[mi] || 0;
-    directCFSeed.fuel[colIdx]           = fuelCostByMonth2026[mi] || 0;
+    directCFSeed.fuel[colIdx]           = (fuelCostByMonth[cfYear]||fuelCostByMonth2026)[mi] || 0;
     // ARCHITECTURAL RULE: IPP/payroll split of O&M cash must come from DB (fpa_assumptions).
     // Until uploaded, full O&M cash is reported on the IPP line; payroll = 0.
     const _ippFrac = fpa.assumptions?.cashFlow?.ippFraction ?? 1.0;
@@ -8145,13 +8168,14 @@ function buildCFCovenants() { /* removed — covenant cards hidden until actuals
 function buildCFKpis() {
   const mo = cfSelectedMonth;
   const act = actualsStore[mo];
-  const totalRec = act?.cf?.operatingCF != null ? act.cf.operatingCF : (getCashReceipts(2026)[mo-1]||0);
-  const totalDisb = getOMCash(2026)[mo-1] + getCxCash(2026)[mo-1] + (fuelCostByMonth2026[mo-1]||0);
+  const totalRec = act?.cf?.operatingCF != null ? act.cf.operatingCF : (getCashReceipts(cfYear)[mo-1]||0);
+  const totalDisb = getOMCash(cfYear)[mo-1] + getCxCash(cfYear)[mo-1] + ((fuelCostByMonth[cfYear]||fuelCostByMonth2026)[mo-1]||0);
   const netCF = totalRec - totalDisb;
   const closingCash = act?.bs?.cash || 0;
+  const moLbl = `${MONTHS[mo-1]} ${cfYear}`;
   const kpis = [
-    {lbl:'Total Receipts',   v:fmtN(totalRec),  d:'Feb 2026 Actual',  c:'gr'},
-    {lbl:'Total Disbursements',v:fmtN(totalDisb),d:'Feb 2026 Actual', c:'r'},
+    {lbl:'Total Receipts',   v:fmtN(totalRec),  d:act?'Actual':moLbl,  c:'gr'},
+    {lbl:'Total Disbursements',v:fmtN(totalDisb),d:act?'Actual':moLbl, c:'r'},
     {lbl:'Net Cash Flow',    v:fmtN(netCF),     d:netCF>=0?'Inflow':'Outflow', c:netCF>=0?'gr':'r'},
     {lbl:'Closing Cash',     v:fmtN(closingCash),d:'End of period',  c:'t'},
   ];
@@ -11433,7 +11457,7 @@ function buildDashKpis(){
   const budMTDOpex=latestData?.budget?.opex??null;
   const budYTDOpex=latestData?.ytdBudget?.opex??null;
 
-  const moLabel=latestMo?MONTHS[latestMo-1]+' 2026':'2026 LE';
+  const moLabel=latestMo?MONTHS[latestMo-1]+' '+yr:yr+' LE';
   const ytdLabel=loadedCount>0?`YTD Jan\u2013${MONTHS[loadedCount-1]}`:'Full Year LE';
 
   const varBubble=(act,bud,posGood)=>{
@@ -11474,7 +11498,7 @@ function buildDashKpis(){
       <span style="color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;white-space:nowrap">${label}</span>
     </div>
     <div style="flex:1;padding:8px 10px">
-      <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">${sub||'2026 Annual LE'}</div>
+      <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">${sub||(yr+' Annual LE')}</div>
       <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--text)">${toK(annLE*1000)}</div>
       <div style="font-size:9px;color:var(--muted);margin-top:2px">Upload actuals to enable MTD/YTD</div>
     </div>
@@ -11576,7 +11600,7 @@ function buildDashKpis(){
     const ebitLine=plLines.find(l=>l.id==='ebitda'), ebitLine2=plLines.find(l=>l.id==='ebit');
     const ebit26=ebitLine2?Math.round(ebitLine2.vals[4]*(1+(sc?.eb||0)/100)):null;
     const opMarginPct=(ebit26!=null&&annRevLE2)?((ebit26/annRevLE2)*100).toFixed(1):null;
-    const avgFxCur=(fxTable.years[2026]?.billing.reduce((s,v)=>s+v,0)/12).toFixed(2);
+    const avgFxCur=((fxTable.years[yr]||fxTable.years[2026])?.billing.reduce((s,v)=>s+v,0)/12).toFixed(2);
     html+=noActCard('Revenue','var(--blue)',Math.round(annRevLE2/1000));
     html+=noActCard('EBITDA','var(--green)',e26);
     html+=`<div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);flex:1 1 155px;min-width:0">
@@ -11584,7 +11608,7 @@ function buildDashKpis(){
         <span style="color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em">Margins</span>
       </div>
       <div style="flex:1;padding:8px 10px;display:flex;flex-direction:column;gap:4px">
-        <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">2026 Annual LE</div>
+        <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">${yr} Annual LE</div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:9px;color:var(--muted)">EBITDA%</span>
           <span style="font-size:15px;font-weight:800;font-family:var(--mono);color:var(--text)">${ebitdaPct}%</span>
@@ -11596,7 +11620,7 @@ function buildDashKpis(){
       </div>
     </div>`;
     html+=noActCard('Net Income','var(--purple)',n26);
-    html+=noActCard('OPEX (O&M)','var(--red)',sumArr(getOMTotal(2026)));
+    html+=noActCard('OPEX (O&M)','var(--red)',sumArr(getOMTotal(yr)));
     html+=noActCard('CapEx','var(--teal)',annCapexLE);
     html+=`<div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);flex:1 1 155px;min-width:0">
       <div style="background:var(--teal);padding:5px 10px">
@@ -11842,14 +11866,17 @@ function buildScPanel(){
   mkChart('cScEb',{type:'line',data:{labels:scYrs,datasets:Object.entries(scenarios).map(([n,s])=>({label:n,data:scYrs.map(y=>Math.round(ebi.vals[YEARS.indexOf(y)]*(1+(s.eb||0)/100))),borderColor:s.color,backgroundColor:'transparent',borderWidth:n===activeSc?3:1.5,tension:.3,pointRadius:4,borderDash:n===activeSc?[]:[5,3]}))},options:bO()});
   mkChart('cScNI2',{type:'line',data:{labels:scYrs,datasets:Object.entries(scenarios).map(([n,s])=>({label:n,data:scYrs.map(y=>Math.round(ni.vals[YEARS.indexOf(y)]*(1+(s.eb||0)/100))),borderColor:s.color,backgroundColor:'transparent',borderWidth:n===activeSc?3:1.5,tension:.3,pointRadius:4,borderDash:n===activeSc?[]:[5,3]}))},options:bO()});
   const scNames=Object.keys(scenarios);
-  document.getElementById('scCH').innerHTML=`<tr><th style="text-align:left;min-width:180px">Metric | 2026</th>${scNames.map(n=>`<th class="bc">${n}</th>`).join('')}</tr>`;
+  const _scYr = dashYear || 2026;
+  const _scIdx = YEARS.indexOf(String(_scYr));
+  const _scI = _scIdx >= 0 ? _scIdx : 4;
+  document.getElementById('scCH').innerHTML=`<tr><th style="text-align:left;min-width:180px">Metric | ${_scYr}</th>${scNames.map(n=>`<th class="bc">${n}</th>`).join('')}</tr>`;
   document.getElementById('scCB').innerHTML=[
-    {lbl:'EBITDA ($000s)',fn:n=>Math.round(ebi.vals[4]*(1+(scenarios[n].eb||0)/100))},
-    {lbl:'EBITDA Margin',fn:n=>{const rv=plLines.find(l=>l.id==='total_rev'||l.name?.toLowerCase().includes('total revenue'))?.vals?.[4]||0;return rv?((Math.round(ebi.vals[4]*(1+(scenarios[n].eb||0)/100))/rv)*100).toFixed(1)+'%':'—';},str:true},
-    {lbl:'Net Income ($000s)',fn:n=>Math.round(ni.vals[4]*(1+(scenarios[n].eb||0)/100))},
-    {lbl:'Cash Receipts ($000s)',fn:n=>sumArr(getCashReceipts(2026))},
-    {lbl:'Total O&M ($000s)',fn:n=>Math.round(sumArr(getOMTotal(2026))*(1+(scenarios[n].om||0)/100))},
-    {lbl:'Total CapEx ($000s)',fn:n=>Math.round(sumArr(getCxTotal(2026))*(1+(scenarios[n].cx||0)/100))},
+    {lbl:'EBITDA ($000s)',fn:n=>Math.round((ebi.vals[_scI]||0)*(1+(scenarios[n].eb||0)/100))},
+    {lbl:'EBITDA Margin',fn:n=>{const rv=plLines.find(l=>l.id==='total_rev'||l.name?.toLowerCase().includes('total revenue'))?.vals?.[_scI]||0;return rv?((Math.round((ebi.vals[_scI]||0)*(1+(scenarios[n].eb||0)/100))/rv)*100).toFixed(1)+'%':'—';},str:true},
+    {lbl:'Net Income ($000s)',fn:n=>Math.round((ni.vals[_scI]||0)*(1+(scenarios[n].eb||0)/100))},
+    {lbl:'Cash Receipts ($000s)',fn:n=>sumArr(getCashReceipts(_scYr))},
+    {lbl:'Total O&M ($000s)',fn:n=>Math.round(sumArr(getOMTotal(_scYr))*(1+(scenarios[n].om||0)/100))},
+    {lbl:'Total CapEx ($000s)',fn:n=>Math.round(sumArr(getCxTotal(_scYr))*(1+(scenarios[n].cx||0)/100))},
   ].map(r=>`<tr><td><strong>${r.lbl}</strong></td>${scNames.map(n=>{const v=r.fn(n);return `<td class="gld">${r.str?v:fmtN(v)}</td>`;}).join('')}</tr>`).join('');
 }
 function commitScenario(){
@@ -11866,15 +11893,37 @@ function delSc(n){if(!confirm('Delete "'+n+'"?'))return;delete scenarios[n];cons
 // ═══════════════════════════════════════════════════════
 function buildCommCards(){
   const ebi=plLines.find(l=>l.id==='ebitda'); const ni=plLines.find(l=>l.id==='net_inc');
-  const e26=ebi.vals[4]; const e25=ebi.vals[3]; const n26=ni.vals[4]; const n25=ni.vals[3];
-  const omTot=sumArr(getOMTotal(2026)); const cxTot=sumArr(getCxTotal(2026));
+  const _cyr = dashYear || 2026;
+  const _cyIdx = YEARS.indexOf(String(_cyr));
+  const _ci = _cyIdx >= 0 ? _cyIdx : 4;
+  const _piIdx = Math.max(0, _ci - 1); // prior year index
+  const eNow=ebi.vals[_ci]||0; const ePrior=ebi.vals[_piIdx]||0;
+  const nNow=ni.vals[_ci]||0;  const nPrior=ni.vals[_piIdx]||0;
+  const omTot=sumArr(getOMTotal(_cyr)); const cxTot=sumArr(getCxTotal(_cyr));
+  const depLine=plLines.find(l=>l.id==='depn'||l.name?.toLowerCase().includes('depreciation'));
+  const depNow=Math.abs(depLine?.vals[_ci]||0); const depPrior=Math.abs(depLine?.vals[_piIdx]||0);
+  const depChg=depNow-depPrior; const nChg=nNow-nPrior;
+  const eChg=eNow-ePrior; const eChgPct=ePrior?(eChg/Math.abs(ePrior)*100).toFixed(1):'—';
+  const nChgPct=nPrior?(Math.abs(nChg/nPrior)*100).toFixed(0):'—';
   const cards=[
-    {title:'EBITDA Performance',tag:'pos',tagLabel:'Favourable',color:'green',metric:`$${(e26/1000).toFixed(1)}M`,mLbl:'2026 Budget',body:`EBITDA of <strong>$242.8M</strong> represents a <strong>$15.9M (7.0%) improvement</strong> vs 2025 actuals of $226.9M. The recovery is driven by tariff normalisation and O&M efficiencies. Regulated business contribution is $179.9M, supported by IPP margin recovery of $56.4M.`},
-    {title:'O&M Cost Trend',tag:'watch',tagLabel:'Monitor',color:'amber',metric:toK(omTot*1000),mLbl:'Annual O&M 2026',body:`Total O&M of <strong>${toK(omTot*1000)}</strong> from O_M_February_2026_LE. Payroll at $65.2M (36% of total) is the dominant driver. 3rd Party Services at $27.9M increased 2.1% vs budget. Hurricane Melissa restoration is adding incremental costs across O&M categories.`},
-    {title:'CapEx Programme',tag:'neu',tagLabel:'On Track',color:'blue',metric:toK(cxTot*1000),mLbl:'Annual CapEx 2026',body:`Total CapEx of <strong>${toK(cxTot*1000)}</strong> from Capex_February_2026_LE. Distribution system upgrade at $23.1M is the largest single programme. Hurricane Melissa restoration represents approximately $28.3M of incremental spend. CWIP transfer schedule active for Feb 2026 onwards.`},
-    {title:'Depreciation & IFRS-16',tag:'watch',tagLabel:'Below Prior Year',color:'amber',metric:'$125.8M',mLbl:'Total Depreciation 2026',body:`Depreciation of <strong>$125.8M</strong> is $19.3M below 2025 actuals of $145.0M, primarily due to lower IFRS-16 lease depreciation ($15.5M vs $17.6M). The hurricane impairment charge of $5.0M in 2025 will not recur. New CapEx transfers add $14.4M from Feb 2026 onwards.`},
-    {title:'Net Income Recovery',tag:'pos',tagLabel:'Strong Recovery',color:'green',metric:`$${(n26/1000).toFixed(1)}M`,mLbl:'Net Income 2026',body:`Net Income of <strong>$45.2M</strong> represents a 126% increase vs 2025 ($20.0M). The improvement is driven by higher EBITDA, lower depreciation, and a more favourable effective tax rate from hurricane restoration capital allowances.`},
-    {title:'Cash Flow Position',tag:'pos',tagLabel:'Strong',color:'green',metric:'$443.5M',mLbl:'Closing Cash 2026',body:`Closing cash of <strong>$443.5M</strong>, up from $350.2M opening. Operating cash flow of $93.4M is partially offset by CapEx of $157.3M and debt service of $127.2M. Collections efficiency at 94.1% blended rate remains stable. Source: Cash_Flow_Feb_2025_LE_v2.`},
+    {title:'EBITDA Performance',tag:eChg>=0?'pos':'watch',tagLabel:eChg>=0?'Favourable':'Adverse',color:eChg>=0?'green':'amber',
+      metric:`$${(eNow/1000).toFixed(1)}M`,mLbl:`${_cyr} Budget`,
+      body:`EBITDA of <strong>${toK(eNow*1000)}</strong> vs prior year <strong>${toK(ePrior*1000)}</strong> — <strong>${eChg>=0?'+':''}${toK(Math.abs(eChg)*1000)} (${eChgPct}%)</strong>. Source: plLines derived from AOP assumptions.`},
+    {title:'O&M Cost Trend',tag:'watch',tagLabel:'Monitor',color:'amber',
+      metric:toK(omTot*1000),mLbl:`Annual O&M ${_cyr}`,
+      body:`Total O&M of <strong>${toK(omTot*1000)}</strong> for ${_cyr}. Source: O&M assumptions loaded from database. Update projections in the O&M Assumptions tab.`},
+    {title:'CapEx Programme',tag:'neu',tagLabel:'On Track',color:'blue',
+      metric:toK(cxTot*1000),mLbl:`Annual CapEx ${_cyr}`,
+      body:`Total CapEx of <strong>${toK(cxTot*1000)}</strong> for ${_cyr}. Source: CapEx assumptions from database. Update in the CapEx Assumptions tab.`},
+    {title:'Depreciation & IFRS-16',tag:depChg<=0?'pos':'watch',tagLabel:depChg<=0?'Below Prior Year':'Above Prior Year',color:'amber',
+      metric:toK(depNow*1000),mLbl:`Total Depreciation ${_cyr}`,
+      body:`Depreciation of <strong>${toK(depNow*1000)}</strong> vs prior year <strong>${toK(depPrior*1000)}</strong> (${depChg>=0?'+':''}${toK(Math.abs(depChg)*1000)}). Includes PP&E, IFRS-16 leases, and new CapEx transfers.`},
+    {title:'Net Income Recovery',tag:nNow>=0?'pos':'watch',tagLabel:nChg>=0?'Strong Recovery':'Adverse',color:nNow>=0?'green':'amber',
+      metric:`$${(nNow/1000).toFixed(1)}M`,mLbl:`Net Income ${_cyr}`,
+      body:`Net Income of <strong>${toK(nNow*1000)}</strong> — ${nChg>=0?'+':''}${toK(Math.abs(nChg)*1000)} (${nChgPct}%) vs prior year. Driven by EBITDA trajectory, depreciation profile, and effective tax rate.`},
+    {title:'Cash Flow Position',tag:'neu',tagLabel:'Model',color:'blue',
+      metric:toK(sumArr(getCashReceipts(_cyr))*1000),mLbl:`Collections ${_cyr}`,
+      body:`Total cash receipts of <strong>${toK(sumArr(getCashReceipts(_cyr))*1000)}</strong> for ${_cyr}. Upload actuals to compare against model. O&M cash: ${toK(sumArr(getOMCash(_cyr))*1000)} · CapEx cash: ${toK(sumArr(getCxCash(_cyr))*1000)}.`},
   ];
   document.getElementById('commGrid').innerHTML=cards.map(c=>`
     <div class="comm-card ${c.color}">
@@ -12628,6 +12677,45 @@ function _applyTabVisibility() {
 function setPeriod(p,btn){const prev=period;period=p;document.querySelectorAll('#perSeg .sb').forEach(b=>b.classList.remove('on'));btn?.classList.add('on');refreshAll();auditLog('period','Display Period',prev,p);_saveState();}
 function setDashYear(yr){dashYear=parseInt(yr)||2026;const sel=document.getElementById('dashYrSel');if(sel&&parseInt(sel.value)!==dashYear)sel.value=String(dashYear);requestAnimationFrame(()=>{buildDashKpis();buildDashCharts();});}
 
+// ── Month-option builder: populates a <select> with all 12 months for the given year ──
+// For CF: all months enabled. For Variance: enabled only if actuals exist for that month.
+function _rebuildMoOpts(selId, yr, selVal, opts){
+  const el = document.getElementById(selId);
+  if (!el) return;
+  opts = opts || {};
+  // Which months have actuals? Used for variance to enable/disable options.
+  const loaded = Object.keys(actualsStore).map(Number).filter(m => m >= 1 && m <= 12 && actualsStore[m]?.pl);
+  el.innerHTML = MONTHS.map((m, i) => {
+    const v   = i + 1;
+    const dis = opts.varMode && loaded.length && !loaded.includes(v) ? 'disabled' : '';
+    const sel = v === (parseInt(selVal) || 1) ? 'selected' : '';
+    return `<option value="${v}" ${sel} ${dis}>${m} ${yr}</option>`;
+  }).join('');
+}
+
+function setCfYear(yr) {
+  cfYear = parseInt(yr) || 2026;
+  const sel = document.getElementById('cfYrSel');
+  if (sel && parseInt(sel.value) !== cfYear) sel.value = String(cfYear);
+  _rebuildMoOpts('cfMo', cfYear, cfSelectedMonth);
+  buildCFReport();
+}
+
+function setVarYear(yr) {
+  varYear = parseInt(yr) || 2026;
+  const sel = document.getElementById('varYrSel');
+  if (sel && parseInt(sel.value) !== varYear) sel.value = String(varYear);
+  _rebuildMoOpts('varMo', varYear, document.getElementById('varMo')?.value, { varMode: true });
+  buildVarReport();
+}
+
+// Shared year-selector option builder for CF / Var / other panes
+function _yrOpts(selected) {
+  return [2022,2023,2024,2025,2026,2027,2028,2029,2030].map(y =>
+    `<option value="${y}"${y === selected ? ' selected' : ''}>${y}</option>`
+  ).join('');
+}
+
 // ── Active month — governs single-month views and YTD cutoff ─────────────────
 let activeMonth = 3; // March (current reporting month; updated by month selector)
 function setActiveMonth(m){
@@ -12785,7 +12873,7 @@ function exportCollCSV(){
 function exportCFCSV(){
   const rows=[['Line Item','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Total']];
   // Pull from directCFSeed if available, otherwise use model data
-  const yr=2026;
+  const yr=cfYear||2026;
   const om=getOMTotal(yr), cx=getCxCash(yr), rec=getCashReceipts(yr);
   const entries=[
     ['Cash Receipts',...rec.map(v=>Math.round(v))],
@@ -12920,7 +13008,7 @@ function executePrint() {
 
 function _getPrintPeriodLabel() {
   // Build human-readable period label from actuals loaded + current period setting
-  const yr = 2026;
+  const yr = plMonthlyYear || 2026;
   const loadedMos = Object.keys(actualsStore[yr] || {}).map(Number).filter(m=>m>0).sort((a,b)=>a-b);
   if (loadedMos.length) {
     const last = loadedMos[loadedMos.length-1];
@@ -13881,7 +13969,7 @@ function toggleOtherInc() {
 }
 
 function buildOtherIncTables() {
-  const yr = 2026;
+  const yr = selectedOtherYear || 2026;
   const mkHead = () => `<tr><th style="text-align:left;min-width:200px">Line Item</th>${MONTHS.map(m=>`<th class="bc">${m}</th>`).join('')}<th class="bc">Total</th></tr>`;
   const mkRows = (rows) => rows.map(r => {
     const tot = (r.vals[yr]||[]).reduce((s,v)=>s+v,0);
