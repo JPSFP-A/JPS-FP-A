@@ -1570,21 +1570,33 @@ tr.der td{color:var(--teal)}
 
 <!-- ═══ DASHBOARD ═══ -->
 <div id="pane-dash" class="pane on">
-  <div class="info-bar" style="padding:6px 13px"><div class="info-icon" style="font-size:14px;margin-top:0">🔒</div><div class="info-text">Report View — All inputs managed in Assumption tabs. Source: Feb 2026 LE files.</div></div>
-  <div id="dashActualsBar" style="font-size:10px;padding:6px 12px;border-radius:5px;border:1px solid var(--border);margin-bottom:8px;background:var(--card2)"></div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+    <div class="cg">
+      <span class="cl">Year</span>
+      <select class="sel" id="dashYrSel" onchange="setDashYear(this.value)">
+        <option value="2026" selected>2026</option>
+        <option value="2027">2027</option>
+        <option value="2028">2028</option>
+        <option value="2029">2029</option>
+        <option value="2030">2030</option>
+      </select>
+    </div>
+    <span style="font-size:10px;color:var(--muted)">· Period filter (topbar) applies to all charts below</span>
+  </div>
+  <div id="dashActualsBar" style="display:none"></div>
   <div class="kpi-row" id="dash-kpis"></div>
   <div class="cr c2">
-    <div class="cc"><div class="ct">Revenue & EBITDA 2022–2030 <em>Actuals → Forecast | USD $'000</em></div><div class="cb h170"><canvas id="cRevEb"></canvas></div></div>
+    <div class="cc"><div class="ct" id="ctRevEb">Revenue &amp; EBITDA <em>USD $'000</em></div><div class="cb h170"><canvas id="cRevEb"></canvas></div></div>
     <div class="cc"><div class="ct">Scenario Net Income Comparison <em>2026–2030</em></div><div class="cb h170"><canvas id="cScNI"></canvas></div></div>
   </div>
   <div class="cr c3">
-    <div class="cc"><div class="ct">Cash Flow Bridge <em>FY2026</em></div><div class="cb h140"><canvas id="cBridge"></canvas></div></div>
-    <div class="cc"><div class="ct">O&M by Category 2026 <em>From O_M_February_2026_LE</em></div><div class="cb h140"><canvas id="cOM"></canvas></div></div>
-    <div class="cc"><div class="ct">Depreciation 2026 — By Component <em>FA Register · SJPC · Leases · CX Transfers · Other | $'000</em></div><div class="cb h140"><canvas id="cDep"></canvas></div></div>
+    <div class="cc"><div class="ct">Cash Flow Bridge <em id="ctBridgeYr">FY 2026</em></div><div class="cb h140"><canvas id="cBridge"></canvas></div></div>
+    <div class="cc"><div class="ct" id="ctOM">O&amp;M by Category <em>USD $'000</em></div><div class="cb h140"><canvas id="cOM"></canvas></div></div>
+    <div class="cc"><div class="ct" id="ctDep">Depreciation — By Component <em>$'000</em></div><div class="cb h140"><canvas id="cDep"></canvas></div></div>
   </div>
   <div class="cr c2">
-    <div class="cc"><div class="ct">CapEx by Category <em>From Capex_February_2026_LE | USD $'000</em></div><div class="cb h140"><canvas id="cCx"></canvas></div></div>
-    <div class="cc"><div class="ct">Monthly Sales GWh by Rate Class <em>From Sales_Gen_Feb_2026</em></div><div class="cb h140"><canvas id="cGWh"></canvas></div></div>
+    <div class="cc"><div class="ct" id="ctCx">CapEx by Category <em>USD $'000</em></div><div class="cb h140"><canvas id="cCx"></canvas></div></div>
+    <div class="cc"><div class="ct" id="ctGWh">Sales GWh by Rate Class <em>GWh</em></div><div class="cb h140"><canvas id="cGWh"></canvas></div></div>
   </div>
 </div>
 
@@ -7211,6 +7223,7 @@ function clearAuditLog() {
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const YEARS=['2022','2023','2024','2025','2026','2027','2028','2029','2030'];
 let period='quarterly', activeSc='Base Case';
+let dashYear = 2026;   // year shown on dashboard charts
 const fx=()=>{try{return fxTable?.billing?.[0]||0;}catch(e){return 0;}};
 const toK=v=>{if(v===null||v===undefined)return'–';const a=Math.abs(v);return a>=1e6?'$'+(v/1e6).toFixed(1)+'B':a>=1e3?'$'+(v/1e3).toFixed(0)+'M':'$'+Math.round(v).toLocaleString();};
 const fmtN=v=>{if(v===null||v===undefined||isNaN(v))return'<span class="dim">–</span>';const n=Math.round(Math.abs(v)).toLocaleString();return v<0?`<span class="neg">(${n})</span>`:n;};
@@ -11366,9 +11379,11 @@ function buildCollActuals(yr){
 function buildDashKpis(){
   const ebi=plLines.find(l=>l.id==='ebitda'),ni=plLines.find(l=>l.id==='net_inc');
   const sc=scenarios[activeSc];
-  const e26=Math.round(ebi.vals[4]*(1+(sc?.eb||0)/100));
-  const n26=Math.round(ni.vals[4]*(1+(sc?.eb||0)/100));
-  const rec=getCashReceipts(2026); const cxTot=getCxTotal(2026);
+  const yr = dashYear || 2026;
+  const yIdx = YEARS.indexOf(String(yr));
+  const e26=Math.round((ebi.vals[yIdx]||ebi.vals[4]||0)*(1+(sc?.eb||0)/100));
+  const n26=Math.round((ni.vals[yIdx]||ni.vals[4]||0)*(1+(sc?.eb||0)/100));
+  const rec=getCashReceipts(yr); const cxTot=getCxTotal(yr);
 
   const ytdA=getYTDActuals();
   const loadedCount=ytdA?.months||0;
@@ -11385,7 +11400,7 @@ function buildDashKpis(){
   // Pull LE/AOP annual targets from plLines (DB-backed) — no hardcoded fallbacks
   const _plLEGet = (id, ...frags) => {
     const l = plLines.find(l => l.id === id || frags.some(f => l.name?.toLowerCase().includes(f)));
-    return l?.vals?.[4] || 0; // index 4 = 2026
+    return l?.vals?.[yIdx>=0?yIdx:4] || 0;
   };
   const annRevLE    = _plLEGet('total_rev',     'total revenue', 'total sales');
   const annEBITDALE = _plLEGet('ebitda',        'ebitda');
@@ -11642,58 +11657,113 @@ function buildCapexKpis(){const yr=selectedCapexYear;const tot=getCxTotal(yr);co
 // ═══════════════════════════════════════════════════════
 //  PERIOD AGGREGATION HELPERS (used by dashboard charts)
 // ═══════════════════════════════════════════════════════
-function _pLabels(){
+function _pLabels(yr){
+  const y = yr || dashYear || 2026;
+  const ytdN = Math.min(activeMonth, 12);
   if(period==='quarterly') return ['Q1','Q2','Q3','Q4'];
-  if(period==='annual')    return ['FY 2026'];
-  return MONTHS;
+  if(period==='annual')    return [`FY ${y}`];
+  if(period==='ytd')       return MONTHS.slice(0, ytdN);
+  return MONTHS; // monthly
 }
 function _pData(arr12){
   const a=(arr12||[]).map(v=>v||0);
+  const ytdN = Math.min(activeMonth, 12);
   if(period==='quarterly'){
     return [[0,1,2],[3,4,5],[6,7,8],[9,10,11]].map(idx=>idx.reduce((s,i)=>s+(a[i]||0),0));
   }
   if(period==='annual') return [a.reduce((s,v)=>s+v,0)];
-  return a.slice(0,12);
+  if(period==='ytd')    return a.slice(0, ytdN);
+  return a.slice(0,12); // monthly
 }
 
 // ═══════════════════════════════════════════════════════
 //  CHARTS
 // ═══════════════════════════════════════════════════════
 function buildDashCharts(){
-  const ebi=plLines.find(l=>l.id==='ebitda'),ni=plLines.find(l=>l.id==='net_inc');
-  const sc=scenarios[activeSc];
-  const ebiV=YEARS.map((_,i)=>Math.round(ebi.vals[i]*(i<4?1:1+(sc?.eb||0)/100)));
-  const revV=YEARS.map((_,i)=>plLines.filter(l=>l.type==='I'&&!l.tot&&!l.sub&&['Regulated Business','Purchased Power','Non-Regulated'].includes(l.sect)).reduce((s,r)=>s+(r.vals[i]||0),0));
-  mkChart('cRevEb',{type:'bar',data:{labels:YEARS,datasets:[
-    {label:'Revenue',data:revV,backgroundColor:YEARS.map((_,i)=>i<4?'rgba(59,130,246,.5)':'rgba(59,130,246,.22)'),yAxisID:'y'},
-    {label:'EBITDA',data:ebiV,type:'line',borderColor:CP[0],pointBackgroundColor:CP[0],borderWidth:2.5,tension:.3,pointRadius:4,yAxisID:'y'},
-  ]},options:bO()});
+  const yr = dashYear || 2026;
+  const yIdx = YEARS.indexOf(String(yr));
+  const sc = scenarios[activeSc] || {};
+  const labels = _pLabels(yr);
+  const periodLbl = period==='annual'?`FY ${yr}`:period==='quarterly'?`${yr} Q1–Q4`:period==='ytd'?`${yr} YTD ${MONTHS[Math.min(activeMonth,12)-1]||''}`:yr;
+
+  // ── Update chart titles to reflect selected year + period ──
+  const _setTitle = (id, text) => { const el=document.getElementById(id); if(el) el.innerHTML=text; };
+  _setTitle('ctRevEb',  `Revenue &amp; EBITDA — <strong>${periodLbl}</strong> <em>USD $'000</em>`);
+  _setTitle('ctOM',     `O&amp;M by Category — <strong>${periodLbl}</strong> <em>USD $'000</em>`);
+  _setTitle('ctDep',    `Depreciation by Component — <strong>${periodLbl}</strong> <em>$'000</em>`);
+  _setTitle('ctCx',     `CapEx by Category — <strong>${periodLbl}</strong> <em>USD $'000</em>`);
+  _setTitle('ctGWh',    `Sales GWh by Rate Class — <strong>${periodLbl}</strong>`);
+  _setTitle('ctBridgeYr', `FY ${yr}`);
+
+  // ── 1. Revenue & EBITDA — period-aware for selected year ──────────────────
+  // Build monthly arrays for the selected year
+  const fuelRevMo  = (fuelRevByYear[yr] || Array(12).fill(0));
+  const nfRevMo    = MONTHS.map((_,m) => {
+    if(yr===2026 && actualsStore[m+1]?.pl?.nonFuelSales) return actualsStore[m+1].pl.nonFuelSales;
+    const annNF = plLines.find(l=>l.id==='nonfuel')?.vals[yIdx] || 0;
+    return Math.round(annNF/12);
+  });
+  const otherRevMo = MONTHS.map((_,m) => (otherOperatingRevenue[yr]||[]).reduce((s,r)=>s+(r.vals[m]||0),0));
+  const totalRevMo = MONTHS.map((_,m) => fuelRevMo[m] + nfRevMo[m] + otherRevMo[m]);
+
+  // EBITDA: derive from plLines annual, spread evenly, apply scenario adj
+  const annEbi = (plLines.find(l=>l.id==='ebitda')?.vals[yIdx] || 0) * (1+(sc.eb||0)/100);
+  const ebitdaMo = MONTHS.map(() => Math.round(annEbi/12));
+
+  const revData   = _pData(totalRevMo);
+  const ebiData   = _pData(ebitdaMo);
+  // Actuals overlay for 2026 monthly
+  const actRevMo  = MONTHS.map((_,m) => actualsStore[m+1]?.pl?.totalSales ?? null);
+  const hasActRev = yr===2026 && actRevMo.some(v=>v!==null);
+  const revDatasets = [
+    {label:'Revenue (LE)',data:revData,backgroundColor:'rgba(59,130,246,.45)',yAxisID:'y',order:2},
+    {label:'EBITDA (LE)',data:ebiData,type:'line',borderColor:CP[0],pointBackgroundColor:CP[0],borderWidth:2.5,tension:.3,pointRadius:4,yAxisID:'y',order:1},
+  ];
+  if(hasActRev && (period==='monthly'||period==='ytd')){
+    revDatasets.push({label:'Revenue (Actual)',data:_pData(actRevMo.map(v=>v??0)),type:'line',borderColor:'rgba(16,185,129,.9)',borderWidth:2,tension:.3,pointRadius:5,borderDash:[4,3],yAxisID:'y',order:0});
+  }
+  mkChart('cRevEb',{type:'bar',data:{labels,datasets:revDatasets},options:bO()});
+
+  // ── 2. Scenario Net Income — always multi-year (comparison chart) ─────────
   const scYrs=['2026','2027','2028','2029','2030'];
+  const ni=plLines.find(l=>l.id==='net_inc');
   mkChart('cScNI',{type:'line',data:{labels:scYrs,datasets:Object.entries(scenarios).map(([n,s])=>({label:n,data:scYrs.map(y=>Math.round(ni.vals[YEARS.indexOf(y)]*(1+(s.eb||0)/100))),borderColor:s.color,backgroundColor:'transparent',borderWidth:n===activeSc?3:1.5,tension:.3,pointRadius:4,borderDash:n===activeSc?[]:[5,3]}))},options:bO()});
+
+  // ── 3. Cash Flow Bridge — fixed annual summary for selected year ──────────
+  const opCF  = Math.round(sumArr(fuelRevMo)+sumArr(nfRevMo));
+  const omAnn = -Math.round(sumArr(getOMTotal(yr)));
+  const cxAnn = -Math.round(sumArr(getCxTotal(yr)));
+  const openCash = Math.round((plLines.find(l=>l.id==='cash')?.vals[yIdx] || 0));
   mkWaterfall('cBridge',[
-    {label:'Opening Cash', value:350150, isTotal:true},
-    {label:'Collections',  value:1278150},
-    {label:'Fuel/IPP',     value:-683700},
-    {label:'O&M',          value:-182000},
-    {label:'CapEx',        value:-157300},
+    {label:'Opening Cash', value:openCash||350150, isTotal:true},
+    {label:'Revenue CF',   value:opCF||1278150},
+    {label:'O&M',          value:omAnn||(-182000)},
+    {label:'CapEx',        value:cxAnn||(-157300)},
     {label:'Debt Svc',     value:-127200},
-    {label:'Closing Cash', value:443500, isTotal:true},
+    {label:'Closing Cash', value:(openCash||350150)+(opCF||1278150)+(omAnn||(-182000))+(cxAnn||(-157300))+(-127200), isTotal:true},
   ]);
-  const omCats=['payroll','overtime','benefits','thirdpty','transport','insurance','bad_debt'];
+
+  // ── 4. O&M by Category — period-aware, selected year ─────────────────────
+  const omCats  =['payroll','overtime','benefits','thirdpty','transport','insurance','bad_debt'];
   const omLabels=['Payroll','OT','Benefits','3rd Pty','Transport','Insurance','Bad Debt'];
-  const omR=getOMRows(2026);
-  mkChart('cOM',{type:'bar',data:{labels:_pLabels(),datasets:omCats.map((id,i)=>({label:omLabels[i],data:_pData(omR.find(r=>r.id===id)?.vals||[]),backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}}}}});
-  // Depreciation — stacked by component, responds to period filter
-  {const _dc=depreciationComponents[2026]||{};
+  const omR=getOMRows(yr);
+  mkChart('cOM',{type:'bar',data:{labels,datasets:omCats.map((id,i)=>({label:omLabels[i],data:_pData(omR.find(r=>r.id===id)?.vals||[]),backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}}}}});
+
+  // ── 5. Depreciation by component — period-aware, selected year ───────────
+  {const _dc=depreciationComponents[yr]||depreciationComponents[2026]||{};
   const _dk=['faRegister','sjpc','otherLeases','capexTransfers','capitalSpares','decommissioning','strandedMeters','strandedLights','impairment'];
   const _dl=['FA Register','SJPC','Leases','CX Transfers','Cap Spares','Decommission.','Str. Meters','Str. Lights','Impairment'];
   const _dclr=['rgba(139,92,246,.8)','rgba(59,130,246,.8)','rgba(16,185,129,.8)','rgba(245,158,11,.8)','rgba(239,68,68,.8)','rgba(20,184,166,.8)','rgba(249,115,22,.8)','rgba(168,85,247,.8)','rgba(236,72,153,.8)'];
-  mkChart('cDep',{type:'bar',data:{labels:_pLabels(),datasets:_dk.map((k,i)=>({label:_dl[i],data:_pData((_dc[k]||Array(12).fill(0)).map(v=>Math.round(v/1000))),backgroundColor:_dclr[i],stack:'s'}))},options:{...bO(),plugins:{legend:{labels:{color:_TC.muted,font:{size:8},boxWidth:8}}},scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}}});}
-  const cxR=getCxRows(2026);
-  mkChart('cCx',{type:'bar',data:{labels:_pLabels(),datasets:cxR.map((r,i)=>({label:r.name.slice(0,20),data:_pData(r.vals||[]),backgroundColor:CP[i%CP.length]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}}}}});
+  mkChart('cDep',{type:'bar',data:{labels,datasets:_dk.map((k,i)=>({label:_dl[i],data:_pData((_dc[k]||Array(12).fill(0)).map(v=>Math.round(v/1000))),backgroundColor:_dclr[i],stack:'s'}))},options:{...bO(),plugins:{legend:{labels:{color:_TC.muted,font:{size:8},boxWidth:8}}},scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}}}});}
+
+  // ── 6. CapEx by Category — period-aware, selected year ───────────────────
+  const cxR=getCxRows(yr);
+  mkChart('cCx',{type:'bar',data:{labels,datasets:cxR.map((r,i)=>({label:r.name.slice(0,20),data:_pData(r.vals||[]),backgroundColor:CP[i%CP.length]+'88',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}}}}});
+
+  // ── 7. Sales GWh by Rate Class — period-aware, selected year ─────────────
   const gwhMap=['gwh_rt10','gwh_rt20','gwh_rt40','gwh_rt50','gwh_rt60','gwh_rt70'];
   const gwhLbls=['RT10 Res','RT20 SME','RT40 LV','RT50 MV','RT60 Lights','RT70 HV'];
-  mkChart('cGWh',{type:'bar',data:{labels:_pLabels(),datasets:gwhMap.map((id,i)=>({label:gwhLbls[i],data:_pData(revRows.find(r=>r.id===id)?.vals||[]),backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(v=>v+' GWh'),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>v+' GWh'},grid:{color:_TC.grid}}}}});
+  mkChart('cGWh',{type:'bar',data:{labels,datasets:gwhMap.map((id,i)=>({label:gwhLbls[i],data:_pData(revRows.find(r=>r.id===id)?.vals||[]),backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(v=>v+' GWh'),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>v+' GWh'},grid:{color:_TC.grid}}}}});
 }
 
 function buildOMCharts(){
@@ -12556,6 +12626,7 @@ function _applyTabVisibility() {
 }
 
 function setPeriod(p,btn){const prev=period;period=p;document.querySelectorAll('#perSeg .sb').forEach(b=>b.classList.remove('on'));btn?.classList.add('on');refreshAll();auditLog('period','Display Period',prev,p);_saveState();}
+function setDashYear(yr){dashYear=parseInt(yr)||2026;const sel=document.getElementById('dashYrSel');if(sel&&parseInt(sel.value)!==dashYear)sel.value=String(dashYear);requestAnimationFrame(()=>{buildDashKpis();buildDashCharts();});}
 
 // ── Active month — governs single-month views and YTD cutoff ─────────────────
 let activeMonth = 3; // March (current reporting month; updated by month selector)
