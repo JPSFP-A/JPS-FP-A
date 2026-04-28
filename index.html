@@ -7463,11 +7463,9 @@ let actualsYear = 2026;   // year of currently active uploaded actuals
 let planYear    = 2026;   // year of the active AOP / Budget plan
 
 // _acts(mo) — reads actuals for the active year.
-// Tries actualsStore[actualsYear][mo] first; for 2026 falls back to the
-// legacy month-only store so existing in-memory data is never lost.
-const _acts = (mo) =>
-  actualsStore[actualsYear]?.[mo] ??
-  (actualsYear === 2026 ? _acts(mo) : undefined);
+// Returns the actuals value for month `mo` under the active actualsYear.
+// actualsStore is keyed { year: { mo: value } } for all years.
+const _acts = (mo) => actualsStore[actualsYear]?.[mo];
 
 // _aopCode() — returns the active AOP version code, e.g. 'AOP_2026' or 'AOP_2027'
 const _aopCode = () => 'AOP_' + planYear;
