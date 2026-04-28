@@ -4044,7 +4044,12 @@ function _sbInit() {
   try {
     if (window.supabase && window.supabase.createClient) {
       _sb = window.supabase.createClient(_sbConfig.url, _sbConfig.anonKey, {
-        auth: { persistSession: true, autoRefreshToken: true },
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          storageKey: 'jps_fpa_v1',      // isolates FP&A session from the Sales Platform
+          detectSessionInUrl: false,      // prevents grabbing tokens meant for other apps
+        },
         realtime: { params: { eventsPerSecond: 10 } }
       });
       console.log('[Supabase] Client initialised:', _sbConfig.url);
