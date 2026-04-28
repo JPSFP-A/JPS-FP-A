@@ -4321,6 +4321,9 @@ async function fpaBootstrap() {
     // Apply DB data into legacy globals for existing UI compatibility
     fpaApplyToLegacyGlobals();
 
+    // Show active year pills in topbar (non-blocking — DOM may not be fully ready)
+    setTimeout(() => _refreshTopBarYearPills?.(), 200);
+
     // Load unread notifications for current user (non-blocking)
     _loadNotifications();
 
@@ -4458,7 +4461,7 @@ function fpaApplyToLegacyGlobals() {
 function fpaApplyOMToLegacy() {
   if (!fpa.versions.length) return;
   try {
-    const omSrc = fpa.assumptions?.AOP_2026?.om_row || {};
+    const omSrc = fpa.assumptions?.[_aopCode()]?.om_row || {};
     if (typeof omRows === 'undefined') return;
     const dbIdToLegacy = {
       om_payroll:'payroll',  om_overtime:'overtime',   om_benefits:'benefits',
@@ -4490,7 +4493,7 @@ function fpaApplyOMToLegacy() {
 function fpaApplyCapexToLegacy() {
   if (!fpa.versions.length) return;
   try {
-    const cxSrc = fpa.assumptions?.AOP_2026?.capex_row || {};
+    const cxSrc = fpa.assumptions?.[_aopCode()]?.capex_row || {};
     if (typeof capexRows === 'undefined') return;
     [2026,2027,2028,2029,2030].forEach(yr => {
       if (!capexRows[yr]) return;
@@ -4511,7 +4514,7 @@ function fpaApplyCapexToLegacy() {
 function fpaApplyCollToLegacy() {
   if (!fpa.versions.length) return;
   try {
-    const collSrc = fpa.assumptions?.AOP_2026?.coll_row || {};
+    const collSrc = fpa.assumptions?.[_aopCode()]?.coll_row || {};
     if (typeof collRows === 'undefined') return;
     const dbIdToLegacy = {
       coll_billing:'billing', coll_cr_rt10:'cr_rt10', coll_cr_rt20:'cr_rt20',
@@ -4536,7 +4539,7 @@ function fpaApplyCollToLegacy() {
 function fpaApplyDepToLegacy() {
   if (!fpa.versions.length) return;
   try {
-    const depSrc = fpa.assumptions?.AOP_2026?.dep_comp || {};
+    const depSrc = fpa.assumptions?.[_aopCode()]?.dep_comp || {};
     if (typeof depreciationComponents === 'undefined' || !depreciationComponents[2026]) return;
     const dbIdToLegacy = {
       dep_fa:'faRegister',  dep_sjpc:'sjpc',           dep_leases:'otherLeases',
@@ -4556,11 +4559,11 @@ function fpaApplyDepToLegacy() {
 }
 
 // ── Bridge: AOP_2026 assumptions → tariff / volume / FX / gen / fuel ────────
-// Reads from fpa.assumptions['AOP_2026'] (loaded in fpaBootstrap) and writes
+// Reads from fpa.assumptions[_aopCode()] (loaded in fpaBootstrap) and writes
 // into the legacy global arrays consumed by the revenue engine and KPI tables.
 function fpaApplyAssumptionsToLegacy() {
-  if (!fpa.assumptions?.AOP_2026) return;
-  const aop = fpa.assumptions.AOP_2026;
+  if (!fpa.assumptions?.[_aopCode()]) return;
+  const aop = fpa.assumptions[_aopCode()];
 
   // Helper: build 12-element monthly array for 2026 from assumption store
   const mo12 = (cat, key, sk = '') => {
@@ -4901,8 +4904,8 @@ async function _sbLoadActuals() {
   rows.data.forEach(r => {
     try {
       const d = typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
-      if (d) actualsStore[2026] = actualsStore[2026] || {};
-      if (d && r.month) actualsStore[2026][r.month] = d;
+      if (d) actualsStore[actualsYear] = actualsStore[actualsYear] || {};
+      if (d && r.month) actualsStore[actualsYear][r.month] = d;
     } catch(e) {}
   });
 }
@@ -5328,7 +5331,10 @@ function dmBuildCalendar(year) {
   const bdg = document.getElementById('dmYearBadges');
   if (bdg) bdg.innerHTML =
     `<span class="badge" style="background:rgba(52,211,153,.15);color:var(--green)">${closed} closed</span>` +
-    `<span class="badge" style="background:rgba(125,160,196,.1);color:var(--muted)">${open} open</span>`;
+    `<span class="badge" style="background:rgba(125,160,196,.1);color:var(--muted)">${open} open</span>` +
+    _dmYearStatusBadges();
+
+  _refreshTopBarYearPills();
 
   grid.innerHTML = DM_MONTHS.map((m, i) => {
     const mo = i + 1;
@@ -5357,6 +5363,57 @@ function dmBuildCalendar(year) {
 
   // Rebuild the quick-lock strip (admin only)
   dmBuildLockStrip(year);
+}
+
+// ── Active actuals/plan year status badges ────────────────────────────────────
+// Returns HTML for the two status pills shown in the Data Management badge bar.
+function _dmYearStatusBadges() {
+  const aLabel = actualsYear || '—';
+  const pLabel = planYear    || '—';
+  return (
+    `<span class="badge" style="background:rgba(99,179,237,.12);color:var(--blue);margin-left:4px" ` +
+      `title="Year of actuals currently in memory (set on last upload)">` +
+      `📊 Actuals: ${aLabel}</span>` +
+    `<span class="badge" style="background:rgba(167,139,250,.12);color:#a78bfa" ` +
+      `title="Active AOP/Budget plan year (${_aopCode()})">` +
+      `📋 Plan: ${pLabel}</span>`
+  );
+}
+
+// Refresh the badge bar in the DM pane (called after any upload).
+function _refreshDmBadges() {
+  const bdg = document.getElementById('dmYearBadges');
+  if (!bdg) return;
+  // Rebuild only the status pills (last two spans); keep closed/open counts intact.
+  // Easiest: just redo the full badge set using current _dmYear.
+  const year   = _dmYear || 2026;
+  const closed = (fpa.periods||[]).filter(p=>p.year===year&&p.is_closed).length;
+  const open   = 12 - closed;
+  bdg.innerHTML =
+    `<span class="badge" style="background:rgba(52,211,153,.15);color:var(--green)">${closed} closed</span>` +
+    `<span class="badge" style="background:rgba(125,160,196,.1);color:var(--muted)">${open} open</span>` +
+    _dmYearStatusBadges();
+  _refreshTopBarYearPills();
+}
+
+// Updates (or creates) a small status pill in the main top-bar showing active years.
+function _refreshTopBarYearPills() {
+  let pill = document.getElementById('_topBarYrPill');
+  if (!pill) {
+    // Create once and inject into the topbar nav area
+    pill = document.createElement('div');
+    pill.id = '_topBarYrPill';
+    pill.style.cssText = 'display:flex;gap:5px;align-items:center;margin-left:8px;flex-shrink:0';
+    const nav = document.querySelector('.nav') || document.querySelector('nav');
+    if (nav) nav.appendChild(pill);
+  }
+  pill.innerHTML =
+    `<span style="font-size:9px;padding:2px 7px;border-radius:10px;` +
+      `background:rgba(99,179,237,.15);color:var(--blue);font-weight:700;white-space:nowrap" ` +
+      `title="Active actuals year">📊 ${actualsYear||'—'}</span>` +
+    `<span style="font-size:9px;padding:2px 7px;border-radius:10px;` +
+      `background:rgba(167,139,250,.15);color:#a78bfa;font-weight:700;white-space:nowrap" ` +
+      `title="Active plan year (${_aopCode()})">📋 ${planYear||'—'}</span>`;
 }
 
 function dmBuildLockStrip(year) {
@@ -6107,7 +6164,7 @@ async function dmBuildSeedOptions() {
   if (!sel) return;
   const opts = [{ value:'', label:'— blank —' }];
   // Budget / AOP versions (any year)
-  fpa.versions.filter(v => v.kind === 'BUDGET' || v.kind === 'AOP' || v.code === 'AOP_2026').forEach(v =>
+  fpa.versions.filter(v => v.kind === 'BUDGET' || v.kind === 'AOP' || v.code === _aopCode()).forEach(v =>
     opts.push({ value: v.code, label: `${v.name || v.code} (Budget/AOP)` })
   );
   // LE versions
@@ -6277,7 +6334,7 @@ async function dmBuildLeVersionsPanel() {
 
   const periodId = _dmYear * 100 + _dmMonth;
   const leVers = fpa.versions.filter(v => v.kind === 'LE' && v.period_id === periodId);
-  const aopVer = fpa.versions.find(v => v.code === 'AOP_2026');
+  const aopVer = fpa.versions.find(v => v.code === _aopCode());
 
   if (!leVers.length) {
     container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">No LE versions saved for ${DM_MONTHS[_dmMonth-1]} ${_dmYear} yet.<br>Fill in the P&amp;L / BS / CF tabs and click "Save as LE Version".</div>`;
@@ -6492,9 +6549,9 @@ function openEraseModal() {
   }
 
   // AOP
-  const aop = (fpa.versions||[]).find(v=>v.code==='AOP_2026');
+  const aop = (fpa.versions||[]).find(v=>v.code===_aopCode());
   if (aop) {
-    const fc = Object.values(fpa.facts['AOP_2026']||{}).length;
+    const fc = Object.values(fpa.facts[_aopCode()]||{}).length;
     sel.innerHTML += `<option value="aop">AOP 2026 Budget (${fc} lines)</option>`;
   }
 
@@ -6590,14 +6647,14 @@ async function eraseExecute() {
       }
 
     } else if (scope === 'aop') {
-      const ver = (fpa.versions||[]).find(v=>v.code==='AOP_2026');
-      if (!ver) throw new Error('AOP_2026 version not found');
+      const ver = (fpa.versions||[]).find(v=>v.code===_aopCode());
+      if (!ver) throw new Error(`${_aopCode()} version not found`);
       const { error, count } = await _sb.from('fpa_facts')
         .delete({ count: 'exact' })
         .eq('version_id', ver.id);
       if (error) throw error;
       deleted = count || 0;
-      fpa.facts['AOP_2026'] = {};
+      fpa.facts[_aopCode()] = {};
     }
 
     closeModal('eraseModal');
@@ -7244,9 +7301,21 @@ function clearAuditLog() {
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const YEARS=['2022','2023','2024','2025','2026','2027','2028','2029','2030'];
 let period='quarterly', activeSc='Base Case';
-let dashYear = 2026;   // year shown on dashboard charts
-let cfYear   = 2026;   // year shown on cash flow report
-let varYear  = 2026;   // year shown on variance report
+let dashYear    = 2026;   // year shown on dashboard charts
+let cfYear      = 2026;   // year shown on cash flow report
+let varYear     = 2026;   // year shown on variance report
+let actualsYear = 2026;   // year of currently active uploaded actuals
+let planYear    = 2026;   // year of the active AOP / Budget plan
+
+// _acts(mo) — reads actuals for the active year.
+// Tries actualsStore[actualsYear][mo] first; for 2026 falls back to the
+// legacy month-only store so existing in-memory data is never lost.
+const _acts = (mo) =>
+  actualsStore[actualsYear]?.[mo] ??
+  (actualsYear === 2026 ? _acts(mo) : undefined);
+
+// _aopCode() — returns the active AOP version code, e.g. 'AOP_2026' or 'AOP_2027'
+const _aopCode = () => 'AOP_' + planYear;
 const fx=()=>{try{return fxTable?.billing?.[0]||0;}catch(e){return 0;}};
 const toK=v=>{if(v===null||v===undefined)return'–';const a=Math.abs(v);return a>=1e6?'$'+(v/1e6).toFixed(1)+'B':a>=1e3?'$'+(v/1e3).toFixed(0)+'M':'$'+Math.round(v).toLocaleString();};
 const fmtN=v=>{if(v===null||v===undefined||isNaN(v))return'<span class="dim">–</span>';const n=Math.round(Math.abs(v)).toLocaleString();return v<0?`<span class="neg">(${n})</span>`:n;};
@@ -7699,8 +7768,8 @@ function buildStatTbl(lines,hEl,bEl){
   const isBS=(lines===bsLines);
 
   // For BS: inject actuals column from latest uploaded month
-  const latestActMo=isBS?[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>actualsStore[m]).pop():null;
-  const actBS=latestActMo?actualsStore[latestActMo]?.bs:null;
+  const latestActMo=isBS?[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>_acts(m)).pop():null;
+  const actBS=latestActMo?_acts(latestActMo)?.bs:null;
   const bsActMap={
     cash:actBS?.cash, receivables:actBS?.receivables, unbilled:actBS?.unbilled,
     fuel_inv:actBS?.fuelInv, materials:actBS?.materials, total_ca:actBS?.totalCurrentAssets,
@@ -7776,9 +7845,9 @@ function buildDepReport(){
   }).join('');
 
   // Monthly actuals overlay — pull depreciation from actualsStore
-  const loadedMos=[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>actualsStore[m]);
+  const loadedMos=[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>_acts(m));
   const actDepArr=MONTHS.map((_,i)=>{
-    const v=actualsStore[i+1]?.pl?.depreciation;
+    const v=_acts(i+1)?.pl?.depreciation;
     return v!=null?Math.abs(v):null;
   });
   const leDepArr=MONTHS.map((_,m)=>Math.round(calcDepTotals(2026,m).regular/1000));
@@ -7808,7 +7877,7 @@ function buildDepReport(){
 
   // Actuals strip below charts
   if(loadedMos.length){
-    const ytdActDep=loadedMos.reduce((s,m)=>{const v=actualsStore[m]?.ytdActual?.depreciation;return s+(v!=null?Math.abs(v):0);},0);
+    const ytdActDep=loadedMos.reduce((s,m)=>{const v=_acts(m)?.ytdActual?.depreciation;return s+(v!=null?Math.abs(v):0);},0);
     const ytdActDepDirect=actDepArr.reduce((s,v)=>s+(v||0),0);
     const n=loadedMos.length;
     const ytdLEDep=leDepArr.slice(0,n).reduce((s,v)=>s+v,0);
@@ -7844,7 +7913,7 @@ function setCFView(v, btn) {
 
 // Opening/closing cash from actuals or model
 function getCFOpeningCash(month) {
-  if (actualsStore[month - 1]?.bs?.cash) return actualsStore[month - 1].bs.cash;
+  if (_acts(month - 1)?.bs?.cash) return _acts(month - 1).bs.cash;
   return 0; // no hardcoded fallback — returns 0 when no actuals loaded
 }
 
@@ -7896,8 +7965,8 @@ function getDirectCFForecast(idx) {
 // Feb: ops=15958, investing=-58163, financing=-15053, closing=92371
 function buildIndirectCF() {
   const mo = cfSelectedMonth;
-  const act = actualsStore[mo];
-  const prevAct = actualsStore[mo-1];
+  const act = _acts(mo);
+  const prevAct = _acts(mo-1);
   const hasActuals = !!act?.pl;
   const hasActCF   = !!act?.cf;
 
@@ -8013,12 +8082,12 @@ function buildIndirectCF() {
   document.getElementById('cfChartTitle').textContent = `Monthly Cash Position ${cfYear} · Actuals vs Model`;
 
   // Chart — show actuals closing cash (bars) + model closing cash (line)
-  const actCloseArr = MONTHS.map((_,i)=>actualsStore[i+1]?.bs?.cash??null);
+  const actCloseArr = MONTHS.map((_,i)=>_acts(i+1)?.bs?.cash??null);
   // Model closing cash: build month-by-month from model opening
   let modelClose=[]; let modelOpen=0;
   MONTHS.forEach((_,i)=>{
     const m=i+1;
-    if(actualsStore[m]?.bs?.cash){ modelClose.push(actualsStore[m].bs.cash); modelOpen=actualsStore[m].bs.cash; }
+    if(_acts(m)?.bs?.cash){ modelClose.push(_acts(m).bs.cash); modelOpen=_acts(m).bs.cash; }
     else{ const cxC=getCxCash(cfYear)[i]||0; const netP=(getOMTotal(cfYear)[i]||0)*(-1); const mc=modelOpen-cxC; modelClose.push(Math.round(mc)); modelOpen=Math.round(mc); }
   });
   const hasActBSAny = actCloseArr.some(v=>v!==null);
@@ -8152,7 +8221,7 @@ function buildDirectCF() {
 
 function checkCFReconciliation() {
   try {
-    const indClose = actualsStore[2]?.bs?.cash || 0;
+    const indClose = _acts(2)?.bs?.cash || 0;
     const dirClose = directCFSeed.closingBalance[3] || 0;
     const diff = indClose - dirClose;
     const badge = document.getElementById('cfRecBadge');
@@ -8167,7 +8236,7 @@ function buildCFCovenants() { /* removed — covenant cards hidden until actuals
 
 function buildCFKpis() {
   const mo = cfSelectedMonth;
-  const act = actualsStore[mo];
+  const act = _acts(mo);
   const totalRec = act?.cf?.operatingCF != null ? act.cf.operatingCF : (getCashReceipts(cfYear)[mo-1]||0);
   const totalDisb = getOMCash(cfYear)[mo-1] + getCxCash(cfYear)[mo-1] + ((fuelCostByMonth[cfYear]||fuelCostByMonth2026)[mo-1]||0);
   const netCF = totalRec - totalDisb;
@@ -8325,9 +8394,9 @@ function _getMonthlyPLLine(key, yr) {
         continue;
       }
 
-      // 2. Seeded actuals (month-indexed, 2026 only): actualsStore[month].pl
+      // 2. Seeded actuals (month-indexed, 2026 only): _acts(month).pl
       if (yr === 2026) {
-        const seedPL = actualsStore[mNum]?.pl;
+        const seedPL = _acts(mNum)?.pl;
         if (seedPL && extractor) { result[m] = extractor(seedPL); continue; }
       }
     }
@@ -8666,7 +8735,7 @@ function buildKpiLeverageTable() {
       const closedMos = [12,11,10,9,8,7,6,5,4,3,2,1].filter(m => fpa.isPeriodClosed(2026, m));
       if (closedMos.length) {
         const mo = closedMos[0];
-        return actualsStore[mo]?.bs?.cash || actualsStore[2026]?.[mo]?.bs?.cash || 0;
+        return _acts(mo)?.bs?.cash || actualsStore[actualsYear]?.[mo]?.bs?.cash || 0;
       }
     }
     return v || 0;
@@ -9351,12 +9420,12 @@ function buildRevReport() {
   }
   const mo  = parseInt(document.getElementById('revRptMo')?.value || 2);
   const isYTD = revRptView === 'ytd';
-  const data  = actualsStore[mo];
+  const data  = _acts(mo);
 
   // Enable/disable month options based on loaded actuals
   document.querySelectorAll('#revRptMo option').forEach(opt => {
     const m = parseInt(opt.value);
-    if (actualsStore[m]) opt.disabled = false;
+    if (_acts(m)) opt.disabled = false;
   });
 
   // ── PERIOD LABELS ────────────────────────────────────────────────────────
@@ -9378,7 +9447,7 @@ function buildRevReport() {
     // YTD: sum all loaded months up to 'mo'
     const ytdRev = { fuel:0, nonFuel:0, ipp:0, total:0, salesMWh:0, rate10:0, rate20:0, rate40:0, rate50:0 };
     for (let m = 1; m <= mo; m++) {
-      const r = actualsStore[m]?.rev;
+      const r = _acts(m)?.rev;
       if (!r) continue;
       ytdRev.fuel    += r.fuel    || 0;
       ytdRev.nonFuel = (ytdRev.nonFuel || 0) + (r.energy || 0) + (r.custCharge || 0) + (r.other || 0);
@@ -9459,12 +9528,12 @@ function buildRevReport() {
   });
 
   // ── CHART 2: GWh by Rate Class — Actuals loaded months ──────────────────
-  const loadedMos = [1,2,3,4,5,6,7,8,9,10,11,12].filter(m => actualsStore[m]);
+  const loadedMos = [1,2,3,4,5,6,7,8,9,10,11,12].filter(m => _acts(m));
   const gwhLabels = MONTHS;
-  const gwhAct10  = MONTHS.map((_,i) => actualsStore[i+1]?.rev?.rate10  ?? null);
-  const gwhAct20  = MONTHS.map((_,i) => actualsStore[i+1]?.rev?.rate20  ?? null);
-  const gwhAct40  = MONTHS.map((_,i) => actualsStore[i+1]?.rev?.rate40  ?? null);
-  const gwhAct50  = MONTHS.map((_,i) => actualsStore[i+1]?.rev?.rate50  ?? null);
+  const gwhAct10  = MONTHS.map((_,i) => _acts(i+1)?.rev?.rate10  ?? null);
+  const gwhAct20  = MONTHS.map((_,i) => _acts(i+1)?.rev?.rate20  ?? null);
+  const gwhAct40  = MONTHS.map((_,i) => _acts(i+1)?.rev?.rate40  ?? null);
+  const gwhAct50  = MONTHS.map((_,i) => _acts(i+1)?.rev?.rate50  ?? null);
   const gwhBudTot = MONTHS.map((_,i) => revBudgetMonthly.salesMWh[i] / 1000); // convert to GWh
   mkChart('cRevGWh', {
     type: 'bar',
@@ -9509,8 +9578,8 @@ function buildRevReport() {
   });
 
   // ── CHART 4: Fuel vs Non-Fuel Revenue trend ──────────────────────────────
-  const fuelSeries   = MONTHS.map((_,i) => actualsStore[i+1]?.pl?.fuelSales    ?? null);
-  const nfuelSeries  = MONTHS.map((_,i) => actualsStore[i+1]?.pl?.nonFuelSales ?? null);
+  const fuelSeries   = MONTHS.map((_,i) => _acts(i+1)?.pl?.fuelSales    ?? null);
+  const nfuelSeries  = MONTHS.map((_,i) => _acts(i+1)?.pl?.nonFuelSales ?? null);
   const budFuelSeries  = revBudgetMonthly.fuel;
   const budNFuelSeries = revBudgetMonthly.nonFuel;
   mkChart('cRevFuelNF', {
@@ -9536,7 +9605,7 @@ function buildRevReport() {
 
   // ── CHART 5: Revenue Yield US¢/kWh ──────────────────────────────────────
   const yieldAct = MONTHS.map((_,i) => {
-    const r = actualsStore[i+1];
+    const r = _acts(i+1);
     if (!r) return null;
     return r.rev?.salesMWh > 0 ? +((r.rev.total / r.rev.salesMWh) * 1000).toFixed(2) : null;
   });
@@ -9671,7 +9740,7 @@ function buildRevReport() {
 
 function exportRevCSV() {
   const mo = parseInt(document.getElementById('revRptMo')?.value || 2);
-  const data = actualsStore[mo];
+  const data = _acts(mo);
   if (!data) { toast('No actuals for selected month','w'); return; }
   const rows = [['Line Item','Actual','Budget','Var $','Var %']];
   const items = [
@@ -10188,6 +10257,8 @@ async function handleActualsUpload(event) {
     };
     actualsStore[moNum]          = storeEntry;
     (actualsStore[yr] ??= {})[moNum] = storeEntry;   // dual-key for _getMonthlyPLLine
+    // ── Update the active actuals year so _acts() reads from the right bucket ─
+    actualsYear = yr;
 
     // ── 14. Auto-wire into legacy fuel cost engine ────────────────────────────
     if (moNum >= 1 && moNum <= 12 && plAct.fuel_cos) {
@@ -10235,6 +10306,7 @@ async function handleActualsUpload(event) {
       status: '✅ ' + factRows.length + ' facts' + (_sb ? ' → DB' : ' (offline)'),
     });
     buildActualsLog();
+    _refreshDmBadges?.();       // update actuals/plan year status pills
 
     // Refresh reports
     const varMoEl = document.getElementById('varMo');
@@ -10280,8 +10352,14 @@ async function handleAOPUpload(event) {
   toast('📂 Parsing AOP budget file…', 'i');
   const fn = file.name;
 
+  // ── Detect plan year from filename (e.g. "Budget_Template_2027_V2.xlsx" → 2027)
+  // Falls back to current planYear if no 4-digit year found in filename.
+  const fnYrMatch = fn.match(/20(\d{2})/);
+  const detectedYear = fnYrMatch ? parseInt('20' + fnYrMatch[1], 10) : (planYear || 2026);
+  planYear = detectedYear;  // set globally so _aopCode() uses the right version
+
   // Show in Data Sources upload log immediately
-  const uploadEntry = {name:fn,type:'AOP Budget',period:'2026 Jan–Dec',rows:'Parsing…',status:'⏳ Processing',date:new Date().toISOString().slice(0,10)};
+  const uploadEntry = {name:fn,type:'AOP Budget',period:`${detectedYear} Jan–Dec`,rows:'Parsing…',status:'⏳ Processing',date:new Date().toISOString().slice(0,10)};
   uploadLog.unshift(uploadEntry);
   buildDataSources?.();
 
@@ -10295,16 +10373,17 @@ async function handleAOPUpload(event) {
       return (typeof x === 'number') ? Math.round(x) : 0;
     };
 
-    // ── 1. Locate 2026 month columns dynamically by scanning header row ────────
-    // This is robust against future version changes that shift columns.
+    // ── 1. Locate plan-year month columns dynamically by scanning header row ────
+    // Uses detectedYear so the parser works for 2026, 2027, 2028, etc.
     const findMonthCols = (raw, hdrRowIdx) => {
       const hdr = raw[hdrRowIdx] || [];
       const cols = {};
+      const yrStr = String(detectedYear);
       hdr.forEach((v, i) => {
         if (!v) return;
         const s = String(v);
         const m = s.match(/^(\d{4})-(\d{2})/);
-        if (m && m[1] === '2026') {
+        if (m && m[1] === yrStr) {
           const mo = parseInt(m[2], 10); // 1-12
           if (mo >= 1 && mo <= 12) cols[mo] = i;
         }
@@ -10313,12 +10392,12 @@ async function handleAOPUpload(event) {
     };
 
     // ── 2. P&L sheet ─────────────────────────────────────────────────────────
-    // Sheet name: 'P&L 2024 - 2026'
-    const plSheet = wb.Sheets['P&L 2024 - 2026'] || wb.Sheets['P&L'];
-    if (!plSheet) throw new Error('Sheet "P&L 2024 - 2026" not found');
+    // Try plan-year-specific name first (e.g. 'P&L 2024 - 2027'), then generic fallbacks.
+    const plSheet = wb.Sheets[`P&L 2024 - ${detectedYear}`] || wb.Sheets['P&L 2024 - 2026'] || wb.Sheets['P&L'];
+    if (!plSheet) throw new Error(`P&L sheet not found (tried "P&L 2024 - ${detectedYear}")`);
     const plRaw  = XLSX.utils.sheet_to_json(plSheet, { header: 1, defval: null });
     const plCols = findMonthCols(plRaw, 3); // R4 (0-indexed row 3) = header
-    if (!plCols[1]) throw new Error('Could not locate 2026 Jan column in P&L sheet');
+    if (!plCols[1]) throw new Error(`Could not locate ${detectedYear} Jan column in P&L sheet`);
 
     // Row indices (0-indexed). Confirmed from Budget Template 2026_V2 inspection.
     const PL = {
@@ -10350,8 +10429,8 @@ async function handleAOPUpload(event) {
     };
 
     // ── 3. B_S sheet ─────────────────────────────────────────────────────────
-    const bsSheet = wb.Sheets['B_S 2024 - 2026'] || wb.Sheets['B_S'];
-    if (!bsSheet) throw new Error('Sheet "B_S 2024 - 2026" not found');
+    const bsSheet = wb.Sheets[`B_S 2024 - ${detectedYear}`] || wb.Sheets['B_S 2024 - 2026'] || wb.Sheets['B_S'];
+    if (!bsSheet) throw new Error(`B_S sheet not found (tried "B_S 2024 - ${detectedYear}")`);
     const bsRaw  = XLSX.utils.sheet_to_json(bsSheet, { header: 1, defval: null });
     const bsCols = findMonthCols(bsRaw, 3);
 
@@ -10397,8 +10476,8 @@ async function handleAOPUpload(event) {
     };
 
     // ── 4. Cash Flow sheet ────────────────────────────────────────────────────
-    const cfSheet = wb.Sheets['C flow 2024 - 2026'] || wb.Sheets['Cash flow'];
-    if (!cfSheet) throw new Error('Sheet "C flow 2024 - 2026" not found');
+    const cfSheet = wb.Sheets[`C flow 2024 - ${detectedYear}`] || wb.Sheets['C flow 2024 - 2026'] || wb.Sheets['Cash flow'];
+    if (!cfSheet) throw new Error(`Cash flow sheet not found (tried "C flow 2024 - ${detectedYear}")`);
     const cfRaw  = XLSX.utils.sheet_to_json(cfSheet, { header: 1, defval: null });
     const cfCols = findMonthCols(cfRaw, 3);
 
@@ -10453,9 +10532,9 @@ async function handleAOPUpload(event) {
       rev_mwh_rt50: 38, rev_mwh_rt60: 39, rev_mwh_rt70: 40,
     };
 
-    // ── 6. Find AOP_2026 version ───────────────────────────────────────────────
-    const verAOP = fpa.versions.find(v => v.code === 'AOP_2026');
-    if (!verAOP) throw new Error('AOP_2026 version not found in database. Run version seed migration.');
+    // ── 6. Find AOP version for the detected year ─────────────────────────────
+    const verAOP = fpa.versions.find(v => v.code === _aopCode());
+    if (!verAOP) throw new Error(`${_aopCode()} version not found in database. Add an AOP_${detectedYear} row to fpa_versions.`);
     const versionId = verAOP.id;
 
     // ── 7. Build all fact rows for 12 months ──────────────────────────────────
@@ -10478,7 +10557,7 @@ async function handleAOPUpload(event) {
     };
 
     for (let mo = 1; mo <= 12; mo++) {
-      const pk   = 2026 * 100 + mo;              // period key e.g. 202601
+      const pk   = detectedYear * 100 + mo;      // period key e.g. 202601, 202701, …
       const plC  = plCols[mo];                   // P&L column for this month
       const bsC  = bsCols[mo];                   // BS column
       const cfC  = cfCols[mo];                   // CF column
@@ -10567,10 +10646,10 @@ async function handleAOPUpload(event) {
     }
 
     // ── 9. Update in-memory fpa.facts ─────────────────────────────────────────
-    (fpa.facts['AOP_2026'] ??= {});
+    (fpa.facts[_aopCode()] ??= {});
     allFacts.forEach(f => {
-      (fpa.facts['AOP_2026'][f.line_id] ??= {});
-      fpa.facts['AOP_2026'][f.line_id][f.period_id] = Number(f.value);
+      (fpa.facts[_aopCode()][f.line_id] ??= {});
+      fpa.facts[_aopCode()][f.line_id][f.period_id] = Number(f.value);
     });
 
     // ── 10. Refresh any open flash report ─────────────────────────────────────
@@ -10579,9 +10658,9 @@ async function handleAOPUpload(event) {
       flashRefresh();
     }
 
-    const summary = `AOP 2026 — ${allFacts.length} facts across 12 months ${dbStatus}`;
+    const summary = `AOP ${planYear} — ${allFacts.length} facts across 12 months ${dbStatus}`;
     actualsLog.unshift({
-      file: fn, month: 'AOP', label: 'AOP 2026',
+      file: fn, month: 'AOP', label: `AOP ${planYear}`,
       ts: new Date().toLocaleString(), rows: allFacts.length,
       status: '✅ ' + allFacts.length + ' facts',
     });
@@ -10590,6 +10669,7 @@ async function handleAOPUpload(event) {
     uploadEntry.status = '✅ ' + allFacts.length + ' facts ' + dbStatus;
     buildActualsLog();
     buildDataSources?.();
+    _refreshDmBadges?.();       // update actuals/plan year status pills
     toast('✅ ' + summary, 'ok');
     console.log('[AOP Upload]', summary);
 
@@ -10612,7 +10692,7 @@ function buildActualsLog() {
 // ─── MAIN VARIANCE REPORT BUILDER ──────────────────────────────────────────
 function buildVarReport() {
   const mo = parseInt(document.getElementById('varMo')?.value || 1);
-  const data = actualsStore[mo];
+  const data = _acts(mo);
   if (!data) {
     document.getElementById('varKpis').innerHTML = `<div class="warn-bar">⚠ No actuals available for this month — data will appear automatically once uploaded via the Data Management pane.</div>`;
     document.getElementById('varB').innerHTML = '';
@@ -10713,7 +10793,7 @@ function buildVarReport() {
     </div>`).join('');
 
     // Revenue actuals chart (actuals only, no budget bars)
-    const actualRevSeries = MONTHS.map((_,i) => actualsStore[i+1]?.ytdActual?.totalSales ?? null);
+    const actualRevSeries = MONTHS.map((_,i) => _acts(i+1)?.ytdActual?.totalSales ?? null);
     mkChart('cVarBridge', {
       type: 'bar',
       data: {
@@ -10723,7 +10803,7 @@ function buildVarReport() {
       options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, title:{display:true,text:'YTD Cumulative Revenue – Actuals Loaded',color:_TC.muted,font:{size:10}} }, scales:{ x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid}}, y:{ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}} } },
     });
     // EBITDA actuals trend
-    const ebitdaSeries = MONTHS.map((_,i) => actualsStore[i+1]?.ytdActual?.ebitda ?? null);
+    const ebitdaSeries = MONTHS.map((_,i) => _acts(i+1)?.ytdActual?.ebitda ?? null);
     mkChart('cVarRev', {
       type: 'bar',
       data: {
@@ -10902,9 +10982,9 @@ function buildVarReport() {
   ]);
 
   // ── MONTHLY REVENUE ACTUALS CHART ─────────────────────────────────────────
-  const loadedMonths = [1,2,3,4,5,6,7,8,9,10,11,12].filter(m => actualsStore[m]);
-  const actualRevSeries  = MONTHS.map((_,i) => actualsStore[i+1]?.pl?.totalSales ?? null);
-  const budgetRevSeries  = MONTHS.map((_,i) => actualsStore[i+1]?.budget?.totalSales ?? null);
+  const loadedMonths = [1,2,3,4,5,6,7,8,9,10,11,12].filter(m => _acts(m));
+  const actualRevSeries  = MONTHS.map((_,i) => _acts(i+1)?.pl?.totalSales ?? null);
+  const budgetRevSeries  = MONTHS.map((_,i) => _acts(i+1)?.budget?.totalSales ?? null);
   mkChart('cVarRev', {
     type: 'bar',
     data: {
@@ -10930,7 +11010,7 @@ function buildRevBridgeDecomp(mo, act, ref, cmpLabel) {
   if (!el) return;
 
   // Pull actuals from uploaded file
-  const moData = actualsStore[mo];
+  const moData = _acts(mo);
   if (!moData) { el.innerHTML=''; return; }
 
   // Actuals & Budget revenue components
@@ -10965,7 +11045,7 @@ function buildRevBridgeDecomp(mo, act, ref, cmpLabel) {
     // Volume Effect = (actMWh - budMWh) × budTariffPerMWh / actFX
     // Approximate using billed sales distribution
     const mthBilledSales = billedSalesMWh?.[2026]?.[mIdx] || 0;
-    const moData2 = actualsStore[mo];
+    const moData2 = _acts(mo);
     const actSalesMWh = moData2?.rev?.salesMWh || mthBilledSales;
     const budSalesMWh = mthBilledSales; // LE from model
     // Budget non-fuel tariff per MWh (USD): budNF_actFX / budSalesMWh
@@ -11098,7 +11178,7 @@ function buildRevBridgeDecomp(mo, act, ref, cmpLabel) {
 
 function exportVarCSV() {
   const mo = parseInt(document.getElementById('varMo')?.value || 1);
-  const data = actualsStore[mo];
+  const data = _acts(mo);
   if (!data) { toast('No data for selected month','w'); return; }
   const act = varPeriod === 'ytd' ? data.ytdActual : data.pl;
   const ref = varPeriod === 'ytd' ? data.ytdBudget : data.budget;
@@ -11278,8 +11358,8 @@ function buildCollTable(){
   const rows=getCollRows(yr);
   computeAll(yr);
   // Actuals overlay for 2026
-  const hasAct=yr===2026&&[1,2,3,4,5,6,7,8,9,10,11,12].some(m=>actualsStore[m]);
-  const actReceipts=yr===2026?MONTHS.map((_,m)=>actualsStore[m+1]?.pl?.totalSales!=null?null:null):null; // placeholder; actual receipts from CF if available
+  const hasAct=yr===actualsYear&&[1,2,3,4,5,6,7,8,9,10,11,12].some(m=>_acts(m));
+  const actReceipts=yr===actualsYear?MONTHS.map((_,m)=>_acts(m+1)?.pl?.totalSales!=null?null:null):null; // placeholder; actual receipts from CF if available
   document.getElementById('collH').innerHTML=`<tr><th style="min-width:240px;text-align:left">Driver</th><th>Unit</th>${MONTHS.map(m=>`<th class="bc">${m}</th>`).join('')}<th class="bc">Total/Avg</th></tr>`;
   document.getElementById('collB').innerHTML=rows.map(r=>{
     const isDer=r.derived; const v12=r.vals||MONTHS.map(()=>0);
@@ -11288,7 +11368,7 @@ function buildCollTable(){
     // For receipts row: show actuals from actualsStore if available
     let actRow='';
     if(hasAct&&r.id==='receipts'){
-      const actR=MONTHS.map((_,m)=>actualsStore[m+1]?.cf?.operatingCF!=null?null:null); // CF receipts not directly in parse
+      const actR=MONTHS.map((_,m)=>_acts(m+1)?.cf?.operatingCF!=null?null:null); // CF receipts not directly in parse
       // Use totalSales as proxy for receipts (closest available)
       const actReceipt=MONTHS.map((_,m)=>{
         const a=actualsStore[m+1];
@@ -11359,12 +11439,12 @@ function buildCollActuals(yr){
   const el=document.getElementById('collActualsPanel');
   if(!el) return;
   if(yr!==2026){el.style.display='none';return;}
-  const loadedMos=MONTHS.map((_,m)=>actualsStore[m+1]).filter(Boolean);
+  const loadedMos=MONTHS.map((_,m)=>_acts(m+1)).filter(Boolean);
   if(!loadedMos.length){el.style.display='none';return;}
   const leReceipts=getCollRows(2026).find(r=>r.id==='receipts')?.vals||Array(12).fill(0);
-  const actRevArr=MONTHS.map((_,m)=>actualsStore[m+1]?.pl?.totalSales??null);
-  const actBSArr=MONTHS.map((_,m)=>actualsStore[m+1]?.bs?.receivables??null);
-  const actCashArr=MONTHS.map((_,m)=>actualsStore[m+1]?.bs?.cash??null);
+  const actRevArr=MONTHS.map((_,m)=>_acts(m+1)?.pl?.totalSales??null);
+  const actBSArr=MONTHS.map((_,m)=>_acts(m+1)?.bs?.receivables??null);
+  const actCashArr=MONTHS.map((_,m)=>_acts(m+1)?.bs?.cash??null);
   el.style.display='';
   const tblRows=[
     {n:'Total Revenue — Actual',arr:actRevArr,c:'var(--green)',fmtFn:v=>Math.round(v).toLocaleString()},
@@ -11412,7 +11492,7 @@ function buildDashKpis(){
   const ytdA=getYTDActuals();
   const loadedCount=ytdA?.months||0;
   const latestMo=loadedCount>0?loadedCount:null;
-  const latestData=latestMo?actualsStore[latestMo]:null;
+  const latestData=latestMo?_acts(latestMo):null;
 
   // Equal monthly weights — no hardcoded seasonal skew
   const budgetProp=Array(12).fill(1);
@@ -11650,7 +11730,7 @@ function buildOMActualsStrip(yr){
   const el=document.getElementById('omActualsStrip');
   if(!el) return;
   if(yr!==2026){el.style.display='none';return;}
-  const loadedMos=MONTHS.map((_,m)=>actualsStore[m+1]).filter(Boolean);
+  const loadedMos=MONTHS.map((_,m)=>_acts(m+1)).filter(Boolean);
   if(!loadedMos.length){el.style.display='none';return;}
   // Get YTD actual OpEx (sga+maintenance combined) vs LE
   const ytdA=getYTDActuals();
@@ -11723,7 +11803,7 @@ function buildDashCharts(){
   // Build monthly arrays for the selected year
   const fuelRevMo  = (fuelRevByYear[yr] || Array(12).fill(0));
   const nfRevMo    = MONTHS.map((_,m) => {
-    if(yr===2026 && actualsStore[m+1]?.pl?.nonFuelSales) return actualsStore[m+1].pl.nonFuelSales;
+    if(yr===actualsYear && _acts(m+1)?.pl?.nonFuelSales) return actualsStore[m+1].pl.nonFuelSales;
     const annNF = plLines.find(l=>l.id==='nonfuel')?.vals[yIdx] || 0;
     return Math.round(annNF/12);
   });
@@ -11737,7 +11817,7 @@ function buildDashCharts(){
   const revData   = _pData(totalRevMo);
   const ebiData   = _pData(ebitdaMo);
   // Actuals overlay for 2026 monthly
-  const actRevMo  = MONTHS.map((_,m) => actualsStore[m+1]?.pl?.totalSales ?? null);
+  const actRevMo  = MONTHS.map((_,m) => _acts(m+1)?.pl?.totalSales ?? null);
   const hasActRev = yr===2026 && actRevMo.some(v=>v!==null);
   const revDatasets = [
     {label:'Revenue (LE)',data:revData,backgroundColor:'rgba(59,130,246,.45)',yAxisID:'y',order:2},
@@ -11810,8 +11890,8 @@ function buildCollCharts(yr){
   const billUSD=bill.map(v=>Math.round(v/fxR));
 
   // Actuals overlays for 2026
-  const actRevArr=yr===2026?MONTHS.map((_,m)=>actualsStore[m+1]?.pl?.totalSales??null):MONTHS.map(()=>null);
-  const actARArr=yr===2026?MONTHS.map((_,m)=>actualsStore[m+1]?.bs?.receivables??null):MONTHS.map(()=>null);
+  const actRevArr=yr===actualsYear?MONTHS.map((_,m)=>_acts(m+1)?.pl?.totalSales??null):MONTHS.map(()=>null);
+  const actARArr=yr===actualsYear?MONTHS.map((_,m)=>_acts(m+1)?.bs?.receivables??null):MONTHS.map(()=>null);
   const hasAct=actRevArr.some(v=>v!==null);
 
   mkChart('cCollR',{type:'line',data:{labels:MONTHS,datasets:[
@@ -12684,7 +12764,7 @@ function _rebuildMoOpts(selId, yr, selVal, opts){
   if (!el) return;
   opts = opts || {};
   // Which months have actuals? Used for variance to enable/disable options.
-  const loaded = Object.keys(actualsStore).map(Number).filter(m => m >= 1 && m <= 12 && actualsStore[m]?.pl);
+  const loaded = Object.keys(actualsStore).map(Number).filter(m => m >= 1 && m <= 12 && _acts(m)?.pl);
   el.innerHTML = MONTHS.map((m, i) => {
     const v   = i + 1;
     const dis = opts.varMode && loaded.length && !loaded.includes(v) ? 'disabled' : '';
@@ -13725,7 +13805,7 @@ let effectiveTaxRate = {};
 function calcTax(yr, month) {
   // Pull EBIT from actuals or plLines
   let ebit = 0;
-  const act = actualsStore[month];
+  const act = _acts(month);
   if (act?.pl?.ebit !== undefined) {
     ebit = act.pl.ebit;
   } else {
@@ -13878,8 +13958,8 @@ function buildGenTables() {
     const vom = Array(12).fill(0); // zeroed — populate from uploads
     const billedK = calcBilledSales(yr).map(v=>Math.round(v/1000));
     // Actuals overlay for 2026 fuel cost
-    const actFuelCost=yr===2026?MONTHS.map((_,m)=>actualsStore[m+1]?.pl?.fuelCost!=null?Math.abs(actualsStore[m+1].pl.fuelCost):null):MONTHS.map(()=>null);
-    const actBilled=yr===2026?MONTHS.map((_,m)=>actualsStore[m+1]?.rev?.salesMWh!=null?Math.round(actualsStore[m+1].rev.salesMWh/1000):null):MONTHS.map(()=>null);
+    const actFuelCost=yr===actualsYear?MONTHS.map((_,m)=>_acts(m+1)?.pl?.fuelCost!=null?Math.abs(actualsStore[m+1].pl.fuelCost):null):MONTHS.map(()=>null);
+    const actBilled=yr===actualsYear?MONTHS.map((_,m)=>_acts(m+1)?.rev?.salesMWh!=null?Math.round(actualsStore[m+1].rev.salesMWh/1000):null):MONTHS.map(()=>null);
     const hasActuals=actFuelCost.some(v=>v!==null);
     const leRows=[
       {n:'Total Net Gen (GWh) LE',vals:ng_total,act:null},
@@ -13915,8 +13995,8 @@ function buildGenTables() {
   ].map(k=>`<div class="kpi ${k.c}"><div class="kpi-l">${k.lbl}</div><div class="kpi-v">${k.v}</div></div>`).join('');
 
   // Charts — with actuals overlay for 2026
-  const actBilledArr = yr===2026 ? MONTHS.map((_,m)=>actualsStore[m+1]?.rev?.salesMWh??null) : MONTHS.map(()=>null);
-  const actFuelCostArr = yr===2026 ? MONTHS.map((_,m)=>{const v=actualsStore[m+1]?.pl?.fuelCost; return v!=null?Math.abs(v):null;}) : MONTHS.map(()=>null);
+  const actBilledArr = yr===actualsYear ? MONTHS.map((_,m)=>_acts(m+1)?.rev?.salesMWh??null) : MONTHS.map(()=>null);
+  const actFuelCostArr = yr===actualsYear ? MONTHS.map((_,m)=>{const v=_acts(m+1)?.pl?.fuelCost; return v!=null?Math.abs(v):null;}) : MONTHS.map(()=>null);
   const hasActGen = actBilledArr.some(v=>v!==null);
 
   const genGroups = ['jps_thermal','old_harbour','renewables','ipp'];
@@ -14879,7 +14959,7 @@ function calcInterestIncome(yr){
   // Build monthly closing cash array for the year
   const cashBal=MONTHS.map((_,m)=>{
     const mo=m+1;
-    if(yr===2026&&actualsStore[mo]?.bs?.cash) return actualsStore[mo].bs.cash;
+    if(yr===actualsYear&&_acts(mo)?.bs?.cash) return _acts(mo).bs.cash;
     // Fallback: use bsLines cash vals for the year index
     const yIdx=YEARS.indexOf(String(yr));
     const cashLine=bsLines?.find(l=>l.id==='cash');
@@ -14991,7 +15071,7 @@ function buildMonthlyBS(yr){
   yr=yr||bsMonthlyYear; bsMonthlyYear=yr;
   buildYrSeg('bsMoYrSeg',yr,(y)=>{bsMonthlyYear=y;buildMonthlyBS(y);});
   const MO=MONTHS;
-  const loadedMos=MO.map((_,m)=>actualsStore[m+1]).filter(Boolean);
+  const loadedMos=MO.map((_,m)=>_acts(m+1)).filter(Boolean);
   const showAct=yr===2026&&bsActualMode==='actual_le'&&loadedMos.length>0;
   document.getElementById('bsMonH').innerHTML=`<tr><th style="text-align:left;min-width:220px;position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2">Line Item</th>${MO.map(m=>`<th class="bc">${m}</th>`).join('')}<th class="bc">Total / EoY</th></tr>`;
   let body='';
@@ -14999,12 +15079,12 @@ function buildMonthlyBS(yr){
   bsLines.forEach(l=>{
     if(l.sect!==sect){sect=l.sect;body+=`<tr class="sr"><td colspan="${MO.length+2}" style="position:sticky;left:0">${sect}</td></tr>`;}
     const vals=MO.map((_,m)=>{
-      if(showAct&&actualsStore[m+1]){
+      if(showAct&&_acts(m+1)){
         // map common BS line IDs to actuals fields
         const bsMap={cash:'cash',receivables:'receivables',inventories:'inventories',total_assets:'totalAssets',
           total_liab:'totalLiabilities',retained_earnings:'retainedEarnings'};
         const actField=bsMap[l.id];
-        if(actField&&actualsStore[m+1]?.bs?.[actField]!=null) return actualsStore[m+1].bs[actField];
+        if(actField&&_acts(m+1)?.bs?.[actField]!=null) return actualsStore[m+1].bs[actField];
       }
       return l.vals?.[4]||0; // use 2026 LE column
     });
@@ -15104,7 +15184,7 @@ function buildMonthlyPL(yr){
   // Monthly revenue from engine for selected year
   const revMo=MO.map((_,m)=>{
     // Use actual/calc revenue for 2026; extrapolate for others
-    if(actualsStore[m+1]?.pl?.totalSales && yr===2026) return actualsStore[m+1].pl.totalSales;
+    if(_acts(m+1)?.pl?.totalSales && yr===actualsYear) return actualsStore[m+1].pl.totalSales;
     return 0; // placeholder until full engine wired
   });
 
@@ -15127,7 +15207,7 @@ function buildMonthlyPL(yr){
   // Non-fuel revenue from revenue engine
   const nfRevM=MO.map((_,m)=>{
     // 1. Actuals override (2026 uploaded months)
-    if(yr===2026&&actualsStore[m+1]?.pl?.nonFuelSales) return actualsStore[m+1].pl.nonFuelSales;
+    if(yr===actualsYear&&_acts(m+1)?.pl?.nonFuelSales) return actualsStore[m+1].pl.nonFuelSales;
     // 2. Revenue engine (2026 unuploaded + all other years using annual plLines scaled by fuel proportions)
     const annNF = plLines.find(l=>l.id==='nonfuel')?.vals[YEARS.indexOf(String(yr))]||0;
     // Use calcRevEngineMonth for 2026 (live engine), scale annually for 2027-2030
@@ -15169,11 +15249,11 @@ function buildMonthlyPL(yr){
   // ARCHITECTURAL RULE: IPP fuel-revenue allocation fraction must come from DB (fpa_assumptions).
   // Until uploaded, use 1.0 (full PPA cost allocated to IPP fuel revenue).
   const _ippFRFrac = fpa.assumptions?.ippFuelRevFraction ?? 1.0;
-  const ippFR=MO.map((_,m)=>{if(yr===2026&&actualsStore[m+1]?.pl)return actualsStore[m+1].pl.ppaCost?Math.abs(actualsStore[m+1].pl.ppaCost)*_ippFRFrac:0;return Math.round((plLines.find(l=>l.id==='ipp_fr')?.vals[YEARS.indexOf(String(yr))]||0)/12);});
+  const ippFR=MO.map((_,m)=>{if(yr===actualsYear&&_acts(m+1)?.pl)return actualsStore[m+1].pl.ppaCost?Math.abs(actualsStore[m+1].pl.ppaCost)*_ippFRFrac:0;return Math.round((plLines.find(l=>l.id==='ipp_fr')?.vals[YEARS.indexOf(String(yr))]||0)/12);});
   const ippNR=MO.map((_,m)=>Math.round((plLines.find(l=>l.id==='ipp_nr')?.vals[YEARS.indexOf(String(yr))]||0)/12));
   row('IPP Fuel Revenue', ippFR, {color:'var(--green)'});
   row('IPP Non-Fuel Revenue', ippNR, {color:'var(--green)'});
-  const ippCostBase=MO.map((_,m)=>{if(yr===2026&&actualsStore[m+1]?.pl)return actualsStore[m+1].pl.ppaCost||0;return -Math.round((plLines.find(l=>l.id==='ipp_cost')?.vals[YEARS.indexOf(String(yr))]||0)/12);});
+  const ippCostBase=MO.map((_,m)=>{if(yr===actualsYear&&_acts(m+1)?.pl)return actualsStore[m+1].pl.ppaCost||0;return -Math.round((plLines.find(l=>l.id==='ipp_cost')?.vals[YEARS.indexOf(String(yr))]||0)/12);});
   const ippCredit=agg?agg.ippCredit:Array(12).fill(0);
   const ippCostNet=MO.map((_,m)=>ippCostBase[m]+(ippCredit[m]||0));
   const ippCostGrossNeg=ippCostBase.map(v=>Math.abs(v)?-Math.abs(v):v);
@@ -15264,12 +15344,12 @@ function buildMonthlyPL(yr){
   });
 
   // plActualsBadge kept hidden — upload count removed from UI
-  const loadedMos2026=[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>actualsStore[m]);
+  const loadedMos2026=[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>_acts(m));
   const badge=document.getElementById('plActualsBadge');
   if(badge){ badge.style.display='none'; }
 
   // Helper: get actual P&L value for month m (1-indexed → actualsStore key = m+1)
-  const getAct=(m,field)=>actualsStore[m+1]?.pl?.[field]??null;
+  const getAct=(m,field)=>_acts(m+1)?.pl?.[field]??null;
 
   // Build actuals-mapped arrays (null = not loaded, renders as '–' in actual column)
   const actMap={
@@ -15356,7 +15436,7 @@ function buildMonthlyPL(yr){
       </tr>
       <tr style="background:var(--table-header-bg)">
         <th style="position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2;font-size:9px">Variance = Actual − LE</th>
-        ${dispCols.map(c=>c.moIdxs.some(i=>actualsStore[i+1])?`<th class="bc" style="font-size:9px;color:var(--text)">Var $</th>`:`<th class="bc" style="color:var(--muted);font-size:9px">–</th>`).join('')}
+        ${dispCols.map(c=>c.moIdxs.some(i=>_acts(i+1))?`<th class="bc" style="font-size:9px;color:var(--text)">Var $</th>`:`<th class="bc" style="color:var(--muted);font-size:9px">–</th>`).join('')}
         <th class="bc" style="font-size:9px">Loaded</th>
       </tr>`;
     } else {
@@ -15447,15 +15527,15 @@ function exportMonthlyPL(){
 //  ACTUALS HELPER — latest loaded month for dashboard KPIs
 // ═══════════════════════════════════════════════════════
 function getLatestActuals(){
-  const loaded=[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>actualsStore[m]);
+  const loaded=[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>_acts(m));
   if(!loaded.length) return null;
-  return actualsStore[loaded[loaded.length-1]];
+  return _acts(loaded[loaded.length-1]);
 }
 function getYTDActuals(){
   // Return YTD cumulative from the latest loaded month
-  const loaded=[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>actualsStore[m]);
+  const loaded=[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>_acts(m));
   if(!loaded.length) return null;
-  const latest=actualsStore[loaded[loaded.length-1]];
+  const latest=_acts(loaded[loaded.length-1]);
   return {ytd:latest.ytdActual, ytdBudget:latest.ytdBudget, months:loaded.length, label:latest.month};
 }
 // ═══════════════════════════════════════════════════════
@@ -17355,22 +17435,22 @@ function _hubSectionStatus(key) {
   // Safe status checks — all use fpa.* or optional-chained globals only
   try {
     if (key === 'revenue') {
-      const hasTariff = fpa?.assumptions?.AOP_2026?.tariff && Object.values(fpa.assumptions.AOP_2026.tariff).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
-      const hasVol    = fpa?.assumptions?.AOP_2026?.volume && Object.values(fpa.assumptions.AOP_2026.volume).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
+      const hasTariff = fpa?.assumptions?.[_aopCode()]?.tariff && Object.values(fpa.assumptions[_aopCode()].tariff).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
+      const hasVol    = fpa?.assumptions?.[_aopCode()]?.volume && Object.values(fpa.assumptions[_aopCode()].volume).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
       if (hasTariff && hasVol) return { dot:'ok',   text:'Rates & volumes loaded' };
       if (hasTariff || hasVol) return { dot:'warn',  text:'Partial data' };
       return { dot:'empty', text:'No data loaded' };
     }
     if (key === 'gen') {
-      const hasGen = netGenTable?.[2026] && Object.values(netGenTable[2026]).some(v=> v && (Array.isArray(v) ? v.some(x=>Number(x)>0) : Number(v)>0));
+      const hasGen = netGenTable?.[planYear] && Object.values(netGenTable[planYear]).some(v=> v && (Array.isArray(v) ? v.some(x=>Number(x)>0) : Number(v)>0));
       return hasGen ? { dot:'ok', text:'Net gen loaded' } : { dot:'empty', text:'No data loaded' };
     }
     if (key === 'om') {
-      const hasOM = fpa?.assumptions?.AOP_2026?.opex && Object.values(fpa.assumptions.AOP_2026.opex).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
+      const hasOM = fpa?.assumptions?.[_aopCode()]?.opex && Object.values(fpa.assumptions[_aopCode()].opex).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
       return hasOM ? { dot:'ok', text:'Budget loaded' } : { dot:'empty', text:'No data loaded' };
     }
     if (key === 'capex') {
-      const hasCapex = fpa?.assumptions?.AOP_2026?.capex && Object.values(fpa.assumptions.AOP_2026.capex).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
+      const hasCapex = fpa?.assumptions?.[_aopCode()]?.capex && Object.values(fpa.assumptions[_aopCode()].capex).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
       return hasCapex ? { dot:'ok', text:'CapEx loaded' } : { dot:'empty', text:'No data loaded' };
     }
     if (key === 'debt') {
@@ -17380,7 +17460,7 @@ function _hubSectionStatus(key) {
       return { dot:'empty', text:'No register loaded' };
     }
     if (key === 'coll') {
-      const hasColl = fpa?.assumptions?.AOP_2026?.collections && Object.values(fpa.assumptions.AOP_2026.collections).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
+      const hasColl = fpa?.assumptions?.[_aopCode()]?.collections && Object.values(fpa.assumptions[_aopCode()].collections).some(v=>v&&Object.values(v).some(x=>Number(x)>0));
       return hasColl ? { dot:'ok', text:'Collections loaded' } : { dot:'empty', text:'Upload actuals to populate' };
     }
   } catch(e) {
