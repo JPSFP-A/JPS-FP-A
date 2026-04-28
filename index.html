@@ -6679,6 +6679,12 @@ function buildSupabaseSettings() {
   const statusColor = connected ? 'var(--green)' : 'var(--muted)';
   const statusText  = connected ? '● Connected' : '○ Not connected';
 
+  // Pre-build option list outside the template literal to avoid nested backtick syntax error
+  const nextYr = new Date().getFullYear() + 1;
+  const planYrOpts = [2026,2027,2028,2029,2030]
+    .map(y => '<option value="' + y + '"' + (y === nextYr ? ' selected' : '') + '>' + y + '</option>')
+    .join('');
+
   el.innerHTML = `
     <div class="tc2" style="margin-top:10px">
       <div class="th">
@@ -6782,7 +6788,7 @@ function buildSupabaseSettings() {
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <span style="font-size:11px;color:var(--muted)">Plan year to add:</span>
             <select id="newPlanYrSel" class="sel" style="height:28px;font-size:12px;font-weight:700" onchange="_buildNewYrSQL()">
-              ${[2026,2027,2028,2029,2030].map(y=>`<option value="${y}"${y===new Date().getFullYear()+1?' selected':''}>${y}</option>`).join('')}
+              ${planYrOpts}
             </select>
             <button class="btn btn-ghost" style="font-size:10px" onclick="_copyNewYrSQL()">📋 Copy SQL</button>
           </div>
