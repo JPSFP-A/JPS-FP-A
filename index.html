@@ -6745,6 +6745,113 @@ function buildSupabaseSettings() {
       </div>
     </div>
 
+    <!-- ── NEW PLAN YEAR GUIDE ──────────────────────────────────────────────── -->
+    <div class="tc2" style="margin-top:10px">
+      <div class="th">
+        <div>
+          <div class="tt">📅 Adding a New Plan Year (AOP / Budget)</div>
+          <div class="ts">Run once per year before uploading a new AOP budget file — takes under 30 seconds</div>
+        </div>
+        <div class="ta">
+          <span id="_newYrActivePill" style="font-size:10px;padding:3px 10px;border-radius:10px;background:rgba(99,179,237,.12);color:var(--blue);font-weight:700"></span>
+        </div>
+      </div>
+      <div style="padding:14px 16px">
+
+        <!-- Step-by-step instructions -->
+        <div style="display:grid;gap:10px">
+
+          <!-- Why -->
+          <div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);border-radius:6px;padding:10px 14px;font-size:11px;color:var(--text);line-height:1.6">
+            <strong style="color:var(--amber)">Why is this needed?</strong>
+            Every budget file is stored under a <em>version code</em> (e.g. <code style="font-family:var(--mono);background:var(--card2);padding:1px 5px;border-radius:3px">AOP_2026</code>).
+            Before uploading a <strong>new year's</strong> budget, that version row must exist in the database.
+            Actuals uploads <em>never</em> need this step — they work for any year automatically.
+          </div>
+
+          <!-- Step 1 -->
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="min-width:24px;height:24px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+            <div style="font-size:11px;color:var(--text);line-height:1.6">
+              Choose the year you want to add, copy the SQL below, then open
+              <strong>Supabase Dashboard → SQL Editor → New Query</strong> and paste it.
+            </div>
+          </div>
+
+          <!-- Year picker + generated SQL -->
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span style="font-size:11px;color:var(--muted)">Plan year to add:</span>
+            <select id="newPlanYrSel" class="sel" style="height:28px;font-size:12px;font-weight:700" onchange="_buildNewYrSQL()">
+              ${[2026,2027,2028,2029,2030].map(y=>`<option value="${y}"${y===new Date().getFullYear()+1?' selected':''}>${y}</option>`).join('')}
+            </select>
+            <button class="btn btn-ghost" style="font-size:10px" onclick="_copyNewYrSQL()">📋 Copy SQL</button>
+          </div>
+
+          <div id="newYrSqlBox" style="background:var(--card2);border:1px solid var(--border);border-radius:5px;padding:12px;font-family:var(--mono);font-size:10px;color:var(--teal);line-height:1.8;white-space:pre;overflow-x:auto"></div>
+
+          <!-- Step 2 -->
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="min-width:24px;height:24px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+            <div style="font-size:11px;color:var(--text);line-height:1.6">
+              Run the query. It is safe to run multiple times — <code style="font-family:var(--mono);background:var(--card2);padding:1px 5px;border-radius:3px">ON CONFLICT DO NOTHING</code> means no duplicates will be created.
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="min-width:24px;height:24px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+            <div style="font-size:11px;color:var(--text);line-height:1.6">
+              Come back here and click <strong>Save &amp; Connect</strong> (or press <kbd style="font-size:10px;padding:1px 5px;border:1px solid var(--border);border-radius:3px">F5</kbd> to reload) so the app picks up the new version row.
+              Then go to <strong>Data Management → Upload AOP Budget</strong> and select your new budget file — the year will be detected automatically from the filename.
+            </div>
+          </div>
+
+          <!-- Quick reference table -->
+          <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
+            <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Quick Reference — What needs SQL vs. what is automatic</div>
+            <table style="width:100%;font-size:10px;border-collapse:collapse">
+              <thead>
+                <tr style="color:var(--muted)">
+                  <th style="text-align:left;padding:4px 8px;border-bottom:1px solid var(--border)">Action</th>
+                  <th style="text-align:center;padding:4px 8px;border-bottom:1px solid var(--border)">SQL needed?</th>
+                  <th style="text-align:left;padding:4px 8px;border-bottom:1px solid var(--border)">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="padding:5px 8px;border-bottom:1px solid var(--border)">Upload actuals (any year)</td>
+                  <td style="text-align:center;padding:5px 8px;border-bottom:1px solid var(--border);color:var(--green);font-weight:700">✅ No</td>
+                  <td style="padding:5px 8px;border-bottom:1px solid var(--border);color:var(--muted)">Year detected from filename automatically</td>
+                </tr>
+                <tr>
+                  <td style="padding:5px 8px;border-bottom:1px solid var(--border)">Upload AOP 2026 budget</td>
+                  <td style="text-align:center;padding:5px 8px;border-bottom:1px solid var(--border);color:var(--green);font-weight:700">✅ No</td>
+                  <td style="padding:5px 8px;border-bottom:1px solid var(--border);color:var(--muted)">AOP_2026 version row already seeded</td>
+                </tr>
+                <tr>
+                  <td style="padding:5px 8px;border-bottom:1px solid var(--border)">Upload AOP 2027+ budget</td>
+                  <td style="text-align:center;padding:5px 8px;border-bottom:1px solid var(--border);color:var(--amber);font-weight:700">⚠ Yes</td>
+                  <td style="padding:5px 8px;border-bottom:1px solid var(--border);color:var(--muted)">One INSERT per new year — use this panel</td>
+                </tr>
+                <tr>
+                  <td style="padding:5px 8px;border-bottom:1px solid var(--border)">Switch year selectors on charts/reports</td>
+                  <td style="text-align:center;padding:5px 8px;border-bottom:1px solid var(--border);color:var(--green);font-weight:700">✅ No</td>
+                  <td style="padding:5px 8px;border-bottom:1px solid var(--border);color:var(--muted)">Fully dynamic — no code changes needed</td>
+                </tr>
+                <tr>
+                  <td style="padding:5px 8px">Add a new LE / Forecast version</td>
+                  <td style="text-align:center;padding:5px 8px;color:var(--amber);font-weight:700">⚠ Yes</td>
+                  <td style="padding:5px 8px;color:var(--muted)">Same pattern — one INSERT per version code</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div><!-- /grid -->
+      </div>
+    </div>
+
+    <!-- ── DATABASE SCHEMA ──────────────────────────────────────────────────── -->
     <div class="tc2" style="margin-top:10px">
       <div class="th"><div class="tt">🗄 Database Schema</div>
       <div class="ts">SQL to create required tables in your Supabase project</div></div>
@@ -6754,6 +6861,9 @@ function buildSupabaseSettings() {
         <button class="btn btn-ghost" style="font-size:10px;margin-top:8px" onclick="navigator.clipboard.writeText(document.querySelector('#sbSettingsPanel pre,#sbSettingsPanel .tc2:last-child div[style*=mono]')?.textContent||'').then(()=>toast('SQL copied','ok'))">📋 Copy SQL</button>
       </div>
     </div>`;
+
+  // Pre-populate the plan-year SQL box after the panel renders
+  setTimeout(_buildNewYrSQL, 0);
 }
 
 async function testSbConnection() {
@@ -6769,6 +6879,45 @@ async function testSbConnection() {
   } catch(e) {
     toast('Connection failed: ' + (e.message||e), 'err');
   }
+}
+
+// ── New Plan Year SQL generator ──────────────────────────────────────────────
+function _buildNewYrSQL() {
+  const yr  = parseInt(document.getElementById('newPlanYrSel')?.value) || new Date().getFullYear() + 1;
+  const sql =
+`-- JPS FP&A Platform — Add AOP version for ${yr}
+-- Run once in: Supabase Dashboard → SQL Editor → New Query
+-- Safe to re-run: ON CONFLICT DO NOTHING prevents duplicates.
+
+INSERT INTO public.fpa_versions (code, label, kind, year, is_locked)
+VALUES ('AOP_${yr}', 'Annual Operating Plan ${yr}', 'BUDGET', ${yr}, false)
+ON CONFLICT (code) DO NOTHING;
+
+-- Optional: also add a Latest Estimate version for ${yr}
+-- INSERT INTO public.fpa_versions (code, label, kind, year, is_locked)
+-- VALUES ('LE_${yr}', 'Latest Estimate ${yr}', 'LE', ${yr}, false)
+-- ON CONFLICT (code) DO NOTHING;`;
+
+  const box = document.getElementById('newYrSqlBox');
+  if (box) box.textContent = sql;
+
+  // Update active-year pill to show currently loaded plan year vs selected
+  const pill = document.getElementById('_newYrActivePill');
+  if (pill) {
+    const exists = (fpa.versions||[]).some(v => v.code === `AOP_${yr}`);
+    pill.textContent = exists ? `✅ AOP_${yr} already in DB` : `⚠ AOP_${yr} not yet added`;
+    pill.style.background  = exists ? 'rgba(52,211,153,.12)' : 'rgba(251,191,36,.12)';
+    pill.style.color       = exists ? 'var(--green)' : 'var(--amber)';
+  }
+}
+
+function _copyNewYrSQL() {
+  const box = document.getElementById('newYrSqlBox');
+  const sql = box?.textContent || '';
+  if (!sql) { toast('Generate SQL first', 'err'); return; }
+  navigator.clipboard.writeText(sql)
+    .then(() => toast('SQL copied to clipboard', 'ok'))
+    .catch(() => toast('Copy failed — select and copy manually', 'err'));
 }
 
 function _getSbSchemaSQL() {
