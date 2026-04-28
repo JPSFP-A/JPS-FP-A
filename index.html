@@ -5368,52 +5368,52 @@ function dmBuildCalendar(year) {
 // ── Active actuals/plan year status badges ────────────────────────────────────
 // Returns HTML for the two status pills shown in the Data Management badge bar.
 function _dmYearStatusBadges() {
-  const aLabel = actualsYear || '—';
-  const pLabel = planYear    || '—';
+  var aLabel = actualsYear || '&mdash;';
+  var pLabel = planYear    || '&mdash;';
   return (
-    `<span class="badge" style="background:rgba(99,179,237,.12);color:var(--blue);margin-left:4px" ` +
-      `title="Year of actuals currently in memory (set on last upload)">` +
-      `📊 Actuals: ${aLabel}</span>` +
-    `<span class="badge" style="background:rgba(167,139,250,.12);color:#a78bfa" ` +
-      `title="Active AOP/Budget plan year (${_aopCode()})">` +
-      `📋 Plan: ${pLabel}</span>`
+    '<span class="badge" style="background:rgba(99,179,237,.12);color:var(--blue);margin-left:4px" ' +
+      'title="Year of actuals currently in memory (set on last upload)">' +
+      '📊 Actuals: ' + aLabel + '</span>' +
+    '<span class="badge" style="background:rgba(167,139,250,.12);color:#a78bfa" ' +
+      'title="Active AOP/Budget plan year (' + _aopCode() + ')">' +
+      '📋 Plan: ' + pLabel + '</span>'
   );
 }
 
 // Refresh the badge bar in the DM pane (called after any upload).
 function _refreshDmBadges() {
-  const bdg = document.getElementById('dmYearBadges');
+  var bdg = document.getElementById('dmYearBadges');
   if (!bdg) return;
   // Rebuild only the status pills (last two spans); keep closed/open counts intact.
   // Easiest: just redo the full badge set using current _dmYear.
-  const year   = _dmYear || 2026;
-  const closed = (fpa.periods||[]).filter(p=>p.year===year&&p.is_closed).length;
-  const open   = 12 - closed;
+  var year   = _dmYear || 2026;
+  var closed = (fpa.periods||[]).filter(function(p){return p.year===year&&p.is_closed;}).length;
+  var open   = 12 - closed;
   bdg.innerHTML =
-    `<span class="badge" style="background:rgba(52,211,153,.15);color:var(--green)">${closed} closed</span>` +
-    `<span class="badge" style="background:rgba(125,160,196,.1);color:var(--muted)">${open} open</span>` +
+    '<span class="badge" style="background:rgba(52,211,153,.15);color:var(--green)">' + closed + ' closed</span>' +
+    '<span class="badge" style="background:rgba(125,160,196,.1);color:var(--muted)">' + open + ' open</span>' +
     _dmYearStatusBadges();
   _refreshTopBarYearPills();
 }
 
 // Updates (or creates) a small status pill in the main top-bar showing active years.
 function _refreshTopBarYearPills() {
-  let pill = document.getElementById('_topBarYrPill');
+  var pill = document.getElementById('_topBarYrPill');
   if (!pill) {
     // Create once and inject into the topbar nav area
     pill = document.createElement('div');
     pill.id = '_topBarYrPill';
     pill.style.cssText = 'display:flex;gap:5px;align-items:center;margin-left:8px;flex-shrink:0';
-    const nav = document.querySelector('.nav') || document.querySelector('nav');
+    var nav = document.querySelector('.nav') || document.querySelector('nav');
     if (nav) nav.appendChild(pill);
   }
   pill.innerHTML =
-    `<span style="font-size:9px;padding:2px 7px;border-radius:10px;` +
-      `background:rgba(99,179,237,.15);color:var(--blue);font-weight:700;white-space:nowrap" ` +
-      `title="Active actuals year">📊 ${actualsYear||'—'}</span>` +
-    `<span style="font-size:9px;padding:2px 7px;border-radius:10px;` +
-      `background:rgba(167,139,250,.15);color:#a78bfa;font-weight:700;white-space:nowrap" ` +
-      `title="Active plan year (${_aopCode()})">📋 ${planYear||'—'}</span>`;
+    '<span style="font-size:9px;padding:2px 7px;border-radius:10px;' +
+      'background:rgba(99,179,237,.15);color:var(--blue);font-weight:700;white-space:nowrap" ' +
+      'title="Active actuals year">📊 ' + (actualsYear||'&mdash;') + '</span>' +
+    '<span style="font-size:9px;padding:2px 7px;border-radius:10px;' +
+      'background:rgba(167,139,250,.15);color:#a78bfa;font-weight:700;white-space:nowrap" ' +
+      'title="Active plan year (' + _aopCode() + ')">📋 ' + (planYear||'&mdash;') + '</span>';
 }
 
 function dmBuildLockStrip(year) {
@@ -12013,7 +12013,7 @@ function buildDashCharts(){
   const _dk=['faRegister','sjpc','otherLeases','capexTransfers','capitalSpares','decommissioning','strandedMeters','strandedLights','impairment'];
   const _dl=['FA Register','SJPC','Leases','CX Transfers','Cap Spares','Decommission.','Str. Meters','Str. Lights','Impairment'];
   const _dclr=['rgba(139,92,246,.8)','rgba(59,130,246,.8)','rgba(16,185,129,.8)','rgba(245,158,11,.8)','rgba(239,68,68,.8)','rgba(20,184,166,.8)','rgba(249,115,22,.8)','rgba(168,85,247,.8)','rgba(236,72,153,.8)'];
-  mkChart('cDep',{type:'bar',data:{labels,datasets:_dk.map((k,i)=>({label:_dl[i],data:_pData((_dc[k]||Array(12).fill(0)).map(v=>Math.round(v/1000))),backgroundColor:_dclr[i],stack:'s'}))},options:{...bO(),plugins:{legend:{labels:{color:_TC.muted,font:{size:8},boxWidth:8}}},scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}}}});}
+  mkChart('cDep',{type:'bar',data:{labels,datasets:_dk.map((k,i)=>({label:_dl[i],data:_pData((_dc[k]||Array(12).fill(0)).map(v=>Math.round(v/1000))),backgroundColor:_dclr[i],stack:'s'}))},options:{...bO(),plugins:{legend:{labels:{color:_TC.muted,font:{size:8},boxWidth:8}}},scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:'rgba(255,255,255,.025)'},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:'rgba(255,255,255,.035)'}}}}});}
 
   // ── 6. CapEx by Category — period-aware, selected year ───────────────────
   const cxR=getCxRows(yr);
