@@ -1574,11 +1574,7 @@ tr.der td{color:var(--teal)}
     <div class="cg">
       <span class="cl">Year</span>
       <select class="sel" id="dashYrSel" onchange="setDashYear(this.value)">
-        <option value="2026" selected>2026</option>
-        <option value="2027">2027</option>
-        <option value="2028">2028</option>
-        <option value="2029">2029</option>
-        <option value="2030">2030</option>
+        <!-- Options rebuilt dynamically by initYearDropdowns() after bootstrap -->
       </select>
     </div>
     <span style="font-size:10px;color:var(--muted)">· Period filter (topbar) applies to all charts below</span>
@@ -1587,7 +1583,7 @@ tr.der td{color:var(--teal)}
   <div class="kpi-row" id="dash-kpis"></div>
   <div class="cr c2">
     <div class="cc"><div class="ct" id="ctRevEb">Revenue &amp; EBITDA <em>USD $'000</em></div><div class="cb h170"><canvas id="cRevEb"></canvas></div></div>
-    <div class="cc"><div class="ct">Scenario Net Income Comparison <em>2026–2030</em></div><div class="cb h170"><canvas id="cScNI"></canvas></div></div>
+    <div class="cc"><div class="ct">Scenario Net Income Comparison <em id="ctScNIYrs"></em></div><div class="cb h170"><canvas id="cScNI"></canvas></div></div>
   </div>
   <div class="cr c3">
     <div class="cc"><div class="ct">Cash Flow Bridge <em id="ctBridgeYr">FY 2026</em></div><div class="cb h140"><canvas id="cBridge"></canvas></div></div>
@@ -1624,7 +1620,7 @@ tr.der td{color:var(--teal)}
   <!-- Annual P&L container -->
   <div id="plAnnualContainer" style="display:none">
     <div class="tc2">
-      <div class="th"><div><div class="tt">📋 Income Statement <span class="badge badge-act">Actuals 2022–2025</span><span class="badge badge-bud">Budget/Forecast 2026+</span></div><div class="ts">Jamaica Public Service Company Limited | USD $'000</div></div><div class="ta"><button class="btn btn-ghost" onclick="exportCSV()">⬇ Export</button></div></div>
+      <div class="th"><div><div class="tt">📋 Income Statement <span class="badge badge-act" id="plActBadge">Actuals</span><span class="badge badge-bud" id="plBudBadge">Budget/Forecast</span></div><div class="ts">Jamaica Public Service Company Limited | USD $'000</div></div><div class="ta"><button class="btn btn-ghost" onclick="exportCSV()">⬇ Export</button></div></div>
       <div class="tscr"><table><thead id="plH"></thead><tbody id="plB"></tbody></table></div>
     </div>
   </div>
@@ -1647,12 +1643,12 @@ tr.der td{color:var(--teal)}
     </div>
     <div id="bsAnnualControls" style="display:none;gap:8px;align-items:center">
       <span class="cl">From</span>
-      <select class="sel" onchange="plYrFrom=parseInt(this.value);buildStatTbl(bsLines,document.getElementById('bsH'),document.getElementById('bsB'))" style="height:26px">
-        <option>2022</option><option>2023</option><option selected>2024</option><option>2025</option><option>2026</option>
+      <select class="sel" id="bsYrFrom" onchange="plYrFrom=parseInt(this.value);buildStatTbl(bsLines,document.getElementById('bsH'),document.getElementById('bsB'))" style="height:26px">
+        <!-- Options rebuilt dynamically by initYearDropdowns() after bootstrap -->
       </select>
       <span class="cl">To</span>
-      <select class="sel" onchange="plYrTo=parseInt(this.value);buildStatTbl(bsLines,document.getElementById('bsH'),document.getElementById('bsB'))" style="height:26px">
-        <option>2026</option><option selected>2027</option><option>2028</option><option>2029</option><option>2030</option>
+      <select class="sel" id="bsYrTo" onchange="plYrTo=parseInt(this.value);buildStatTbl(bsLines,document.getElementById('bsH'),document.getElementById('bsB'))" style="height:26px">
+        <!-- Options rebuilt dynamically by initYearDropdowns() after bootstrap -->
       </select>
     </div>
     <button class="btn btn-ghost" style="margin-left:auto" onclick="openAddBSLineModal()">+ Add Line</button>
@@ -1823,20 +1819,11 @@ tr.der td{color:var(--teal)}
     <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
       <span class="cl">Year</span>
       <select class="sel" id="cfYrSel" onchange="setCfYear(this.value)" style="height:26px">
-        <option value="2022">2022</option><option value="2023">2023</option>
-        <option value="2024">2024</option><option value="2025">2025</option>
-        <option value="2026" selected>2026</option><option value="2027">2027</option>
-        <option value="2028">2028</option><option value="2029">2029</option>
-        <option value="2030">2030</option>
+        <!-- Options rebuilt dynamically by initYearDropdowns() after bootstrap -->
       </select>
       <span class="cl">Month</span>
       <select class="sel" id="cfMo" onchange="buildCFReport()" style="height:26px">
-        <option value="1">Jan 2026</option><option value="2" selected>Feb 2026</option>
-        <option value="3">Mar 2026</option><option value="4">Apr 2026</option>
-        <option value="5">May 2026</option><option value="6">Jun 2026</option>
-        <option value="7">Jul 2026</option><option value="8">Aug 2026</option>
-        <option value="9">Sep 2026</option><option value="10">Oct 2026</option>
-        <option value="11">Nov 2026</option><option value="12">Dec 2026</option>
+        <!-- Options rebuilt dynamically by rebuildCFMonthDropdown() when year changes -->
       </select>
       <button class="btn btn-ghost" onclick="exportCFCSV()">⬇ Export</button>
     </div>
@@ -1855,10 +1842,10 @@ tr.der td{color:var(--teal)}
 
 <!-- ═══ DEPRECIATION REPORT ═══ -->
 <div id="pane-rpt-dep" class="pane">
-  <div class="lock-banner">🔒 Report View — Source: Depreciation_February_2026_LE_revised.xlsx</div>
+  <div class="lock-banner" id="depSourceBanner">🔒 Report View — Depreciation data loaded from uploaded assumptions</div>
   <div class="cr c2">
-    <div class="cc"><div class="ct">Depreciation 2022–2028 <em>By component | USD $'000</em></div><div class="cb h170"><canvas id="cDepAnn"></canvas></div></div>
-    <div class="cc"><div class="ct">2026 Monthly Depreciation <em>LE vs Actuals overlay</em></div><div class="cb h170"><canvas id="cDepMo"></canvas></div></div>
+    <div class="cc"><div class="ct" id="ctDepAnn">Depreciation <em>By component | USD $'000</em></div><div class="cb h170"><canvas id="cDepAnn"></canvas></div></div>
+    <div class="cc"><div class="ct" id="ctDepMo"><em>LE vs Actuals overlay</em></div><div class="cb h170"><canvas id="cDepMo"></canvas></div></div>
 
   </div>
   <div class="tc2">
@@ -1877,28 +1864,13 @@ tr.der td{color:var(--teal)}
     <div class="cg" style="border:none;padding:0">
       <span class="cl">Year</span>
       <select class="sel" id="varYrSel" onchange="setVarYear(this.value)" style="height:26px">
-        <option value="2022">2022</option><option value="2023">2023</option>
-        <option value="2024">2024</option><option value="2025">2025</option>
-        <option value="2026" selected>2026</option><option value="2027">2027</option>
-        <option value="2028">2028</option><option value="2029">2029</option>
-        <option value="2030">2030</option>
+        <!-- Options rebuilt dynamically by initYearDropdowns() after bootstrap -->
       </select>
     </div>
     <div class="cg" style="border:none;padding:0">
       <span class="cl">Month</span>
       <select class="sel" id="varMo" onchange="buildVarReport()">
-        <option value="1">January 2026</option>
-        <option value="2" selected>February 2026</option>
-        <option value="3" disabled>March 2026</option>
-        <option value="4" disabled>April 2026</option>
-        <option value="5" disabled>May 2026</option>
-        <option value="6" disabled>June 2026</option>
-        <option value="7" disabled>July 2026</option>
-        <option value="8" disabled>August 2026</option>
-        <option value="9" disabled>September 2026</option>
-        <option value="10" disabled>October 2026</option>
-        <option value="11" disabled>November 2026</option>
-        <option value="12" disabled>December 2026</option>
+        <!-- Options rebuilt dynamically by rebuildVarMonthDropdown() — closed months enabled per fpa_dim_period -->
       </select>
     </div>
     <div class="cg" style="border:none;padding:0">
@@ -1932,7 +1904,7 @@ tr.der td{color:var(--teal)}
       <div class="cb h200"><canvas id="cVarBridge"></canvas></div>
     </div>
     <div class="cc">
-      <div class="ct">Monthly Revenue vs Budget <em>YTD Actuals 2026 | USD $'000</em></div>
+      <div class="ct">Monthly Revenue vs Budget <em id="ctVarRevYr">YTD Actuals | USD $'000</em></div>
       <div class="cb h200"><canvas id="cVarRev"></canvas></div>
     </div>
   </div>
@@ -2020,11 +1992,7 @@ tr.der td{color:var(--teal)}
       <div class="ts">DSCR (≥1.20×), Net Debt / EBITDA, Interest Coverage, Debt / Total Assets</div></div>
     </div>
     <div class="tscr"><table>
-      <thead><tr>
-        <th style="text-align:left;min-width:220px">Ratio</th>
-        <th class="bc">2026</th><th class="bc">2027</th><th class="bc">2028</th><th class="bc">2029</th><th class="bc">2030</th>
-        <th style="text-align:left;min-width:120px">Covenant</th>
-      </tr></thead>
+      <thead id="kpiLevHead"></thead>
       <tbody id="kpiLevBody"></tbody>
     </table></div>
   </div>
@@ -2049,7 +2017,7 @@ tr.der td{color:var(--teal)}
 
   <!-- Section 5: Multi-Year Summary Chart -->
   <div class="tc2" style="margin-bottom:12px">
-    <div class="th"><div class="tt">§5 5-Year Ratio Trends (2026–2030)</div></div>
+    <div class="th"><div class="tt" id="kpiTrendTitle">§5 5-Year Ratio Trends</div></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px">
       <div><div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">EBITDA Margin (Non-Fuel) %</div><canvas id="cKpiEbitda" height="140"></canvas></div>
       <div><div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">DSCR (×)</div><canvas id="cKpiDscr" height="140"></canvas></div>
@@ -2061,7 +2029,7 @@ tr.der td{color:var(--teal)}
 
 <!-- ═══ REVENUE & GENERATION REPORT ═══ -->
 <div id="pane-rpt-rev" class="pane">
-  <div class="lock-banner">🔒 Report View — Revenue & Generation data. Source: JPSCo_Financials actuals + AOP 2026 assumptions.</div>
+  <div class="lock-banner" id="revRptBanner">🔒 Report View — Revenue & Generation data. Source: JPSCo_Financials actuals + AOP assumptions.</div>
 
   <!-- CONTROLS -->
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -2112,7 +2080,7 @@ tr.der td{color:var(--teal)}
   <!-- CHART ROW 2 -->
   <div class="cr c3">
     <div class="cc">
-      <div class="ct">Generation Mix <em>2026 YTD | MWh</em></div>
+      <div class="ct">Generation Mix <em id="ctGenMixYr"></em></div>
       <div class="cb h170"><canvas id="cGenMixDash"></canvas></div>
     </div>
     <div class="cc">
@@ -2141,7 +2109,7 @@ tr.der td{color:var(--teal)}
       <div class="tscr"><table><thead id="rateClsH"></thead><tbody id="rateClsB"></tbody></table></div>
     </div>
     <div class="tc2">
-      <div class="th"><div class="tt">🔌 Generation Mix — YTD 2026 <span class="badge badge-bud">AOP Plan</span></div></div>
+      <div class="th"><div class="tt" id="genMixTitle">🔌 Generation Mix <span class="badge badge-bud">AOP Plan</span></div></div>
       <div class="tscr"><table><thead id="genMixH"></thead><tbody id="genMixB"></tbody></table></div>
     </div>
   </div>
@@ -2152,23 +2120,18 @@ tr.der td{color:var(--teal)}
 
 <!-- ═══ 5-YEAR PROJECTION ENGINE ═══ -->
 <div id="pane-ass-proj" class="pane">
-  <div class="lock-banner" id="projLockBanner">📈 5-Year Projection Engine — Enter growth rate assumptions below. Values auto-save to database. All 2027–2030 projections derive from these drivers. <span id="projLastRun" style="color:var(--teal);margin-left:8px"></span></div>
+  <div class="lock-banner" id="projLockBanner">📈 5-Year Projection Engine — Enter growth rate assumptions below. Values auto-save to database. All future-year projections derive from these drivers. <span id="projLastRun" style="color:var(--teal);margin-left:8px"></span></div>
   <div class="warn-bar" id="projNoDataWarn" style="display:none">⚠ No projection assumptions loaded from database — all drivers showing 0. Enter your assumptions below and they will be saved automatically.</div>
 
   <!-- SECTION 1: REVENUE DRIVERS -->
   <div class="tc2" style="margin-bottom:12px">
     <div class="th">
-      <div><div class="tt">§1 Revenue Drivers <span class="badge badge-act">Non-Fuel Revenue | 2027–2030</span></div>
+      <div><div class="tt">§1 Revenue Drivers <span class="badge badge-act" id="projRevBadge">Non-Fuel Revenue | Future Years</span></div>
       <div class="ts">Volume growth + Tariff review calendar + FX path → rebuilds plLines & fuelRevByYear</div></div>
       <div class="ta"><button class="btn btn-gold" onclick="runProjectionEngine()">▶ Run Projection</button></div>
     </div>
     <div class="tscr"><table>
-      <thead><tr>
-        <th style="text-align:left;min-width:240px">Driver</th>
-        <th class="bc">2026 LE</th>
-        <th class="bc">2027</th><th class="bc">2028</th><th class="bc">2029</th><th class="bc">2030</th>
-        <th style="text-align:left;min-width:140px">Note</th>
-      </tr></thead>
+      <thead id="projRevH"></thead>
       <tbody id="projRevB"></tbody>
     </table></div>
   </div>
@@ -2178,12 +2141,7 @@ tr.der td{color:var(--teal)}
     <div class="th"><div><div class="tt">§2 O&M Inflation Drivers <span class="badge badge-bud">Annual Growth Rates</span></div>
     <div class="ts">Applied per category — overrides individual row growthRate inputs</div></div></div>
     <div class="tscr"><table>
-      <thead><tr>
-        <th style="text-align:left;min-width:240px">Category</th>
-        <th class="bc">2026 Total ($K)</th>
-        <th class="bc">2027 Gr%</th><th class="bc">2028 Gr%</th><th class="bc">2029 Gr%</th><th class="bc">2030 Gr%</th>
-        <th class="bc">2030 Proj ($K)</th>
-      </tr></thead>
+      <thead id="projOMH"></thead>
       <tbody id="projOMB"></tbody>
     </table></div>
   </div>
@@ -2193,12 +2151,7 @@ tr.der td{color:var(--teal)}
     <div class="th"><div><div class="tt">§3 CapEx Pipeline <span class="badge badge-bud">Annual Budgets by Programme</span></div>
     <div class="ts">Annual CapEx → monthly spread using prior year profile. Feeds depreciation roll-forward.</div></div></div>
     <div class="tscr"><table>
-      <thead><tr>
-        <th style="text-align:left;min-width:240px">Programme</th>
-        <th class="bc">2026 ($K)</th>
-        <th class="bc">2027 ($K)</th><th class="bc">2028 ($K)</th><th class="bc">2029 ($K)</th><th class="bc">2030 ($K)</th>
-        <th class="bc">5-Year Total</th>
-      </tr></thead>
+      <thead id="projCapexH"></thead>
       <tbody id="projCapexB"></tbody>
     </table></div>
   </div>
@@ -2208,10 +2161,7 @@ tr.der td{color:var(--teal)}
     <div class="th"><div><div class="tt">§4 Depreciation Roll-Forward <span class="badge badge-act">Derived from CapEx + Opening NBV</span></div>
     <div class="ts">Opening NBV + CapEx additions − Disposals → Closing NBV. Depn = Opening NBV ÷ remaining life.</div></div></div>
     <div class="tscr"><table>
-      <thead><tr>
-        <th style="text-align:left;min-width:240px">Line</th>
-        <th class="bc">2026</th><th class="bc">2027</th><th class="bc">2028</th><th class="bc">2029</th><th class="bc">2030</th>
-      </tr></thead>
+      <thead id="projDepH2"></thead>
       <tbody id="projDepB"></tbody>
     </table></div>
   </div>
@@ -2219,12 +2169,9 @@ tr.der td{color:var(--teal)}
   <!-- SECTION 5: DEBT SCHEDULE -->
   <div class="tc2" style="margin-bottom:12px">
     <div class="th"><div><div class="tt">§5 Debt Schedule <span class="badge badge-bud">Drawdowns · Repayments · Interest</span></div>
-    <div class="ts">Drives Net Financing Costs 2027–2030 in plLines and Balance Sheet long-term debt.</div></div></div>
+    <div class="ts">Drives Net Financing Costs for future projection years in plLines and Balance Sheet long-term debt.</div></div></div>
     <div class="tscr"><table>
-      <thead><tr>
-        <th style="text-align:left;min-width:240px">Item</th>
-        <th class="bc">2026</th><th class="bc">2027</th><th class="bc">2028</th><th class="bc">2029</th><th class="bc">2030</th>
-      </tr></thead>
+      <thead id="projDebtH2"></thead>
       <tbody id="projDebtB"></tbody>
     </table></div>
   </div>
@@ -2400,10 +2347,10 @@ tr.der td{color:var(--teal)}
   <div class="sh"><div class="st">Scenario Manager</div><button class="btn btn-gold" onclick="openModal('scModal')">＋ New Scenario</button></div>
   <div class="sg" id="scGrid"></div>
   <div class="cr c2">
-    <div class="cc"><div class="ct">EBITDA by Scenario <em>2026–2030</em></div><div class="cb h170"><canvas id="cScEb"></canvas></div></div>
-    <div class="cc"><div class="ct">Net Income by Scenario <em>2026–2030</em></div><div class="cb h170"><canvas id="cScNI2"></canvas></div></div>
+    <div class="cc"><div class="ct">EBITDA by Scenario <em id="ctScEbYrs"></em></div><div class="cb h170"><canvas id="cScEb"></canvas></div></div>
+    <div class="cc"><div class="ct">Net Income by Scenario <em id="ctScNI2Yrs"></em></div><div class="cb h170"><canvas id="cScNI2"></canvas></div></div>
   </div>
-  <div class="tc2"><div class="th"><div class="tt">Scenario Comparison Matrix | 2026</div></div><div class="tscr"><table><thead id="scCH"></thead><tbody id="scCB"></tbody></table></div></div>
+  <div class="tc2"><div class="th"><div class="tt" id="scMatrixTitle">Scenario Comparison Matrix</div></div><div class="tscr"><table><thead id="scCH"></thead><tbody id="scCB"></tbody></table></div></div>
 </div>
 
 <!-- ═══ GENERATION & FUEL WORKING ═══ -->
@@ -2411,14 +2358,10 @@ tr.der td{color:var(--teal)}
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
     <span class="cl">Year</span>
     <div class="seg" id="genYrSeg">
-      <div class="sb on" onclick="setGenYear(2026,this)">2026</div>
-      <div class="sb" onclick="setGenYear(2027,this)">2027</div>
-      <div class="sb" onclick="setGenYear(2028,this)">2028</div>
-      <div class="sb" onclick="setGenYear(2029,this)">2029</div>
-      <div class="sb" onclick="setGenYear(2030,this)">2030</div>
+      <!-- Rebuilt dynamically by initYearDropdowns() after bootstrap -->
     </div>
   </div>
-  <div class="info-bar"><div class="info-icon">⚡</div><div class="info-text"><strong>Generation & Fuel Module.</strong> Net generation by group feeds the system loss calculation, which derives billed sales MWh flowing into the revenue engine. Fuel prices and heat rates determine fuel cost. Source: 2026_Heat_Rate_Forecast.xls</div></div>
+  <div class="info-bar"><div class="info-icon">⚡</div><div class="info-text"><strong>Generation & Fuel Module.</strong> Net generation by group feeds the system loss calculation, which derives billed sales MWh flowing into the revenue engine. Fuel prices and heat rates determine fuel cost. Source: uploaded Heat Rate Forecast file.</div></div>
   <div class="kpi-row" id="genKpis"></div>
   <div id="genActualsBanner" style="display:none;font-size:10px;padding:6px 12px;border-radius:5px;border:1px solid var(--green);background:rgba(16,185,129,.08);margin-bottom:8px"></div>
   <div class="cr c2">
@@ -2445,7 +2388,7 @@ tr.der td{color:var(--teal)}
 
 <!-- ═══ COLLECTIONS WORKING ═══ -->
 <div id="pane-wrk-coll" class="pane">
-  <div class="info-bar"><div class="info-icon">💳</div><div class="info-text"><strong>Collections & Working Capital.</strong> <em>Cash Receipts = (Billings × Blended Rate) + Prior Period + GCT.</em> DSO and AR balance auto-computed and flow to Cash Flow report. Billings sourced from AOP 2026 (Sales_Generation_Feb_2026).</div></div>
+  <div class="info-bar"><div class="info-icon">💳</div><div class="info-text"><strong>Collections & Working Capital.</strong> <em>Cash Receipts = (Billings × Blended Rate) + Prior Period + GCT.</em> DSO and AR balance auto-computed and flow to Cash Flow report. Billings sourced from current AOP assumptions.</div></div>
   <div id="collActualsBanner" style="display:none;font-size:10px;padding:6px 12px;border-radius:5px;border:1px solid var(--green);background:rgba(16,185,129,.08);margin-bottom:8px"></div>
   <div class="wf" id="collWF"></div>
   <div style="display:flex;gap:5px;margin-bottom:6px">
@@ -2537,9 +2480,7 @@ tr.der td{color:var(--teal)}
     </div>
     <div class="tscr"><table>
       <thead><tr>
-        <th style="text-align:left;min-width:220px">Line</th>
-        <th class="bc">2026</th><th class="bc">2027</th><th class="bc">2028</th><th class="bc">2029</th><th class="bc">2030</th>
-      </tr></thead>
+      <thead id="debtSummHead"></thead>
       <tbody id="debtSummBody"></tbody>
     </table></div>
   </div>
@@ -2593,11 +2534,7 @@ tr.der td{color:var(--teal)}
       <div class="ta">
         <span class="cl">Year</span>
         <div class="seg" id="leaseAmortYrSeg">
-          <div class="sb on" onclick="setLeaseAmortYear(2026,this)">2026</div>
-          <div class="sb" onclick="setLeaseAmortYear(2027,this)">2027</div>
-          <div class="sb" onclick="setLeaseAmortYear(2028,this)">2028</div>
-          <div class="sb" onclick="setLeaseAmortYear(2029,this)">2029</div>
-          <div class="sb" onclick="setLeaseAmortYear(2030,this)">2030</div>
+          <!-- Rebuilt dynamically by initYearDropdowns() after bootstrap -->
         </div>
         <button class="btn btn-ghost" style="margin-left:4px" onclick="document.getElementById('leaseAmortSection').style.display='none'">✕ Close</button>
       </div>
@@ -2621,11 +2558,7 @@ tr.der td{color:var(--teal)}
       <div class="ta">
         <span class="cl">Year</span>
         <div class="seg" id="leaseAggYrSeg">
-          <div class="sb on" onclick="setLeaseAggYear(2026,this)">2026</div>
-          <div class="sb" onclick="setLeaseAggYear(2027,this)">2027</div>
-          <div class="sb" onclick="setLeaseAggYear(2028,this)">2028</div>
-          <div class="sb" onclick="setLeaseAggYear(2029,this)">2029</div>
-          <div class="sb" onclick="setLeaseAggYear(2030,this)">2030</div>
+          <!-- Rebuilt dynamically by initYearDropdowns() -->
         </div>
       </div>
     </div>
@@ -2728,11 +2661,7 @@ tr.der td{color:var(--teal)}
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
     <span class="cl">Year</span>
     <div class="seg" id="revYrSeg">
-      <div class="sb on" onclick="setRevYear(2026,this)">2026</div>
-      <div class="sb" onclick="setRevYear(2027,this)">2027</div>
-      <div class="sb" onclick="setRevYear(2028,this)">2028</div>
-      <div class="sb" onclick="setRevYear(2029,this)">2029</div>
-      <div class="sb" onclick="setRevYear(2030,this)">2030</div>
+      <!-- Rebuilt dynamically by initYearDropdowns() -->
     </div>
     <span style="font-size:10px;color:var(--muted);margin-left:8px">Billing FX: <strong id="revFxDisplay" style="color:var(--teal)">J$162.00</strong> (Jan avg)</span>
   </div>
@@ -2755,7 +2684,7 @@ tr.der td{color:var(--teal)}
       <div class="cb h200"><canvas id="cRevBridge3"></canvas></div>
     </div>
     <div class="cc">
-      <div class="ct">Monthly Revenue Trend 2026 <em>US$'000 | Non-Fuel + Fuel Stacked</em></div>
+      <div class="ct" id="revTrendTitle">Monthly Revenue Trend <em>US$'000 | Non-Fuel + Fuel Stacked</em></div>
       <div class="cb h200"><canvas id="cRevTrend3"></canvas></div>
     </div>
   </div>
@@ -2854,7 +2783,7 @@ tr.der td{color:var(--teal)}
   <div class="tc2">
     <div class="th">
       <div><div class="tt">📊 Lever 1 — Volume Table (Customers / MWh / KVA) <span class="badge badge-bud">Editable</span></div>
-        <div class="ts">Monthly 2026 by rate class | Pre-populated from AOP 2026 | Edit any cell → instant recalculation</div></div>
+        <div class="ts" id="volTableDesc">Monthly by rate class | Pre-populated from AOP | Edit any cell → instant recalculation</div></div>
       <div class="ta">
         <select class="sel" id="volClassSel" onchange="buildVolumeTable()" style="height:26px">
           <option value="all">All Classes</option>
@@ -2926,10 +2855,10 @@ tr.der td{color:var(--teal)}
   </div>
   <div id="cxSpend">
     <div class="cr c2">
-      <div class="cc"><div class="ct">CapEx Spend by Category <em>2026 Monthly | USD $'000</em></div><div class="cb h170"><canvas id="cCxBar"></canvas></div></div>
+      <div class="cc"><div class="ct">CapEx Spend by Category <em id="ctCxBarYr">Monthly | USD $'000</em></div><div class="cb h170"><canvas id="cCxBar"></canvas></div></div>
       <div class="cc"><div class="ct">Cumulative CapEx vs Cash Payments <em>Timing difference</em></div><div class="cb h170"><canvas id="cCxCum"></canvas></div></div>
     </div>
-    <div class="tc2"><div class="th"><div><div class="tt">CapEx Spend Plan <span class="badge badge-bud">Editable</span></div><div class="ts src">Source: Capex_February_2026_LE.xlsx → Summary | USD $'000</div></div><div class="ta"><select class="sel" id="capexYr" onchange="buildCapexTable()"><option>2025</option><option selected>2026</option></select><button class="btn btn-ghost" onclick="exportCapexCSV()">⬇ Export</button><button class="btn btn-ghost" onclick="dlTmpl('capex')">⬇ Template</button><button class="btn btn-ghost" onclick="if(can('editCapex')){openModal('cxAddModal');setTimeout(()=>document.getElementById('cxAddName').focus(),80)}else{toast('Admin access required','err')}">＋ Add</button></div></div>
+    <div class="tc2"><div class="th"><div><div class="tt">CapEx Spend Plan <span class="badge badge-bud">Editable</span></div><div class="ts src" id="capexSrcLbl">Source: Capex LE Upload → Summary | USD $'000</div></div><div class="ta"><select class="sel" id="capexYr" onchange="buildCapexTable()"><option id="capexYrOpt0"></option><option id="capexYrOpt1" selected></option></select><button class="btn btn-ghost" onclick="exportCapexCSV()">⬇ Export</button><button class="btn btn-ghost" onclick="dlTmpl('capex')">⬇ Template</button><button class="btn btn-ghost" onclick="if(can('editCapex')){openModal('cxAddModal');setTimeout(()=>document.getElementById('cxAddName').focus(),80)}else{toast('Admin access required','err')}">＋ Add</button></div></div>
       <div class="tscr"><table><thead id="capexH"></thead><tbody id="capexB"></tbody></table></div>
       <div class="add-bar" onclick="if(can('editCapex')){openModal('cxAddModal');setTimeout(()=>document.getElementById('cxAddName').focus(),80)}else{toast('Admin access required','err')}">＋ Add CapEx category</div>
     </div>
@@ -2961,7 +2890,7 @@ tr.der td{color:var(--teal)}
 
   <!-- SECTION 1: Monthly Component Table -->
   <div class="tc2">
-    <div class="th"><div class="tt">§1 Monthly Depreciation Components <span class="badge badge-bud">Editable</span> <span class="badge badge-act" id="depYrLabel">2026</span></div><div class="ta"><button class="btn btn-ghost" onclick="exportDepCSV()">⬇ Export</button></div></div>
+    <div class="th"><div class="tt">§1 Monthly Depreciation Components <span class="badge badge-bud">Editable</span> <span class="badge badge-act" id="depYrLabel">—</span></div><div class="ta"><button class="btn btn-ghost" onclick="exportDepCSV()">⬇ Export</button></div></div>
     <div class="tscr"><table><thead id="depCompH"></thead><tbody id="depCompB"></tbody></table></div>
   </div>
 
@@ -3001,7 +2930,7 @@ tr.der td{color:var(--teal)}
         <div><label class="fi">Reversal Amount (US$)</label><input class="fi-in" id="imp-reversal" type="number" placeholder="0" step="1000"></div>
       </div>
       <div><label class="fi">Related Insurance Row</label><select class="fi-in" id="imp-ins"><option value="">None</option><option value="ins_rec">Insurance Recoveries</option></select></div>
-      <div><label class="fi">Affects Years</label><div style="display:flex;gap:8px;margin-top:4px">${[2025,2026,2027,2028,2029,2030].map(y=>`<label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text)"><input type="checkbox" class="imp-yr" value="${y}"> ${y}</label>`).join('')}</div></div>
+      <div><label class="fi">Affects Years</label><div id="impYrCbs" style="display:flex;gap:8px;margin-top:4px"></div></div>
     </div>
     <div class="mf"><button class="btn btn-ghost" onclick="closeModal('impairModal')">Cancel</button><button class="btn btn-gold" onclick="commitImpair()">Add Event</button></div>
   </div>
@@ -3112,7 +3041,7 @@ tr.der td{color:var(--teal)}
         <div class="ai-messages" id="aiMessages">
           <div class="ai-msg">
             <div class="ai-avatar bot">✦</div>
-            <div class="ai-bubble">Hello! I'm your JPS FP&A AI assistant. I can analyse your financial model, explain variances, generate board-ready commentary, and answer questions about your Feb 2026 LE data. What would you like to explore?</div>
+            <div class="ai-bubble">Hello! I'm your JPS FP&A AI assistant. I can analyse your financial model, explain variances, generate board-ready commentary, and answer questions about your current LE data. What would you like to explore?</div>
           </div>
         </div>
         <div class="ai-typing" id="aiTyping"><div class="ai-avatar bot" style="width:24px;height:24px;font-size:10px">✦</div><div class="ai-dots"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div></div><span>Analysing...</span></div>
@@ -3121,15 +3050,8 @@ tr.der td{color:var(--teal)}
           <button class="ai-send" onclick="sendAIMessage()">↑</button>
         </div>
         <div class="ai-section-lbl">Quick Prompts</div>
-        <div class="ai-prompt-btns">
-          <div class="ai-prompt-btn" onclick="quickPrompt(this.textContent)">📊 Explain the EBITDA variance vs 2025 actuals</div>
-          <div class="ai-prompt-btn" onclick="quickPrompt(this.textContent)">💧 Why is net cash flow declining in Q3 2026?</div>
-          <div class="ai-prompt-btn" onclick="quickPrompt(this.textContent)">📈 What's driving revenue growth in the budget?</div>
-          <div class="ai-prompt-btn" onclick="quickPrompt(this.textContent)">⚠️ What are the key risks to the Base Case?</div>
-          <div class="ai-prompt-btn" onclick="quickPrompt(this.textContent)">🏗 Summarize the 2026 CapEx programme</div>
-          <div class="ai-prompt-btn" onclick="quickPrompt(this.textContent)">📋 Draft executive summary for Feb 2026 LE</div>
-          <div class="ai-prompt-btn" onclick="quickPrompt(this.textContent)">🔧 Analyse O&M cost trends by category</div>
-          <div class="ai-prompt-btn" onclick="quickPrompt(this.textContent)">📉 Explain the depreciation increase in 2026</div>
+        <div class="ai-prompt-btns" id="aiQuickPrompts">
+          <!-- Rebuilt dynamically by initAIQuickPrompts() so year references stay current -->
         </div>
       </div>
     </div>
@@ -3140,7 +3062,7 @@ tr.der td{color:var(--teal)}
       <div class="tc2">
         <div class="th"><div class="tt">📋 Executive Commentary — Feb 2026 Latest Estimate <span class="badge badge-ai">AI Generated</span></div><div class="ta"><button class="gen-btn" style="font-size:9px;padding:4px 10px;height:auto" onclick="generateExecSummary()"><span class="spinner" id="execSpinner"></span>✦ Generate</button><button class="btn btn-ghost" onclick="copyCommentary()">📋 Copy</button></div></div>
         <div id="execComm" style="padding:16px;font-size:11px;color:var(--muted);line-height:1.8;min-height:120px">
-          <em>Click "Generate" to produce AI-powered executive commentary based on your Feb 2026 LE data...</em>
+          <em>Click "Generate" to produce AI-powered executive commentary based on your current LE data...</em>
         </div>
       </div>
       <div class="cr c2">
@@ -3203,10 +3125,7 @@ tr.der td{color:var(--teal)}
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
     <div style="font-size:13px;font-weight:800;color:var(--text)">📂 Data Management Centre</div>
     <div class="seg" id="dmYearSeg">
-      <div class="sb" onclick="dmSelectYear(2024,this)">2024</div>
-      <div class="sb" onclick="dmSelectYear(2025,this)">2025</div>
-      <div class="sb on" onclick="dmSelectYear(2026,this)">2026</div>
-      <div class="sb" onclick="dmSelectYear(2027,this)">2027</div>
+      <!-- Rebuilt dynamically by initYearDropdowns() -->
     </div>
     <div id="dmYearBadges" style="display:flex;gap:6px;flex-wrap:wrap"></div>
     <button class="btn btn-ghost" style="margin-left:auto;font-size:10px" onclick="dmRefresh()">⟳ Refresh from DB</button>
@@ -3831,7 +3750,7 @@ tr.der td{color:var(--teal)}
 <!-- ═══ GUIDE ═══ -->
 <div id="pane-adm-guide" class="pane">
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-    <div class="st" style="margin:0">📖 Platform Logic Guide — JPS FP&amp;A v25</div>
+    <div class="st" style="margin:0" id="guidePanelTitle">📖 Platform Logic Guide — JPS FP&amp;A</div>
     <input id="guideSearch" type="text" placeholder="🔍 Search guide…"
       style="flex:1;min-width:200px;max-width:340px;padding:6px 10px;border:1px solid var(--b2);
              border-radius:5px;background:var(--card2);color:var(--text);font-size:12px"
@@ -3851,7 +3770,7 @@ tr.der td{color:var(--teal)}
     <div class="mt">Rate Review Event <span class="mc" onclick="closeModal('tariffRevModal')">✕</span></div>
     <div class="fi"><label>Year</label>
       <select class="sel" id="trYear" style="width:100%">
-        <option>2026</option><option>2027</option><option selected>2028</option><option>2029</option><option>2030</option>
+        <!-- Options rebuilt dynamically by initYearDropdowns() -->
       </select>
     </div>
     <div class="fi"><label>Effective Month</label>
@@ -3916,7 +3835,7 @@ tr.der td{color:var(--teal)}
           <option value="bullet">Bullet (at maturity)</option>
         </select>
       </div>
-      <div class="fi"><label>Opening Balance Jan 2026 ($'000)</label><input type="number" id="ln-openBal" value="0" min="0"></div>
+      <div class="fi"><label id="lnOpenBalLabel">Opening Balance ($'000)</label><input type="number" id="ln-openBal" value="0" min="0"></div>
       <div class="fi"><label>Monthly Repayment ($'000)</label><input type="number" id="ln-repayAmt" value="0" min="0"></div>
       <div class="fi" style="grid-column:1/-1"><label>Covenant Notes</label><input type="text" id="ln-covenant" placeholder="e.g. DSCR ≥ 1.20×, Current Ratio ≥ 1.10×"></div>
       <div class="fi" style="grid-column:1/-1"><label>Purpose / Notes</label><input type="text" id="ln-notes" placeholder="e.g. T&D infrastructure, hurricane restoration"></div>
@@ -4329,6 +4248,15 @@ async function fpaBootstrap() {
     // Show active year pills in topbar (non-blocking — DOM may not be fully ready)
     setTimeout(() => _refreshTopBarYearPills?.(), 200);
 
+    // Rebuild all year/month dropdowns and dynamic UI labels with correct year values
+    setTimeout(() => {
+      initYearDropdowns();
+      rebuildCFMonthDropdown();
+      rebuildVarMonthDropdown();
+      initAIQuickPrompts();
+      _updateDynamicLabels();
+    }, 250);
+
     // Load unread notifications for current user (non-blocking)
     _loadNotifications();
 
@@ -4402,11 +4330,11 @@ function fpaApplyToLegacyGlobals() {
   // Only sums months that have a committed ACTUALS_YYYY_MM upload — everything
   // else returns null (stays zero in plLines).
   const blendedAnnual = (lineId, y) => {
-    // Historical years (2022-2025): always zero — not populated from HIST_ACTUAL
-    if (y <= 2025) return null;
-    // 2027+: always zero — not populated from FORECAST_BASE
-    if (y >= 2027) return null;
-    // 2026: sum only months that have a committed ACTUALS_2026_MM upload
+    // Years before the current actuals year: always zero — not populated from HIST_ACTUAL
+    if (y < actualsYear) return null;
+    // Future years beyond current actuals year: always zero — not populated from FORECAST_BASE
+    if (y > actualsYear) return null;
+    // Current actuals year: sum only months that have a committed ACTUALS_YYYY_MM upload
     let sum = 0, any = false;
     for (let m = 1; m <= 12; m++) {
       const monthActCode = `ACTUALS_${y}_${String(m).padStart(2,'0')}`;
@@ -4418,7 +4346,7 @@ function fpaApplyToLegacyGlobals() {
 
   // ── P&L lines ─────────────────────────────────────
   try {
-    const plYears = [2022,2023,2024,2025,2026,2027,2028,2029,2030];
+    const plYears = YEARS.map(Number); // dynamic: _CY-4 through _CY+4 (9 elements)
     if (typeof plLines !== 'undefined') {
       plLines.forEach(ln => {
         plYears.forEach((y, idx) => {
@@ -4430,16 +4358,16 @@ function fpaApplyToLegacyGlobals() {
   } catch(e) { console.warn('[FPA] plLines bridge:', e); }
 
   // ── BS lines ──────────────────────────────────────
-  // Only populate 2026 from the latest uploaded ACTUALS_2026_MM.
+  // Only populate _CY from the latest uploaded ACTUALS_<CY>_MM.
   // Historical years and future forecasts stay zero until data is uploaded.
   try {
     if (typeof bsLines !== 'undefined') {
       bsLines.forEach(ln => {
-        // Only 2026 (index 4) — find the latest month with a committed upload
-        const lastClosed = fpa.latestClosedMonth(2026);
+        // Only _CY (index 4) — find the latest month with a committed upload
+        const lastClosed = fpa.latestClosedMonth(_CY);
         if (lastClosed > 0) {
-          const monthActCode = `ACTUALS_2026_${String(lastClosed).padStart(2,'0')}`;
-          const v = fpa.fact(monthActCode, ln.id, 2026, lastClosed);
+          const monthActCode = `ACTUALS_${_CY}_${String(lastClosed).padStart(2,'0')}`;
+          const v = fpa.fact(monthActCode, ln.id, _CY, lastClosed);
           if (v !== null && !isNaN(v)) ln.vals[4] = Math.round(v);
         }
         // All other year slots stay zero
@@ -4476,19 +4404,19 @@ function fpaApplyOMToLegacy() {
       om_misc:'misc',        om_insurance:'insurance', om_building:'building',
       om_advert:'advert',    om_bad_debt:'bad_debt',
     };
-    [2026,2027,2028,2029,2030].forEach(yr => {
+    Array.from({length:5},(_,i)=>_CY+i).forEach(yr => {
       if (!omRows[yr]) return;
       Object.entries(dbIdToLegacy).forEach(([dbId, legacyId]) => {
         const row = omRows[yr].find(r => r.id === legacyId);
         if (!row) return;
-        // Monthly values
+        // Monthly values — look up from planYear AOP period IDs
         const monthMap = omSrc[dbId]?.value || {};
         for (let m = 1; m <= 12; m++) {
-          const v = monthMap[2026 * 100 + m];
+          const v = monthMap[planYear * 100 + m];
           if (v !== undefined && v !== null) row.vals[m-1] = Number(v);
         }
         // Cash lag (annual metadata)
-        const lag = omSrc[dbId]?.cashLag?.[2026 * 100];
+        const lag = omSrc[dbId]?.cashLag?.[planYear * 100];
         if (lag !== undefined && lag !== null) row.cashLag = Number(lag);
       });
     });
@@ -4500,13 +4428,13 @@ function fpaApplyCapexToLegacy() {
   try {
     const cxSrc = fpa.assumptions?.[_aopCode()]?.capex_row || {};
     if (typeof capexRows === 'undefined') return;
-    [2026,2027,2028,2029,2030].forEach(yr => {
+    Array.from({length:5},(_,i)=>_CY+i).forEach(yr => {
       if (!capexRows[yr]) return;
       capexRows[yr].forEach(row => {
         const monthMap = cxSrc[row.id]?.value || {};
         let updated = false;
         for (let m = 1; m <= 12; m++) {
-          const v = monthMap[2026 * 100 + m];
+          const v = monthMap[planYear * 100 + m];
           if (v !== undefined && v !== null) { row.vals[m-1] = Number(v); updated = true; }
         }
         // Metadata is stored in meta JSONB — we stored it in the category assumption meta column.
@@ -4526,14 +4454,14 @@ function fpaApplyCollToLegacy() {
       coll_cr_rt40:'cr_rt40', coll_blended:'blended', coll_prior:'prior',
       coll_gcr:'gcr',         coll_receipts:'receipts', coll_dso:'dso',
     };
-    [2026,2027,2028,2029,2030].forEach(yr => {
+    Array.from({length:5},(_,i)=>_CY+i).forEach(yr => {
       if (!collRows[yr]) return;
       Object.entries(dbIdToLegacy).forEach(([dbId, legacyId]) => {
         const row = collRows[yr].find(r => r.id === legacyId);
         if (!row || !row.vals) return;   // skip derived rows (null vals)
         const monthMap = collSrc[dbId]?.value || {};
         for (let m = 1; m <= 12; m++) {
-          const v = monthMap[2026 * 100 + m];
+          const v = monthMap[planYear * 100 + m];
           if (v !== undefined && v !== null) row.vals[m-1] = Number(v);
         }
       });
@@ -4545,7 +4473,7 @@ function fpaApplyDepToLegacy() {
   if (!fpa.versions.length) return;
   try {
     const depSrc = fpa.assumptions?.[_aopCode()]?.dep_comp || {};
-    if (typeof depreciationComponents === 'undefined' || !depreciationComponents[2026]) return;
+    if (typeof depreciationComponents === 'undefined' || !depreciationComponents[_CY]) return;
     const dbIdToLegacy = {
       dep_fa:'faRegister',  dep_sjpc:'sjpc',           dep_leases:'otherLeases',
       dep_capex:'capexTransfers', dep_spares:'capitalSpares',
@@ -4554,10 +4482,10 @@ function fpaApplyDepToLegacy() {
     };
     Object.entries(dbIdToLegacy).forEach(([dbId, legacyKey]) => {
       const monthMap = depSrc[dbId]?.value || {};
-      if (!depreciationComponents[2026][legacyKey]) return;
+      if (!depreciationComponents[_CY][legacyKey]) return;
       for (let m = 1; m <= 12; m++) {
-        const v = monthMap[2026 * 100 + m];
-        if (v !== undefined && v !== null) depreciationComponents[2026][legacyKey][m-1] = Number(v);
+        const v = monthMap[planYear * 100 + m];
+        if (v !== undefined && v !== null) depreciationComponents[_CY][legacyKey][m-1] = Number(v);
       }
     });
   } catch(e) { console.warn('[FPA] dep bridge:', e); }
@@ -4570,15 +4498,15 @@ function fpaApplyAssumptionsToLegacy() {
   if (!fpa.assumptions?.[_aopCode()]) return;
   const aop = fpa.assumptions[_aopCode()];
 
-  // Helper: build 12-element monthly array for 2026 from assumption store
+  // Helper: build 12-element monthly array for planYear from assumption store
   const mo12 = (cat, key, sk = '') => {
     const src = aop[cat]?.[key]?.[sk] || {};
-    return Array(12).fill(0).map((_, m) => Number(src[2026 * 100 + m + 1] ?? 0));
+    return Array(12).fill(0).map((_, m) => Number(src[planYear * 100 + m + 1] ?? 0));
   };
   // Helper: single annual value (stored with month=0 or month=null)
   const single = (cat, key, sk = '') => {
     const src = aop[cat]?.[key]?.[sk] || {};
-    if (src[2026 * 100] !== undefined) return Number(src[2026 * 100]);
+    if (src[planYear * 100] !== undefined) return Number(src[planYear * 100]);
     const vals = Object.values(src).filter(v => !isNaN(v));
     return vals.length ? Number(vals[0]) : 0;
   };
@@ -4609,23 +4537,23 @@ function fpaApplyAssumptionsToLegacy() {
   const fxExp  = mo12('fx_expense',  'USD_JMD');
   if (fxBill.some(v => v)) {
     fxTable.billing = fxBill.slice();
-    if (fxTable.years?.[2026]) fxTable.years[2026].billing = fxBill.slice();
+    if (fxTable.years?.[_CY]) fxTable.years[_CY].billing = fxBill.slice();
   }
   if (fxExp.some(v => v)) {
     fxTable.expense = fxExp.slice();
-    if (fxTable.years?.[2026]) fxTable.years[2026].expense = fxExp.slice();
+    if (fxTable.years?.[_CY]) fxTable.years[_CY].expense = fxExp.slice();
   }
 
   // ── System loss % (monthly) ───────────────────────────────────────────────
   const sysLoss = mo12('sys_loss', 'total');
-  if (sysLoss.some(v => v)) sysLossTable[2026] = sysLoss;
+  if (sysLoss.some(v => v)) sysLossTable[_CY] = sysLoss;
 
-  // ── Net generation by source (GWh/month) → netGenTable[2026] ─────────────
+  // ── Net generation by source (GWh/month) → netGenTable[_CY] ─────────────
   const ngSrcs = { jps_thermal:'jps_thermal', old_harbour:'old_harbour',
                    renewables:'renewables',   ipp:'ipp' };
   Object.entries(ngSrcs).forEach(([dbKey, jsKey]) => {
     const vals = mo12('net_gen', dbKey);
-    if (vals.some(v => v)) netGenTable[2026][jsKey] = vals;
+    if (vals.some(v => v)) netGenTable[_CY][jsKey] = vals;
   });
 
   // ── Fuel cost and revenue (US$K monthly) ─────────────────────────────────
@@ -4638,7 +4566,7 @@ function fpaApplyAssumptionsToLegacy() {
   const fuelCost = _tryBoth('fuel_cost_monthly', 'total');
   if (fuelCost.some(v => v)) {
     for (let m = 0; m < 12; m++) {
-      fuelCostByMonth[2026][m]   = fuelCost[m];
+      fuelCostByMonth[_CY][m]   = fuelCost[m];
       fuelCostByMonth2026[m]     = fuelCost[m];     // legacy alias
     }
   }
@@ -4650,7 +4578,7 @@ function fpaApplyAssumptionsToLegacy() {
   // ── Fuel prices (US$/MMBtu or US$/bbl) ───────────────────────────────────
   ['hfo', 'lng', 'ado'].forEach(fuel => {
     const prices = mo12('fuel_price', fuel);
-    if (prices.some(v => v)) fuelPriceTable[2026][fuel] = prices;
+    if (prices.some(v => v)) fuelPriceTable[_CY][fuel] = prices;
   });
 
   // ── Heat rates (GJ/MWh) ──────────────────────────────────────────────────
@@ -4975,7 +4903,7 @@ function saveSbConfig(url, anonKey, enabled) {
 //  DATA MANAGEMENT CENTRE — Period calendar, smart upload, commit workflow
 // ════════════════════════════════════════════════════════════════════════════
 
-let _dmYear        = 2026;
+let _dmYear        = _CY;  // defaults to current calendar year; updated by calendar render
 let _dmMonth       = null;   // currently selected month (1-12)
 let _dmExtractRows = [];     // rows extracted from uploaded file, pending commit
 let _dmCurrentFacts= {};     // {line_id: value} already in DB for selected period
@@ -5391,7 +5319,7 @@ function _refreshDmBadges() {
   if (!bdg) return;
   // Rebuild only the status pills (last two spans); keep closed/open counts intact.
   // Easiest: just redo the full badge set using current _dmYear.
-  var year   = _dmYear || 2026;
+  var year   = _dmYear || _CY;
   var closed = (fpa.periods||[]).filter(function(p){return p.year===year&&p.is_closed;}).length;
   var open   = 12 - closed;
   bdg.innerHTML =
@@ -5419,6 +5347,274 @@ function _refreshTopBarYearPills() {
     '<span style="font-size:9px;padding:2px 7px;border-radius:10px;' +
       'background:rgba(167,139,250,.15);color:#a78bfa;font-weight:700;white-space:nowrap" ' +
       'title="Active plan year (' + _aopCode() + ')">📋 ' + (planYear||'&mdash;') + '</span>';
+}
+
+// ═══════════════════════════════════════════════════════
+//  DYNAMIC YEAR/MONTH DROPDOWN INITIALISATION
+//  Called after bootstrap so all dropdowns reflect _CY/_PY
+//  and the DB-confirmed closed periods.
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Build a standard year option list centred on _CY.
+ * Marks _CY as selected by default; caller can override.
+ */
+function _buildYearOptions(selectedYear, extraBefore, extraAfter) {
+  const lo = (extraBefore != null ? extraBefore : 2) ;
+  const hi = (extraAfter  != null ? extraAfter  : 3) ;
+  const sel = selectedYear || _CY;
+  const opts = [];
+  for (let y = _CY - lo; y <= _CY + hi; y++) {
+    opts.push(`<option value="${y}"${y === sel ? ' selected' : ''}>${y}</option>`);
+  }
+  return opts.join('');
+}
+
+/** Rebuild all year-picker dropdowns after bootstrap. */
+function initYearDropdowns() {
+  // Dashboard
+  const ds = document.getElementById('dashYrSel');
+  if (ds) { ds.innerHTML = _buildYearOptions(_CY, 1, 4); }
+
+  // Balance Sheet From / To
+  const bsF = document.getElementById('bsYrFrom');
+  if (bsF) {
+    bsF.innerHTML = _buildYearOptions(_CY - 2, 4, 0);
+    plYrFrom = _CY - 2;
+  }
+  const bsT = document.getElementById('bsYrTo');
+  if (bsT) {
+    bsT.innerHTML = _buildYearOptions(_CY + 1, 0, 4);
+    plYrTo = _CY + 1;
+  }
+
+  // Cash Flow year
+  const cf = document.getElementById('cfYrSel');
+  if (cf) { cf.innerHTML = _buildYearOptions(cfYear, 4, 4); }
+
+  // Variance year
+  const vr = document.getElementById('varYrSel');
+  if (vr) { vr.innerHTML = _buildYearOptions(varYear, 4, 4); }
+
+  // Generation year segment buttons
+  const gen = document.getElementById('genYrSeg');
+  if (gen) {
+    gen.innerHTML = Array.from({length:5},(_,i)=>_CY+i).map((y,i)=>
+      `<div class="sb${i===0?' on':''}" onclick="setGenYear(${y},this)">${y}</div>`
+    ).join('');
+  }
+
+  // Lease amortisation year segment buttons
+  const lam = document.getElementById('leaseAmortYrSeg');
+  if (lam) {
+    lam.innerHTML = Array.from({length:5},(_,i)=>_CY+i).map((y,i)=>
+      `<div class="sb${i===0?' on':''}" onclick="setLeaseAmortYear(${y},this)">${y}</div>`
+    ).join('');
+  }
+
+  // Lease aggregate year segment buttons
+  const lagg = document.getElementById('leaseAggYrSeg');
+  if (lagg) {
+    lagg.innerHTML = Array.from({length:5},(_,i)=>_CY+i).map((y,i)=>
+      `<div class="sb${i===0?' on':''}" onclick="setLeaseAggYear(${y},this)">${y}</div>`
+    ).join('');
+  }
+
+  // Revenue engine year segment buttons
+  const rev = document.getElementById('revYrSeg');
+  if (rev) {
+    rev.innerHTML = Array.from({length:5},(_,i)=>_CY+i).map((y,i)=>
+      `<div class="sb${i===0?' on':''}" onclick="setRevYear(${y},this)">${y}</div>`
+    ).join('');
+  }
+
+  // Tariff review modal year dropdown
+  const trYr = document.getElementById('trYear');
+  if (trYr && !trYr._built) {
+    trYr._built = true;
+    trYr.innerHTML = Array.from({length:5},(_,i)=>_CY+i).map((y,i)=>
+      `<option${i===2?' selected':''}>${y}</option>` // default to CY+2
+    ).join('');
+  }
+
+  // Data Management year selector (show CY-2 through CY+1)
+  const dmYr = document.getElementById('dmYearSeg');
+  if (dmYr) {
+    const dmYrs = Array.from({length:4},(_,i)=>_CY-2+i);
+    dmYr.innerHTML = dmYrs.map((y,i)=>
+      `<div class="sb${y===_CY?' on':''}" onclick="dmSelectYear(${y},this)">${y}</div>`
+    ).join('');
+  }
+
+  // CapEx year dropdown — _PY and _CY options (mirrors capexYrSeg which drives the table)
+  const cxSel = document.getElementById('capexYr');
+  if (cxSel) {
+    cxSel.innerHTML = [_PY, _CY].map((y,i)=>
+      `<option value="${y}"${i===1?' selected':''}>${y}</option>`
+    ).join('');
+  }
+}
+
+/** Rebuild CF month dropdown — labels use current cfYear, disabled state from DB. */
+function rebuildCFMonthDropdown() {
+  const sel = document.getElementById('cfMo');
+  if (!sel) return;
+  sel.innerHTML = MONTHS.map((m, i) => {
+    const mo = i + 1;
+    return `<option value="${mo}"${mo === cfSelectedMonth ? ' selected' : ''}>${m} ${cfYear}</option>`;
+  }).join('');
+}
+
+/** Rebuild Variance month dropdown — enabled only for closed periods per fpa_dim_period. */
+function rebuildVarMonthDropdown() {
+  const sel = document.getElementById('varMo');
+  if (!sel) return;
+  const latestClosed = fpa.latestClosedMonth?.(varYear) || 0;
+  // Default selection: latest closed month, or month 1 if none
+  const defaultSel = latestClosed || 1;
+  sel.innerHTML = MONTHS.map((m, i) => {
+    const mo = i + 1;
+    const closed = fpa.isPeriodClosed?.(varYear, mo);
+    // Enable this month if it is closed OR if it is the next month after the last closed one
+    const enabled = mo <= (latestClosed + 1);
+    return `<option value="${mo}"${mo === defaultSel ? ' selected' : ''}${!enabled ? ' disabled' : ''}>${m} ${varYear} — ${closed ? '🔒 Closed' : mo === latestClosed + 1 ? 'Next' : 'Future'}</option>`;
+  }).join('');
+}
+
+/**
+ * Hook setCfYear so month dropdown labels stay in sync.
+ * Wraps the existing setCfYear without replacing it.
+ */
+const _origSetCfYear = typeof setCfYear === 'function' ? setCfYear : null;
+function setCfYear(v) {
+  cfYear = parseInt(v);
+  if (_origSetCfYear) _origSetCfYear(v);
+  rebuildCFMonthDropdown();
+  buildCFReport();
+}
+
+/** Build AI quick prompts dynamically using current/prior year variables. */
+function initAIQuickPrompts() {
+  const el = document.getElementById('aiQuickPrompts');
+  if (!el) return;
+  const prompts = [
+    `📊 Explain the EBITDA variance vs ${_PY} actuals`,
+    `💧 Why is net cash flow declining in Q3 ${_CY}?`,
+    `📈 What's driving revenue growth in the ${_CY} budget?`,
+    `⚠️ What are the key risks to the Base Case?`,
+    `🏗 Summarize the ${_CY} CapEx programme`,
+    `📋 Draft executive summary for ${MONTHS[cfSelectedMonth-1]} ${_CY} LE`,
+    `🔧 Analyse O&M cost trends by category`,
+    `📉 Explain depreciation movements in ${_CY}`,
+  ];
+  el.innerHTML = prompts.map(p =>
+    `<div class="ai-prompt-btn" onclick="quickPrompt(this.textContent)">${p}</div>`
+  ).join('');
+}
+
+/** Update miscellaneous static labels that reference specific years. */
+function _updateDynamicLabels() {
+  // Loan modal opening balance label
+  const lbl = document.getElementById('lnOpenBalLabel');
+  if (lbl) lbl.textContent = `Opening Balance Jan ${_CY} ($'000)`;
+
+  // Platform Guide title (sync to app version)
+  const guide = document.getElementById('guidePanelTitle');
+  if (guide) {
+    const ver = document.querySelector('title')?.textContent.match(/v[\d.]+/)?.[0] || '';
+    guide.textContent = `📖 Platform Logic Guide — JPS FP&A ${ver}`;
+  }
+
+  // Generation mix chart subtitle
+  const gmEl = document.getElementById('ctGenMixYr');
+  if (gmEl) gmEl.textContent = `${_CY} YTD | MWh`;
+
+  // P&L header badges
+  const plAct = document.getElementById('plActBadge');
+  if (plAct) plAct.textContent = `Actuals ${_CY-4}–${_PY}`;
+  const plBud = document.getElementById('plBudBadge');
+  if (plBud) plBud.textContent = `Budget/Forecast ${_CY}+`;
+
+  // Volume table description
+  const volDesc = document.getElementById('volTableDesc');
+  if (volDesc) volDesc.textContent = `Monthly ${_CY} by rate class | Pre-populated from AOP ${_CY} | Edit any cell → instant recalculation`;
+
+  // Brand subtitle
+  const brand = document.getElementById('brandSub');
+  if (brand) brand.textContent = `Jamaica Public Service Co. · ${_CY} LE`;
+
+  // Dashboard chart labels and section titles
+  const scNIYrs = document.getElementById('ctScNIYrs');
+  if (scNIYrs) scNIYrs.textContent = `${_CY}–${_CY+4}`;
+  const kpiTrend = document.getElementById('kpiTrendTitle');
+  if (kpiTrend) kpiTrend.textContent = `§5 5-Year Ratio Trends (${_CY}–${_CY+4})`;
+  const projRevBadge = document.getElementById('projRevBadge');
+  if (projRevBadge) projRevBadge.textContent = `Non-Fuel Revenue | ${_CY+1}–${_CY+4}`;
+
+  // Scenario chart labels
+  const scEbYrs = document.getElementById('ctScEbYrs');
+  if (scEbYrs) scEbYrs.textContent = `${_CY}–${_CY+4}`;
+  const scNI2Yrs = document.getElementById('ctScNI2Yrs');
+  if (scNI2Yrs) scNI2Yrs.textContent = `${_CY}–${_CY+4}`;
+  const scMatrix = document.getElementById('scMatrixTitle');
+  if (scMatrix) scMatrix.textContent = `Scenario Comparison Matrix | ${_CY}`;
+
+  // Generation mix pane — YTD label
+  const genMixHdr = document.getElementById('genMixTitle');
+  if (genMixHdr) genMixHdr.textContent = `🔌 Generation Mix — YTD ${_CY}`;
+
+  // Cash flow bridge year label
+  const cfBridge = document.getElementById('ctBridgeYr');
+  if (cfBridge) cfBridge.textContent = `FY ${_CY}`;
+
+  // Debt summary table header
+  const dsh = document.getElementById('debtSummHead');
+  if (dsh) dsh.innerHTML = `<tr><th style="text-align:left;min-width:220px">Line</th>${Array.from({length:5},(_,i)=>_CY+i).map(y=>`<th class="bc">${y}</th>`).join('')}</tr>`;
+
+  // Revenue trend chart title
+  const revTrend = document.getElementById('revTrendTitle');
+  if (revTrend) revTrend.innerHTML = `Monthly Revenue Trend ${_CY} <em>US$'000 | Non-Fuel + Fuel Stacked</em>`;
+
+  // CapEx chart year label
+  const cxBarYr = document.getElementById('ctCxBarYr');
+  if (cxBarYr) cxBarYr.textContent = `${_CY} Monthly | USD $'000`;
+
+  // Depreciation year badge default
+  const depYrLbl = document.getElementById('depYrLabel');
+  if (depYrLbl) depYrLbl.textContent = String(_CY);
+  const depAnn = document.getElementById('ctDepAnn');
+  if (depAnn) depAnn.innerHTML = `Depreciation ${_CY-4}–${_CY+2} <em>By component | USD $'000</em>`;
+  const varRevYr = document.getElementById('ctVarRevYr');
+  if (varRevYr) varRevYr.textContent = `YTD Actuals ${_CY} | USD $'000`;
+  const revBanner = document.getElementById('revRptBanner');
+  if (revBanner) revBanner.textContent = `🔒 Report View — Revenue & Generation data. Source: JPSCo_Financials actuals + AOP ${planYear} assumptions.`;
+  const depMo = document.getElementById('ctDepMo');
+  if (depMo) depMo.innerHTML = `${_CY} Monthly Depreciation <em>LE vs Actuals overlay</em>`;
+
+  // Revenue report month dropdown — rebuild with current year labels
+  const revMoSel = document.getElementById('revRptMo');
+  if (revMoSel && !revMoSel._builtForYear || revMoSel?._builtForYear !== _CY) {
+    const latestRevMo = fpa.latestClosedMonth?.(_CY) || 1;
+    revMoSel.innerHTML = MONTHS.map((m,i) =>
+      `<option value="${i+1}"${i+1>latestRevMo?' disabled':''}>${m} ${_CY}</option>`
+    ).join('');
+    revMoSel.value = String(Math.min(latestRevMo, 12));
+    if (revMoSel) revMoSel._builtForYear = _CY;
+  }
+
+  // Projection table headers (dynamic years)
+  const yrs5 = Array.from({length:5},(_,i)=>_CY+i);
+  const _ph = (id, html) => { const e=document.getElementById(id); if(e) e.innerHTML=html; };
+  _ph('projRevH', `<tr><th style="text-align:left;min-width:240px">Driver</th>${yrs5.map((y,i)=>`<th class="bc">${y}${i===0?' LE':''}</th>`).join('')}<th style="text-align:left;min-width:140px">Note</th></tr>`);
+  _ph('projOMH',  `<tr><th style="text-align:left;min-width:240px">Category</th><th class="bc">${_CY} Total ($K)</th>${yrs5.slice(1).map(y=>`<th class="bc">${y} Gr%</th>`).join('')}<th class="bc">${_CY+4} Proj ($K)</th></tr>`);
+  _ph('projCapexH',`<tr><th style="text-align:left;min-width:240px">Programme</th>${yrs5.map(y=>`<th class="bc">${y} ($K)</th>`).join('')}<th class="bc">5-Year Total</th></tr>`);
+  _ph('projDepH2', `<tr><th style="text-align:left;min-width:240px">Line</th>${yrs5.map(y=>`<th class="bc">${y}</th>`).join('')}</tr>`);
+  _ph('projDebtH2',`<tr><th style="text-align:left;min-width:240px">Item</th>${yrs5.map(y=>`<th class="bc">${y}</th>`).join('')}</tr>`);
+
+  // CF month default: use latest closed month for this year
+  const latestClosed = fpa.latestClosedMonth?.(_CY) || new Date().getMonth() + 1;
+  cfSelectedMonth = Math.min(latestClosed, 12);
+  rebuildCFMonthDropdown();
 }
 
 function dmBuildLockStrip(year) {
@@ -6548,16 +6744,17 @@ function openEraseModal() {
     sel.innerHTML += `<option value="year:${v.code}">${v.name} (${factCount} lines)</option>`;
   });
 
-  // All 2026 per-month actuals at once
-  if (monthly.some(v => Math.floor(v.period_id/100)===2026)) {
-    sel.innerHTML += `<option value="all2026">⚠ ALL 2026 monthly actuals</option>`;
-  }
+  // "All monthly actuals for year YYYY" — one option per year that has per-month versions
+  const yearsWithMonthly = [...new Set(monthly.map(v => Math.floor(v.period_id/100)))].sort((a,b)=>b-a);
+  yearsWithMonthly.forEach(yr => {
+    sel.innerHTML += `<option value="allyear:${yr}">⚠ ALL ${yr} monthly actuals</option>`;
+  });
 
-  // AOP
+  // AOP — always labelled from _aopCode() so it tracks planYear
   const aop = (fpa.versions||[]).find(v=>v.code===_aopCode());
   if (aop) {
     const fc = Object.values(fpa.facts[_aopCode()]||{}).length;
-    sel.innerHTML += `<option value="aop">AOP 2026 Budget (${fc} lines)</option>`;
+    sel.innerHTML += `<option value="aop">${_aopCode()} Budget (${fc} lines)</option>`;
   }
 
   document.getElementById('eraseWarning').style.display = 'none';
@@ -6575,12 +6772,14 @@ function eraseUpdateWarning() {
   eraseCheckConfirm();
   if (!scope) { warn.style.display='none'; return; }
   const msgs = {
-    'all2026': '⚠ This will erase ALL uploaded monthly actuals for 2026. You will need to re-upload each month.',
-    'aop':     '⚠ This will erase all AOP 2026 budget facts. You will need to re-upload the Budget Template.',
+    'aop': `⚠ This will erase all ${_aopCode()} budget facts. You will need to re-upload the Budget Template.`,
   };
   let msg = msgs[scope];
   if (!msg) {
-    if (scope.startsWith('month:')) {
+    if (scope.startsWith('allyear:')) {
+      const yr = scope.split(':')[1];
+      msg = `⚠ This will erase ALL uploaded monthly actuals for ${yr}. You will need to re-upload each month.`;
+    } else if (scope.startsWith('month:')) {
       const parts = scope.split(':');
       msg = `⚠ This will erase all facts for ${FLASH_MONTHS[Number(parts[2])]||parts[2]} (version ${parts[1]}). Re-upload the actuals file to restore.`;
     } else if (scope.startsWith('year:')) {
@@ -6639,9 +6838,10 @@ async function eraseExecute() {
       deleted = count || 0;
       fpa.facts[code] = {};
 
-    } else if (scope === 'all2026') {
-      // All per-month 2026 actuals
-      const vers = (fpa.versions||[]).filter(v=>v.kind==='ACTUAL'&&v.period_id&&Math.floor(v.period_id/100)===2026);
+    } else if (scope.startsWith('allyear:')) {
+      // All per-month actuals for a specific year (year-agnostic)
+      const targetYr = parseInt(scope.split(':')[1]);
+      const vers = (fpa.versions||[]).filter(v=>v.kind==='ACTUAL'&&v.period_id&&Math.floor(v.period_id/100)===targetYr);
       for (const ver of vers) {
         const { error, count } = await _sb.from('fpa_facts')
           .delete({ count: 'exact' })
@@ -6686,7 +6886,7 @@ function buildSupabaseSettings() {
 
   // Pre-build option list outside the template literal to avoid nested backtick syntax error
   const nextYr = new Date().getFullYear() + 1;
-  const planYrOpts = [2026,2027,2028,2029,2030]
+  const planYrOpts = Array.from({length:5},(_,i)=>_CY+i)
     .map(y => '<option value="' + y + '"' + (y === nextYr ? ' selected' : '') + '>' + y + '</option>')
     .join('');
 
@@ -7459,13 +7659,19 @@ function clearAuditLog() {
 //  CONSTANTS & HELPERS
 // ═══════════════════════════════════════════════════════
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const YEARS=['2022','2023','2024','2025','2026','2027','2028','2029','2030'];
+// _CY / _PY — current calendar year and prior year; drive all defaults so the
+// app stays correct across year-end rollovers without code changes.
+const _CY = new Date().getFullYear();   // current year  (e.g. 2026)
+const _PY = _CY - 1;                   // prior year    (e.g. 2025)
+// YEARS — 4 years back through 4 years forward relative to today (9 elements)
+// Matches the _z9() vals-array size used by plLines/bsLines; _CY is always at index 4.
+const YEARS = Array.from({length:9}, (_,i) => String(_CY - 4 + i));
 let period='quarterly', activeSc='Base Case';
-let dashYear    = 2026;   // year shown on dashboard charts
-let cfYear      = 2026;   // year shown on cash flow report
-let varYear     = 2026;   // year shown on variance report
-let actualsYear = 2026;   // year of currently active uploaded actuals
-let planYear    = 2026;   // year of the active AOP / Budget plan
+let dashYear    = _CY;   // year shown on dashboard charts
+let cfYear      = _CY;   // year shown on cash flow report
+let varYear     = _CY;   // year shown on variance report
+let actualsYear = _CY;   // year of currently active uploaded actuals; overridden by bootstrap
+let planYear    = _CY;   // year of the active AOP / Budget plan; overridden by bootstrap
 
 // _acts(mo) — reads actuals for the active year.
 // Returns the actuals value for month `mo` under the active actualsYear.
@@ -7578,15 +7784,15 @@ const bO = (yFmt) => ({
 // ═══════════════════════════════════════════════════════
 //  SCENARIOS
 // ═══════════════════════════════════════════════════════
-// Scenarios — year-keyed byYear for 2026-2030
-function mkScYears(base){const yrs={};[2026,2027,2028,2029,2030].forEach(y=>{yrs[y]={...base};});return yrs;}
+// Scenarios — year-keyed byYear for _CY through _CY+4
+function mkScYears(base){const yrs={};Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{yrs[y]={...base};});return yrs;}
 let scenarios={
-  'Base Case':{color:'#f0b429',desc:'Central case; Feb 2026 LE as filed. Moderate growth with Hurricane Melissa restoration costs.',eb:0,rv:0,om:0,cx:0,fu:0,tr:0,cr:0,byYear:mkScYears({eb:0,rv:0,om:0,cx:0,fu:0,tr:0,cr:0})},
+  'Base Case':{color:'#f0b429',desc:'Central case; current LE as filed. Moderate growth with Hurricane Melissa restoration costs.',eb:0,rv:0,om:0,cx:0,fu:0,tr:0,cr:0,byYear:mkScYears({eb:0,rv:0,om:0,cx:0,fu:0,tr:0,cr:0})},
   'Upside':   {color:'#10b981',desc:'Favourable tariff review outcome, lower fuel prices, stronger demand recovery.',eb:8,rv:5,om:-2,cx:0,fu:-5,tr:2,cr:0.5,byYear:mkScYears({eb:8,rv:5,om:-2,cx:0,fu:-5,tr:2,cr:0.5})},
   'Downside': {color:'#ef4444',desc:'Adverse fuel, FX devaluation, demand shortfall, no tariff increase approved.',eb:-12,rv:-4,om:3,cx:0,fu:8,tr:-1,cr:-1,byYear:mkScYears({eb:-12,rv:-4,om:3,cx:0,fu:8,tr:-1,cr:-1})},
   'Management':{color:'#d97706',desc:'Management stretch; all efficiency targets achieved, accelerated restoration.',eb:5,rv:3,om:-3,cx:-5,fu:0,tr:1,cr:0.5,byYear:mkScYears({eb:5,rv:3,om:-3,cx:-5,fu:0,tr:1,cr:0.5})},
 };
-let selectedScYear = 2026;
+let selectedScYear = _CY;
 function setScenario(name){const prev=activeSc;activeSc=name;document.getElementById('scPill').textContent=name;refreshAll();auditLog('scenario','Active Scenario',prev,name);toast('Scenario: '+name,'ok');_saveState();}
 function getScAdj(name,key,yr){const s=scenarios[name];return s?.byYear?.[yr]?.[key]??s?.[key]??0;}
 
@@ -7649,6 +7855,8 @@ let bsLines=[
 // depLines[] kept as read-only reference
 // depreciationComponents — zeroed. Populate from uploads.
 const _z12=()=>Array(12).fill(0);
+// Year-keyed 12-element zero arrays for _CY through _CY+4
+const _z5yrs=()=>{const o={};Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{o[y]=_z12();});return o;};
 function _mkDepComp(){
   const base={
     faRegister:     _z12(),
@@ -7662,19 +7870,19 @@ function _mkDepComp(){
     impairment:     _z12(),
   };
   const obj={};
-  [2026,2027,2028,2029,2030].forEach(y=>{
+  Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{
     obj[y]={};
     Object.keys(base).forEach(k=>{obj[y][k]=[...base[k]];});
   });
   return obj;
 }
 let depreciationComponents = _mkDepComp();
-let selectedDepYear = 2026;
+let selectedDepYear = _CY;
 
 let impairmentEvents = []; // zeroed — populated from DB registers
 
 function calcDepTotals(yr,m){
-  const c=depreciationComponents[yr]||depreciationComponents[2026];
+  const c=depreciationComponents[yr]||depreciationComponents[_CY];
   const regular=(c.faRegister[m]||0)+(c.sjpc[m]||0)+(c.otherLeases[m]||0)
     +(c.capexTransfers[m]||0)+(c.capitalSpares[m]||0)+(c.decommissioning[m]||0)
     +(c.strandedMeters[m]||0)+(c.strandedLights[m]||0);
@@ -7704,14 +7912,14 @@ function _mkOMRows(){
     {id:'bad_debt', name:'17. Bad Debt',               cashLag:60, vals:_z12()},
   ];
   const obj={};
-  [2026,2027,2028,2029,2030].forEach(y=>{
+  Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{
     obj[y]=base.map(r=>({...r,vals:[...r.vals],growthRate:0}));
   });
   return obj;
 }
 let omRows=_mkOMRows();
 let omGrowthRates={};// {yr:{rowId:rate}} — populated by UI
-let selectedOMYear=2026;
+let selectedOMYear=_CY;
 
 // CAPEX DATA — year-keyed 2026-2030. Zeroed — populate from uploads.
 function _mkCapexRows(){
@@ -7725,13 +7933,13 @@ function _mkCapexRows(){
     {id:'cx_ss',   name:'Support Services (IT, Facilities)',  payLag:1,tLag:2,dYrs:5,  vals:_z12()},
   ];
   const obj={};
-  [2026,2027,2028,2029,2030].forEach(y=>{
+  Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{
     obj[y]=base.map(r=>({...r,vals:[...r.vals],growthRate:0}));
   });
   return obj;
 }
 let capexRows=_mkCapexRows();
-let selectedCapexYear=2026;
+let selectedCapexYear=_CY;
 
 // COLLECTIONS — year-keyed 2026-2030. Zeroed — populate from uploads.
 function _mkCollRows(){
@@ -7747,17 +7955,17 @@ function _mkCollRows(){
     {id:'dso',       name:'DSO Days (derived)',                unit:'days',   vals:null,derived:true},
   ];
   const obj={};
-  [2026,2027,2028,2029,2030].forEach(y=>{
+  Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{
     obj[y]=base.map(r=>({...r,vals:r.vals?[...r.vals]:null}));
   });
   return obj;
 }
 let collRows=_mkCollRows();
-let selectedCollYear=2026;
+let selectedCollYear=_CY;
 
-// Other Operating Revenue — year-keyed
+// Other Operating Revenue — year-keyed (_CY through _CY+4)
 let otherOperatingRevenue={};
-[2026,2027,2028,2029,2030].forEach(y=>{
+Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{
   otherOperatingRevenue[y]=[
     {id:'recon_fees',  name:'Reconnection Fees',          vals:Array(12).fill(0)},
     {id:'late_pay',    name:'Late Payment Fees',          vals:Array(12).fill(0)},
@@ -7769,9 +7977,9 @@ let otherOperatingRevenue={};
   // No seed values — populate from uploads
 });
 
-// Net Financing rows — year-keyed
+// Net Financing rows — year-keyed (_CY through _CY+4)
 let netFinancingRows={};
-[2026,2027,2028,2029,2030].forEach(y=>{
+Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{
   netFinancingRows[y]={
     intIncome:    {name:'Interest Income',         vals:Array(12).fill(0)},
     intExpense:   {name:'Interest Expense',        vals:Array(12).fill(0)},
@@ -7820,12 +8028,12 @@ let uploadLog = [];
 // ═══════════════════════════════════════════════════════
 //  COMPUTED DERIVATIONS
 // ═══════════════════════════════════════════════════════
-const getOMRows=(yr)=>omRows[yr||selectedOMYear]||omRows[2026];
-const getCxRows=(yr)=>capexRows[yr||selectedCapexYear]||capexRows[2026];
-const getCollRows=(yr)=>collRows[yr||selectedCollYear]||collRows[2026];
+const getOMRows=(yr)=>omRows[yr||selectedOMYear]||omRows[_CY];
+const getCxRows=(yr)=>capexRows[yr||selectedCapexYear]||capexRows[_CY];
+const getCollRows=(yr)=>collRows[yr||selectedCollYear]||collRows[_CY];
 
 function computeAll(yr){
-  yr=yr||selectedCollYear||2026;
+  yr=yr||selectedCollYear||_CY;
   const fxR=fx();
   const rows=getCollRows(yr);
   // GWh total
@@ -7869,14 +8077,16 @@ const getCashReceipts=(yr)=>{computeAll(yr);return getCollRows(yr).find(r=>r.id=
 //  COLUMNS
 // ═══════════════════════════════════════════════════════
 // Tab-level year range (used by getCols when no tab-specific year exists)
-let plYrFrom = 2024, plYrTo = 2027;
+let plYrFrom = _CY - 2, plYrTo = _CY + 1;
 
 function getCols(){
   const yF = plYrFrom, yT = plYrTo;
+  // A year counts as "actuals" when it is before the current plan year (i.e. prior year and earlier)
+  const isActYear = y => y < planYear;
   const cols=[];
-  if(period==='annual'){for(let y=yF;y<=yT;y++)cols.push({lbl:y+'',yr:y,act:y<=2025});}
-  else if(period==='quarterly'){for(let y=yF;y<=yT;y++){['Q1','Q2','Q3','Q4'].forEach((q,qi)=>cols.push({lbl:q+String(y).slice(2),yr:y,qi,act:y<=2025}));}}
-  else{for(let y=Math.max(yF,2026);y<=Math.min(yT,2027);y++)MONTHS.forEach((m,mi)=>cols.push({lbl:m[0]+' '+String(y).slice(2),yr:y,mi,act:false}));}
+  if(period==='annual'){for(let y=yF;y<=yT;y++)cols.push({lbl:y+'',yr:y,act:isActYear(y)});}
+  else if(period==='quarterly'){for(let y=yF;y<=yT;y++){['Q1','Q2','Q3','Q4'].forEach((q,qi)=>cols.push({lbl:q+String(y).slice(2),yr:y,qi,act:isActYear(y)}));}}
+  else{for(let y=Math.max(yF,_CY);y<=Math.min(yT,_CY+1);y++)MONTHS.forEach((m,mi)=>cols.push({lbl:m[0]+' '+String(y).slice(2),yr:y,mi,act:false}));}
   return cols;
 }
 function colVal(line,col){
@@ -7911,12 +8121,10 @@ function getInsurancePrepaidByMonth(yr){
 function syncInsurancePrepaid(){
   const line=bsLines.find(l=>l.id==='ins_prepaid');
   if(!line)return;
-  [2026,2027,2028,2029,2030].forEach((y,i)=>{
+  Array.from({length:5},(_,i)=>_CY+i).forEach((y,i)=>{
     const prepArr=getInsurancePrepaidByMonth(y);
-    // vals array index corresponds to position in YEARS + historical columns
-    // bsLines vals: [2021,2022,2023,2024,2025,2026,2027,2028,2029,2030] (0-indexed)
-    // 2026 is at index 5 in bsLines vals (matching existing data pattern)
-    line.vals[5+i]=prepArr[11]||0;
+    // bsLines vals index: _CY is at index 4 (matching YEARS array where _CY = index 4)
+    line.vals[4+i]=prepArr[11]||0;
   });
 }
 
@@ -7965,7 +8173,7 @@ function buildStatTbl(lines,hEl,bEl){
   if(isBS && actBS){
     const cr=actBS.totalCurrentAssets&&actBS.totalCurrentLiab?(actBS.totalCurrentAssets/actBS.totalCurrentLiab).toFixed(2)+'×':'–';
     html+=`<tr style="background:rgba(16,185,129,.06)"><td colspan="${span}" style="padding:7px 14px;font-size:10px;color:var(--green)">
-      <strong>● Actuals — ${MONTHS[latestActMo-1]} 2026</strong> &nbsp;·&nbsp; Cash: $${Math.round(actBS.cash||0).toLocaleString()}K &nbsp;·&nbsp;
+      <strong>● Actuals — ${MONTHS[latestActMo-1]} ${_CY}</strong> &nbsp;·&nbsp; Cash: $${Math.round(actBS.cash||0).toLocaleString()}K &nbsp;·&nbsp;
       Receivables: $${Math.round(actBS.receivables||0).toLocaleString()}K &nbsp;·&nbsp; Total Assets: $${Math.round(actBS.totalAssets||0).toLocaleString()}K
       &nbsp;·&nbsp; Current Ratio: ${cr} &nbsp;·&nbsp; Source: B_S sheet of uploaded file
     </td></tr>`;
@@ -7976,8 +8184,8 @@ function buildStatTbl(lines,hEl,bEl){
 // ═══════════════════════════════════════════════════════
 //  DEPRECIATION REPORT
 // ═══════════════════════════════════════════════════════
-// depYears — columns for the historic rpt-dep report (uses depLines[] read-only reference)
-const depYears = ['2021','2022','2023','2024','2025','2026','2027'];
+// depYears — columns for the historic rpt-dep report (5 years back through next year)
+const depYears = Array.from({length:7}, (_,i) => String(_CY - 5 + i));
 // depMonthly2026 — zeroed. Populate from uploads.
 const depMonthly2026 = Array(12).fill(0);
 // depLines — zeroed. Populate from uploads.
@@ -7996,7 +8204,7 @@ const depLines = [
 ];
 
 function buildDepReport(){
-  document.getElementById('depH').innerHTML=`<tr><th style="text-align:left;min-width:260px">Component</th>${depYears.map(y=>`<th class="${y<='2025'?'ac':'bc'}">${y}</th>`).join('')}</tr>`;
+  document.getElementById('depH').innerHTML=`<tr><th style="text-align:left;min-width:260px">Component</th>${depYears.map(y=>`<th class="${parseInt(y)<_CY?'ac':'bc'}">${y}</th>`).join('')}</tr>`;
   document.getElementById('depB').innerHTML=depLines.map(r=>{
     const cls=r.tot?'tr':'';
     return `<tr class="${cls}"><td style="padding-left:${r.tot?'10px':'20px'}">${r.name}${r.src?'<span class="src"> · SJPC/Lease</span>':''}</td>${r.vals.map(v=>`<td>${fmtN(v)}</td>`).join('')}</tr>`;
@@ -8008,7 +8216,7 @@ function buildDepReport(){
     const v=_acts(i+1)?.pl?.depreciation;
     return v!=null?Math.abs(v):null;
   });
-  const leDepArr=MONTHS.map((_,m)=>Math.round(calcDepTotals(2026,m).regular/1000));
+  const leDepArr=MONTHS.map((_,m)=>Math.round(calcDepTotals(_CY,m).regular/1000));
 
   // Monthly chart: LE bars + actuals line
   mkChart('cDepMo',{
@@ -8060,7 +8268,8 @@ function buildDepReport(){
 //  Two views: Indirect (IFRS) + Direct (Forecast)
 // ═══════════════════════════════════════════════════════
 let cfView = 'indirect';
-let cfSelectedMonth = 2; // default Feb
+// Default to latest closed month (overridden after bootstrap); fallback to current calendar month
+let cfSelectedMonth = new Date().getMonth() + 1;
 
 function setCFView(v, btn) {
   cfView = v;
@@ -8076,8 +8285,18 @@ function getCFOpeningCash(month) {
 }
 
 // Direct CF seed data — actuals populated at runtime from uploaded files (no hardcoded values)
+// Labels: 2 months before current year, then Jan through Jun of current year
+function _buildDirectCFLabels() {
+  const abbr = m => MONTHS[m-1] + '-' + String(_CY + Math.floor((m-1)/12)).slice(2);
+  const prev2 = [
+    MONTHS[10] + '-' + String(_PY).slice(2),   // Nov prior year
+    MONTHS[11] + '-' + String(_PY).slice(2),   // Dec prior year
+  ];
+  const curr6 = [1,2,3,4,5,6].map(m => MONTHS[m-1] + '-' + String(_CY).slice(2));
+  return [...prev2, ...curr6];
+}
 const directCFSeed = {
-  labels: ['Nov-25','Dec-25','Jan-26','Feb-26','Mar-26','Apr-26','May-26','Jun-26'],
+  labels: _buildDirectCFLabels(),
   collections:         [null,null,null,null,null,null,null,null],
   loanFinancing:       [null,null,null,null,null,null,null,null],
   insuranceProceeds:   [null,null,null,null,null,null,null,null],
@@ -8199,7 +8418,7 @@ function buildIndirectCF() {
     {n:'  Increase/(decrease) in payables',    a:deltaPayables,    b:0},
     {n:'Net cash from operating activities',   a:netCashOps,  b:bud.netCashOps, tot:true},
     {s:'INVESTING ACTIVITIES'},
-    {n:'  Capital expenditure',         a:capex,               b:-55000},
+    {n:'  Capital expenditure',         a:capex,               b:-(fpa.factMonthly(_aopCode(),'cf_capex',cfYear)[mo-1]||getCxCash(cfYear)[mo-1]||0)},
     {n:'  Dividend received',           a:divRec,              b:0},
     {n:'  Proceeds from disposal',      a:proceeds,            b:0},
     {n:'Net cash used in investing',    a:netCashInvesting, b:bud.netCashInvesting, tot:true},
@@ -8207,7 +8426,7 @@ function buildIndirectCF() {
     {n:'  Loan drawdowns',              a:loanDrawdowns,       b:0},
     {n:'  Loan repayments',             a:loanRepayments,      b:0},
     {n:'  Interest paid',               a:interestPaid,        b:0},
-    {n:'  Preference dividends paid',   a:prefDivPaid,         b:-179},
+    {n:'  Preference dividends paid',   a:prefDivPaid,         b:-(fpa.factMonthly(_aopCode(),'cf_pref_div',cfYear)[mo-1]||0)},
     {n:'  Ordinary dividends paid',     a:ordDivPaid,          b:0},
     {n:'Net cash used in financing',    a:netCashFinancing, b:bud.netCashFinancing, tot:true},
     {s:'CASH MOVEMENT'},
@@ -8469,7 +8688,7 @@ const revBudgetMonthly = {
 // ═══════════════════════════════════════════════════════
 //  RATIOS & KPIs TAB — Session 9
 // ═══════════════════════════════════════════════════════
-let selectedKpiYear = 2026;
+let selectedKpiYear = _CY;
 
 function buildKpiTab() {
   buildYrSeg('kpiYrSeg', selectedKpiYear, (y, btn) => {
@@ -8488,15 +8707,14 @@ function buildKpiTab() {
 // ── Helper: get P&L line value by name fragment ──────
 function _plVal(nameFrag, mo, yr) {
   yr = yr || selectedKpiYear;
-  const YIDX = {2026:4,2027:5,2028:6,2029:7,2030:8};
+  const yidx = 4 + (yr - _CY); // _CY is at vals index 4
   const line = plLines.find(l => l.name && l.name.toLowerCase().includes(nameFrag.toLowerCase()));
   if (!line) return 0;
   if (mo !== undefined) {
     // monthly P&L
-    const yr26mo = mo; // index 0-11 into vals array — monthly P&L uses buildMonthlyPL
     return 0; // fallback — monthly P&L not easily extractable from plLines (annual)
   }
-  return line.vals?.[YIDX[yr]] || 0;
+  return line.vals?.[yidx] || 0;
 }
 
 // Get monthly P&L using blended actuals (closed periods) + LE/Forecast (open periods).
@@ -8533,8 +8751,8 @@ function _getMonthlyPLLine(key, yr) {
   }
 
   // Version code for LE / History / Forecast
-  const leVer = yr <= 2025 ? `HIST_ACTUAL_${yr}` :
-                yr === 2026 ? 'LE_2026_02' : 'FORECAST_BASE';
+  const leVer = yr < _CY  ? `HIST_ACTUAL_${yr}` :
+                yr === _CY ? `LE_${_CY}_02`      : 'FORECAST_BASE';
 
   const extractor = ACT_EXTRACT[key];
   const result    = Array(12).fill(0);
@@ -8552,8 +8770,8 @@ function _getMonthlyPLLine(key, yr) {
         continue;
       }
 
-      // 2. Seeded actuals (month-indexed, 2026 only): _acts(month).pl
-      if (yr === 2026) {
+      // 2. Seeded actuals (month-indexed, _CY only): _acts(month).pl
+      if (yr === _CY) {
         const seedPL = _acts(mNum)?.pl;
         if (seedPL && extractor) { result[m] = extractor(seedPL); continue; }
       }
@@ -8588,14 +8806,14 @@ function _getMonthlyPLLine(key, yr) {
 // ── KPI Score Cards ──────────────────────────────────
 function buildKpiScoreCards() {
   const yr = selectedKpiYear;
-  const YIDX = {2026:4,2027:5,2028:6,2029:7,2030:8};
+  const yidx = 4 + (yr - _CY); // _CY is at vals index 4
   const el = document.getElementById('kpiScoreCards');
   if (!el) return;
 
   // Annual totals from plLines
   const getLine = (frag) => {
     const l = plLines.find(l=>l.name&&l.name.toLowerCase().includes(frag.toLowerCase()));
-    return l?.vals?.[YIDX[yr]]||0;
+    return l?.vals?.[yidx]||0;
   };
 
   const totalRev    = getLine('total revenue') || getLine('total sales') || getLine('revenue');
@@ -8615,8 +8833,8 @@ function buildKpiScoreCards() {
   const lossArr = sysLossTable[yr] || _z12();
   const avgLoss  = lossArr.reduce((s,v)=>s+v,0)/12;
 
-  // Billed sales GWh
-  const billedArr = [2026,2027,2028,2029,2030].includes(yr)
+  // Billed sales GWh — available for current and forecast years
+  const billedArr = (yr >= _CY && yr <= _CY + 4)
     ? calcBilledSales(yr) : Array(12).fill(0);
   const totalBilled = billedArr.reduce((s,v)=>s+v,0)/1000; // GWh
 
@@ -8651,7 +8869,7 @@ function buildKpiCovenantStrip() {
   if (!el) return;
 
   // Derive covenant values from DB-loaded plLines / bsLines (no hardcoded fallbacks)
-  const _yIdx = 4; // index for 2026 in plLines.vals (2021,2022,2023,2024,2025,2026,...)
+  const _yIdx = 4; // _CY is always at vals index 4 (YEARS array: _CY-4 … _CY+4)
   const _plGet = (id, ...frags) => {
     const l = plLines.find(l => l.id === id || frags.some(f => l.name?.toLowerCase().includes(f)));
     return l?.vals?.[_yIdx] || null;
@@ -8853,12 +9071,15 @@ function buildKpiProfitabilityTable() {
   }).join('');
 }
 
-// ── Leverage Table (annual, 2026-2030) ───────────────
+// ── Leverage Table (annual, _CY through _CY+4) ───────────────
 function buildKpiLeverageTable() {
   const el = document.getElementById('kpiLevBody');
   if (!el) return;
-  const YRS = [2026,2027,2028,2029,2030];
-  const YIDX = {2026:4,2027:5,2028:6,2029:7,2030:8};
+  const YRS = Array.from({length:5},(_,i)=>_CY+i);
+  const YIDX = {}; YRS.forEach((y,i)=>{ YIDX[y]=4+i; }); // _CY at YEARS index 4
+  // Build thead dynamically
+  const hd = document.getElementById('kpiLevHead');
+  if (hd) hd.innerHTML = `<tr><th style="text-align:left;min-width:220px">Ratio</th>${YRS.map(y=>`<th class="bc">${y}</th>`).join('')}<th style="text-align:left;min-width:120px">Covenant</th></tr>`;
 
   const getEBITDA = yr => {
     const l = plLines.find(l=>l.name&&l.name.toLowerCase().includes('ebitda'));
@@ -8889,8 +9110,8 @@ function buildKpiLeverageTable() {
     const l = bsLines.find(l => l.id === 'cash');
     const v = l?.vals?.[YIDX[yr]];
     // If bsLines not yet populated from DB, use actualsStore latest closed month
-    if (!v && yr === 2026) {
-      const closedMos = [12,11,10,9,8,7,6,5,4,3,2,1].filter(m => fpa.isPeriodClosed(2026, m));
+    if (!v && yr === _CY) {
+      const closedMos = [12,11,10,9,8,7,6,5,4,3,2,1].filter(m => fpa.isPeriodClosed(_CY, m));
       if (closedMos.length) {
         const mo = closedMos[0];
         return _acts(mo)?.bs?.cash || actualsStore[actualsYear]?.[mo]?.bs?.cash || 0;
@@ -9021,8 +9242,8 @@ function buildKpiCharts() {
   requestAnimationFrame(() => _buildKpiChartsInner());
 }
 function _buildKpiChartsInner() {
-  const YRS = [2026,2027,2028,2029,2030];
-  const YIDX = {2026:4,2027:5,2028:6,2029:7,2030:8};
+  const YRS = Array.from({length:5},(_,i)=>_CY+i);
+  const YIDX = {}; YRS.forEach((y,i)=>{ YIDX[y]=4+i; }); // _CY at YEARS index 4
   // Use cached theme colors (_TC) — populated at startup and on every theme switch
   const bO2 = () => ({
     responsive:true, maintainAspectRatio:false,
@@ -9068,7 +9289,7 @@ function _buildKpiChartsInner() {
     const ebitda = getE(yr,'ebitda');
     // Debt/cash from projDebtSchedule and bsLines (DB-backed); no hardcoded fallback
     const debtBal = projDebtSchedule.closingDebt?.vals?.[yr] || 0;
-    const cashBal = bsLines.find(l=>l.id==='cash')?.vals?.[{2026:4,2027:5,2028:6,2029:7,2030:8}[yr]??4] || 0;
+    const cashBal = bsLines.find(l=>l.id==='cash')?.vals?.[4+(yr-_CY)] || 0;
     const netDebt = debtBal - cashBal;
     return ebitda>0 ? +(netDebt/ebitda).toFixed(2) : 0;
   });
@@ -9105,9 +9326,9 @@ function exportKpiCSV() {
 // ═══════════════════════════════════════════════════════
 //  DEBT & FINANCING REGISTER — Session 10
 // ═══════════════════════════════════════════════════════
-let selectedDebtYear = 2026;
+let selectedDebtYear = _CY;
 let selectedLoanId   = null;
-let selectedDebtAmortYear = 2026;
+let selectedDebtAmortYear = _CY;
 
 // ── Loan register data ───────────────────────────────
 // Seeded from AOP 2026 / Feb 2026 corporate data
@@ -9119,9 +9340,9 @@ function computeLoanSchedule(loan, yr) {
   const schedule = [];
   // Determine opening balance for this year
   let openBal = loan.openBal;
-  // Roll forward from base year if needed
-  if (yr > 2026) {
-    for (let y = 2026; y < yr; y++) {
+  // Roll forward from base year (_CY) if needed
+  if (yr > _CY) {
+    for (let y = _CY; y < yr; y++) {
       const sch = computeLoanSchedule({ ...loan, openBal }, y);
       openBal = sch[11]?.closingBal ?? 0;
     }
@@ -9333,7 +9554,7 @@ function buildLoanAmortTable(loanId, yr) {
 function buildDebtSummary() {
   const el = document.getElementById('debtSummBody');
   if (!el) return;
-  const YRS = [2026,2027,2028,2029,2030];
+  const YRS = Array.from({length:5},(_,i)=>_CY+i);
   const fmtK = v => v?'$'+Math.round(v).toLocaleString():'—';
 
   const sumByYr = yr => {
@@ -9341,7 +9562,7 @@ function buildDebtSummary() {
     return {
       openBal:  loanRegister.filter(l=>l.active).reduce((s,l)=>{
         // Roll opening balance
-        if(yr===2026) return s+(l.openBal||0);
+        if(yr===_CY) return s+(l.openBal||0);
         const prev = computeLoanSchedule(l, yr-1);
         return s+(prev[11]?.closingBal||0);
       }, 0),
@@ -9376,9 +9597,8 @@ function buildCovenantTracker() {
   // Covenant status per facility
   const agg = getDebtAggregates(selectedDebtYear);
   const ebitda = (() => {
-    const YIDX={2026:4,2027:5,2028:6,2029:7,2030:8};
     const l=plLines.find(l=>l.name&&l.name.toLowerCase().includes('ebitda'));
-    return l?.vals?.[YIDX[selectedDebtYear]]||0;
+    return l?.vals?.[4+(selectedDebtYear-_CY)]||0;
   })();
   const totalDebtSvc = agg.totalPrincipal.reduce((s,v)=>s+v,0) + agg.totalInterest.reduce((s,v)=>s+v,0);
   const dscr = totalDebtSvc>0 ? (ebitda/totalDebtSvc) : 0;
@@ -9417,7 +9637,7 @@ function buildCovenantTracker() {
 }
 
 function buildDebtCharts() {
-  const YRS = [2026,2027,2028,2029,2030];
+  const YRS = Array.from({length:5},(_,i)=>_CY+i);
   // FIX: Chart.js cannot parse 'var(--x)' CSS strings — use cached _TC values
   const bO2 = () => ({
     responsive:true, maintainAspectRatio:false,
@@ -9525,21 +9745,21 @@ function deleteLoan(id) {
 
 // Sync aggregated interest expense back to netFinancingRows
 function syncDebtToNFC() {
-  [2026,2027,2028,2029,2030].forEach(yr => {
+  Array.from({length:5},(_,i)=>_CY+i).forEach(yr => {
     if (!netFinancingRows[yr]) return;
     const agg = getDebtAggregates(yr);
-    // Write computed interest into intExpense vals (preserve manually-seeded 2026 actuals for Jan/Feb)
+    // Write computed interest into intExpense vals (preserve manually-seeded _CY actuals for closed months)
     const existing = netFinancingRows[yr].intExpense.vals;
     agg.totalInterest.forEach((v, m) => {
       // Keep actuals for months already loaded
-      if (yr===2026 && (m===0||m===1) && existing[m]!==0) return;
+      if (yr===_CY && fpa.isPeriodClosed(_CY, m+1) && existing[m]!==0) return;
       netFinancingRows[yr].intExpense.vals[m] = -v; // negative = expense
     });
   });
 }
 
 function exportDebtCSV() {
-  const YRS = [2026,2027,2028,2029,2030];
+  const YRS = Array.from({length:5},(_,i)=>_CY+i);
   const rows = [['Facility','Lender','Type',...YRS.flatMap(y=>[y+' OpenBal',y+' Interest',y+' Principal',y+' CloseBal'])]];
   loanRegister.filter(l=>l.active).forEach(loan => {
     const row = [loan.name, loan.lender, loan.type];
@@ -9587,7 +9807,7 @@ function buildRevReport() {
   });
 
   // ── PERIOD LABELS ────────────────────────────────────────────────────────
-  const monthLabel = data ? data.month : (MONTHS[mo-1] + ' 2026');
+  const monthLabel = data ? data.month : (MONTHS[mo-1] + ' ' + _CY);
   const periodLabel = isYTD ? 'YTD to ' + monthLabel : monthLabel;
   document.getElementById('revRptTitle').textContent = `Actual vs Budget · ${periodLabel}`;
 
@@ -10422,8 +10642,8 @@ async function handleActualsUpload(event) {
     if (moNum >= 1 && moNum <= 12 && plAct.fuel_cos) {
       (fuelCostByMonth[yr] ??= Array(12).fill(0));
       fuelCostByMonth[yr][moNum - 1] = Math.abs(plAct.fuel_cos);
-      // Also update fuelCostByMonth2026 legacy array for 2026 months
-      if (yr === 2026) fuelCostByMonth2026[moNum - 1] = Math.abs(plAct.fuel_cos);
+      // Also update fuelCostByMonth2026 legacy alias for _CY months
+      if (yr === _CY) fuelCostByMonth2026[moNum - 1] = Math.abs(plAct.fuel_cos);
     }
 
     // ── 15. Update MWh volumes for rate-class tables ──────────────────────────
@@ -10513,7 +10733,7 @@ async function handleAOPUpload(event) {
   // ── Detect plan year from filename (e.g. "Budget_Template_2027_V2.xlsx" → 2027)
   // Falls back to current planYear if no 4-digit year found in filename.
   const fnYrMatch = fn.match(/20(\d{2})/);
-  const detectedYear = fnYrMatch ? parseInt('20' + fnYrMatch[1], 10) : (planYear || 2026);
+  const detectedYear = fnYrMatch ? parseInt('20' + fnYrMatch[1], 10) : (planYear || _CY);
   planYear = detectedYear;  // set globally so _aopCode() uses the right version
 
   // Show in Data Sources upload log immediately
@@ -11184,7 +11404,7 @@ function buildRevBridgeDecomp(mo, act, ref, cmpLabel) {
 
   // ARCHITECTURAL RULE: FX rates must come from DB (fxTable loaded from fpa_assumptions). No hardcoded fallback.
   const actFX  = fxTable.billing[mIdx] || 0;
-  const budFX  = netFinancingRows[2026]?.budgetFX?.[mIdx] || 0;
+  const budFX  = netFinancingRows[_CY]?.budgetFX?.[mIdx] || 0;
 
   // Volume & tariff effects — use revenue engine
   let volEffect=0, tariffEffect=0, fxEffect=0, lossEffect=0;
@@ -11202,7 +11422,7 @@ function buildRevBridgeDecomp(mo, act, ref, cmpLabel) {
 
     // Volume Effect = (actMWh - budMWh) × budTariffPerMWh / actFX
     // Approximate using billed sales distribution
-    const mthBilledSales = billedSalesMWh?.[2026]?.[mIdx] || 0;
+    const mthBilledSales = billedSalesMWh?.[_CY]?.[mIdx] || 0;
     const moData2 = _acts(mo);
     const actSalesMWh = moData2?.rev?.salesMWh || mthBilledSales;
     const budSalesMWh = mthBilledSales; // LE from model
@@ -11221,9 +11441,9 @@ function buildRevBridgeDecomp(mo, act, ref, cmpLabel) {
 
     // Loss Effect = revenue uplift from system loss reduction
     // Loss reduction → more billed MWh at given tariff
-    const budLoss = sysLossTable[2026]?.[mIdx] || 0;
+    const budLoss = sysLossTable[_CY]?.[mIdx] || 0;
     const genMWh = mthBilledSales > 0 ? (mthBilledSales / (1 - budLoss/100)) : 0;
-    const actLoss = sysLossTable[2026]?.[mIdx] || budLoss;
+    const actLoss = sysLossTable[_CY]?.[mIdx] || budLoss;
     const lossAdjMWh = genMWh > 0 ? genMWh * ((budLoss - actLoss) / 100) : 0;
     lossEffect = Math.round(lossAdjMWh * budTariffPerMWh);
   } catch(e) {
@@ -11363,15 +11583,15 @@ function buildOMTable(){
   const rows=getOMRows(yr);
   const omTot=getOMTotal(yr); const omCash=getOMCash(yr);
   const agg2=typeof leaseAggregates!=='undefined'&&leaseAggregates[yr]?leaseAggregates[yr]:null;
-  const showGrow=(yr!==2026);
-  const grHdr=showGrow?'<th title="Annual growth vs 2026 base" style="color:var(--teal)">Gr%</th>':'';
+  const showGrow=(yr!==_CY);
+  const grHdr=showGrow?`<th title="Annual growth vs ${_CY} base" style="color:var(--teal)">Gr%</th>`:'';
   document.getElementById('omH').innerHTML=`<tr><th style="min-width:220px;text-align:left">Category</th><th>Cash Lag</th>${grHdr}${MONTHS.map(m=>`<th class="bc">${m}</th>`).join('')}<th class="bc">Total</th><th class="ac">→Cash</th></tr>`;
 
   const rowHtml=rows.filter(r=>!r.derived).map(r=>{
     // ARCHITECTURAL RULE: non-cash O&M fraction must come from DB — no hardcoded haircut
     const tot=sumArr(r.vals); const cashTot=tot;
     const grPct=(r.growthRate||0);
-    const grCell=showGrow?`<td><input class="ei" style="width:46px;color:var(--teal)" value="${grPct.toFixed(1)}" title="Growth % vs 2026 base" onchange="updOMGrowth('${r.id}',this.value,${yr})" onfocus="this.select()">%</td>`:'';
+    const grCell=showGrow?`<td><input class="ei" style="width:46px;color:var(--teal)" value="${grPct.toFixed(1)}" title="Growth % vs ${_CY} base" onchange="updOMGrowth('${r.id}',this.value,${yr})" onfocus="this.select()">%</td>`:'';
     const valCells=(r.vals||MONTHS.map(()=>0)).map((v,i)=>`<td><input class="ei" value="${v}" data-row="${r.id}" data-mo="${i}" onchange="updOMRow(this,${yr})" onfocus="this.select()"></td>`).join('');
 
     let subRows='';
@@ -11420,14 +11640,14 @@ function updOMRow(inp,yr){
 }
 function updOMGrowth(id,val,yr){
   yr=yr||selectedOMYear;
-  if(yr===2026){toast('Growth rate applies to 2027-2030 only','w');return;}
+  if(yr===_CY){toast('Growth rate applies to future years only','w');return;}
   const pct=parseFloat(val)||0;
-  const base2026=omRows[2026]?.find(r=>r.id===id);
+  const baseCY=omRows[_CY]?.find(r=>r.id===id);
   const row=getOMRows(yr).find(r=>r.id===id);
-  if(!row||!base2026)return;
+  if(!row||!baseCY)return;
   row.growthRate=pct;
-  const factor=Math.pow(1+pct/100,(yr-2026));
-  row.vals=base2026.vals.map(v=>Math.round(v*factor));
+  const factor=Math.pow(1+pct/100,(yr-_CY));
+  row.vals=baseCY.vals.map(v=>Math.round(v*factor));
   buildOMTable();
   toast(`O&M growth ${pct>=0?'+':''}${pct}% applied to ${yr}`,'ok');
 }
@@ -11436,7 +11656,7 @@ function buildCapexTable(){
   const yr=selectedCapexYear;
   const rows=getCxRows(yr);
   const cxTot=getCxTotal(yr);
-  const showCxGrow=(yr!==2026);
+  const showCxGrow=(yr!==_CY);
   document.getElementById('capexH').innerHTML=`<tr><th style="min-width:240px;text-align:left">Category</th><th>Pay Lag</th><th>Trf Lag</th><th>Depn Yrs</th>${showCxGrow?'<th style="color:var(--teal)">Gr%</th>':''}${MONTHS.map(m=>`<th class="bc">${m}</th>`).join('')}<th class="bc">Total</th></tr>`;
   document.getElementById('capexB').innerHTML=[
     ...rows.map(r=>{
@@ -11497,14 +11717,14 @@ function updCxRow(inp,yr){
 function updCxMeta(id,f,v,yr){yr=yr||selectedCapexYear;const r=getCxRows(yr).find(x=>x.id===id);if(r)r[f]=parseInt(v)||0;buildCapexTable();}
 function updCxGrowth(id,val,yr){
   yr=yr||selectedCapexYear;
-  if(yr===2026){toast('Growth rate applies to 2027-2030 only','w');return;}
+  if(yr===_CY){toast('Growth rate applies to future years only','w');return;}
   const pct=parseFloat(val)||0;
-  const base2026=capexRows[2026]?.find(r=>r.id===id);
+  const baseCY=capexRows[_CY]?.find(r=>r.id===id);
   const row=getCxRows(yr).find(r=>r.id===id);
-  if(!row||!base2026)return;
+  if(!row||!baseCY)return;
   row.growthRate=pct;
-  const factor=Math.pow(1+pct/100,(yr-2026));
-  row.vals=base2026.vals.map(v=>Math.round(v*factor));
+  const factor=Math.pow(1+pct/100,(yr-_CY));
+  row.vals=baseCY.vals.map(v=>Math.round(v*factor));
   buildCapexTable();
   toast(`CapEx growth ${pct>=0?'+':''}${pct}% applied to ${yr}`,'ok');
 }
@@ -11596,10 +11816,10 @@ function buildCollWF(yr){
 function buildCollActuals(yr){
   const el=document.getElementById('collActualsPanel');
   if(!el) return;
-  if(yr!==2026){el.style.display='none';return;}
+  if(yr!==_CY){el.style.display='none';return;}
   const loadedMos=MONTHS.map((_,m)=>_acts(m+1)).filter(Boolean);
   if(!loadedMos.length){el.style.display='none';return;}
-  const leReceipts=getCollRows(2026).find(r=>r.id==='receipts')?.vals||Array(12).fill(0);
+  const leReceipts=getCollRows(_CY).find(r=>r.id==='receipts')?.vals||Array(12).fill(0);
   const actRevArr=MONTHS.map((_,m)=>_acts(m+1)?.pl?.totalSales??null);
   const actBSArr=MONTHS.map((_,m)=>_acts(m+1)?.bs?.receivables??null);
   const actCashArr=MONTHS.map((_,m)=>_acts(m+1)?.bs?.cash??null);
@@ -11641,7 +11861,7 @@ function buildCollActuals(yr){
 function buildDashKpis(){
   const ebi=plLines.find(l=>l.id==='ebitda'),ni=plLines.find(l=>l.id==='net_inc');
   const sc=scenarios[activeSc];
-  const yr = dashYear || 2026;
+  const yr = dashYear || _CY;
   const yIdx = YEARS.indexOf(String(yr));
   const e26=Math.round((ebi.vals[yIdx]||ebi.vals[4]||0)*(1+(sc?.eb||0)/100));
   const n26=Math.round((ni.vals[yIdx]||ni.vals[4]||0)*(1+(sc?.eb||0)/100));
@@ -11838,7 +12058,7 @@ function buildDashKpis(){
     const ebitLine=plLines.find(l=>l.id==='ebitda'), ebitLine2=plLines.find(l=>l.id==='ebit');
     const ebit26=ebitLine2?Math.round(ebitLine2.vals[4]*(1+(sc?.eb||0)/100)):null;
     const opMarginPct=(ebit26!=null&&annRevLE2)?((ebit26/annRevLE2)*100).toFixed(1):null;
-    const avgFxCur=((fxTable.years[yr]||fxTable.years[2026])?.billing.reduce((s,v)=>s+v,0)/12).toFixed(2);
+    const avgFxCur=((fxTable.years[yr]||fxTable.years[_CY])?.billing.reduce((s,v)=>s+v,0)/12).toFixed(2);
     html+=noActCard('Revenue','var(--blue)',Math.round(annRevLE2/1000));
     html+=noActCard('EBITDA','var(--green)',e26);
     html+=`<div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--card);box-shadow:0 2px 8px var(--shadow);flex:1 1 155px;min-width:0">
@@ -11865,7 +12085,7 @@ function buildDashKpis(){
         <span style="color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em">Avg FX Rate</span>
       </div>
       <div style="flex:1;padding:8px 10px">
-        <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">2026 J$/US$ (billing avg)</div>
+        <div style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">${_CY} J$/US$ (billing avg)</div>
         <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--text)">J$${avgFxCur}</div>
         <div style="font-size:9px;color:var(--muted);margin-top:2px">Jan actual–Mar actual · Apr+ projected</div>
       </div>
@@ -11887,7 +12107,7 @@ function buildOMKpis(){const yr=selectedOMYear;const tot=getOMTotal(yr);const an
 function buildOMActualsStrip(yr){
   const el=document.getElementById('omActualsStrip');
   if(!el) return;
-  if(yr!==2026){el.style.display='none';return;}
+  if(yr!==_CY){el.style.display='none';return;}
   const loadedMos=MONTHS.map((_,m)=>_acts(m+1)).filter(Boolean);
   if(!loadedMos.length){el.style.display='none';return;}
   // Get YTD actual OpEx (sga+maintenance combined) vs LE
@@ -11896,7 +12116,7 @@ function buildOMActualsStrip(yr){
   const actSGA=ytdA?.ytd?.sga!=null?Math.abs(ytdA.ytd.sga):null;
   const actMaint=ytdA?.ytd?.maintenance!=null?Math.abs(ytdA.ytd.maintenance):null;
   const n=loadedMos.length;
-  const leOMTot=getOMTotal(2026);
+  const leOMTot=getOMTotal(_CY);
   const leYTD=leOMTot.slice(0,n).reduce((s,v)=>s+v,0);
   const actTotal=actOpex||(actSGA!=null&&actMaint!=null?actSGA+actMaint:null);
   const varD=actTotal!=null?actTotal-leYTD:null;
@@ -11920,7 +12140,7 @@ function buildCapexKpis(){const yr=selectedCapexYear;const tot=getCxTotal(yr);co
 //  PERIOD AGGREGATION HELPERS (used by dashboard charts)
 // ═══════════════════════════════════════════════════════
 function _pLabels(yr){
-  const y = yr || dashYear || 2026;
+  const y = yr || dashYear || _CY;
   const ytdN = Math.min(activeMonth, 12);
   if(period==='quarterly') return ['Q1','Q2','Q3','Q4'];
   if(period==='annual')    return [`FY ${y}`];
@@ -11942,7 +12162,7 @@ function _pData(arr12){
 //  CHARTS
 // ═══════════════════════════════════════════════════════
 function buildDashCharts(){
-  const yr = dashYear || 2026;
+  const yr = dashYear || _CY;
   const yIdx = YEARS.indexOf(String(yr));
   const sc = scenarios[activeSc] || {};
   const labels = _pLabels(yr);
@@ -11974,9 +12194,9 @@ function buildDashCharts(){
 
   const revData   = _pData(totalRevMo);
   const ebiData   = _pData(ebitdaMo);
-  // Actuals overlay for 2026 monthly
+  // Actuals overlay for _CY monthly
   const actRevMo  = MONTHS.map((_,m) => _acts(m+1)?.pl?.totalSales ?? null);
-  const hasActRev = yr===2026 && actRevMo.some(v=>v!==null);
+  const hasActRev = yr===_CY && actRevMo.some(v=>v!==null);
   const revDatasets = [
     {label:'Revenue (LE)',data:revData,backgroundColor:'rgba(59,130,246,.45)',yAxisID:'y',order:2},
     {label:'EBITDA (LE)',data:ebiData,type:'line',borderColor:CP[0],pointBackgroundColor:CP[0],borderWidth:2.5,tension:.3,pointRadius:4,yAxisID:'y',order:1},
@@ -11987,7 +12207,7 @@ function buildDashCharts(){
   mkChart('cRevEb',{type:'bar',data:{labels,datasets:revDatasets},options:bO()});
 
   // ── 2. Scenario Net Income — always multi-year (comparison chart) ─────────
-  const scYrs=['2026','2027','2028','2029','2030'];
+  const scYrs=Array.from({length:5},(_,i)=>String(_CY+i));
   const ni=plLines.find(l=>l.id==='net_inc');
   mkChart('cScNI',{type:'line',data:{labels:scYrs,datasets:Object.entries(scenarios).map(([n,s])=>({label:n,data:scYrs.map(y=>Math.round(ni.vals[YEARS.indexOf(y)]*(1+(s.eb||0)/100))),borderColor:s.color,backgroundColor:'transparent',borderWidth:n===activeSc?3:1.5,tension:.3,pointRadius:4,borderDash:n===activeSc?[]:[5,3]}))},options:bO()});
 
@@ -12012,7 +12232,7 @@ function buildDashCharts(){
   mkChart('cOM',{type:'bar',data:{labels,datasets:omCats.map((id,i)=>({label:omLabels[i],data:_pData(omR.find(r=>r.id===id)?.vals||[]),backgroundColor:CP[i]+'99',stack:'s'}))},options:{...bO(),scales:{x:{ticks:{color:_TC.muted,font:{size:9}},grid:{color:_TC.grid},stacked:true},y:{stacked:true,ticks:{color:_TC.muted,font:{size:9},callback:v=>toK(v)},grid:{color:_TC.grid}}}}});
 
   // ── 5. Depreciation by component — period-aware, selected year ───────────
-  {const _dc=depreciationComponents[yr]||depreciationComponents[2026]||{};
+  {const _dc=depreciationComponents[yr]||depreciationComponents[_CY]||{};
   const _dk=['faRegister','sjpc','otherLeases','capexTransfers','capitalSpares','decommissioning','strandedMeters','strandedLights','impairment'];
   const _dl=['FA Register','SJPC','Leases','CX Transfers','Cap Spares','Decommission.','Str. Meters','Str. Lights','Impairment'];
   const _dclr=['rgba(139,92,246,.8)','rgba(59,130,246,.8)','rgba(16,185,129,.8)','rgba(245,158,11,.8)','rgba(239,68,68,.8)','rgba(20,184,166,.8)','rgba(249,115,22,.8)','rgba(168,85,247,.8)','rgba(236,72,153,.8)'];
@@ -12099,12 +12319,12 @@ function buildScPanel(){
         <button class="btn btn-gold" style="font-size:9px;height:20px;padding:0 7px" onclick="event.stopPropagation();setScenario('${n}')">▶ Activate</button>
       </div>
     </div>`).join('');
-  const scYrs=['2026','2027','2028','2029','2030'];
+  const scYrs=Array.from({length:5},(_,i)=>String(_CY+i));
   const ebi=plLines.find(l=>l.id==='ebitda'),ni=plLines.find(l=>l.id==='net_inc');
   mkChart('cScEb',{type:'line',data:{labels:scYrs,datasets:Object.entries(scenarios).map(([n,s])=>({label:n,data:scYrs.map(y=>Math.round(ebi.vals[YEARS.indexOf(y)]*(1+(s.eb||0)/100))),borderColor:s.color,backgroundColor:'transparent',borderWidth:n===activeSc?3:1.5,tension:.3,pointRadius:4,borderDash:n===activeSc?[]:[5,3]}))},options:bO()});
   mkChart('cScNI2',{type:'line',data:{labels:scYrs,datasets:Object.entries(scenarios).map(([n,s])=>({label:n,data:scYrs.map(y=>Math.round(ni.vals[YEARS.indexOf(y)]*(1+(s.eb||0)/100))),borderColor:s.color,backgroundColor:'transparent',borderWidth:n===activeSc?3:1.5,tension:.3,pointRadius:4,borderDash:n===activeSc?[]:[5,3]}))},options:bO()});
   const scNames=Object.keys(scenarios);
-  const _scYr = dashYear || 2026;
+  const _scYr = dashYear || _CY;
   const _scIdx = YEARS.indexOf(String(_scYr));
   const _scI = _scIdx >= 0 ? _scIdx : 4;
   document.getElementById('scCH').innerHTML=`<tr><th style="text-align:left;min-width:180px">Metric | ${_scYr}</th>${scNames.map(n=>`<th class="bc">${n}</th>`).join('')}</tr>`;
@@ -12131,7 +12351,7 @@ function delSc(n){if(!confirm('Delete "'+n+'"?'))return;delete scenarios[n];cons
 // ═══════════════════════════════════════════════════════
 function buildCommCards(){
   const ebi=plLines.find(l=>l.id==='ebitda'); const ni=plLines.find(l=>l.id==='net_inc');
-  const _cyr = dashYear || 2026;
+  const _cyr = dashYear || _CY;
   const _cyIdx = YEARS.indexOf(String(_cyr));
   const _ci = _cyIdx >= 0 ? _cyIdx : 4;
   const _piIdx = Math.max(0, _ci - 1); // prior year index
@@ -12189,45 +12409,77 @@ function addBotMsg(msg){
 }
 
 function getFinancialContext(){
-  const ebi=plLines.find(l=>l.id==='ebitda');
-  const ni=plLines.find(l=>l.id==='net_inc');
-  const omTot=sumArr(getOMTotal(2026));
-  const cxTot=sumArr(getCxTotal(2026));
-  const rec=sumArr(getCashReceipts(2026));
-  return `JPS Financial Context (February 2026 Latest Estimate):
+  // All values computed live from in-memory data — no hardcoded figures
+  const cyIdx = YEARS.indexOf(String(_CY));   // current year index in plLines.vals
+  const pyIdx = YEARS.indexOf(String(_PY));   // prior year index
+  const omTot = sumArr(getOMTotal(_CY));
+  const cxTot = sumArr(getCxTotal(_CY));
+  const rec   = sumArr(getCashReceipts(_CY));
+
+  const getV = (id, idx) => {
+    const l = plLines.find(l=>l.id===id);
+    return (idx >= 0 && l) ? (l.vals[idx] || 0) : 0;
+  };
+
+  // Current year live values
+  const cyEBITDA   = getV('ebitda',   cyIdx);
+  const cyNetInc   = getV('net_inc',  cyIdx);
+  const cyNonFuel  = getV('nonfuel',  cyIdx);
+  const cyFuelRev  = getV('fuel_rev', cyIdx);
+  const cyDepn     = getV('depn',     cyIdx);
+
+  // Prior year values (for YoY variance)
+  const pyEBITDA   = getV('ebitda',   pyIdx);
+  const pyNetInc   = getV('net_inc',  pyIdx);
+  const pyOmTot    = sumArr(getOMTotal(_PY));
+
+  // YoY variances — only emit if prior year has data
+  const hasData    = v => v !== 0;
+  const varLine    = (label, cy, py, fav=true) => {
+    if (!hasData(py)) return `- ${label}: ${cy ? '$'+Math.round(cy).toLocaleString()+'k' : 'No data'}`;
+    const d = cy - py;
+    const pct = py ? ((d/Math.abs(py))*100).toFixed(1) : '—';
+    const dir = d >= 0 ? '+' : '';
+    return `- ${label}: ${dir}$${Math.round(d).toLocaleString()}k / ${dir}${pct}% YoY`;
+  };
+
+  // Active reporting period label
+  const latestClosedMo = fpa.latestClosedMonth?.(_CY) || cfSelectedMonth;
+  const periodLabel = `${MONTHS[latestClosedMo-1]} ${_CY} Latest Estimate (LE)`;
+
+  // Margin (guard against zero revenue)
+  const cyTotalRev = cyNonFuel + cyFuelRev;
+  const ebitdaMargin = cyTotalRev > 0 ? ((cyEBITDA / cyTotalRev) * 100).toFixed(1) + '%' : 'n/a';
+
+  return `JPS Financial Context (${periodLabel}):
 - Company: Jamaica Public Service Company Limited
-- Reporting Period: February 2026 Latest Estimate (LE)
+- Reporting Period: ${periodLabel}
+- Active Plan Year: ${planYear} | Active Actuals Year: ${actualsYear}
 - Currency: USD $'000 unless stated
-- FX Rate: ${fx()} J$/US$
+- FX Rate: ${fx()||'not loaded'} J$/US$
 - Active Scenario: ${activeSc}
 
-Key Financials 2026 Budget:
-- Non-Fuel Revenue: $340,501k
-- Fuel Revenue: $146,369k
-- Total EBITDA: $${plLines.find(l=>l.id==='ebitda').vals[4].toLocaleString()}k (${activeSc !== 'Base Case' ? 'adjusted for '+activeSc : 'base case'})
-- EBITDA Margin: ~38.1%
-- Total Depreciation: $125,770k (source: Depreciation_February_2026_LE_revised.xlsx; includes SJPC $22.6M, Lease Assets $15.5M, CapEx transfers $14.4M from Feb 2026)
-- Net Income: $${plLines.find(l=>l.id==='net_inc').vals[4].toLocaleString()}k
-- Total O&M: $${Math.round(omTot).toLocaleString()}k (source: O_M_February_2026_LE.xlsm; 17 categories; Payroll $65.2M = 36% of total)
-- Total CapEx: $${Math.round(cxTot).toLocaleString()}k (source: Capex_February_2026_LE.xlsx; includes Hurricane Melissa restoration ~$28M, Distribution upgrade $23M)
-- Annual Cash Receipts: $${Math.round(rec).toLocaleString()}k; Blended collection rate 94.1%
+Key Financials ${_CY} Budget/LE:
+- Non-Fuel Revenue: $${Math.round(cyNonFuel).toLocaleString()}k
+- Fuel Revenue: $${Math.round(cyFuelRev).toLocaleString()}k
+- Total Revenue: $${Math.round(cyTotalRev).toLocaleString()}k
+- Total EBITDA: $${Math.round(cyEBITDA).toLocaleString()}k (${activeSc !== 'Base Case' ? 'adjusted for '+activeSc : 'base case'})
+- EBITDA Margin: ${ebitdaMargin}
+- Total Depreciation: $${Math.round(Math.abs(cyDepn)).toLocaleString()}k
+- Net Income: $${Math.round(cyNetInc).toLocaleString()}k
+- Total O&M: $${Math.round(omTot).toLocaleString()}k
+- Total CapEx: $${Math.round(cxTot).toLocaleString()}k
+- Annual Cash Receipts: $${Math.round(rec).toLocaleString()}k
 
-2025 Actuals vs 2026 Budget Variances:
-- EBITDA: +$15.9M / +7.0% improvement
-- Net Income: +$25.2M / +126% recovery
-- Depreciation: -$19.3M favourable (hurricane impairment not recurring)
-- O&M: +$4.3M adverse vs 2025 actuals (inflation + restoration costs)
+${_PY} vs ${_CY} YoY Variances:
+${varLine('EBITDA', cyEBITDA, pyEBITDA)}
+${varLine('Net Income', cyNetInc, pyNetInc)}
+${varLine('O&M (adverse if positive)', omTot, pyOmTot, false)}
+Note: YoY variances show "No data" for the prior year when actuals have not been uploaded.
 
-Key Files Loaded:
-1. O_M_February_2026_LE.xlsm — Monthly O&M actuals Jan-Feb, budget Mar-Dec 2026
-2. Capex_February_2026_LE.xlsx — CapEx by division 2013–2030
-3. Depreciation_February_2026_LE_revised.xlsx — 32 asset lines, SJPC/Lease/CapEx transfers
-4. Leased_Asset_Adjustments_February_2026_LE.xlsx — IFRS-16 P&L and BS impact
-5. Sales_Generation_February_2026_LE.xlsx — AOP 2026 monthly GWh, customers, billings
-6. System_Control_February_2026_LE.xlsm — Generation unit capacity (MW)
-7. Cash_Flow_Feb_2025_LE_v2.xlsx — Direct cash flow 2025–2027
+Data Status: ${Object.keys(fpa.facts).length} version codes loaded, ${fpa.lines.length} GL lines, ${fpa.versions.length} versions.
 
-Respond as a professional utility sector FP&A analyst. Be concise, specific, and reference the source data files where relevant.`;
+Respond as a professional utility sector FP&A analyst. Be concise and specific. Note when data is unavailable rather than citing estimated or stale figures.`;
 }
 
 // ── Claude AI helpers ────────────────────────────────────────────────────────
@@ -12413,7 +12665,7 @@ async function generateExecSummary() {
   el.innerHTML='<em style="color:var(--muted)">Generating executive commentary…</em>';
   try {
     const txt = await _claudeFetch(getFinancialContext(),
-      'Draft a professional executive commentary for the March 2026 Latest Estimate. Structure: (1) Overview, (2) Revenue performance, (3) Operating costs, (4) EBITDA and Net Income, (5) Capital programme and depreciation, (6) Cash position, (7) Outlook. Use <strong> tags and <br> breaks. Board-level, concise, specific numbers.', 1000);
+      `Draft a professional executive commentary for the ${MONTHS[activeMonth-1]||'Latest'} ${_CY} Latest Estimate. Structure: (1) Overview, (2) Revenue performance, (3) Operating costs, (4) EBITDA and Net Income, (5) Capital programme and depreciation, (6) Cash position, (7) Outlook. Use <strong> tags and <br> breaks. Board-level, concise, specific numbers.`, 1000);
     el.innerHTML = _fmtAI(txt);
   } catch(e) { _aiErr(el, e); toast(e.message,'err'); }
   btn.classList.remove('show');
@@ -12425,7 +12677,7 @@ async function generateVarComm() {
   el.innerHTML='<em style="color:var(--muted)">Generating variance commentary…</em>';
   try {
     const txt = await _claudeFetch(getFinancialContext(),
-      'Write a concise variance commentary: 2026 Budget vs 2025 Actuals. Key drivers: EBITDA (+$15.9M/+7%), Net Income (+$25.2M/+126%), depreciation (-$19.3M), O&M movement. Specific numbers. 3-4 paragraphs.', 800);
+      `Write a concise variance commentary: ${_CY} Budget vs ${_PY} Actuals. Use the financial data provided in context. Key focus areas: EBITDA, Net Income, depreciation, O&M movement. Specific numbers. 3-4 paragraphs.`, 800);
     el.innerHTML = _fmtAI(txt);
   } catch(e) { _aiErr(el, e); toast(e.message,'err'); }
   btn.classList.remove('show');
@@ -12496,7 +12748,7 @@ function buildGuide(){
     {n:'1. Platform Overview',c:'var(--teal)',body:`
       <p>Single-file HTML application — the central FP&A tool for JPS Finance. All outputs (P&L, BS, CF, Variance) derive automatically from assumption inputs. No editing of report tabs directly.</p>
       <p><strong>Data Flow:</strong> Actuals Upload → actualsStore → Assumptions Tabs → Calculation Engines → Report Tabs</p>
-      <p><strong>Years Covered:</strong> Actuals 2022–2025 | Current LE: 2026 | Projections: 2027–2030</p>`},
+      <p><strong>Years Covered:</strong> Actuals ${_CY-4}–${_PY} | Current LE: ${_CY} | Projections: ${_CY+1}–${_CY+4}</p>`},
     {n:'2. Revenue Engine',c:'var(--blue)',body:`
       <p><strong>Total Revenue = Non-Fuel Revenue + Fuel Revenue</strong></p>
       <div class="gf">FuelRev[m] = FuelCost[m-1] &nbsp;(1-month OUR recovery lag)</div>
@@ -12535,13 +12787,13 @@ property leases → omLine: 'building'  → Building row credit
 IPP leases      → omLine: 'ipp'       → IPP Cost credit (not O&M)</div>
       <p>In ass-om: Transport and Building rows each show an inline ↳ IFRS-16 Credit sub-row (teal, derived) and a Net row. Bottom totals show Total Gross O&M / Total IFRS-16 Credits / Net O&M (after IFRS-16).</p>
       <p><strong>Insurance row:</strong> Monthly P&L = smooth (annual÷12). Cash = lumpy from insurancePolicies register. Difference = Prepaid Asset on Balance Sheet (§2B in ass-other).</p>
-      <p>Growth rate column (2027–2030): enter % to auto-scale all 12 months vs 2026 base.</p>`},
+      <p>Growth rate column (future years): enter % to auto-scale all 12 months vs current year base.</p>`},
     {n:'8. CapEx & Collections',c:'var(--green)',body:`
       <p><strong>CapEx Categories:</strong> cx_gen, cx_tx, cx_dist, cx_hurr, cx_cust, cx_loss, cx_ss</p>
       <p>Three derived schedules: Spend Plan | Cash Payment (payLag months) | CWIP→PP&E Transfer (tLag months)</p>
       <div class="gf">DSO = (Closing Receivables ÷ Monthly Billing) × 30</div>
       <p><strong>Collections:</strong> billing, cr_rt10/20/40, blended rate, prior period, GCT, total receipts, DSO</p>
-      <p>Growth rate column (2027–2030): enter % to auto-scale all 12 months vs 2026 base.</p>`},
+      <p>Growth rate column (future years): enter % to auto-scale all 12 months vs current year base.</p>`},
     {n:'9. Depreciation & Impairment',c:'var(--muted)',body:`
       <p><strong>8 Components (IAS 16):</strong> FA Register ($66.7M) | SJPC ($22.6M) | Other Leases ($15.5M, auto from IFRS 16) | CapEx Transfers ($14.4M) | Capital Spares ($0.4M) | Decommissioning ($1.1M) | Stranded Meters | Stranded Lights ($0.15M)</p>
       <p style="color:var(--amber)"><strong>Impairment (IAS 36) — ALWAYS a separate amber line.</strong> Never combined with depreciation.</p>
@@ -12577,7 +12829,7 @@ ROU Depreciation = Opening ROU ÷ total months</div>
         <li>Override LE values in all reports with the uploaded actuals</li>
       </ul>
       <p><strong>To re-upload / correct actuals:</strong> Upload a corrected file for the same month — the upsert overwrites the previous data and keeps the period locked.</p>
-      <p><strong>FX rates:</strong> Jan–Mar 2026 are locked as actuals (teal, read-only). Apr onwards are projected (gold, editable). All years 2027–2030 default to projected. Update actuals monthly in <code>fpa_assumptions</code> under category <code>fx_billing</code> / <code>fx_expense</code>.</p>
+      <p><strong>FX rates:</strong> Closed months are locked as actuals (teal, read-only). Open months are projected (gold, editable). Future years default to projected. Update actuals monthly in <code>fpa_assumptions</code> under category <code>fx_billing</code> / <code>fx_expense</code>.</p>
       <p><strong>Net Generation &amp; Fuel Costs</strong> override LE values for the uploaded month; all downstream calculations (IPP cost, fuel revenue lag, heat rate) update automatically.</p>`},
     {n:'15. Themes, Permissions & AI Key',c:'var(--muted)',body:`
       <p><strong>3 Themes:</strong> ☾ Dark (default) | ☀ Light | ⚡ JPS Corporate (navy #003DA5, cyan #00AEEF)</p>
@@ -12792,7 +13044,7 @@ const _tabBuilders = {
   'wrk-gen':   ()=>{ buildGenTables(); },
   'wrk-coll':  ()=>{ initYrSegs(); computeAll(selectedCollYear); buildCollTable(); },
   'wrk-debt':  ()=>{ buildDebtTab(); },
-  'wrk-leases':()=>{ [2026,2027,2028,2029,2030].forEach(y=>computeAllLeases(y)); buildLeaseRegister(); },
+  'wrk-leases':()=>{ Array.from({length:5},(_,i)=>_CY+i).forEach(y=>computeAllLeases(y)); buildLeaseRegister(); },
   'ass-rev':   ()=>{ buildRevEngine(); },
   'ass-om':    ()=>{ initYrSegs(); buildOMTable(); },
   'ass-capex': ()=>{ initYrSegs(); buildCapexTable(); },
@@ -12913,7 +13165,7 @@ function _applyTabVisibility() {
 }
 
 function setPeriod(p,btn){const prev=period;period=p;document.querySelectorAll('#perSeg .sb').forEach(b=>b.classList.remove('on'));btn?.classList.add('on');refreshAll();auditLog('period','Display Period',prev,p);_saveState();}
-function setDashYear(yr){dashYear=parseInt(yr)||2026;const sel=document.getElementById('dashYrSel');if(sel&&parseInt(sel.value)!==dashYear)sel.value=String(dashYear);requestAnimationFrame(()=>{buildDashKpis();buildDashCharts();});}
+function setDashYear(yr){dashYear=parseInt(yr)||_CY;const sel=document.getElementById('dashYrSel');if(sel&&parseInt(sel.value)!==dashYear)sel.value=String(dashYear);requestAnimationFrame(()=>{buildDashKpis();buildDashCharts();});}
 
 // ── Month-option builder: populates a <select> with all 12 months for the given year ──
 // For CF: all months enabled. For Variance: enabled only if actuals exist for that month.
@@ -12932,7 +13184,7 @@ function _rebuildMoOpts(selId, yr, selVal, opts){
 }
 
 function setCfYear(yr) {
-  cfYear = parseInt(yr) || 2026;
+  cfYear = parseInt(yr) || _CY;
   const sel = document.getElementById('cfYrSel');
   if (sel && parseInt(sel.value) !== cfYear) sel.value = String(cfYear);
   _rebuildMoOpts('cfMo', cfYear, cfSelectedMonth);
@@ -12940,17 +13192,17 @@ function setCfYear(yr) {
 }
 
 function setVarYear(yr) {
-  varYear = parseInt(yr) || 2026;
+  varYear = parseInt(yr) || _CY;
   const sel = document.getElementById('varYrSel');
   if (sel && parseInt(sel.value) !== varYear) sel.value = String(varYear);
-  _rebuildMoOpts('varMo', varYear, document.getElementById('varMo')?.value, { varMode: true });
+  rebuildVarMonthDropdown();  // rebuild month options enabled/disabled per closed periods
   buildVarReport();
 }
 
 // Shared year-selector option builder for CF / Var / other panes
 function _yrOpts(selected) {
-  return [2022,2023,2024,2025,2026,2027,2028,2029,2030].map(y =>
-    `<option value="${y}"${y === selected ? ' selected' : ''}>${y}</option>`
+  return YEARS.map(y =>
+    `<option value="${y}"${parseInt(y) === selected ? ' selected' : ''}>${y}</option>`
   ).join('');
 }
 
@@ -12967,7 +13219,7 @@ function setActiveMonth(m){
   if (brandSub) {
     const verCode = fpa?.versions?.find(v=>v.id===fpa.activeVersionId)?.code || '';
     const verLabel = verCode.startsWith('LE_') ? `LE ${verCode.replace('LE_','').replace('_',' ')}` : verCode || 'LE';
-    brandSub.textContent = `Jamaica Public Service Co. · ${MO_SHORT[activeMonth-1]} 2026 ${verLabel}`;
+    brandSub.textContent = `Jamaica Public Service Co. · ${MO_SHORT[activeMonth-1]} ${_CY} ${verLabel}`;
   }
   refreshAll();
   _saveState();
@@ -13066,7 +13318,7 @@ function navToDataManager(){
   const dmTab=adminTabs[0]||null;
   showPane('adm-data',dmTab);
 }
-function exportCSV(){const rows=[['Year','Line','Section','2022','2023','2024','2025','2026','2027','2028']];plLines.forEach(l=>rows.push([YEARS[0],l.name,l.sect,...l.vals.slice(0,7)]));const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='JPS_FPA_Export_'+activeSc.replace(/ /g,'_')+'.csv';a.click();toast('Exported','ok');}
+function exportCSV(){const hdr=['Year','Line','Section',...YEARS];const rows=[hdr];plLines.forEach(l=>rows.push([YEARS[0],l.name,l.sect,...l.vals.slice(0,9)]));const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='JPS_FPA_Export_'+activeSc.replace(/ /g,'_')+'.csv';a.click();toast('Exported','ok');}
 
 // ── O&M Export ────────────────────────────────────────────────────────────────
 function exportOMCSV(){
@@ -13111,7 +13363,7 @@ function exportCollCSV(){
 function exportCFCSV(){
   const rows=[['Line Item','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Total']];
   // Pull from directCFSeed if available, otherwise use model data
-  const yr=cfYear||2026;
+  const yr=cfYear||_CY;
   const om=getOMTotal(yr), cx=getCxCash(yr), rec=getCashReceipts(yr);
   const entries=[
     ['Cash Receipts',...rec.map(v=>Math.round(v))],
@@ -13246,7 +13498,7 @@ function executePrint() {
 
 function _getPrintPeriodLabel() {
   // Build human-readable period label from actuals loaded + current period setting
-  const yr = plMonthlyYear || 2026;
+  const yr = plMonthlyYear || _CY;
   const loadedMos = Object.keys(actualsStore[yr] || {}).map(Number).filter(m=>m>0).sort((a,b)=>a-b);
   if (loadedMos.length) {
     const last = loadedMos[loadedMos.length-1];
@@ -13338,21 +13590,22 @@ const _tariffBaseline = JSON.parse(JSON.stringify(tariffTable));
 // Multi-year structure: years[yr].billing/expense = 12-element arrays
 // source[mo] = 'actual' (locked, from Supabase) | 'projected' (editable)
 const _zfx = () => Array(12).fill(0);
+const _mkFxYears = () => {
+  const o = {};
+  Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{
+    o[y] = { billing: _zfx(), expense: _zfx(), source: Array(12).fill('projected') };
+  });
+  return o;
+};
 let fxTable = {
   billing: _zfx(), expense: _zfx(),
-  years: {
-    2026: { billing: _zfx(), expense: _zfx(), source: Array(12).fill('projected') },
-    2027: { billing: _zfx(), expense: _zfx(), source: Array(12).fill('projected') },
-    2028: { billing: _zfx(), expense: _zfx(), source: Array(12).fill('projected') },
-    2029: { billing: _zfx(), expense: _zfx(), source: Array(12).fill('projected') },
-    2030: { billing: _zfx(), expense: _zfx(), source: Array(12).fill('projected') },
-  },
+  years: _mkFxYears(),
 };
 // Helper: get FX rate for any year+month combination — DB-backed, zero fallback
 function getFxRate(yr, mo, type='billing') {
   return fxTable.years[yr]?.[type]?.[mo] || fxTable[type]?.[mo] || 0;
 }
-let selectedFxYear = 2026;
+let selectedFxYear = _CY;
 
 // Fuel revenue by month — zeroed; populated from uploads/fpa.facts
 const fuelRevByMonth = Array(12).fill(0);
@@ -13521,14 +13774,14 @@ function buildRevBridgeChart() {
   const baseVol   = volumeTable;
   // ARCHITECTURAL RULE: FX rates must come from DB. No hardcoded fallback.
   const fxCur = fxTable.billing[mo] || 0;
-  const fxBud = netFinancingRows[2026]?.budgetFX?.[mo] || 0; // budget FX from DB
+  const fxBud = netFinancingRows[_CY]?.budgetFX?.[mo] || 0; // budget FX from DB
   // Volume effect: use budget tariff but actual volume vs budget volume
   // We approximate using proportional GWh change × budget tariff / fx
   const actMwh = Object.values(volumeTable).reduce((s,v)=>s+(v.mwh?.[mo]||0),0);
   const budMwh = actMwh; // same (no separate budget volume stored) — set to 0 for now
   const volEffect  = (() => {
     // Volume effect: actual billed MWh vs LE billed MWh × LE tariff per MWh
-    const leMWhFull = calcBilledSales(2026)[mo]; // LE billed MWh for this month
+    const leMWhFull = calcBilledSales(_CY)[mo]; // LE billed MWh for this month
     const leNFUSD   = leNonFuelByMonth[mo] || 0;
     const leTariffPerMWh = leMWhFull > 0 ? (leNFUSD / leMWhFull) * 1000 : 0;
     // actMwh is already computed above from volumeTable
@@ -13840,14 +14093,14 @@ function updVol3(inp) { auditLog('vol-edit',`Volume · ${inp.dataset?.cls||''} �
 // ── FX Table — multi-year with actuals vs projections ────────────────────────
 function buildFxTable3() {
   const yr = selectedFxYear;
-  const yrData = fxTable.years[yr] || fxTable.years[2026];
+  const yrData = fxTable.years[yr] || fxTable.years[_CY];
   const avgBill = (yrData.billing.reduce((s,v)=>s+v,0)/12).toFixed(2);
   const avgExp  = (yrData.expense.reduce((s,v)=>s+v,0)/12).toFixed(2);
   // Year selector
   const yrSel = document.getElementById('fxYearSel');
   if(yrSel && !yrSel._built){
     yrSel._built=true;
-    [2026,2027,2028,2029,2030].forEach(y=>{
+    Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{
       const o=document.createElement('option'); o.value=y; o.textContent=y; yrSel.appendChild(o);
     });
     yrSel.value=yr;
@@ -13885,8 +14138,8 @@ function updFx3(inp) {
   auditLog('fx-edit',`FX Rate · ${MONTHS[mo]} ${yr} · ${type}`,fxTable.years[yr]?.[type]?.[mo],v);
   if(!fxTable.years[yr]) fxTable.years[yr]={billing:Array(12).fill(0),expense:Array(12).fill(0),source:Array(12).fill('projected')};
   fxTable.years[yr][type][mo] = v;
-  // Keep 2026 top-level slice in sync for revenue engine
-  if(yr===2026) fxTable[type][mo] = v;
+  // Keep _CY top-level slice in sync for revenue engine
+  if(yr===_CY) fxTable[type][mo] = v;
   buildRevKpis3(); buildRevBridgeChart(); buildRevTrendChart(); buildRevClassTable(); buildRevDerived();
   toast('FX updated → Revenue recalculated','ok');
 }
@@ -13929,29 +14182,19 @@ function buildRevKpis() { buildRevKpis3(); }
 //  SESSION 5 DATA — Other Income, Appropriations, Tax
 // ═══════════════════════════════════════════════════════
 let otherIncomeRows = [
-  {id:'ins_rec',    name:'Insurance Recoveries',           taxable:true,  cashItem:true,  cashLag:0,
-   vals:{2026:[0,0,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
-  {id:'asset_disp', name:'Gain/(Loss) on Asset Disposal',  taxable:true,  cashItem:true,  cashLag:0,
-   vals:{2026:[0,0,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
-  {id:'inv_sale',   name:'Sale of Inventory/Scrap',        taxable:true,  cashItem:true,  cashLag:0,
-   vals:{2026:_z12(),2027:_z12(),2028:_z12(),2029:_z12(),2030:_z12()}},
-  {id:'other_tax',  name:'Other Taxable Income/(Expense)', taxable:true,  cashItem:true,  cashLag:0,
-   vals:{2026:[0,0,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
-  {id:'div_rec',    name:'Dividend Received',              taxable:false, cashItem:true,  cashLag:0,
-   vals:{2026:_z12(),2027:_z12(),2028:_z12(),2029:_z12(),2030:_z12()}},
-  {id:'fx_gain',    name:'FX Gains/(Losses)',              taxable:false, cashItem:false, cashLag:0,
-   vals:{2026:_z12(),2027:_z12(),2028:_z12(),2029:_z12(),2030:_z12()}},
-  {id:'other_nontax',name:'Other Non-Taxable Inc/(Exp)', taxable:false, cashItem:false, cashLag:0,
-   vals:{2026:[0,0,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
+  {id:'ins_rec',    name:'Insurance Recoveries',           taxable:true,  cashItem:true,  cashLag:0, vals:_z5yrs()},
+  {id:'asset_disp', name:'Gain/(Loss) on Asset Disposal',  taxable:true,  cashItem:true,  cashLag:0, vals:_z5yrs()},
+  {id:'inv_sale',   name:'Sale of Inventory/Scrap',        taxable:true,  cashItem:true,  cashLag:0, vals:_z5yrs()},
+  {id:'other_tax',  name:'Other Taxable Income/(Expense)', taxable:true,  cashItem:true,  cashLag:0, vals:_z5yrs()},
+  {id:'div_rec',    name:'Dividend Received',              taxable:false, cashItem:true,  cashLag:0, vals:_z5yrs()},
+  {id:'fx_gain',    name:'FX Gains/(Losses)',              taxable:false, cashItem:false, cashLag:0, vals:_z5yrs()},
+  {id:'other_nontax',name:'Other Non-Taxable Inc/(Exp)', taxable:false, cashItem:false, cashLag:0, vals:_z5yrs()},
 ];
 
 let appropriationRows = [
-  {id:'div_pref', name:'Preference Dividends Paid',
-   vals:{2026:_z12(),2027:_z12(),2028:_z12(),2029:_z12(),2030:_z12()}},
-  {id:'div_ord',  name:'Ordinary Dividends Paid',
-   vals:{2026:[0,0,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
-  {id:'reserve',  name:'Transfer to Reserves',
-   vals:{2026:[0,0,0,0,0,0,0,0,0,0,0,0],2027:[0,0,0,0,0,0,0,0,0,0,0,0],2028:[0,0,0,0,0,0,0,0,0,0,0,0],2029:[0,0,0,0,0,0,0,0,0,0,0,0],2030:[0,0,0,0,0,0,0,0,0,0,0,0]}},
+  {id:'div_pref', name:'Preference Dividends Paid',   vals:_z5yrs()},
+  {id:'div_ord',  name:'Ordinary Dividends Paid',     vals:_z5yrs()},
+  {id:'reserve',  name:'Transfer to Reserves',        vals:_z5yrs()},
 ];
 
 // ARCHITECTURAL RULE: tax rate must come from DB (fpa_assumptions). No hardcoded fallback.
@@ -13981,16 +14224,12 @@ function calcTax(yr, month) {
 }
 
 // ── Generation Data Arrays ──────────────────────────────
-// Zeroed — populated from AOP_2026 assumptions in Supabase (fpaApplyToLegacyGlobals overwrites on load)
+// Zeroed — populated from AOP assumptions in Supabase (fpaApplyToLegacyGlobals overwrites on load)
 const _zg = () => ({ jps_thermal:_z12(), old_harbour:_z12(), renewables:_z12(), ipp:_z12() });
-let netGenTable = {
-  2026: _zg(), 2027: _zg(), 2028: _zg(), 2029: _zg(), 2030: _zg(),
-};
+let netGenTable = {}; Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{ netGenTable[y]=_zg(); });
 
 // sysLossTable — zeroed. Populate from uploads.
-let sysLossTable = {
-  2026:_z12(), 2027:_z12(), 2028:_z12(), 2029:_z12(), 2030:_z12(),
-};
+let sysLossTable = {}; Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{ sysLossTable[y]=_z12(); });
 
 // heatRateTable — zeroed. Populated from fpa_assumptions (category=heat_rate) in bootstrap.
 // Values are in GJ/MWh; UI multiplies by 3.6 to convert to kJ/kWh.
@@ -13998,20 +14237,20 @@ let heatRateTable = { jps_thermal: 0, old_harbour: 0, ipp_thermal: 0, system_avg
 
 // fuelPriceTable — zeroed. Populate from uploads.
 let fuelPriceTable = {};
-[2026,2027,2028,2029,2030].forEach(yr=>{
+Array.from({length:5},(_,i)=>_CY+i).forEach(yr=>{
   fuelPriceTable[yr]={hfo:_z12(),lng:_z12(),ado:_z12()};
 });
 
-let selectedGenYear = 2026;
-let selectedRevYear = 2026;
+let selectedGenYear = _CY;
+let selectedRevYear = _CY;
 let selectedRevMonth = 0;
 
 // fuelCostByMonth — zeroed. Populate from uploads.
 const fuelCostByMonth = {};
-[2026,2027,2028,2029,2030].forEach(yr=>{ fuelCostByMonth[yr]=_z12(); });
+Array.from({length:5},(_,i)=>_CY+i).forEach(yr=>{ fuelCostByMonth[yr]=_z12(); });
 // fuelRevByYear — zeroed until fuel costs are loaded
 const fuelRevByYear = {};
-[2026,2027,2028,2029,2030].forEach(yr=>{ fuelRevByYear[yr]=_z12(); });
+Array.from({length:5},(_,i)=>_CY+i).forEach(yr=>{ fuelRevByYear[yr]=_z12(); });
 
 function setRevYear(yr, btn) {
   selectedRevYear = yr;
@@ -14041,7 +14280,7 @@ function calcNetGen(yr) {
 }
 function calcBilledSales(yr) {
   const ng = calcNetGen(yr);
-  const sl = sysLossTable[yr] || sysLossTable[2026];
+  const sl = sysLossTable[yr] || sysLossTable[_CY];
   return ng.map((v,i)=>Math.round(v*(1-(sl[i]||0)/100)));
 }
 function calcLossMWh(yr) {
@@ -14052,9 +14291,9 @@ function calcLossMWh(yr) {
 // ── Generation Tab Builders ────────────────────────────
 function buildGenTables() {
   const yr = selectedGenYear;
-  const ng = netGenTable[yr] || netGenTable[2026];
-  const sl = sysLossTable[yr] || sysLossTable[2026];
-  const fp = fuelPriceTable[yr] || fuelPriceTable[2026];
+  const ng = netGenTable[yr] || netGenTable[_CY];
+  const sl = sysLossTable[yr] || sysLossTable[_CY];
+  const fp = fuelPriceTable[yr] || fuelPriceTable[_CY];
   const bs = calcBilledSales(yr);
   const ng_total = calcNetGen(yr).map(v=>Math.round(v/1000*10)/10);
   const loss = calcLossMWh(yr).map(v=>Math.round(v/1000*10)/10);
@@ -14207,7 +14446,7 @@ function toggleOtherInc() {
 }
 
 function buildOtherIncTables() {
-  const yr = selectedOtherYear || 2026;
+  const yr = selectedOtherYear || _CY;
   const mkHead = () => `<tr><th style="text-align:left;min-width:200px">Line Item</th>${MONTHS.map(m=>`<th class="bc">${m}</th>`).join('')}<th class="bc">Total</th></tr>`;
   const mkRows = (rows) => rows.map(r => {
     const tot = (r.vals[yr]||[]).reduce((s,v)=>s+v,0);
@@ -14225,7 +14464,7 @@ function buildOtherIncTables() {
   document.getElementById('approprB').innerHTML = mkRows(appropriationRows);
 
   // Tax rate inputs
-  document.getElementById('taxRateInputs').innerHTML = [2026,2027,2028,2029,2030].map(y=>
+  document.getElementById('taxRateInputs').innerHTML = Array.from({length:5},(_,i)=>_CY+i).map(y=>
     `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
       <div style="font-size:9px;color:var(--muted);font-weight:700">${y}</div>
       ${can('editBase')
@@ -14259,7 +14498,7 @@ function updTaxRate(inp) {
 function buildOtherIncomeTables() { buildOtherIncTables(); }
 function buildTaxRateInputs() {
   const el = document.getElementById('taxRateInputs'); if (!el) return;
-  el.innerHTML = [2026,2027,2028,2029,2030].map(y=>
+  el.innerHTML = Array.from({length:5},(_,i)=>_CY+i).map(y=>
     `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
       <div style="font-size:9px;color:var(--muted);font-weight:700">${y}</div>
       ${can('editBase')
@@ -14307,8 +14546,8 @@ let ifrs16Leases = [];
 // Computed lease aggregates cache
 let leaseAggregates = {};
 let selectedLeaseId = null;
-let selectedLeaseAmortYear = 2026;
-let selectedLeaseAggYear = 2026;
+let selectedLeaseAmortYear = _CY;
+let selectedLeaseAggYear = _CY;
 let leaseDelTargetId = null;
 let leaseEditId = null;
 
@@ -14333,9 +14572,9 @@ function computeIFRS16Lease(lease, yr) {
   // Opening liability for this year (roll forward from commencementDate)
   let openLiab = lease.liabilityOpening;
   let openROU  = lease.rouAssetOpening;
-  // Roll forward if yr > 2026: need to run prior years
-  if (yr > 2026) {
-    for (let py = 2026; py < yr; py++) {
+  // Roll forward if yr > _CY: need to run prior years
+  if (yr > _CY) {
+    for (let py = _CY; py < yr; py++) {
       const pres = computeIFRS16Lease({...lease}, py);
       openLiab = pres.closingLiab[11] || 0;
       openROU  = pres.rouNBV[11] || 0;
@@ -14429,7 +14668,7 @@ function updLeaseManual(id, mo, val) {
   const oldVal = lease.manualVals[mo];
   lease.manualVals[mo] = parseFloat(val)||0;
   leaseAggregates = {};
-  [2026,2027,2028,2029,2030].forEach(y=>computeAllLeases(y));
+  Array.from({length:5},(_,i)=>_CY+i).forEach(y=>computeAllLeases(y));
   const MO2=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];auditLog('lease-edit',`Lease · ${id} · ${MO2[mo]}`,oldVal,lease.manualVals[mo]);
   buildLeaseRegister();
   toast('Manual expense updated','ok');
@@ -14547,7 +14786,7 @@ function buildLeaseAmortTable() {
 
   let tots = {i:0,p:0,rou:0,pl:0,cash:0};
   tbody.innerHTML = MONTHS.map((m,mi) => {
-    const openL = mi===0 ? (yr===2026?lease.liabilityOpening:computeIFRS16Lease(lease,yr-1).closingLiab[11]||0) : r.closingLiab[mi-1];
+    const openL = mi===0 ? (yr===_CY?lease.liabilityOpening:computeIFRS16Lease(lease,yr-1).closingLiab[11]||0) : r.closingLiab[mi-1];
     tots.i+=r.interest[mi];tots.p+=r.principal[mi];tots.rou+=r.rouDep[mi];tots.pl+=r.plCredit[mi];tots.cash+=r.cashPayment[mi];
     return `<tr class="der"><td style="text-align:left">${m}</td>
       <td>${fmtN(openL)}</td><td>${fmtN(r.interest[mi])}</td><td>${fmtN(r.principal[mi])}</td>
@@ -14847,7 +15086,7 @@ const _yrCbs = {};
 function buildYrSeg(containerId, currentYr, onSelect){
   const el=document.getElementById(containerId); if(!el)return;
   _yrCbs[containerId] = onSelect;
-  el.innerHTML=[2026,2027,2028,2029,2030].map(y=>
+  el.innerHTML=Array.from({length:5},(_,i)=>_CY+i).map(y=>
     `<button class="sb${y===currentYr?' on':''}" onclick="document.querySelectorAll('#${containerId} .sb').forEach(b=>b.classList.remove('on'));this.classList.add('on');_yrCbs['${containerId}'](${y},this)" style="height:24px;padding:0 10px;font-size:10px">${y}</button>`
   ).join('');
 }
@@ -14929,7 +15168,7 @@ function updDepComp(inp,yr){
 
 function buildDepAnnualSummary(){
   const compKeys=['faRegister','sjpc','otherLeases','capexTransfers','capitalSpares','decommissioning','strandedMeters','strandedLights','impairment'];
-  const yrs=[2026,2027,2028,2029,2030];
+  const yrs=Array.from({length:5},(_,i)=>_CY+i);
   const sh=document.getElementById('depSumH'); const sb=document.getElementById('depSumB');
   if(!sh||!sb)return;
   sh.innerHTML=`<tr><th style="text-align:left;min-width:220px">Component</th>${yrs.map(y=>`<th class="bc">${y}</th>`).join('')}</tr>`;
@@ -14949,7 +15188,21 @@ function buildDepAnnualSummary(){
   sb.innerHTML=html;
 }
 
-function openImpairModal(){document.getElementById('imp-name').value='';document.getElementById('imp-desc').value='';document.getElementById('imp-date').value='';document.getElementById('imp-charge').value='';document.getElementById('imp-reversal').value='';document.querySelectorAll('.imp-yr').forEach(cb=>cb.checked=false);openModal('impairModal');}
+function openImpairModal(){
+  document.getElementById('imp-name').value='';
+  document.getElementById('imp-desc').value='';
+  document.getElementById('imp-date').value='';
+  document.getElementById('imp-charge').value='';
+  document.getElementById('imp-reversal').value='';
+  // Rebuild "Affects Years" checkboxes dynamically (_PY through _CY+4)
+  const cbCont=document.getElementById('impYrCbs');
+  if(cbCont){
+    cbCont.innerHTML=Array.from({length:6},(_,i)=>_PY+i).map(y=>
+      `<label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text)"><input type="checkbox" class="imp-yr" value="${y}"> ${y}</label>`
+    ).join('');
+  }
+  openModal('impairModal');
+}
 function commitImpair(){
   if(!can('editDepreciation')){toast('Admin only','err');return;}
   const name=document.getElementById('imp-name').value.trim(); if(!name){toast('Enter event name','w');return;}
@@ -14973,7 +15226,7 @@ function exportDepCSV(){
 // ═══════════════════════════════════════════════════════
 //  OTHER & FINANCING ASSUMPTIONS TAB
 // ═══════════════════════════════════════════════════════
-let selectedOtherYear=2026;
+let selectedOtherYear=_CY;
 
 function buildOtherFinancing(){
   const yr=selectedOtherYear;
@@ -15128,7 +15381,7 @@ function calcInterestIncome(yr){
 
 // Call calcInterestIncome for all years on startup
 function initInterestIncome(){
-  [2026,2027,2028,2029,2030].forEach(y=>calcInterestIncome(y));
+  Array.from({length:5},(_,i)=>_CY+i).forEach(y=>calcInterestIncome(y));
 }
 function updOtherRev(inp,yr){ auditLog('other-edit',`Other Rev · ${inp.dataset?.k||''} · ${yr}`,null,inp.value);
   const id=inp.dataset.id, m=parseInt(inp.dataset.m), v=parseFloat(inp.value.replace(/,/g,''))||0;
@@ -15184,7 +15437,7 @@ function delCxRow(id,yr){yr=yr||selectedCapexYear;if(!confirm('Remove?'))return;
 // ═══════════════════════════════════════════════════════
 //  MONTHLY P&L VIEW
 // ═══════════════════════════════════════════════════════
-let plMonthlyYear=2026;
+let plMonthlyYear=_CY;
 let plViewMode='monthly';
 let plActualMode='le'; // 'le' | 'actual_le' | 'variance'
 
@@ -15207,7 +15460,7 @@ function setPLView(mode,btn){
 }
 
 // ── Balance Sheet view/mode controls ──────────────────────────────────────────
-let bsViewMode='monthly'; let bsMonthlyYear=2026; let bsActualMode='le';
+let bsViewMode='monthly'; let bsMonthlyYear=_CY; let bsActualMode='le';
 function setBSView(mode,btn){
   bsViewMode=mode;
   document.querySelectorAll('#bsViewSeg .sb').forEach(b=>b.classList.remove('on'));
@@ -15230,7 +15483,7 @@ function buildMonthlyBS(yr){
   buildYrSeg('bsMoYrSeg',yr,(y)=>{bsMonthlyYear=y;buildMonthlyBS(y);});
   const MO=MONTHS;
   const loadedMos=MO.map((_,m)=>_acts(m+1)).filter(Boolean);
-  const showAct=yr===2026&&bsActualMode==='actual_le'&&loadedMos.length>0;
+  const showAct=yr===_CY&&bsActualMode==='actual_le'&&loadedMos.length>0;
   document.getElementById('bsMonH').innerHTML=`<tr><th style="text-align:left;min-width:220px;position:sticky;left:0;background:var(--table-header-bg);color:var(--table-header-text);z-index:2">Line Item</th>${MO.map(m=>`<th class="bc">${m}</th>`).join('')}<th class="bc">Total / EoY</th></tr>`;
   let body='';
   let sect='';
@@ -15244,7 +15497,7 @@ function buildMonthlyBS(yr){
         const actField=bsMap[l.id];
         if(actField&&_acts(m+1)?.bs?.[actField]!=null) return actualsStore[m+1].bs[actField];
       }
-      return l.vals?.[4]||0; // use 2026 LE column
+      return l.vals?.[4]||0; // use _CY LE column (index 4)
     });
     const last=vals[vals.length-1];
     const isTot=l.tot||l.sub;
@@ -15280,11 +15533,11 @@ function buildMonthlyPL(yr){
   const fxR=fx();
   // Get lease aggregates for this year
   const agg=typeof leaseAggregates!=='undefined'&&leaseAggregates[yr]?leaseAggregates[yr]:null;
-  const nfc=netFinancingRows[yr]||netFinancingRows[2026];
+  const nfc=netFinancingRows[yr]||netFinancingRows[_CY];
   const omR=getOMRows(yr);
   const otherRev=otherOperatingRevenue[yr]||[];
   const fuelRev=fuelRevByYear[yr]||Array(12).fill(0);
-  const fuelCost=fuelCostByMonth[yr]||fuelCostByMonth[2026]||Array(12).fill(0);
+  const fuelCost=fuelCostByMonth[yr]||fuelCostByMonth[_CY]||Array(12).fill(0);
 
   // Build the full P&L structure per spec
   const MO=MONTHS;
@@ -15368,12 +15621,12 @@ function buildMonthlyPL(yr){
     if(yr===actualsYear&&_acts(m+1)?.pl?.nonFuelSales) return actualsStore[m+1].pl.nonFuelSales;
     // 2. Revenue engine (2026 unuploaded + all other years using annual plLines scaled by fuel proportions)
     const annNF = plLines.find(l=>l.id==='nonfuel')?.vals[YEARS.indexOf(String(yr))]||0;
-    // Use calcRevEngineMonth for 2026 (live engine), scale annually for 2027-2030
-    if(yr===2026){
+    // Use calcRevEngineMonth for current year (live engine), scale annually for future years
+    if(yr===_CY){
       try{ const r=calcRevEngineMonth(m); return r.nonFuelRevUSD||Math.round(annNF/12); }
       catch(e){ return Math.round(annNF/12); }
     }
-    // For 2027-2030 apply scenario tariff adjustment to annual LE, spread evenly
+    // For future years apply scenario tariff adjustment to annual LE, spread evenly
     const scAdj=1+(getScAdj(activeSc,'rv',yr)||0)/100;
     // Equal monthly spread (no hardcoded seasonal skew)
     return Math.round(annNF*scAdj/12);
@@ -15470,23 +15723,23 @@ function buildMonthlyPL(yr){
   // — Other Income —
   sec('Other Income / Expense — Taxable');
   otherIncomeRows.filter(r=>r.taxable).forEach(r=>{
-    const vals=MO.map((_,m)=>(r.vals[yr]||r.vals['2026']||Array(12).fill(0))[m]||0);
+    const vals=MO.map((_,m)=>(r.vals[yr]||r.vals[_CY]||Array(12).fill(0))[m]||0);
     row(r.name, vals);
   });
   const taxOther=otherIncomeRows.filter(r=>r.taxable);
-  der('Subtotal Taxable', m=>taxOther.reduce((s,r)=>s+((r.vals[yr]||r.vals['2026']||Array(12).fill(0))[m]||0),0), {sub:true});
+  der('Subtotal Taxable', m=>taxOther.reduce((s,r)=>s+((r.vals[yr]||r.vals[_CY]||Array(12).fill(0))[m]||0),0), {sub:true});
 
   sec('Other Income / Expense — Non-Taxable');
   const nTaxOther=otherIncomeRows.filter(r=>!r.taxable);
   nTaxOther.forEach(r=>{
-    const vals=MO.map((_,m)=>(r.vals[yr]||r.vals['2026']||Array(12).fill(0))[m]||0);
+    const vals=MO.map((_,m)=>(r.vals[yr]||r.vals[_CY]||Array(12).fill(0))[m]||0);
     row(r.name, vals);
   });
-  der('Subtotal Non-Taxable', m=>nTaxOther.reduce((s,r)=>s+((r.vals[yr]||r.vals['2026']||Array(12).fill(0))[m]||0),0), {sub:true});
+  der('Subtotal Non-Taxable', m=>nTaxOther.reduce((s,r)=>s+((r.vals[yr]||r.vals[_CY]||Array(12).fill(0))[m]||0),0), {sub:true});
 
   const opAfNFCRow=rows.find(r=>r.label==='Operating Profit After NFC');
-  const taxOtherM=MO.map((_,m)=>taxOther.reduce((s,r)=>s+((r.vals[yr]||r.vals['2026']||Array(12).fill(0))[m]||0),0));
-  const nTaxOtherM=MO.map((_,m)=>nTaxOther.reduce((s,r)=>s+((r.vals[yr]||r.vals['2026']||Array(12).fill(0))[m]||0),0));
+  const taxOtherM=MO.map((_,m)=>taxOther.reduce((s,r)=>s+((r.vals[yr]||r.vals[_CY]||Array(12).fill(0))[m]||0),0));
+  const nTaxOtherM=MO.map((_,m)=>nTaxOther.reduce((s,r)=>s+((r.vals[yr]||r.vals[_CY]||Array(12).fill(0))[m]||0),0));
   der('Net Profit Before Tax', m=>(opAfNFCRow?.vals[m]||0)+taxOtherM[m]+nTaxOtherM[m], {tot:true, bold:true});
 
   const npbtRow=rows.find(r=>r.label==='Net Profit Before Tax');
@@ -15497,7 +15750,7 @@ function buildMonthlyPL(yr){
 
   sec('── Appropriations (memo) ──');
   appropriationRows.forEach(r=>{
-    const vals=MO.map((_,m)=>(r.vals[yr]||r.vals['2026']||Array(12).fill(0))[m]||0);
+    const vals=MO.map((_,m)=>(r.vals[yr]||r.vals[_CY]||Array(12).fill(0))[m]||0);
     rows.push({label:r.name, vals, ann:sumArr(vals), italic:true});
   });
 
@@ -15525,7 +15778,7 @@ function buildMonthlyPL(yr){
     netIncome:  MO.map((_,m)=>getAct(m,'netIncome')),
   };
 
-  const showActuals = yr===2026 && (plActualMode==='actual_le'||plActualMode==='variance') && loadedMos2026.length>0;
+  const showActuals = yr===_CY && (plActualMode==='actual_le'||plActualMode==='variance') && loadedMos2026.length>0;
 
   // Render — two modes: standard LE, or Actual vs LE with variance
   let bodyHtml='';
@@ -15699,54 +15952,61 @@ function getYTDActuals(){
 // ═══════════════════════════════════════════════════════
 // 5-YEAR PROJECTION ENGINE — Session 8
 // Driver-based. Rebuilds plLines, omRows, capexRows,
-// depreciationComponents, netFinancingRows for 2027-2030.
+// depreciationComponents, netFinancingRows for future projection years.
 // ═══════════════════════════════════════════════════════
 
 // ── PROJECTION ASSUMPTIONS ────────────────────────────
 // ARCHITECTURAL RULE: All projection driver values come from fpa_assumptions (DB).
 // These objects are initialised to zero. fpaApplyProjDriversToLegacy() overlays DB values at bootstrap.
 // When no DB data exists → drivers show 0 → user must enter assumptions via the 5-Year Projection tab.
+// Helper: build zeroed vals object for future years (_CY+1 through _CY+4)
+const _zFutureYrs = () => { const o={}; Array.from({length:4},(_,i)=>_CY+1+i).forEach(y=>{o[y]=0;}); return o; };
 const projRevDrivers = {
-  volumeGrowth:   {name:'Volume Growth (Billed MWh %)',    vals:{2027:0, 2028:0, 2029:0, 2030:0}, note:'Source: fpa_assumptions — proj.rev.volumeGrowth'},
-  tariffIncrease: {name:'Tariff Review Uplift (%)',         vals:{2027:0, 2028:0, 2029:0, 2030:0}, note:'Source: fpa_assumptions — proj.rev.tariffIncrease'},
-  fxPath:         {name:'Avg J$/US$ Rate',                  vals:{2027:0, 2028:0, 2029:0, 2030:0}, note:'Source: fpa_assumptions — proj.rev.fxPath'},
-  fuelCostGrowth: {name:'Fuel Cost Growth (%)',             vals:{2027:0, 2028:0, 2029:0, 2030:0}, note:'Source: fpa_assumptions — proj.rev.fuelCostGrowth'},
-  ippCostGrowth:  {name:'IPP Cost Growth (%)',              vals:{2027:0, 2028:0, 2029:0, 2030:0}, note:'Source: fpa_assumptions — proj.rev.ippCostGrowth'},
-  nonRegGrowth:   {name:'Non-Regulated Revenue Growth (%)', vals:{2027:0, 2028:0, 2029:0, 2030:0}, note:'Source: fpa_assumptions — proj.rev.nonRegGrowth'},
+  volumeGrowth:   {name:'Volume Growth (Billed MWh %)',    vals:_zFutureYrs(), note:'Source: fpa_assumptions — proj.rev.volumeGrowth'},
+  tariffIncrease: {name:'Tariff Review Uplift (%)',         vals:_zFutureYrs(), note:'Source: fpa_assumptions — proj.rev.tariffIncrease'},
+  fxPath:         {name:'Avg J$/US$ Rate',                  vals:_zFutureYrs(), note:'Source: fpa_assumptions — proj.rev.fxPath'},
+  fuelCostGrowth: {name:'Fuel Cost Growth (%)',             vals:_zFutureYrs(), note:'Source: fpa_assumptions — proj.rev.fuelCostGrowth'},
+  ippCostGrowth:  {name:'IPP Cost Growth (%)',              vals:_zFutureYrs(), note:'Source: fpa_assumptions — proj.rev.ippCostGrowth'},
+  nonRegGrowth:   {name:'Non-Regulated Revenue Growth (%)', vals:_zFutureYrs(), note:'Source: fpa_assumptions — proj.rev.nonRegGrowth'},
 };
 
 // O&M inflation drivers — zeroed; loaded from fpa_assumptions at bootstrap
 const projOMDrivers = {
-  payroll:    {name:'Payroll & Benefits',    cats:['payroll','overtime','benefits','disc_ben','training'], vals:{2027:0, 2028:0, 2029:0, 2030:0}},
-  thirdparty: {name:'3rd Party Services',    cats:['thirdpty'],                                            vals:{2027:0, 2028:0, 2029:0, 2030:0}},
-  materials:  {name:'Materials & Supplies',  cats:['supplies','materials'],                                vals:{2027:0, 2028:0, 2029:0, 2030:0}},
-  admin:      {name:'Admin & Office',        cats:['office','bdr','tech','advert','misc'],                 vals:{2027:0, 2028:0, 2029:0, 2030:0}},
-  transport:  {name:'Transport',             cats:['transport'],                                           vals:{2027:0, 2028:0, 2029:0, 2030:0}},
-  insurance:  {name:'Insurance',             cats:['insurance'],                                           vals:{2027:0, 2028:0, 2029:0, 2030:0}},
-  facilities: {name:'Facilities & Bad Debt', cats:['building','bad_debt'],                                 vals:{2027:0, 2028:0, 2029:0, 2030:0}},
+  payroll:    {name:'Payroll & Benefits',    cats:['payroll','overtime','benefits','disc_ben','training'], vals:_zFutureYrs()},
+  thirdparty: {name:'3rd Party Services',    cats:['thirdpty'],                                            vals:_zFutureYrs()},
+  materials:  {name:'Materials & Supplies',  cats:['supplies','materials'],                                vals:_zFutureYrs()},
+  admin:      {name:'Admin & Office',        cats:['office','bdr','tech','advert','misc'],                 vals:_zFutureYrs()},
+  transport:  {name:'Transport',             cats:['transport'],                                           vals:_zFutureYrs()},
+  insurance:  {name:'Insurance',             cats:['insurance'],                                           vals:_zFutureYrs()},
+  facilities: {name:'Facilities & Bad Debt', cats:['building','bad_debt'],                                 vals:_zFutureYrs()},
 };
 
-// CapEx annual budgets per programme — 2027-2030 zeroed; populate from uploads
-const _zCx26 = (id) => sumArr(capexRows[2026].find(r=>r.id===id)?.vals||[]);
+// CapEx annual budgets per programme — future years zeroed; current year seeded from capexRows
+const _zCxCY = (id) => sumArr(capexRows[_CY]?.find(r=>r.id===id)?.vals||[]);
+function _mkProjCapexEntry(id, name) {
+  const v = {}; v[_CY] = _zCxCY(id);
+  Array.from({length:4},(_,i)=>_CY+1+i).forEach(y=>{ v[y]=0; });
+  return {name, vals:v};
+}
 const projCapexBudgets = {
-  cx_gen:   {name:'Generation – Routine',           vals:{2026:_zCx26('cx_gen'),  2027:0, 2028:0, 2029:0, 2030:0}},
-  cx_tx:    {name:'Transmission – Expansion',       vals:{2026:_zCx26('cx_tx'),   2027:0, 2028:0, 2029:0, 2030:0}},
-  cx_dist:  {name:'Distribution – Upgrade',         vals:{2026:_zCx26('cx_dist'), 2027:0, 2028:0, 2029:0, 2030:0}},
-  cx_hurr:  {name:'Hurricane Melissa Restoration',  vals:{2026:_zCx26('cx_hurr'), 2027:0, 2028:0, 2029:0, 2030:0}},
-  cx_cust:  {name:'Customer Growth (CCMA)',          vals:{2026:_zCx26('cx_cust'), 2027:0, 2028:0, 2029:0, 2030:0}},
-  cx_loss:  {name:'Loss Reduction Programme',        vals:{2026:_zCx26('cx_loss'), 2027:0, 2028:0, 2029:0, 2030:0}},
-  cx_ss:    {name:'Support Services (IT/Facilities)',vals:{2026:_zCx26('cx_ss'),   2027:0, 2028:0, 2029:0, 2030:0}},
+  cx_gen:   _mkProjCapexEntry('cx_gen',  'Generation – Routine'),
+  cx_tx:    _mkProjCapexEntry('cx_tx',   'Transmission – Expansion'),
+  cx_dist:  _mkProjCapexEntry('cx_dist', 'Distribution – Upgrade'),
+  cx_hurr:  _mkProjCapexEntry('cx_hurr', 'Hurricane Melissa Restoration'),
+  cx_cust:  _mkProjCapexEntry('cx_cust', 'Customer Growth (CCMA)'),
+  cx_loss:  _mkProjCapexEntry('cx_loss', 'Loss Reduction Programme'),
+  cx_ss:    _mkProjCapexEntry('cx_ss',   'Support Services (IT/Facilities)'),
 };
 
 // Debt schedule (US$000) — zeroed; populate from loan engine / uploads
-const _zYrs = () => ({2026:0, 2027:0, 2028:0, 2029:0, 2030:0});
+const _zYrs = () => { const o={}; Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{o[y]=0;}); return o; };
 const projDebtSchedule = {
   openingDebt:  {name:'Opening Long-Term Debt',         vals:_zYrs()},
   drawdowns:    {name:'Loan Drawdowns',                 vals:_zYrs()},
   repayments:   {name:'Scheduled Repayments',           vals:_zYrs()},
   closingDebt:  {name:'Closing Long-Term Debt',         vals:_zYrs()},
   avgBalance:   {name:'Average Debt Balance',           vals:_zYrs()},
-  interestRate: {name:'Weighted Avg Interest Rate (%)', vals:{2026:0, 2027:0, 2028:0, 2029:0, 2030:0}},
+  interestRate: {name:'Weighted Avg Interest Rate (%)', vals:_zYrs()},
   interestCost: {name:'Interest Expense ($K)',          vals:_zYrs()},
   loanFees:     {name:'Loan Financing Fees ($K)',       vals:_zYrs()},
 };
@@ -15759,16 +16019,17 @@ const projTariffReviews = [
 
 // ── PROJECTION ENGINE ─────────────────────────────────
 function runProjectionEngine() {
-  const yrs = [2027,2028,2029,2030];
+  const yrs = Array.from({length:4},(_,i)=>_CY+1+i); // future years: _CY+1 through _CY+4
+  const vi = yr => 4+(yr-_CY); // vals index helper: _CY → index 4
 
   // ── Step 1: Fuel costs (apply growth rates) ────────
   yrs.forEach(yr=>{
     const gr = 1 + (projRevDrivers.fuelCostGrowth.vals[yr]||0)/100;
-    fuelCostByMonth[yr] = (fuelCostByMonth[yr-1]||fuelCostByMonth[2026]).map(v=>Math.round(v*gr));
+    fuelCostByMonth[yr] = (fuelCostByMonth[yr-1]||fuelCostByMonth[_CY]).map(v=>Math.round(v*gr));
   });
   // Rebuild fuel rev with 1-month lag
   yrs.forEach(yr=>{
-    const fc=fuelCostByMonth[yr]; const fcPrev=fuelCostByMonth[yr-1]||fuelCostByMonth[2026];
+    const fc=fuelCostByMonth[yr]; const fcPrev=fuelCostByMonth[yr-1]||fuelCostByMonth[_CY];
     // ARCHITECTURAL RULE: fuel revenue uplift factor must come from DB (fpa_assumptions tariff uplift).
     // Until uploaded, use 1.0 (no uplift — fuel revenue = prior month fuel cost, 1-month pass-through).
     const _fuelUplift = fpa.assumptions?.fuelRevUplift ?? 1.0;
@@ -15776,62 +16037,62 @@ function runProjectionEngine() {
   });
 
   // ── Step 2: Non-fuel revenue ───────────────────────
-  // Base: 2026 annual non-fuel revenue from plLines
-  const base2026NF = plLines.find(l=>l.id==='nonfuel')?.vals[4] || 0;
-  let cumNF = base2026NF;
+  // Base: current year annual non-fuel revenue from plLines (index 4 = _CY)
+  const baseCYNF = plLines.find(l=>l.id==='nonfuel')?.vals[4] || 0;
+  let cumNF = baseCYNF;
   yrs.forEach(yr=>{
     const volGr = 1 + (projRevDrivers.volumeGrowth.vals[yr]||0)/100;
     const tarGr = 1 + (projRevDrivers.tariffIncrease.vals[yr]||0)/100;
     cumNF = Math.round(cumNF * volGr * tarGr);
     const nfLine = plLines.find(l=>l.id==='nonfuel');
-    if(nfLine){ nfLine.vals[4+(yr-2026)] = cumNF; }
+    if(nfLine){ nfLine.vals[vi(yr)] = cumNF; }
   });
 
   // ── Step 3: IPP costs ─────────────────────────────
-  const base2026IPPCost = plLines.find(l=>l.id==='ipp_cost')?.vals[4] || 0;
-  let cumIPP = base2026IPPCost;
+  const baseCYIPPCost = plLines.find(l=>l.id==='ipp_cost')?.vals[4] || 0;
+  let cumIPP = baseCYIPPCost;
   yrs.forEach(yr=>{
     const gr = 1 + (projRevDrivers.ippCostGrowth.vals[yr]||0)/100;
     cumIPP = Math.round(cumIPP * gr);
     const l = plLines.find(ll=>ll.id==='ipp_cost');
-    if(l) l.vals[4+(yr-2026)] = cumIPP;
+    if(l) l.vals[vi(yr)] = cumIPP;
   });
 
   // IPP revenues scale with cost (OUR recovery mechanism)
-  const base2026IPPFR = plLines.find(l=>l.id==='ipp_fr')?.vals[4] || 0;
-  const base2026IPPNR = plLines.find(l=>l.id==='ipp_nr')?.vals[4] || 0;
-  let cumFR = base2026IPPFR, cumNR = base2026IPPNR;
+  const baseCYIPPFR = plLines.find(l=>l.id==='ipp_fr')?.vals[4] || 0;
+  const baseCYIPPNR = plLines.find(l=>l.id==='ipp_nr')?.vals[4] || 0;
+  let cumFR = baseCYIPPFR, cumNR = baseCYIPPNR;
   yrs.forEach(yr=>{
     const gr = 1 + (projRevDrivers.ippCostGrowth.vals[yr]||0)/100;
     cumFR = Math.round(cumFR * gr); cumNR = Math.round(cumNR * gr);
     const lFR = plLines.find(ll=>ll.id==='ipp_fr');
     const lNR = plLines.find(ll=>ll.id==='ipp_nr');
-    if(lFR) lFR.vals[4+(yr-2026)] = cumFR;
-    if(lNR) lNR.vals[4+(yr-2026)] = cumNR;
+    if(lFR) lFR.vals[vi(yr)] = cumFR;
+    if(lNR) lNR.vals[vi(yr)] = cumNR;
   });
 
   // Non-reg revenue
-  const base2026NR = plLines.find(l=>l.id==='nr_rev')?.vals[4] || 0;
-  let cumNRev = base2026NR;
+  const baseCYNRev = plLines.find(l=>l.id==='nr_rev')?.vals[4] || 0;
+  let cumNRev = baseCYNRev;
   yrs.forEach(yr=>{
     const gr = 1 + (projRevDrivers.nonRegGrowth.vals[yr]||0)/100;
     cumNRev = Math.round(cumNRev * gr);
     const l = plLines.find(ll=>ll.id==='nr_rev');
-    if(l) l.vals[4+(yr-2026)] = cumNRev;
+    if(l) l.vals[vi(yr)] = cumNRev;
   });
 
   // ── Step 4: O&M — apply category inflation ────────
   yrs.forEach(yr=>{
-    const rows2026 = omRows[2026];
-    const rowsYr   = omRows[yr] || omRows[2026];
+    const rowsCY = omRows[_CY];
+    const rowsYr   = omRows[yr] || omRows[_CY];
     Object.values(projOMDrivers).forEach(driver=>{
       driver.cats.forEach(catId=>{
-        const base = rows2026.find(r=>r.id===catId);
+        const base = rowsCY.find(r=>r.id===catId);
         const target = rowsYr.find(r=>r.id===catId);
         if(!base||!target) return;
-        // Compound from 2026 base
+        // Compound from current year base
         let factor = 1;
-        for(let y=2027; y<=yr; y++) factor *= (1+(driver.vals[y]||0)/100);
+        for(let y=_CY+1; y<=yr; y++) factor *= (1+(driver.vals[y]||0)/100);
         target.vals = base.vals.map(v=>Math.round(v*factor));
         target.growthRate = driver.vals[yr] || 0;
       });
@@ -15839,18 +16100,18 @@ function runProjectionEngine() {
     // Rebuild plLines opex for this year
     const omTotal = sumArr(getOMTotal(yr));
     const opexLine = plLines.find(l=>l.id==='opex');
-    if(opexLine) opexLine.vals[4+(yr-2026)] = omTotal;
+    if(opexLine) opexLine.vals[vi(yr)] = omTotal;
   });
 
   // ── Step 5: CapEx — spread annual budget monthly ──
   yrs.forEach(yr=>{
-    const rowsYr = capexRows[yr] || capexRows[2026];
+    const rowsYr = capexRows[yr] || capexRows[_CY];
     Object.entries(projCapexBudgets).forEach(([cxId, driver])=>{
       const target = rowsYr.find(r=>r.id===cxId);
       if(!target) return;
       const annBudget = driver.vals[yr] || 0;
       // Spread using prior year monthly profile shape
-      const base = capexRows[yr-1]||capexRows[2026];
+      const base = capexRows[yr-1]||capexRows[_CY];
       const baseRow = base.find(r=>r.id===cxId);
       const baseAnn = sumArr(baseRow?.vals||[]);
       if(baseAnn>0 && baseRow){
@@ -15881,17 +16142,17 @@ function runProjectionEngine() {
 
     // Update bsLines PPE
     const ppeLine = bsLines.find(l=>l.id==='ppe');
-    if(ppeLine) ppeLine.vals[4+(yr-2026)] = Math.round(closeNBV);
+    if(ppeLine) ppeLine.vals[vi(yr)] = Math.round(closeNBV);
 
     // Update plLines depn
     const depnLine = plLines.find(l=>l.id==='depn');
-    if(depnLine) depnLine.vals[4+(yr-2026)] = depnThisYear;
+    if(depnLine) depnLine.vals[vi(yr)] = depnThisYear;
 
     openNBV = closeNBV;
   });
 
   // ── Step 7: Debt schedule → interest expense ─────
-  let openDebt = projDebtSchedule.openingDebt.vals[2026];
+  let openDebt = projDebtSchedule.openingDebt.vals[_CY];
   yrs.forEach(yr=>{
     const drawdown = projDebtSchedule.drawdowns.vals[yr]||0;
     const repay    = projDebtSchedule.repayments.vals[yr]||0;
@@ -15906,9 +16167,9 @@ function runProjectionEngine() {
 
     // Wire into plLines finCost
     const loanFees = projDebtSchedule.loanFees.vals[yr]||0;
-    const prefDiv = sumArr(appropriationRows.find(r=>r.id==='div_pref')?.vals[2026]||[]);
+    const prefDiv = sumArr(appropriationRows.find(r=>r.id==='div_pref')?.vals[_CY]||[]);
     const finLine = plLines.find(l=>l.id==='fin_cost');
-    if(finLine) finLine.vals[4+(yr-2026)] = intCost + loanFees + prefDiv;
+    if(finLine) finLine.vals[vi(yr)] = intCost + loanFees + prefDiv;
 
     // Update netFinancingRows
     if(netFinancingRows[yr]){
@@ -15919,32 +16180,32 @@ function runProjectionEngine() {
 
     // Update bsLines LTD
     const ltdLine = bsLines.find(l=>l.id==='ltd');
-    if(ltdLine) ltdLine.vals[4+(yr-2026)] = closeDebt;
+    if(ltdLine) ltdLine.vals[vi(yr)] = closeDebt;
 
     openDebt = closeDebt;
   });
 
   // ── Step 8: Rebuild derived plLines ──────────────
-  const PROJ_YIDX = {2026:4, 2027:5, 2028:6, 2029:7, 2030:8};
-  [2026,...yrs].forEach(yr=>{
+  const PROJ_YIDX = {}; [_CY,...yrs].forEach((y,i)=>{ PROJ_YIDX[y]=4+i; });
+  [_CY,...yrs].forEach(yr=>{
     const yi = PROJ_YIDX[yr];
     const get = id => plLines.find(l=>l.id===id)?.vals[yi]||0;
 
     // Fuel cost to plLine (US$000)
     const fcAnn = sumArr(fuelCostByMonth[yr]);
     const fcLine = plLines.find(l=>l.id==='fuel_cost');
-    if(fcLine&&yr>2026) fcLine.vals[yi] = fcAnn;
+    if(fcLine&&yr>_CY) fcLine.vals[yi] = fcAnn;
     // Fuel rev
     const frAnn = sumArr(fuelRevByYear[yr]);
     const frLine = plLines.find(l=>l.id==='fuel_rev');
-    if(frLine&&yr>2026) frLine.vals[yi] = frAnn;
+    if(frLine&&yr>_CY) frLine.vals[yi] = frAnn;
     // Fuel surplus
     const fsLine = plLines.find(l=>l.id==='fuel_surp');
     if(fsLine) fsLine.vals[yi] = Math.round(get('fuel_rev')-get('fuel_cost'));
     // Other operating revenue
     const otherRev = sumArr(Object.values(otherOperatingRevenue[yr]||{}).flatMap(r=>r?.vals||[]));
     const orLine = plLines.find(l=>l.id==='other_r');
-    if(orLine&&yr>2026) orLine.vals[yi] = otherRev || orLine.vals[4];
+    if(orLine&&yr>_CY) orLine.vals[yi] = otherRev || orLine.vals[4];
     // Regulated EBITDA
     const regEB = get('nonfuel')+get('fuel_surp')+get('other_r')-get('opex');
     const rebLine = plLines.find(l=>l.id==='reg_eb');
@@ -15966,7 +16227,7 @@ function runProjectionEngine() {
     const ebitLine = plLines.find(l=>l.id==='ebit');
     if(ebitLine) ebitLine.vals[yi] = ebit;
     // Pre-tax
-    const intInc = yr>2026 ? Math.round(projDebtSchedule.closingDebt.vals[yr-1]||0 * 0.04 / 12 * 12) : get('fin_cost');
+    const intInc = yr>_CY ? Math.round(projDebtSchedule.closingDebt.vals[yr-1]||0 * 0.04 / 12 * 12) : get('fin_cost');
     const pretax = ebit - get('fin_cost') + get('oth_inc');
     const ptLine = plLines.find(l=>l.id==='pretax');
     if(ptLine) ptLine.vals[yi] = pretax;
@@ -15994,7 +16255,7 @@ function runProjectionEngine() {
 
 // ── BUILD PROJECTION TAB UI ───────────────────────────
 function buildProjTab() {
-  const yrs = [2027,2028,2029,2030];
+  const yrs = Array.from({length:4},(_,i)=>_CY+1+i); // _CY+1 through _CY+4
   const fmt = v => v==null?'–':Math.round(v).toLocaleString();
   const fmtPct = v => (v>=0?'+':'')+v.toFixed(1)+'%';
   const numInp = (obj,key,yr,cls,step,isInt) => {
@@ -16010,10 +16271,10 @@ function buildProjTab() {
   if(rb){
     rb.innerHTML = Object.entries(projRevDrivers).map(([k,d])=>{
       const isInt = k==='fxPath';
-      const base26 = k==='fxPath' ? (fxTable?.billing?.[0]||0) : null;
+      const baseCY = k==='fxPath' ? (fxTable?.billing?.[0]||0) : null;
       return `<tr>
         <td style="padding-left:10px;color:var(--text)">${d.name}</td>
-        <td class="gld" style="text-align:right">${base26!=null?base26.toFixed(1):'—'}</td>
+        <td class="gld" style="text-align:right">${baseCY!=null?baseCY.toFixed(1):'—'}</td>
         ${yrs.map(yr=>`<td><input class="ei" style="width:60px;text-align:right;color:${isInt?'var(--teal)':'var(--gold)'}"
           value="${isInt?d.vals[yr].toFixed(0):d.vals[yr].toFixed(1)}"
           onchange="const _v=parseFloat(this.value)||0;projRevDrivers['${k}'].vals[${yr}]=_v;projSaveDriver('rev','${k}',${yr},_v);buildProjSummary()"
@@ -16027,20 +16288,20 @@ function buildProjTab() {
   const ob = document.getElementById('projOMB');
   if(ob){
     ob.innerHTML = Object.entries(projOMDrivers).map(([k,d])=>{
-      const base26 = d.cats.reduce((s,id)=>{const r=omRows[2026].find(x=>x.id===id);return s+sumArr(r?.vals||[]);},0);
-      const proj30 = d.cats.reduce((s,id)=>{
-        const r=omRows[2026].find(x=>x.id===id); if(!r) return s;
-        let f=1; [2027,2028,2029,2030].forEach(y=>f*=(1+(d.vals[y]||0)/100));
+      const baseCY = d.cats.reduce((s,id)=>{const r=omRows[_CY].find(x=>x.id===id);return s+sumArr(r?.vals||[]);},0);
+      const projLast = d.cats.reduce((s,id)=>{
+        const r=omRows[_CY].find(x=>x.id===id); if(!r) return s;
+        let f=1; yrs.forEach(y=>f*=(1+(d.vals[y]||0)/100));
         return s+Math.round(sumArr(r.vals)*f);
       },0);
       return `<tr>
         <td style="padding-left:10px;color:var(--text)">${d.name}</td>
-        <td class="ac">${Math.round(base26).toLocaleString()}</td>
+        <td class="ac">${Math.round(baseCY).toLocaleString()}</td>
         ${yrs.map(yr=>`<td><input class="ei" style="width:52px;text-align:right;color:var(--teal)"
           value="${d.vals[yr].toFixed(1)}"
           onchange="const _v=parseFloat(this.value)||0;projOMDrivers['${k}'].vals[${yr}]=_v;projSaveDriver('om','${k}',${yr},_v);buildProjSummary()"
           onfocus="this.select()">%</td>`).join('')}
-        <td class="gld">${Math.round(proj30).toLocaleString()}</td>
+        <td class="gld">${Math.round(projLast).toLocaleString()}</td>
       </tr>`;
     }).join('');
   }
@@ -16049,10 +16310,10 @@ function buildProjTab() {
   const cb = document.getElementById('projCapexB');
   if(cb){
     cb.innerHTML = Object.entries(projCapexBudgets).map(([k,d])=>{
-      const total5 = [2026,...yrs].reduce((s,y)=>s+(d.vals[y]||0),0);
+      const total5 = [_CY,...yrs].reduce((s,y)=>s+(d.vals[y]||0),0);
       return `<tr>
         <td style="padding-left:10px;color:var(--text)">${d.name}</td>
-        <td class="ac">${Math.round(d.vals[2026]).toLocaleString()}</td>
+        <td class="ac">${Math.round(d.vals[_CY]).toLocaleString()}</td>
         ${yrs.map(yr=>`<td><input class="ei" style="width:72px;text-align:right;color:var(--blue)"
           value="${Math.round(d.vals[yr]).toLocaleString()}"
           onchange="projCapexBudgets['${k}'].vals[${yr}]=parseFloat(this.value.replace(/,/g,''))||0;buildProjSummary()"
@@ -16084,14 +16345,15 @@ function buildProjTab() {
 function buildProjDepTable(){
   const db = document.getElementById('projDepB');
   if(!db) return;
-  const yrs=[2026,2027,2028,2029,2030];
+  const yrs=Array.from({length:5},(_,i)=>_CY+i);
+  const vi = yr => 4+(yr-_CY); // vals index: _CY → index 4
   const rows=[
-    {n:'Opening PPE NBV ($K)',      fn:yr=>bsLines.find(l=>l.id==='ppe')?.vals[4+(yr-2026)]||0},
+    {n:'Opening PPE NBV ($K)',      fn:yr=>bsLines.find(l=>l.id==='ppe')?.vals[vi(yr)]||0},
     {n:'Annual CapEx ($K)',          fn:yr=>sumArr(getCxTotal(yr))},
-    {n:'Depreciation Charge ($K)',   fn:yr=>plLines.find(l=>l.id==='depn')?.vals[4+(yr-2026)]||0},
+    {n:'Depreciation Charge ($K)',   fn:yr=>plLines.find(l=>l.id==='depn')?.vals[vi(yr)]||0},
     {n:'Disposals ($K)',             fn:yr=>0},
-    {n:'Closing PPE NBV ($K)',       fn:yr=>{const o=bsLines.find(l=>l.id==='ppe')?.vals[4+(yr-2026)]||0;const cx=sumArr(getCxTotal(yr));const dep=plLines.find(l=>l.id==='depn')?.vals[4+(yr-2026)]||0;return o+cx-dep;}},
-    {n:'Annual Depn / Opening NBV',  fn:yr=>{const dep=plLines.find(l=>l.id==='depn')?.vals[4+(yr-2026)]||0;const nbv=bsLines.find(l=>l.id==='ppe')?.vals[4+(yr-2026)]||0;return nbv>0?((dep/nbv)*100).toFixed(1)+'%':'–';},str:true},
+    {n:'Closing PPE NBV ($K)',       fn:yr=>{const o=bsLines.find(l=>l.id==='ppe')?.vals[vi(yr)]||0;const cx=sumArr(getCxTotal(yr));const dep=plLines.find(l=>l.id==='depn')?.vals[vi(yr)]||0;return o+cx-dep;}},
+    {n:'Annual Depn / Opening NBV',  fn:yr=>{const dep=plLines.find(l=>l.id==='depn')?.vals[vi(yr)]||0;const nbv=bsLines.find(l=>l.id==='ppe')?.vals[vi(yr)]||0;return nbv>0?((dep/nbv)*100).toFixed(1)+'%':'–';},str:true},
   ];
   db.innerHTML=rows.map((r,i)=>`<tr class="${i===4?'sur':''}">
     <td style="padding-left:${i===4?'10':'22'}px;${i===4?'font-weight:700':''}${i===5?';color:var(--muted);font-style:italic':''}">${r.n}</td>
@@ -16102,9 +16364,9 @@ function buildProjDepTable(){
 function buildProjDebtTable(){
   const db = document.getElementById('projDebtB');
   if(!db) return;
-  const yrs=[2026,2027,2028,2029,2030];
-  // Compute interest cost
-  [2027,2028,2029,2030].forEach(yr=>{
+  const yrs=Array.from({length:5},(_,i)=>_CY+i);
+  // Compute interest cost for all years after the first
+  yrs.slice(1).forEach(yr=>{
     const open=projDebtSchedule.openingDebt.vals[yr];
     const draw=projDebtSchedule.drawdowns.vals[yr]||0;
     const rep=projDebtSchedule.repayments.vals[yr]||0;
@@ -16123,7 +16385,7 @@ function buildProjDebtTable(){
       <td style="padding-left:${isDerived?'22':'10'}px;color:${isDerived?'var(--teal)':'var(--text)'}">${d.name}</td>
       ${yrs.map(yr=>{
         const v=d.vals[yr]??0;
-        if(isEditable&&yr>2026){
+        if(isEditable&&yr>_CY){
           return `<td><input class="ei" style="width:${isRate?'44':'68'}px;text-align:right;color:${isRate?'var(--amber)':'var(--blue)'}"
             value="${isRate?v.toFixed(1):Math.round(v).toLocaleString()}"
             onchange="projDebtSchedule['${k}'].vals[${yr}]=${isRate?'parseFloat':'parseInt'}(this.value.replace(/,/g,''))||0;buildProjDebtTable();buildProjSummary()"
@@ -16139,12 +16401,12 @@ function buildProjPL(){
   const hEl=document.getElementById('projPLH');
   const bEl=document.getElementById('projPLB');
   if(!hEl||!bEl) return;
-  const yrs=[2026,2027,2028,2029,2030];
-  const YIDX={2026:4,2027:5,2028:6,2029:7,2030:8};
+  const yrs=Array.from({length:5},(_,i)=>_CY+i);
+  const YIDX={}; yrs.forEach((y,i)=>{YIDX[y]=4+i;}); // _CY at index 4
 
   hEl.innerHTML=`<tr>
     <th style="text-align:left;min-width:260px">Line Item</th>
-    ${yrs.map(y=>`<th class="bc">${y}${y===2026?' (LE)':' (Proj)'}</th>`).join('')}
+    ${yrs.map(y=>`<th class="bc">${y}${y===_CY?' (LE)':' (Proj)'}</th>`).join('')}
     <th class="bc">CAGR %</th>
   </tr>`;
 
@@ -16274,9 +16536,9 @@ function commitTariffReview(){
 }
 
 function exportProjCSV(){
-  const yrs=[2026,2027,2028,2029,2030];
-  const YIDX={2026:4,2027:5,2028:6,2029:7,2030:8};
-  const rows=[['Line Item',...yrs.map(y=>y+(y===2026?' LE':' Proj'))]];
+  const yrs=Array.from({length:5},(_,i)=>_CY+i);
+  const YIDX={}; yrs.forEach((y,i)=>{YIDX[y]=4+i;}); // _CY at index 4
+  const rows=[['Line Item',...yrs.map(y=>y+(y===_CY?' LE':' Proj'))]];
   plLines.forEach(l=>rows.push([l.name,...yrs.map(y=>l.vals[YIDX[y]]||0)]));
   const csv=rows.map(r=>r.join(',')).join('\n');
   const a=document.createElement('a');
@@ -16307,13 +16569,13 @@ function _initPlatform() {
   _platformInited = true;
 
   // Core computations — must run before any rendering
-  [2026,2027,2028,2029,2030].forEach(y=>{
+  Array.from({length:5},(_,i)=>_CY+i).forEach(y=>{
     computeAllLeases(y);
     if(typeof leaseAggregates!=='undefined'&&leaseAggregates[y]){
       depreciationComponents[y].otherLeases=[...leaseAggregates[y].rouDepreciation];
     }
   });
-  computeAll(2026);
+  computeAll(_CY);
   initInterestIncome();
   try { runProjectionEngine(); } catch(e) { console.warn('Projection engine init:', e); }
   try { syncDebtToNFC(); } catch(e) { console.warn('Debt sync init:', e); }
