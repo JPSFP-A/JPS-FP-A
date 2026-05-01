@@ -3709,10 +3709,10 @@ tr.der td{color:var(--teal)}
         <div style="font-size:10px;font-weight:700;color:#6b82a0;margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Sales Role</div>
         <select id="secInviteSalesRole" style="padding:8px 12px;border:1px solid #d1dce8;border-radius:7px;font-size:12px">
           <option value="">— None (FP&amp;A only) —</option>
-          <option value="sales_rep">Sales Rep</option>
-          <option value="sales_manager">Sales Manager</option>
-          <option value="sales_admin">Sales Admin</option>
-          <option value="sales_viewer">Sales Viewer</option>
+          <option value="rep">Sales Rep</option>
+          <option value="manager">Sales Manager</option>
+          <option value="admin">Sales Admin</option>
+          <option value="view">Sales Viewer</option>
         </select>
       </div>
       <div>
@@ -18001,8 +18001,8 @@ async function secLoadUsers() {
     return;
   }
 
-  const salesRoleOpts = ['','sales_rep','sales_manager','sales_admin','sales_viewer'];
-  const salesRoleLabel = { '':'— None —', sales_rep:'Sales Rep', sales_manager:'Sales Manager', sales_admin:'Sales Admin', sales_viewer:'Sales Viewer' };
+  const salesRoleOpts = ['','rep','manager','admin','view'];
+  const salesRoleLabel = { '':'— None —', rep:'Sales Rep', manager:'Sales Manager', admin:'Sales Admin', view:'Sales Viewer' };
 
   tbody.innerHTML = data.map(u => {
     const role       = u.role || 'analyst';
