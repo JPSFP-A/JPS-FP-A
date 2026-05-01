@@ -3588,12 +3588,12 @@ tr.der td{color:var(--teal)}
     <table class="sec-user-table">
       <thead>
         <tr>
-          <th>Name</th><th>Email</th><th>Department</th><th>Role</th>
-          <th>Areas</th><th>Status</th><th>Joined</th><th>Actions</th>
+          <th>Name</th><th>Email</th><th>Department</th><th>FP&amp;A Role</th>
+          <th>Sales Role</th><th>Territory</th><th>Areas</th><th>Status</th><th>Joined</th><th>Actions</th>
         </tr>
       </thead>
       <tbody id="secUserTableBody">
-        <tr><td colspan="8" style="text-align:center;color:#8099b8;padding:20px">Loading users…</td></tr>
+        <tr><td colspan="10" style="text-align:center;color:#8099b8;padding:20px">Loading users…</td></tr>
       </tbody>
     </table>
     </div>
@@ -3700,10 +3700,32 @@ tr.der td{color:var(--teal)}
           <option value="admin">Admin</option>
         </select>
       </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#6b82a0;margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Department</div>
+        <input id="secInviteDept" type="text" placeholder="e.g. Finance"
+          style="padding:8px 12px;border:1px solid #d1dce8;border-radius:7px;font-size:12px;width:150px"/>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#6b82a0;margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Sales Role</div>
+        <select id="secInviteSalesRole" style="padding:8px 12px;border:1px solid #d1dce8;border-radius:7px;font-size:12px">
+          <option value="">— None (FP&amp;A only) —</option>
+          <option value="sales_rep">Sales Rep</option>
+          <option value="sales_manager">Sales Manager</option>
+          <option value="sales_admin">Sales Admin</option>
+          <option value="sales_viewer">Sales Viewer</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#6b82a0;margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Territory</div>
+        <input id="secInviteTerritory" type="text" placeholder="e.g. Kingston"
+          style="padding:8px 12px;border:1px solid #d1dce8;border-radius:7px;font-size:12px;width:140px"/>
+      </div>
       <button id="secInviteBtn" class="btn btn-gold" onclick="secInviteUser()" style="font-size:11px">Send Invite ✉</button>
     </div>
     <div style="font-size:10px;color:#8099b8;margin-top:10px">
-      The invited user will receive a setup email. They set their own password — you never see it.
+      📧 The invited user receives a setup email — they set their own password, you never see it. &nbsp;|&nbsp;
+      🔑 <strong>Sales Role</strong> controls access to the Sales Platform. Leave blank for FP&amp;A-only users. &nbsp;|&nbsp;
+      🌍 <strong>Territory</strong> limits what sales data they can see (leave blank = all territories).
     </div>
   </div>
 
@@ -17968,37 +17990,54 @@ function hubApplyRoleAccess(role) {
 async function secLoadUsers() {
   const tbody = document.getElementById('secUserTableBody');
   if (!tbody) return;
-  if (!_sb) { tbody.innerHTML = '<tr><td colspan="8" style="color:#dc2626;padding:14px">No database connection</td></tr>'; return; }
+  if (!_sb) { tbody.innerHTML = '<tr><td colspan="10" style="color:#dc2626;padding:14px">No database connection</td></tr>'; return; }
 
-  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#8099b8;padding:14px">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#8099b8;padding:14px">Loading…</td></tr>';
   const { data, error } = await _sb.from('profiles').select('*').order('created_at');
-  if (error) { tbody.innerHTML = `<tr><td colspan="8" style="color:#dc2626;padding:14px">Error: ${error.message}</td></tr>`; return; }
+  if (error) { tbody.innerHTML = `<tr><td colspan="10" style="color:#dc2626;padding:14px">Error: ${error.message}</td></tr>`; return; }
 
   if (!data?.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#8099b8;padding:14px">No users found in profiles table</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#8099b8;padding:14px">No users found in profiles table</td></tr>';
     return;
   }
 
+  const salesRoleOpts = ['','sales_rep','sales_manager','sales_admin','sales_viewer'];
+  const salesRoleLabel = { '':'— None —', sales_rep:'Sales Rep', sales_manager:'Sales Manager', sales_admin:'Sales Admin', sales_viewer:'Sales Viewer' };
+
   tbody.innerHTML = data.map(u => {
     const role       = u.role || 'analyst';
+    const salesRole  = u.sales_role || '';
+    const territory  = u.territory  || '';
     const isActive   = u.is_active !== false;
-    const areas      = (u.access_areas||[]).length ? u.access_areas.join(', ') : '<span style="color:#9ca3af">All areas</span>';
+    const areas      = (u.access_areas||[]).length ? u.access_areas.join(', ') : '<span style="color:#9ca3af">All</span>';
     const joined     = u.created_at ? new Date(u.created_at).toLocaleDateString('en-JM',{dateStyle:'medium'}) : '—';
     const emailHtml  = u.email ? `<span style="color:#003da5">${u.email}</span>` : '<span style="color:#d1d5db">—</span>';
+    const salesBadge = salesRole
+      ? `<span style="font-size:10px;padding:2px 7px;border-radius:9px;background:rgba(16,185,129,.12);color:#059669;font-weight:600">${salesRoleLabel[salesRole]||salesRole}</span>`
+      : '<span style="color:#d1d5db;font-size:10px">—</span>';
     return `<tr>
       <td><strong>${u.name||'Unknown'}</strong></td>
       <td>${emailHtml}</td>
       <td style="color:#6b82a0;font-size:11px">${u.department||'—'}</td>
       <td><span class="sec-role-badge ${role}">${role}</span></td>
+      <td>${salesBadge}</td>
+      <td style="font-size:10px;color:#6b82a0">${territory||'<span style="color:#d1d5db">All</span>'}</td>
       <td style="font-size:10px;color:#6b82a0">${areas}</td>
       <td><span class="sec-status-dot ${isActive?'active':'inactive'}"></span>${isActive?'Active':'Revoked'}</td>
       <td style="font-size:11px;color:#8099b8">${joined}</td>
-      <td>
-        <select onchange="secUpdateRole('${u.id}',this.value)" style="font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid #d1dce8;margin-right:4px">
+      <td style="white-space:nowrap">
+        <select onchange="secUpdateRole('${u.id}',this.value)" title="FP&A role" style="font-size:10px;padding:3px 6px;border-radius:5px;border:1px solid #d1dce8;margin-right:3px;max-width:72px">
           ${['admin','analyst','viewer','om'].map(r=>`<option ${r===role?'selected':''} value="${r}">${r}</option>`).join('')}
         </select>
+        <select onchange="secUpdateSalesRole('${u.id}',this.value,'${territory}')" title="Sales Platform role" style="font-size:10px;padding:3px 6px;border-radius:5px;border:1px solid #d1dce8;margin-right:3px;max-width:95px">
+          ${salesRoleOpts.map(r=>`<option ${r===salesRole?'selected':''} value="${r}">${salesRoleLabel[r]}</option>`).join('')}
+        </select>
+        <input type="text" value="${territory}" placeholder="Territory" title="Sales territory (leave blank = all)"
+          onchange="secUpdateSalesRole('${u.id}','${salesRole}',this.value)"
+          style="font-size:10px;padding:3px 6px;border-radius:5px;border:1px solid #d1dce8;width:70px;margin-right:3px"/>
         <button class="sec-action-btn" onclick="secResetPassword(this,'${u.email||''}')" title="Send password reset email">Reset PW</button>
         <button class="sec-action-btn danger" onclick="secToggleAccess(this,'${u.id}',${isActive})" title="${isActive?'Revoke':'Restore'} access">${isActive?'Revoke':'Restore'}</button>
+        <button class="sec-action-btn danger" onclick="secDeleteUser(this,'${u.id}','${(u.name||'').replace(/'/g,"\\'")}','${u.email||''}')" title="Permanently delete this user">Delete</button>
       </td>
     </tr>`;
   }).join('');
@@ -18008,9 +18047,49 @@ async function secUpdateRole(userId, newRole) {
   if (!_sb) return;
   const { error } = await _sb.from('profiles').update({ role: newRole }).eq('id', userId);
   if (error) { toast('Role update failed: '+error.message,'err'); return; }
-  toast(`Role updated to "${newRole}"`, 'ok');
+  toast(`FP&A role updated to "${newRole}"`, 'ok');
   auditLog('admin','role-change', userId, { newRole });
   await secLoadUsers();
+}
+
+async function secUpdateSalesRole(userId, salesRole, territory) {
+  if (!_sb) return;
+  const patch = { sales_role: salesRole || null, territory: territory || null };
+  const { error } = await _sb.from('profiles').update(patch).eq('id', userId);
+  if (error) { toast('Sales role update failed: '+error.message,'err'); return; }
+  const label = salesRole ? `"${salesRole}"${territory?' / '+territory:''}` : 'none';
+  toast('Sales access updated → ' + label, 'ok');
+  auditLog('admin','sales-role-change', userId, { salesRole, territory });
+  await secLoadUsers();
+}
+
+async function secDeleteUser(btn, userId, userName, userEmail) {
+  _secConfirm(btn, 'Delete?', async () => {
+    if (!_sb) return;
+    // Step 1: Remove profiles row (blocks all platform access immediately)
+    const { error } = await _sb.from('profiles').delete().eq('id', userId);
+    if (error) { toast('Delete failed: '+error.message,'err'); return; }
+
+    // Step 2: Attempt auth deletion via Edge Function (requires delete-user function)
+    let session = null;
+    try { const r = await _sb.auth.getSession(); session = r?.data?.session; } catch(e) {}
+    if (session) {
+      try {
+        await _sb.functions.invoke('delete-user', {
+          body: { userId },
+          headers: { Authorization: `Bearer ${session.access_token}` }
+        });
+      } catch(e) {
+        // Edge Function may not be deployed yet — profile row is already deleted so user
+        // cannot access any data. The auth account is a Supabase-only shell with no profile.
+        console.warn('[FPA] delete-user Edge Function not available:', e.message);
+      }
+    }
+
+    toast(`${userName||userEmail||'User'} deleted`, 'ok');
+    auditLog('admin','user-deleted', userId, { userName, userEmail });
+    await secLoadUsers();
+  });
 }
 
 // ── Two-click inline confirmation (replaces blocked window.confirm) ──────────
@@ -18293,9 +18372,12 @@ function rbInit() {
 // ── End Role Builder ──────────────────────────────────────────────────────────
 
 async function secInviteUser() {
-  const name  = document.getElementById('secInviteName')?.value?.trim();
-  const email = document.getElementById('secInviteEmail')?.value?.trim();
-  const role  = document.getElementById('secInviteRole')?.value || 'analyst';
+  const name       = document.getElementById('secInviteName')?.value?.trim();
+  const email      = document.getElementById('secInviteEmail')?.value?.trim();
+  const role       = document.getElementById('secInviteRole')?.value || 'analyst';
+  const dept       = document.getElementById('secInviteDept')?.value?.trim() || '';
+  const salesRole  = document.getElementById('secInviteSalesRole')?.value || '';
+  const territory  = document.getElementById('secInviteTerritory')?.value?.trim() || '';
   if (!name || !email) { toast('Name and email are required','w'); return; }
   if (!_sb) { toast('No database connection — cannot invite users in offline mode','err'); return; }
 
@@ -18311,19 +18393,26 @@ async function secInviteUser() {
   if (inviteBtn) { inviteBtn.disabled = true; inviteBtn.textContent = 'Sending…'; }
 
   try {
+    const body = { name, email, role };
+    if (dept)      body.department  = dept;
+    if (salesRole) body.sales_role  = salesRole;
+    if (territory) body.territory   = territory;
+
     const { data, error } = await _sb.functions.invoke('invite-user', {
-      body: { name, email, role },
+      body,
       headers: { Authorization: `Bearer ${session.access_token}` }
     });
     if (error) throw error;
     toast(`Invite sent to ${email}`, 'ok');
-    auditLog('admin','user-invited', email, { name, role });
-    document.getElementById('secInviteName').value = '';
-    document.getElementById('secInviteEmail').value = '';
+    auditLog('admin','user-invited', email, { name, role, salesRole, territory });
+    document.getElementById('secInviteName').value      = '';
+    document.getElementById('secInviteEmail').value     = '';
+    document.getElementById('secInviteDept').value      = '';
+    document.getElementById('secInviteSalesRole').value = '';
+    document.getElementById('secInviteTerritory').value = '';
     await secLoadUsers();
   } catch(e) {
     const msg = e.message || String(e);
-    // Provide actionable error messages
     if (msg.includes('Failed to send') || msg.includes('FunctionsFetchError')) {
       toast('Invite failed: Edge Function unreachable. Check Supabase dashboard → Edge Functions → invite-user is deployed and active.','err');
     } else if (msg.includes('JWT') || msg.includes('401') || msg.includes('403')) {
