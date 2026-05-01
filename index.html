@@ -16647,19 +16647,31 @@ function _initPlatform() {
 
 // ── Auth callback handler — invite links & password reset links ────────────
 // When Supabase sends an invite/reset email, the link contains #access_token=...&type=invite|recovery
-// We detect this on load, absorb the token into the Supabase session, then show a set-password modal.
+// We detect this on load, save the tokens, strip the hash, then show a set-password modal.
+// Note: detectSessionInUrl:false means Supabase will NOT auto-absorb the hash — we do it manually
+// in _doSetPassword() via _sb.auth.setSession() using the saved tokens below.
+let _pendingAuthToken = null;   // { access_token, refresh_token, type }
+
 function _checkAuthCallback() {
   const hash = window.location.hash || '';
   if (!hash.includes('access_token')) return;
   const params = Object.fromEntries(
-    hash.replace(/^#/, '').split('&').map(p => p.split('=').map(decodeURIComponent))
+    hash.replace(/^#/, '').split('&').map(p => {
+      const idx = p.indexOf('=');
+      return idx < 0 ? [p, ''] : [p.slice(0, idx), decodeURIComponent(p.slice(idx + 1))];
+    })
   );
   const type = params.type || '';
   if (type === 'invite' || type === 'recovery') {
+    // Save tokens BEFORE stripping the hash — they're gone after replaceState
+    _pendingAuthToken = {
+      access_token:  params.access_token  || '',
+      refresh_token: params.refresh_token || '',
+      type,
+    };
     // Remove hash so it doesn't re-trigger on refresh
     history.replaceState(null, document.title, window.location.pathname + window.location.search);
-    // Give Supabase JS time to absorb the session from the hash
-    setTimeout(() => _showSetPasswordModal(type), 600);
+    setTimeout(() => _showSetPasswordModal(type), 400);
   }
 }
 
@@ -16710,22 +16722,55 @@ function _showSetPasswordModal(type) {
 async function _doSetPassword() {
   const pw1 = document.getElementById('setPassPw1')?.value || '';
   const pw2 = document.getElementById('setPassPw2')?.value || '';
-  const errEl = document.getElementById('setPassErr');
+  const errEl   = document.getElementById('setPassErr');
   const showErr = msg => { if(errEl){errEl.textContent=msg;errEl.style.display='block';} };
+  const setBtn  = document.querySelector('#setPassOverlay button');
   if (pw1.length < 8) { showErr('Password must be at least 8 characters.'); return; }
-  if (pw1 !== pw2)   { showErr('Passwords do not match.'); return; }
+  if (pw1 !== pw2)    { showErr('Passwords do not match.'); return; }
   if (errEl) errEl.style.display = 'none';
+  if (setBtn) { setBtn.disabled = true; setBtn.textContent = 'Setting password…'; }
 
-  if (!_sb) { showErr('Database connection unavailable. Please refresh and try again.'); return; }
+  // Wait up to 5 s for the Supabase client to finish initialising (CDN race on slow connections)
+  let waited = 0;
+  while (!_sb && waited < 50) {
+    _sb = _sbInit();
+    if (!_sb) await new Promise(r => setTimeout(r, 100));
+    waited++;
+  }
+  if (!_sb) {
+    showErr('Database connection unavailable. Please refresh the page and try again.');
+    if (setBtn) { setBtn.disabled = false; setBtn.textContent = 'Set New Password →'; }
+    return;
+  }
+
+  // Manually establish the auth session from the saved invite/reset tokens.
+  // This is required because detectSessionInUrl:false prevents Supabase from
+  // auto-reading the #access_token from the URL hash.
+  if (_pendingAuthToken?.access_token) {
+    try {
+      const { error: sessErr } = await _sb.auth.setSession({
+        access_token:  _pendingAuthToken.access_token,
+        refresh_token: _pendingAuthToken.refresh_token,
+      });
+      if (sessErr) throw sessErr;
+    } catch(e) {
+      showErr('Invite link error: ' + (e.message || String(e)) + '. Please ask your admin to send a new invite.');
+      if (setBtn) { setBtn.disabled = false; setBtn.textContent = 'Set New Password →'; }
+      return;
+    }
+  }
+
   try {
     const { error } = await _sb.auth.updateUser({ password: pw1 });
     if (error) throw error;
+    _pendingAuthToken = null;
     document.getElementById('setPassOverlay')?.remove();
-    toast('Password set successfully. Welcome to JPS FP&A Platform!', 'ok');
-    // Redirect to clean URL so the welcome screen loads properly
-    setTimeout(() => { window.location.href = window.location.pathname; }, 1500);
+    toast('Password set! Welcome to the JPS FP&A Platform 🎉', 'ok');
+    // Redirect to clean URL so the login screen loads properly
+    setTimeout(() => { window.location.href = window.location.pathname; }, 1800);
   } catch(e) {
     showErr('Failed to set password: ' + (e.message || String(e)));
+    if (setBtn) { setBtn.disabled = false; setBtn.textContent = 'Set New Password →'; }
   }
 }
 
