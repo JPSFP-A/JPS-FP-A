@@ -3930,6 +3930,14 @@ tr.der td{color:var(--teal)}
 </div><!-- end .app-shell -->
 
 <script>
+// ── Year constants — declared FIRST so every initializer below can reference them ──
+// _CY / _PY drive all year defaults; the app stays correct across year-end rollovers.
+const _CY   = new Date().getFullYear();              // current year  (e.g. 2026)
+const _PY   = _CY - 1;                              // prior year    (e.g. 2025)
+// YEARS: 4 years back through 4 years forward (9 elements); _CY is always at index 4.
+// Matches the _z9() vals-array size used by plLines/bsLines.
+const YEARS = Array.from({length:9}, (_,i) => String(_CY - 4 + i));
+
 // ── Embedded assets (base64) ──────────────────────────
 const JPS_LOGO_DATA = 'https://rvtaryvxiryfmurudjcx.supabase.co/storage/v1/object/public/Model/JPS-Logo-2022-Outline-No-Tag-2.png';
 const WELCOME_BG_DATA = 'https://rvtaryvxiryfmurudjcx.supabase.co/storage/v1/object/public/Model/Welcome.jpg';
@@ -7659,13 +7667,7 @@ function clearAuditLog() {
 //  CONSTANTS & HELPERS
 // ═══════════════════════════════════════════════════════
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-// _CY / _PY — current calendar year and prior year; drive all defaults so the
-// app stays correct across year-end rollovers without code changes.
-const _CY = new Date().getFullYear();   // current year  (e.g. 2026)
-const _PY = _CY - 1;                   // prior year    (e.g. 2025)
-// YEARS — 4 years back through 4 years forward relative to today (9 elements)
-// Matches the _z9() vals-array size used by plLines/bsLines; _CY is always at index 4.
-const YEARS = Array.from({length:9}, (_,i) => String(_CY - 4 + i));
+// _CY / _PY / YEARS are declared at the very top of the script block (before all initializers).
 let period='quarterly', activeSc='Base Case';
 let dashYear    = _CY;   // year shown on dashboard charts
 let cfYear      = _CY;   // year shown on cash flow report
