@@ -1596,7 +1596,7 @@ tr.der td{color:var(--teal)}
       <div class="nav-dd-item" data-pane="ops-ipp"  onclick="showPane('ops-ipp',null);opsIppLoad();navClose()">🔌 IPP Schedule</div>
       <div class="nav-dd-item" data-pane="ops-fuel" onclick="showPane('ops-fuel',null);opsFuelLoad();navClose()">⛽ Fuel Assumptions</div>
       <div class="nav-dd-item" data-pane="ops-loss" onclick="showPane('ops-loss',null);opsLossLoad();navClose()">📉 Loss Analysis</div>
-      <div class="nav-dd-item" data-pane="ops-cogs" onclick="showPane('ops-cogs',null);opsCogsLoad();navClose()">💰 COGS Summary</div>
+      <div class="nav-dd-item" data-pane="ops-cogs" onclick="showPane('ops-cogs',null);opsCogsLoad();checkCogsVersion();navClose()">💰 COGS Summary</div>
     </div>
   </div>
   <!-- AI (no dropdown) -->
@@ -4388,6 +4388,74 @@ tr.der td{color:var(--teal)}
       </table>
     </div>
   </div>
+
+  <!-- COGS Commit Panel ─────────────────────────────────────────── -->
+  <div style="margin-top:18px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:800;color:var(--text)">&#x1F4E4; Commit COGS to Hub</div>
+      <div id="cogsBanner" style="display:none;font-size:10px;font-weight:700;padding:3px 12px;border-radius:20px;letter-spacing:.04em">DRAFT</div>
+      <button class="btn btn-ghost" style="margin-left:auto;font-size:10px" onclick="checkCogsVersion()">&#x21BA; Refresh</button>
+    </div>
+    <div id="cogsCommitSteps" style="display:grid;gap:8px">
+
+      <!-- Step 1: Version -->
+      <div class="tc2" style="padding:12px 14px;border-radius:6px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--gold);color:#000;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center">1</div>
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:700">COGS Version</div>
+            <div id="cogsStep1Sub" style="font-size:10px;color:var(--muted)">No active draft</div>
+          </div>
+          <button id="cogsStep1Btn" class="btn btn-ghost" style="font-size:10px" onclick="createCogsVersion()">Create Draft</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Validate -->
+      <div class="tc2" style="padding:12px 14px;border-radius:6px;opacity:.5" id="cogsStep2Card">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--b2);color:var(--muted);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center">2</div>
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:700">Validate Data</div>
+            <div id="cogsStep2Sub" style="font-size:10px;color:var(--muted)">Run validation checks</div>
+          </div>
+          <button id="cogsStep2Btn" class="btn btn-ghost" style="font-size:10px" onclick="cogsValidate()" disabled>Validate</button>
+        </div>
+        <div id="cogsValResults" style="display:none;margin-top:8px;font-size:10px"></div>
+      </div>
+
+      <!-- Step 3: Preview mapping -->
+      <div class="tc2" style="padding:12px 14px;border-radius:6px;opacity:.5" id="cogsStep3Card">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--b2);color:var(--muted);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center">3</div>
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:700">Preview → fpa_facts</div>
+            <div id="cogsStep3Sub" style="font-size:10px;color:var(--muted)">Map COGS lines to GL</div>
+          </div>
+          <button id="cogsStep3Btn" class="btn btn-ghost" style="font-size:10px" onclick="cogsMapPreview()" disabled>Preview</button>
+        </div>
+        <div id="cogsPreviewResults" style="display:none;margin-top:8px;font-size:10px"></div>
+      </div>
+
+      <!-- Step 4: Submit -->
+      <div class="tc2" style="padding:12px 14px;border-radius:6px;opacity:.5" id="cogsStep4Card">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--b2);color:var(--muted);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center">4</div>
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:700">Submit to Hub</div>
+            <div id="cogsStep4Sub" style="font-size:10px;color:var(--muted)">Write COGS to fpa_facts</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button id="cogsStep4Btn" class="btn btn-gold" style="font-size:10px" onclick="cogsSubmit()" disabled>&#x1F4E4; Submit</button>
+            <button id="cogsResetBtn" class="btn btn-ghost" style="font-size:10px;display:none" onclick="cogsResetToDraft()">&#x21BA; Revise</button>
+          </div>
+        </div>
+        <div id="cogsSubmitNotes" style="margin-top:8px;display:none">
+          <textarea id="cogsNotesInput" class="sel" style="width:100%;height:60px;resize:vertical;font-size:10px;font-family:var(--sans)" placeholder="Optional notes for FP&amp;A Hub review&#x2026;"></textarea>
+        </div>
+      </div>
+
+    </div><!-- /cogsCommitSteps -->
+  </div><!-- /commit panel -->
 </div>
 
 </div><!-- /main -->
@@ -20661,6 +20729,8 @@ function _opsPopulateYearSel(selId) {
 // Returns null with a warning toast if none found — callers treat null gracefully.
 let _opsVersionId = null;
 async function _opsResolveVersion() {
+  const sb = _sb;
+  if (!sb) { toast('DB not connected', 'err'); return; }
   try {
     const { data, error } = await sb.from('fpa_versions')
       .select('id, code, label')
@@ -20683,6 +20753,8 @@ let _opsIppUnits = [];
 let _opsIppData  = {}; // key: `${unit_id}_${month}` → row object
 
 async function opsIppLoad() {
+  const sb = _sb;
+  if (!sb) { toast('DB not connected', 'err'); return; }
   _opsPopulateYearSel('opsIppYearSel');
   const year = Number(document.getElementById('opsIppYearSel')?.value || _CY);
   const body = document.getElementById('opsIppBody');
@@ -20836,6 +20908,8 @@ function opsIppRender(year) {
 }
 
 async function opsIppSaveAll() {
+  const sb = _sb;
+  if (!sb) { toast('DB not connected', 'err'); return; }
   const inputs = document.querySelectorAll('[data-ops-ipp="1"]');
   if (!inputs.length) { toast('Nothing to save', 'w'); return; }
   const userId = (currentUser?.id && currentUser.id !== 'local') ? currentUser.id : null;
@@ -20871,6 +20945,8 @@ async function opsIppSaveAll() {
 let _opsFuelData = []; // array of rows from ops_fuel_assumptions
 
 async function opsFuelLoad() {
+  const sb = _sb;
+  if (!sb) { toast('DB not connected', 'err'); return; }
   _opsPopulateYearSel('opsFuelYearSel');
   const year = Number(document.getElementById('opsFuelYearSel')?.value || _CY);
   const tbody = document.getElementById('opsFuelBody');
@@ -20981,6 +21057,8 @@ function opsFuelRender(year) {
 }
 
 async function opsFuelSaveAll() {
+  const sb = _sb;
+  if (!sb) { toast('DB not connected', 'err'); return; }
   const priceInputs = document.querySelectorAll('[data-ops-fuel="1"]');
   const srcInputs   = document.querySelectorAll('[data-ops-fuel-src="1"]');
   const fxInputs    = document.querySelectorAll('[data-ops-fuel-fx="1"]');
@@ -21034,6 +21112,8 @@ async function opsFuelSaveAll() {
 let _opsLossData = [];
 
 async function opsLossLoad() {
+  const sb = _sb;
+  if (!sb) { toast('DB not connected', 'err'); return; }
   _opsPopulateYearSel('opsLossYearSel');
   const year = Number(document.getElementById('opsLossYearSel')?.value || _CY);
   const tbody = document.getElementById('opsLossBody');
@@ -21128,6 +21208,8 @@ function opsLossRender(year) {
 }
 
 async function opsLossSaveAll() {
+  const sb = _sb;
+  if (!sb) { toast('DB not connected', 'err'); return; }
   const inputs = document.querySelectorAll('[data-ops-loss="1"]');
   if (!inputs.length) { toast('Nothing to save', 'w'); return; }
   const userId = (currentUser?.id && currentUser.id !== 'local') ? currentUser.id : null;
@@ -21171,6 +21253,8 @@ async function opsLossSaveAll() {
 let _opsCogsData = [];
 
 async function opsCogsLoad() {
+  const sb = _sb;
+  if (!sb) { toast('DB not connected', 'err'); return; }
   _opsPopulateYearSel('opsCogsYearSel');
   const year   = Number(document.getElementById('opsCogsYearSel')?.value || _CY);
   const verSel = document.getElementById('opsCogsVersionSel');
@@ -21186,14 +21270,14 @@ async function opsCogsLoad() {
     // Populate version selector if empty
     if (verSel && verSel.options.length === 0) {
       const { data: vers, error: vErr } = await sb.from('fpa_versions')
-        .select('id, code, label')
+        .select('id, code, name')
         .order('created_at', { ascending: false })
         .limit(20);
       if (vErr) throw vErr;
       (vers || []).forEach(v => {
         const o = document.createElement('option');
         o.value = v.id;
-        o.textContent = v.code + (v.label ? ' — ' + v.label : '');
+        o.textContent = v.code + (v.name ? ' — ' + v.name : '');
         verSel.appendChild(o);
       });
     }
@@ -21316,6 +21400,302 @@ function opsCogsRender(year) {
     td.textContent = 'No COGS summary data found for this year / version.';
     tr.appendChild(td);
     tbody.appendChild(tr);
+  }
+}
+
+// ── COGS Commit Workflow ──────────────────────────────────────────────────────
+
+const COGS_COMMIT = {
+  versionId: null,
+  versionStatus: null,
+  versionNotes: null,
+  versionMeta: null,
+  valHasFail: true,
+  valResults: []
+};
+
+async function checkCogsVersion() {
+  const year = Number(document.getElementById('opsCogsYearSel')?.value || _CY);
+  try {
+    const { data, error } = await _sb
+      .from('fpa_versions')
+      .select('id, code, name, status, review_notes, submitted_at, reviewed_at, created_by')
+      .eq('extension', 'cogs')
+      .eq('year', year)
+      .not('status', 'eq', 'rejected')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    if (data) {
+      COGS_COMMIT.versionId     = data.id;
+      COGS_COMMIT.versionStatus = data.status;
+      COGS_COMMIT.versionNotes  = data.review_notes;
+      COGS_COMMIT.versionMeta   = data;
+    } else {
+      COGS_COMMIT.versionId     = null;
+      COGS_COMMIT.versionStatus = null;
+      COGS_COMMIT.versionNotes  = null;
+      COGS_COMMIT.versionMeta   = null;
+    }
+    updateCogsCommitPage();
+  } catch(e) {
+    console.error('[cogs-commit] checkCogsVersion:', e);
+    toast('COGS version check failed: ' + e.message, 'err');
+  }
+}
+
+async function createCogsVersion() {
+  const year = Number(document.getElementById('opsCogsYearSel')?.value || _CY);
+  const btn  = document.getElementById('cogsStep1Btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
+  try {
+    const code = 'COGS_LE_' + year;
+    const { data, error } = await _sb
+      .from('fpa_versions')
+      .insert({
+        code,
+        name:       'Operations / COGS LE ' + year,
+        kind:       'LE',
+        extension:  'cogs',
+        year,
+        status:     'draft',
+        created_by: currentUser.id
+      })
+      .select('id, code, status')
+      .single();
+    if (error) throw error;
+    COGS_COMMIT.versionId     = data.id;
+    COGS_COMMIT.versionStatus = 'draft';
+    COGS_COMMIT.versionMeta   = data;
+    toast('COGS draft version created: ' + code, 'ok');
+    updateCogsCommitPage();
+  } catch(e) {
+    console.error('[cogs-commit] createCogsVersion:', e);
+    toast('Create COGS version failed: ' + (e.message || e), 'err');
+    if (btn) { btn.disabled = false; btn.textContent = 'Create Draft'; }
+  }
+}
+
+function updateCogsBanner(status) {
+  const banner = document.getElementById('cogsBanner');
+  if (!banner) return;
+  if (!status) { banner.style.display = 'none'; return; }
+  const map = {
+    draft:     { label: 'DRAFT',     bg: 'rgba(251,191,36,.15)', color: 'var(--amber)', border: 'rgba(251,191,36,.3)' },
+    submitted: { label: 'SUBMITTED', bg: 'rgba(59,130,246,.15)', color: '#60a5fa',      border: 'rgba(59,130,246,.3)' },
+    accepted:  { label: 'ACCEPTED',  bg: 'rgba(52,211,153,.15)', color: 'var(--teal)',  border: 'rgba(52,211,153,.3)' },
+    rejected:  { label: 'REJECTED',  bg: 'rgba(239,68,68,.15)',  color: 'var(--red)',   border: 'rgba(239,68,68,.3)'  }
+  };
+  const m = map[status] || map.draft;
+  banner.style.display = 'block';
+  banner.style.background   = m.bg;
+  banner.style.color        = m.color;
+  banner.style.border       = '1px solid ' + m.border;
+  banner.textContent        = m.label;
+}
+
+function updateCogsCommitPage() {
+  const st = COGS_COMMIT.versionStatus;
+  const id = COGS_COMMIT.versionId;
+  updateCogsBanner(st);
+
+  const s1sub = document.getElementById('cogsStep1Sub');
+  const s1btn = document.getElementById('cogsStep1Btn');
+  const s2card = document.getElementById('cogsStep2Card');
+  const s2btn  = document.getElementById('cogsStep2Btn');
+  const s2sub  = document.getElementById('cogsStep2Sub');
+  const s3card = document.getElementById('cogsStep3Card');
+  const s3btn  = document.getElementById('cogsStep3Btn');
+  const s3sub  = document.getElementById('cogsStep3Sub');
+  const s4card = document.getElementById('cogsStep4Card');
+  const s4btn  = document.getElementById('cogsStep4Btn');
+  const s4sub  = document.getElementById('cogsStep4Sub');
+  const s4notes = document.getElementById('cogsSubmitNotes');
+  const resetBtn = document.getElementById('cogsResetBtn');
+
+  const isDraft     = st === 'draft';
+  const isSubmitted = st === 'submitted';
+  const isAccepted  = st === 'accepted';
+  const locked      = isSubmitted || isAccepted;
+
+  // Step 1 — version
+  if (s1sub) s1sub.textContent = id
+    ? (COGS_COMMIT.versionMeta?.code || id) + ' — ' + (st || 'draft')
+    : 'No active draft';
+  if (s1btn) {
+    s1btn.style.display = id ? 'none' : '';
+    s1btn.disabled = false;
+    s1btn.textContent = 'Create Draft';
+  }
+
+  // Step 2 — validate
+  if (s2card) s2card.style.opacity = id ? '1' : '.5';
+  if (s2btn)  { s2btn.disabled = !id || locked; }
+  if (s2sub && COGS_COMMIT.valResults.length > 0) {
+    const fails = COGS_COMMIT.valResults.filter(r => r.status === 'FAIL').length;
+    s2sub.textContent = fails === 0 ? 'All checks passed' : fails + ' check(s) failed';
+    s2sub.style.color = fails === 0 ? 'var(--teal)' : 'var(--red)';
+  }
+
+  // Step 3 — preview
+  if (s3card) s3card.style.opacity = (id && !COGS_COMMIT.valHasFail) ? '1' : '.5';
+  if (s3btn)  { s3btn.disabled = !id || COGS_COMMIT.valHasFail || locked; }
+  if (s3sub)  s3sub.textContent = 'Map COGS lines to GL (fpa_facts preview)';
+
+  // Step 4 — submit
+  if (s4card)  s4card.style.opacity  = (id && !COGS_COMMIT.valHasFail) ? '1' : '.5';
+  if (s4btn)   { s4btn.disabled = !id || COGS_COMMIT.valHasFail || locked; }
+  if (s4notes) s4notes.style.display = isDraft ? 'block' : 'none';
+  if (s4sub) {
+    if (isAccepted)  s4sub.textContent = 'COGS written to fpa_facts';
+    else if (isSubmitted) s4sub.textContent = 'Awaiting Hub review';
+    else             s4sub.textContent = 'Write COGS to fpa_facts';
+  }
+  if (resetBtn) resetBtn.style.display = (isSubmitted || isAccepted) ? '' : 'none';
+}
+
+async function cogsValidate() {
+  if (!COGS_COMMIT.versionId) return;
+  const btn = document.getElementById('cogsStep2Btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Validating...'; }
+  const resDiv = document.getElementById('cogsValResults');
+  if (resDiv) { resDiv.style.display = 'none'; resDiv.innerHTML = ''; }
+  try {
+    const resp = await fetch(_SB_URL + '/functions/v1/run-validations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _SB_ANON_KEY },
+      body: JSON.stringify({ version_id: COGS_COMMIT.versionId, extension: 'cogs' })
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error || json.message || resp.statusText);
+    COGS_COMMIT.valResults = json.checks || [];
+    COGS_COMMIT.valHasFail = COGS_COMMIT.valResults.some(r => r.status === 'FAIL');
+    if (resDiv) {
+      resDiv.style.display = 'block';
+      resDiv.innerHTML = COGS_COMMIT.valResults.map(r => {
+        const icon = r.status === 'PASS' ? '&#x2713;' : r.status === 'WARN' ? '&#x26A0;' : '&#x2717;';
+        const col  = r.status === 'PASS' ? 'var(--teal)' : r.status === 'WARN' ? 'var(--amber)' : 'var(--red)';
+        return '<div style="display:flex;gap:6px;padding:2px 0;color:' + col + '">'
+          + '<span>' + icon + '</span>'
+          + '<span style="color:var(--text)">' + (r.check || r.name) + '</span>'
+          + '<span style="margin-left:auto;font-weight:700">' + r.status + '</span>'
+          + (r.message ? '<span style="color:var(--muted)"> &mdash; ' + r.message + '</span>' : '')
+          + '</div>';
+      }).join('');
+    }
+    updateCogsCommitPage();
+  } catch(e) {
+    console.error('[cogs-commit] cogsValidate:', e);
+    toast('Validation error: ' + e.message, 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Validate'; }
+  }
+}
+
+async function cogsMapPreview() {
+  if (!COGS_COMMIT.versionId) return;
+  const btn = document.getElementById('cogsStep3Btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Mapping...'; }
+  const resDiv = document.getElementById('cogsPreviewResults');
+  if (resDiv) { resDiv.style.display = 'none'; resDiv.innerHTML = ''; }
+  try {
+    const resp = await fetch(_SB_URL + '/functions/v1/map-ops-to-fpa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _SB_ANON_KEY },
+      body: JSON.stringify({ version_id: COGS_COMMIT.versionId, preview: true })
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error || json.message || resp.statusText);
+    const rows = json.preview || [];
+    if (resDiv) {
+      resDiv.style.display = 'block';
+      if (rows.length === 0) {
+        resDiv.textContent = 'No mappable COGS rows found.';
+      } else {
+        resDiv.innerHTML = '<div style="font-weight:700;margin-bottom:4px">' + rows.length + ' rows will be written to fpa_facts:</div>'
+          + rows.slice(0, 8).map(r =>
+              '<div style="display:flex;gap:8px;padding:2px 0;border-bottom:1px solid var(--b2)">'
+              + '<span style="color:var(--muted);min-width:100px">' + (r.dim_code || '') + '</span>'
+              + '<span style="min-width:40px">' + (r.month || '') + '</span>'
+              + '<span style="margin-left:auto;font-weight:700">' + (r.value != null ? Number(r.value).toLocaleString() : '—') + '</span>'
+              + '</div>'
+            ).join('')
+          + (rows.length > 8 ? '<div style="color:var(--muted)">... and ' + (rows.length - 8) + ' more</div>' : '');
+      }
+    }
+    toast('Preview: ' + rows.length + ' rows ready', 'ok');
+  } catch(e) {
+    console.error('[cogs-commit] cogsMapPreview:', e);
+    toast('Preview error: ' + e.message, 'err');
+    if (resDiv) { resDiv.style.display = 'block'; resDiv.textContent = 'Error: ' + e.message; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Preview'; }
+  }
+}
+
+async function cogsSubmit() {
+  if (!COGS_COMMIT.versionId) return;
+  const notes = document.getElementById('cogsNotesInput')?.value.trim() || '';
+  const btn = document.getElementById('cogsStep4Btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting...'; }
+  try {
+    // 1. map-ops-to-fpa (write mode)
+    const mapResp = await fetch(_SB_URL + '/functions/v1/map-ops-to-fpa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _SB_ANON_KEY },
+      body: JSON.stringify({ version_id: COGS_COMMIT.versionId, preview: false })
+    });
+    const mapJson = await mapResp.json();
+    if (!mapResp.ok) throw new Error(mapJson.error || mapJson.message || mapResp.statusText);
+
+    // 2. submit-version (status: draft -> submitted)
+    const subResp = await fetch(_SB_URL + '/functions/v1/submit-version', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _SB_ANON_KEY },
+      body: JSON.stringify({ version_id: COGS_COMMIT.versionId, extension: 'cogs', notes })
+    });
+    const subJson = await subResp.json();
+    if (!subResp.ok) throw new Error(subJson.error || subJson.message || subResp.statusText);
+
+    COGS_COMMIT.versionStatus = 'submitted';
+    toast('COGS submitted — ' + (mapJson.written || 0) + ' rows written to fpa_facts', 'ok');
+    updateCogsCommitPage();
+  } catch(e) {
+    console.error('[cogs-commit] cogsSubmit:', e);
+    toast('Submit failed: ' + e.message, 'err');
+    if (btn) { btn.disabled = false; btn.textContent = '&#x1F4E4; Submit'; }
+  }
+}
+
+async function cogsResetToDraft() {
+  const year = Number(document.getElementById('opsCogsYearSel')?.value || _CY);
+  try {
+    const code = 'COGS_LE_' + year + '_R' + Date.now().toString(36).slice(-4).toUpperCase();
+    const { data, error } = await _sb
+      .from('fpa_versions')
+      .insert({
+        code,
+        name:       'Operations / COGS LE ' + year + ' (Revised)',
+        kind:       'LE',
+        extension:  'cogs',
+        year,
+        status:     'draft',
+        created_by: currentUser.id
+      })
+      .select('id, code, status')
+      .single();
+    if (error) throw error;
+    COGS_COMMIT.versionId     = data.id;
+    COGS_COMMIT.versionStatus = 'draft';
+    COGS_COMMIT.versionMeta   = data;
+    COGS_COMMIT.valHasFail    = true;
+    COGS_COMMIT.valResults    = [];
+    toast('New COGS draft created for revision: ' + code, 'ok');
+    updateCogsCommitPage();
+  } catch(e) {
+    console.error('[cogs-commit] cogsResetToDraft:', e);
+    toast('Reset failed: ' + e.message, 'err');
   }
 }
 </script>
