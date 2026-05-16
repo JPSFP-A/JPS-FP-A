@@ -1555,6 +1555,8 @@ tr.der td{color:var(--teal)}
       <div class="nav-dd-item" data-pane="rpt-rev"   onclick="showPane('rpt-rev',null);navClose()">⚡ Revenue &amp; Gen</div>
       <div class="nav-dd-item" data-pane="rpt-flash" onclick="showPane('rpt-flash',null);navClose()">📰 Flash Report</div>
       <div class="nav-dd-item" data-pane="rpt-vc" onclick="showPane('rpt-vc',null);navClose()">📊 Version Compare</div>
+      <div class="nav-dd-sep"></div>
+      <div class="nav-dd-item" data-pane="fin-cpl" onclick="showPane('fin-cpl',null);cplLoad();navClose()">🧩 Consolidated P&amp;L</div>
     </div>
   </div>
   <!-- Workings dropdown -->
@@ -4340,6 +4342,43 @@ tr.der td{color:var(--teal)}
           </tr>
         </thead>
         <tbody id="nfVarRateBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CONSOLIDATED P&L (FIN-CPL) ═══ -->
+<div id="pane-fin-cpl" class="pane">
+  <div class="info-bar" style="margin-bottom:10px">
+    <div class="info-icon">&#x1F9E9;</div>
+    <div class="info-text"><strong>Consolidated P&amp;L.</strong> Aggregates accepted commits from all extensions into a single P&amp;L view. Only accepted versions contribute. Values in JMD $&#x2019;000. Refresh after accepting new commits.</div>
+  </div>
+
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+    <span class="cl">Year</span>
+    <select class="sel" id="cplYearSel" style="height:26px" onchange="cplLoad()"></select>
+    <button class="btn btn-ghost" onclick="cplLoad()">&#x21BA; Refresh</button>
+    <button class="btn btn-ghost" style="margin-left:auto" onclick="cplExport()">&#x2B07; Export CSV</button>
+  </div>
+
+  <!-- Extension coverage -->
+  <div id="cplCoverage" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"></div>
+
+  <!-- KPI bar -->
+  <div id="cplKpis" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"></div>
+
+  <!-- P&L table -->
+  <div class="tc2">
+    <div class="th">
+      <div>
+        <div class="tt">Consolidated P&amp;L <span class="badge badge-act">Accepted Commits Only</span></div>
+        <div class="ts">JMD $&#x2019;000 &middot; Accepted versions only &middot; <span id="cplVersionsLabel" style="color:var(--teal)"></span></div>
+      </div>
+    </div>
+    <div class="tscr">
+      <table id="cplTable" style="width:100%;border-collapse:collapse;font-size:10px;font-family:var(--mono)">
+        <thead id="cplHead"></thead>
+        <tbody id="cplBody"></tbody>
       </table>
     </div>
   </div>
@@ -22033,6 +22072,280 @@ function nfVarRender(year, facts) {
       kpiDiv.appendChild(card);
     });
   }
+}
+
+// ════════════════════════════════════════════════════════
+//  CONSOLIDATED P&L (FIN-CPL)
+// ════════════════════════════════════════════════════════
+
+// Static grouping: maps display rows -> fpa_facts line_ids
+// sign: 1=income (positive), -1=expense (displayed positive, stored positive, sign flipped for GP calc)
+const CPL_SECTIONS = [
+  { section: 'Revenue', rows: [
+    { label: 'Non-Fuel Revenue',        ids: ['rev_rt10','rev_rt20','rev_rt40','rev_rt50','rev_rt60','rev_rt70'], sign: 1 },
+    { label: 'Fuel Revenue',            ids: ['fuel_rev'],  sign: 1 },
+    { label: 'Fuel Surplus/(Penalty)',  ids: ['fuel_surp'], sign: 1, italic: true },
+    { label: 'Total Revenue',           ids: null, computed: 'section_sum', bold: true, sign: 1 },
+  ]},
+  { section: 'Cost of Sales', rows: [
+    { label: 'Fuel Costs',              ids: ['fuel_cost'], sign: -1 },
+    { label: 'IPP / Purchased Power',   ids: ['ipp_cost'],  sign: -1 },
+    { label: 'Total COGS',              ids: null, computed: 'section_sum', bold: true, sign: -1 },
+  ]},
+  { section: 'Gross Profit', rows: [
+    { label: 'Gross Profit',            ids: null, computed: 'gross_profit', bold: true, sign: 1, highlight: true },
+  ]},
+  { section: 'Operating Expenses', rows: [
+    { label: 'Employee Costs',          ids: ['opex_payroll'],  sign: -1 },
+    { label: 'Contract Services',       ids: ['opex_contract'], sign: -1 },
+    { label: 'Materials & Spares',      ids: ['opex_materials'],sign: -1 },
+    { label: 'Insurance',               ids: ['opex_insurance'],sign: -1 },
+    { label: 'SG&A / Billing',          ids: ['pl_sga'],        sign: -1 },
+    { label: 'Other O&M',               ids: ['om_advert','om_bad_debt','om_building','om_misc','om_office','om_tech','om_transport'], sign: -1 },
+    { label: 'Total OpEx',              ids: null, computed: 'section_sum', bold: true, sign: -1 },
+  ]},
+  { section: 'EBITDA', rows: [
+    { label: 'EBITDA',                  ids: null, computed: 'ebitda', bold: true, sign: 1, highlight: true, total: true },
+  ]},
+];
+
+let _cplFacts = []; // raw {line_id, period_id, value}
+let _cplVersions = []; // accepted versions used
+
+async function cplLoad() {
+  const sb = _sb;
+  if (!sb) { toast('DB not connected', 'err'); return; }
+
+  // Populate year selector
+  const yearSel = document.getElementById('cplYearSel');
+  if (yearSel && yearSel.options.length === 0) {
+    YEARS.forEach(y => {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y;
+      if (Number(y) === _CY) o.selected = true;
+      yearSel.appendChild(o);
+    });
+  }
+  const year = Number(yearSel?.value || _CY);
+
+  // 1. Get accepted versions for this year
+  const { data: vers, error: vErr } = await sb
+    .from('fpa_versions')
+    .select('id, extension, code, name, status, reviewed_at')
+    .eq('year', year)
+    .eq('status', 'accepted')
+    .order('reviewed_at', { ascending: false });
+  if (vErr) { toast('CPL: versions load error: ' + vErr.message, 'err'); return; }
+
+  _cplVersions = vers || [];
+  cplRenderCoverage(year, _cplVersions);
+
+  if (!_cplVersions.length) {
+    _cplFacts = [];
+    cplRender(year, []);
+    return;
+  }
+
+  // 2. Collect all line_ids we care about
+  const allIds = CPL_SECTIONS.flatMap(s => s.rows.flatMap(r => r.ids || []));
+  const versionIds = _cplVersions.map(v => v.id);
+
+  // 3. Load fpa_facts for all accepted versions
+  const { data: facts, error: fErr } = await sb
+    .from('fpa_facts')
+    .select('version_id, line_id, period_id, value')
+    .in('version_id', versionIds)
+    .in('line_id', allIds)
+    .order('period_id');
+  if (fErr) { toast('CPL: facts load error: ' + fErr.message, 'err'); return; }
+
+  _cplFacts = facts || [];
+  cplRender(year, _cplFacts);
+}
+
+function cplRenderCoverage(year, vers) {
+  const div = document.getElementById('cplCoverage');
+  if (!div) return;
+
+  const EXTS = [
+    { key: 'sales', label: '📊 Sales' },
+    { key: 'cogs',  label: '⛽ COGS'  },
+    { key: 'om',    label: '🔧 O&M'   },
+  ];
+  const byExt = {};
+  for (const v of vers) byExt[v.extension] = v;
+
+  div.innerHTML = EXTS.map(e => {
+    const v = byExt[e.key];
+    if (v) {
+      const revAt = v.reviewed_at ? new Date(v.reviewed_at).toLocaleDateString('en-JM') : '';
+      return `<span style="font-size:10px;font-weight:700;padding:4px 10px;border-radius:10px;background:rgba(52,211,153,.12);color:var(--green);border:1px solid rgba(52,211,153,.3)">${e.label} ✓ ${_escHtml(v.code)} ${revAt ? '· '+revAt : ''}</span>`;
+    } else {
+      return `<span style="font-size:10px;font-weight:700;padding:4px 10px;border-radius:10px;background:rgba(148,163,184,.1);color:var(--muted);border:1px solid var(--b2)">${e.label} — No accepted version for ${year}</span>`;
+    }
+  }).join('');
+
+  const lbl = document.getElementById('cplVersionsLabel');
+  if (lbl) lbl.textContent = vers.length + ' accepted version' + (vers.length !== 1 ? 's' : '') + ' · FY' + year;
+}
+
+function cplRender(year, facts) {
+  const head = document.getElementById('cplHead');
+  const body = document.getElementById('cplBody');
+  if (!head || !body) return;
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fmt = (v) => v == null || isNaN(v) ? '—' : Math.round(v).toLocaleString('en-US');
+
+  // Build lookup: { lineId: { month: value } }
+  const lookup = {};
+  for (const row of facts) {
+    const month = row.period_id % 100;
+    if (!lookup[row.line_id]) lookup[row.line_id] = {};
+    lookup[row.line_id][month] = (lookup[row.line_id][month] ?? 0) + Number(row.value ?? 0);
+  }
+
+  // Helper: sum a list of ids for a given month
+  const sumIds = (ids, month) => (ids || []).reduce((s, id) => s + (lookup[id]?.[month] ?? 0), 0);
+
+  // Header
+  head.innerHTML = `<tr style="background:var(--card2)">
+    <th style="text-align:left;min-width:200px;padding:5px 10px">Line Item</th>
+    ${MONTHS.map(m => `<th style="text-align:right;padding:5px 6px">${m}</th>`).join('')}
+    <th style="text-align:right;padding:5px 10px;border-left:2px solid var(--b2)">Full Year</th>
+  </tr>`;
+
+  if (!facts.length) {
+    body.innerHTML = `<tr><td colspan="14" style="text-align:center;color:var(--muted);padding:24px">No accepted versions found for this year. Accept commits from the Commits panel to populate.</td></tr>`;
+    cplRenderKpis(null, null, null);
+    return;
+  }
+
+  // Pre-compute section sums and accumulate for cross-section totals
+  const sectionTotals = {}; // sectionName -> [12 months]
+  for (const sec of CPL_SECTIONS) {
+    const arr = new Array(12).fill(0);
+    for (const row of sec.rows) {
+      if (row.ids && row.ids.length) {
+        for (let m = 0; m < 12; m++) {
+          arr[m] += sumIds(row.ids, m+1) * row.sign;
+        }
+      }
+    }
+    sectionTotals[sec.section] = arr;
+  }
+
+  const grossProfitByMonth = () => {
+    const r = sectionTotals['Revenue'] || new Array(12).fill(0);
+    const c = sectionTotals['Cost of Sales'] || new Array(12).fill(0);
+    return r.map((v, i) => v + c[i]); // cost_of_sales already sign=-1, so stored as negative contribution
+  };
+
+  const ebitdaByMonth = () => {
+    const gp = grossProfitByMonth();
+    const opex = sectionTotals['Operating Expenses'] || new Array(12).fill(0);
+    return gp.map((v, i) => v + opex[i]);
+  };
+
+  let totalRevYr = 0, ebitdaYr = 0;
+  const gpArr = grossProfitByMonth();
+  const ebArr = ebitdaByMonth();
+
+  const rows = [];
+  for (const sec of CPL_SECTIONS) {
+    // Section header row
+    rows.push(`<tr style="background:var(--card2)"><td colspan="14" style="padding:4px 10px;font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">${_escHtml(sec.section)}</td></tr>`);
+
+    for (const row of sec.rows) {
+      let vals = new Array(12).fill(null);
+      let fullYr = null;
+
+      if (row.ids && row.ids.length) {
+        // Direct sum
+        vals = vals.map((_, i) => sumIds(row.ids, i+1));
+        fullYr = vals.reduce((s, v) => s + (v ?? 0), 0);
+      } else if (row.computed === 'section_sum') {
+        const secArr = sectionTotals[sec.section] || new Array(12).fill(0);
+        vals = secArr.map(v => v);
+        fullYr = vals.reduce((s, v) => s + v, 0);
+      } else if (row.computed === 'gross_profit') {
+        vals = gpArr.slice();
+        fullYr = vals.reduce((s, v) => s + v, 0);
+      } else if (row.computed === 'ebitda') {
+        vals = ebArr.slice();
+        fullYr = vals.reduce((s, v) => s + v, 0);
+        ebitdaYr = fullYr ?? 0;
+      }
+
+      if (sec.section === 'Revenue' && row.computed === 'section_sum') totalRevYr = fullYr ?? 0;
+
+      const isNeg = (v) => v != null && v < 0;
+      const cellColor = (v) => {
+        if (v == null || v === 0) return '';
+        if (row.sign === -1) return v > 0 ? 'color:var(--red)' : 'color:var(--green)'; // expenses: positive is bad
+        return v < 0 ? 'color:var(--red)' : '';
+      };
+
+      const bg = row.total ? 'background:rgba(99,102,241,.08)' : row.highlight ? 'background:var(--card2)' : '';
+      const fw = row.bold ? 'font-weight:700' : '';
+      const fi = row.italic ? 'font-style:italic' : '';
+      const labelStyle = `text-align:left;padding:4px 10px;${fw};${fi}`;
+
+      const cells = vals.map((v, i) => {
+        const display = v == null ? '—' : fmt(Math.abs(v ?? 0));
+        return `<td style="text-align:right;padding:4px 6px;${cellColor(v)}">${display}</td>`;
+      }).join('');
+
+      const fyDisplay = fullYr == null ? '—' : fmt(Math.abs(fullYr));
+      const fyStyle = `text-align:right;padding:4px 10px;border-left:2px solid var(--b2);${fw};${cellColor(fullYr)}`;
+
+      rows.push(`<tr style="${bg}">`
+        + `<td style="${labelStyle}">${_escHtml(row.label)}</td>`
+        + cells
+        + `<td style="${fyStyle}">${fyDisplay}</td>`
+        + `</tr>`);
+    }
+  }
+
+  body.innerHTML = rows.join('');
+  cplRenderKpis(totalRevYr, gpArr.reduce((s,v)=>s+v,0), ebitdaYr);
+}
+
+function cplRenderKpis(totalRev, grossProfit, ebitda) {
+  const div = document.getElementById('cplKpis');
+  if (!div) return;
+
+  const fmt = (v) => v == null ? '—' : (Math.abs(v) >= 1e6 ? (v/1e6).toFixed(1)+'B' : Math.abs(v) >= 1e3 ? (v/1e3).toFixed(0)+'M' : Math.round(v).toLocaleString());
+  const margin = (totalRev && totalRev !== 0) ? ((ebitda / totalRev) * 100) : null;
+
+  const kpis = [
+    { label: 'Total Revenue',   value: totalRev == null ? '—' : 'JMD ' + fmt(totalRev), color: 'var(--teal)' },
+    { label: 'Gross Profit',    value: grossProfit == null ? '—' : 'JMD ' + fmt(grossProfit), color: grossProfit >= 0 ? 'var(--green)' : 'var(--red)' },
+    { label: 'EBITDA',          value: ebitda == null ? '—' : 'JMD ' + fmt(ebitda), color: ebitda >= 0 ? 'var(--green)' : 'var(--red)' },
+    { label: 'EBITDA Margin',   value: margin == null ? '—' : margin.toFixed(1) + '%', color: margin >= 20 ? 'var(--green)' : margin >= 10 ? 'var(--amber)' : 'var(--red)' },
+  ];
+
+  div.innerHTML = kpis.map(kpi => `
+    <div style="background:var(--card-bg);border:1px solid var(--b2);border-radius:8px;padding:10px 16px;min-width:160px">
+      <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${_escHtml(kpi.label)}</div>
+      <div style="font-size:18px;font-weight:700;color:${kpi.color}">${kpi.value}</div>
+      <div style="font-size:9px;color:var(--muted)">JMD $'000 · Full Year</div>
+    </div>`).join('');
+}
+
+function cplExport() {
+  const table = document.getElementById('cplTable');
+  if (!table) return;
+  const rows = [];
+  for (const tr of table.querySelectorAll('tr')) {
+    const cols = [];
+    for (const td of tr.querySelectorAll('th,td')) cols.push('"' + (td.textContent || '').trim().replace(/"/g,'""') + '"');
+    if (cols.length) rows.push(cols.join(','));
+  }
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'consolidated_pl_' + (document.getElementById('cplYearSel')?.value || '') + '.csv';
+  a.click();
 }
 </script>
 
