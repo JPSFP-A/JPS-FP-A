@@ -1584,9 +1584,10 @@ tr.der td{color:var(--teal)}
   <div class="nav-group" id="nav-finentries">
     <div class="nav-grp-btn" onclick="navToggle('nav-finentries')">📊 Finance Entries <span style="font-size:8px;opacity:.55">▾</span></div>
     <div class="nav-dd">
-      <div class="nav-dd-item" data-pane="fin-otherinc" onclick="showPane('fin-otherinc',null);otherIncLoad();navClose()">📊 Other Income</div>
-      <div class="nav-dd-item" data-pane="fin-fxgl"     onclick="showPane('fin-fxgl',null);fxGLLoad();navClose()">💹 FX Gain/Loss</div>
-      <div class="nav-dd-item" data-pane="fin-ifrs16"   onclick="showPane('fin-ifrs16',null);ifrs16Load();navClose()">📐 IFRS 16</div>
+      <div class="nav-dd-item" data-pane="fin-otherinc"  onclick="showPane('fin-otherinc',null);otherIncLoad();navClose()">📊 Other Income</div>
+      <div class="nav-dd-item" data-pane="fin-fxgl"      onclick="showPane('fin-fxgl',null);fxGLLoad();navClose()">💹 FX Gain/Loss</div>
+      <div class="nav-dd-item" data-pane="fin-ifrs16"    onclick="showPane('fin-ifrs16',null);ifrs16Load();navClose()">📐 IFRS 16</div>
+      <div class="nav-dd-item" data-pane="fin-nf-var"    onclick="showPane('fin-nf-var',null);nfVarLoad();navClose()">📈 Non-Fuel Variance</div>
     </div>
   </div>
   <!-- Operations / COGS dropdown -->
@@ -4260,6 +4261,87 @@ tr.der td{color:var(--teal)}
       </tr></thead>
       <tbody id="ifrs16PLBody"></tbody>
     </table></div>
+  </div>
+</div>
+
+<!-- ═══ NON-FUEL VARIANCE (HUB-09) ═══ -->
+<div id="pane-fin-nf-var" class="pane">
+  <div class="info-bar" style="margin-bottom:10px">
+    <div class="info-icon">&#x1F4C8;</div>
+    <div class="info-text"><strong>Non-Fuel Revenue Variance.</strong> LE vs Actuals by rate class and month. Source: committed Sales LE version (fpa_facts) + uploaded actuals. Values in USD $'000 unless noted.</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+    <span class="cl">Year</span>
+    <select class="sel" id="nfVarYearSel" style="height:26px" onchange="nfVarLoad()"></select>
+    <span class="cl">Sales LE Version</span>
+    <select class="sel" id="nfVarVersionSel" style="height:26px;min-width:200px" onchange="nfVarLoad()">
+      <option value="">-- Select --</option>
+    </select>
+    <button class="btn btn-ghost" onclick="nfVarLoad()">&#x21BA; Load</button>
+  </div>
+  <!-- KPI cards -->
+  <div id="nfVarKpis" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"></div>
+  <!-- Revenue by Rate Class table -->
+  <div class="tc2" style="margin-bottom:16px">
+    <div class="th">
+      <div class="tt">&#x1F4B0; Non-Fuel Revenue by Rate Class <span style="font-size:9px;color:var(--muted);font-weight:400">USD $'000</span></div>
+      <div class="ts">Sales LE commitment from fpa_facts (REV_RT10 &#x2013; REV_RT70)</div>
+    </div>
+    <div class="tscr">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left;min-width:140px">Rate Class</th>
+            <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th>
+            <th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th>
+            <th style="border-left:2px solid var(--b2)">Full Year</th>
+          </tr>
+        </thead>
+        <tbody id="nfVarRevBody"></tbody>
+        <tfoot id="nfVarRevFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+  <!-- Sales Volume (MWh) table -->
+  <div class="tc2" style="margin-bottom:16px">
+    <div class="th">
+      <div class="tt">&#x26A1; Sales Volume by Rate Class <span style="font-size:9px;color:var(--muted);font-weight:400">MWh</span></div>
+      <div class="ts">From fpa_facts (MWH_RT10 &#x2013; MWH_RT70)</div>
+    </div>
+    <div class="tscr">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left;min-width:140px">Rate Class</th>
+            <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th>
+            <th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th>
+            <th style="border-left:2px solid var(--b2)">Full Year</th>
+          </tr>
+        </thead>
+        <tbody id="nfVarMwhBody"></tbody>
+        <tfoot id="nfVarMwhFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+  <!-- Implied Rate (US&#xA2;/kWh) table -->
+  <div class="tc2">
+    <div class="th">
+      <div class="tt">&#x1F4CA; Implied Non-Fuel Rate <span style="font-size:9px;color:var(--muted);font-weight:400">US&#xA2;/kWh (derived: Revenue / MWh &#xD7; 10)</span></div>
+      <div class="ts">Calculated from Revenue / Volume — highlights rate mix shifts between rate classes</div>
+    </div>
+    <div class="tscr">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left;min-width:140px">Rate Class</th>
+            <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th>
+            <th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th>
+            <th style="border-left:2px solid var(--b2)">Avg</th>
+          </tr>
+        </thead>
+        <tbody id="nfVarRateBody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -21696,6 +21778,259 @@ async function cogsResetToDraft() {
   } catch(e) {
     console.error('[cogs-commit] cogsResetToDraft:', e);
     toast('Reset failed: ' + e.message, 'err');
+  }
+}
+
+// ── Non-Fuel Variance (HUB-09) ───────────────────────────────────────────────
+
+// Rate class config: fpa_dim_line code → display label
+const NF_RATE_CLASSES = [
+  { revCode: 'REV_RT10', mwhCode: 'MWH_RT10', label: 'RT10 — Residential' },
+  { revCode: 'REV_RT20', mwhCode: 'MWH_RT20', label: 'RT20 — Commercial/SME' },
+  { revCode: 'REV_RT40', mwhCode: 'MWH_RT40', label: 'RT40 — LV Industrial' },
+  { revCode: 'REV_RT50', mwhCode: 'MWH_RT50', label: 'RT50 — MV Industrial' },
+  { revCode: 'REV_RT60', mwhCode: 'MWH_RT60', label: 'RT60 — Streetlights' },
+  { revCode: 'REV_RT70', mwhCode: 'MWH_RT70', label: 'RT70 — LV/HV Large' },
+];
+
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+let _nfVarFacts = []; // raw fpa_facts rows for current version
+
+async function nfVarLoad() {
+  const sb = _sb;
+  if (!sb) { toast('DB not connected', 'err'); return; }
+
+  // Populate year selector
+  const yearSel = document.getElementById('nfVarYearSel');
+  if (yearSel && yearSel.options.length === 0) {
+    YEARS.forEach(y => {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y;
+      if (Number(y) === _CY) o.selected = true;
+      yearSel.appendChild(o);
+    });
+  }
+  const year = Number(yearSel?.value || _CY);
+
+  // Populate version selector — show submitted + accepted sales versions for this year
+  const verSel = document.getElementById('nfVarVersionSel');
+  if (verSel) {
+    try {
+      const { data: vers, error: vErr } = await sb
+        .from('fpa_versions')
+        .select('id, code, name, status')
+        .eq('extension', 'sales')
+        .eq('year', year)
+        .in('status', ['submitted','accepted'])
+        .order('submitted_at', { ascending: false })
+        .limit(10);
+      if (vErr) throw vErr;
+      // Rebuild options
+      verSel.innerHTML = '<option value="">-- Select Sales LE Version --</option>';
+      (vers || []).forEach(v => {
+        const o = document.createElement('option');
+        o.value = v.id;
+        o.textContent = v.code + ' [' + v.status + ']' + (v.name ? ' — ' + v.name : '');
+        verSel.appendChild(o);
+      });
+      // Auto-select first if only one
+      if (vers && vers.length === 1 && !verSel.value) verSel.value = vers[0].id;
+    } catch(e) {
+      console.error('[nf-var] version load:', e);
+      toast('Could not load sales versions: ' + e.message, 'err');
+    }
+  }
+
+  const versionId = verSel?.value || null;
+  if (!versionId) {
+    _nfVarFacts = [];
+    nfVarRender(year, []);
+    return;
+  }
+
+  // Load fpa_facts for this version — revenue + MWh lines only
+  const allRevCodes = NF_RATE_CLASSES.flatMap(rc => [rc.revCode, rc.mwhCode]);
+
+  try {
+    const { data: facts, error: fErr } = await sb
+      .from('fpa_facts')
+      .select('line_id, period_id, value')
+      .eq('version_id', versionId)
+      .in('line_id', allRevCodes)
+      .order('period_id');
+    if (fErr) throw fErr;
+    _nfVarFacts = facts || [];
+    nfVarRender(year, _nfVarFacts);
+  } catch(e) {
+    console.error('[nf-var] facts load:', e);
+    toast('Non-Fuel Variance load error: ' + e.message, 'err');
+  }
+}
+
+function nfVarRender(year, facts) {
+  const kpiDiv    = document.getElementById('nfVarKpis');
+  const revBody   = document.getElementById('nfVarRevBody');
+  const revFoot   = document.getElementById('nfVarRevFoot');
+  const mwhBody   = document.getElementById('nfVarMwhBody');
+  const mwhFoot   = document.getElementById('nfVarMwhFoot');
+  const rateBody  = document.getElementById('nfVarRateBody');
+  if (!revBody) return;
+
+  // Clear
+  [revBody, revFoot, mwhBody, mwhFoot, rateBody].forEach(el => { if (el) el.innerHTML = ''; });
+  if (kpiDiv) kpiDiv.innerHTML = '';
+
+  if (!facts || facts.length === 0) {
+    const msg = (el, text) => {
+      if (!el) return;
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 14; td.style.cssText = 'text-align:center;color:var(--muted);padding:18px';
+      td.textContent = text;
+      tr.appendChild(td); el.appendChild(tr);
+    };
+    msg(revBody, 'No non-fuel revenue data for this version. Select a submitted or accepted Sales LE version.');
+    msg(mwhBody, 'No MWh data.');
+    return;
+  }
+
+  // Build lookup: { lineCode: { month: value } }
+  const lookup = {};
+  for (const row of facts) {
+    const month = row.period_id % 100; // YYYYMM -> MM
+    if (!lookup[row.line_id]) lookup[row.line_id] = {};
+    lookup[row.line_id][month] = (lookup[row.line_id][month] ?? 0) + Number(row.value ?? 0);
+  }
+
+  const fmt  = (v, dp=0) => v == null || isNaN(v) ? '—' : Number(v).toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+  const fmtR = (v) => v == null || isNaN(v) || !isFinite(v) ? '—' : Number(v).toFixed(2);
+
+  // Revenue section
+  let totalRevByMonth = new Array(12).fill(0);
+  let totalRevYr = 0;
+
+  NF_RATE_CLASSES.forEach(rc => {
+    const tr = document.createElement('tr');
+    let rowTotal = 0;
+    let tdHtml = '<td style="text-align:left;font-size:10px;white-space:nowrap">' + rc.label + '</td>';
+    for (let m = 1; m <= 12; m++) {
+      const v = lookup[rc.revCode]?.[m] ?? 0;
+      rowTotal += v;
+      totalRevByMonth[m-1] += v;
+      tdHtml += '<td style="text-align:right;font-size:10px">' + (v === 0 ? '<span style="color:var(--muted)">—</span>' : fmt(v/1000)) + '</td>';
+    }
+    totalRevYr += rowTotal;
+    tdHtml += '<td style="text-align:right;font-size:10px;font-weight:700;border-left:2px solid var(--b2)">' + fmt(rowTotal/1000) + '</td>';
+    tr.innerHTML = tdHtml;
+    revBody.appendChild(tr);
+  });
+
+  // Revenue totals footer
+  if (revFoot) {
+    const tr = document.createElement('tr');
+    tr.style.cssText = 'font-weight:800;background:var(--card-bg)';
+    let tdHtml = '<td style="text-align:left;font-size:10px">TOTAL Non-Fuel Revenue</td>';
+    for (let m = 0; m < 12; m++) {
+      tdHtml += '<td style="text-align:right;font-size:10px">' + fmt(totalRevByMonth[m]/1000) + '</td>';
+    }
+    tdHtml += '<td style="text-align:right;font-size:10px;border-left:2px solid var(--b2)">' + fmt(totalRevYr/1000) + '</td>';
+    tr.innerHTML = tdHtml;
+    revFoot.appendChild(tr);
+  }
+
+  // MWh section
+  let totalMwhByMonth = new Array(12).fill(0);
+  let totalMwhYr = 0;
+
+  NF_RATE_CLASSES.forEach(rc => {
+    const tr = document.createElement('tr');
+    let rowTotal = 0;
+    let tdHtml = '<td style="text-align:left;font-size:10px;white-space:nowrap">' + rc.label + '</td>';
+    for (let m = 1; m <= 12; m++) {
+      const v = lookup[rc.mwhCode]?.[m] ?? 0;
+      rowTotal += v;
+      totalMwhByMonth[m-1] += v;
+      tdHtml += '<td style="text-align:right;font-size:10px">' + (v === 0 ? '<span style="color:var(--muted)">—</span>' : fmt(v)) + '</td>';
+    }
+    totalMwhYr += rowTotal;
+    tdHtml += '<td style="text-align:right;font-size:10px;font-weight:700;border-left:2px solid var(--b2)">' + fmt(rowTotal) + '</td>';
+    tr.innerHTML = tdHtml;
+    if (mwhBody) mwhBody.appendChild(tr);
+  });
+
+  // MWh totals footer
+  if (mwhFoot) {
+    const tr = document.createElement('tr');
+    tr.style.cssText = 'font-weight:800;background:var(--card-bg)';
+    let tdHtml = '<td style="text-align:left;font-size:10px">TOTAL Sales Volume</td>';
+    for (let m = 0; m < 12; m++) {
+      tdHtml += '<td style="text-align:right;font-size:10px">' + fmt(totalMwhByMonth[m]) + '</td>';
+    }
+    tdHtml += '<td style="text-align:right;font-size:10px;border-left:2px solid var(--b2)">' + fmt(totalMwhYr) + '</td>';
+    tr.innerHTML = tdHtml;
+    mwhFoot.appendChild(tr);
+  }
+
+  // Implied rate section (US&#xA2;/kWh = USD$000 / MWh * 100)
+  if (rateBody) {
+    NF_RATE_CLASSES.forEach(rc => {
+      const tr = document.createElement('tr');
+      let rateSum = 0, rateCount = 0;
+      let tdHtml = '<td style="text-align:left;font-size:10px;white-space:nowrap">' + rc.label + '</td>';
+      for (let m = 1; m <= 12; m++) {
+        const rev = lookup[rc.revCode]?.[m] ?? 0;  // USD$
+        const mwh = lookup[rc.mwhCode]?.[m] ?? 0;  // MWh
+        const rate = mwh > 0 ? (rev / mwh) * 100 : null; // US&#xA2;/kWh: (USD / MWh) * 100
+        if (rate != null && isFinite(rate)) { rateSum += rate; rateCount++; }
+        tdHtml += '<td style="text-align:right;font-size:10px">' + (rate == null ? '<span style="color:var(--muted)">—</span>' : fmtR(rate)) + '</td>';
+      }
+      const avgRate = rateCount > 0 ? rateSum / rateCount : null;
+      tdHtml += '<td style="text-align:right;font-size:10px;font-weight:700;border-left:2px solid var(--b2);color:var(--gold)">' + (avgRate != null ? fmtR(avgRate) : '—') + '</td>';
+      tr.innerHTML = tdHtml;
+      rateBody.appendChild(tr);
+    });
+
+    // Total avg rate row
+    const tr = document.createElement('tr');
+    tr.style.cssText = 'font-weight:800;background:var(--card-bg)';
+    let avgSum = 0, avgCount = 0;
+    let tdHtml = '<td style="text-align:left;font-size:10px">TOTAL Avg Non-Fuel Rate</td>';
+    for (let m = 0; m < 12; m++) {
+      const mwh = totalMwhByMonth[m];
+      const rate = mwh > 0 ? (totalRevByMonth[m] / mwh) * 100 : null;
+      if (rate != null && isFinite(rate)) { avgSum += rate; avgCount++; }
+      tdHtml += '<td style="text-align:right;font-size:10px">' + (rate == null ? '—' : fmtR(rate)) + '</td>';
+    }
+    const overallAvg = avgCount > 0 ? avgSum / avgCount : null;
+    tdHtml += '<td style="text-align:right;font-size:10px;border-left:2px solid var(--b2);color:var(--gold)">' + (overallAvg != null ? fmtR(overallAvg) : '—') + '</td>';
+    tr.innerHTML = tdHtml;
+    rateBody.appendChild(tr);
+  }
+
+  // KPI cards
+  if (kpiDiv) {
+    const avgNfRate = totalMwhYr > 0 ? (totalRevYr / totalMwhYr) * 100 : null;
+    const kpis = [
+      { label: 'Total Non-Fuel Revenue', value: '$' + fmt(totalRevYr/1000) + 'K', sub: 'USD (full year LE)' },
+      { label: 'Total Sales Volume',     value: fmt(totalMwhYr) + ' MWh', sub: 'Full year LE' },
+      { label: 'Avg Non-Fuel Rate',      value: avgNfRate != null ? fmtR(avgNfRate) + ' US&#xA2;/kWh' : '—', sub: 'Revenue-weighted average' },
+    ];
+    kpis.forEach(kpi => {
+      const card = document.createElement('div');
+      card.style.cssText = 'background:var(--card-bg);border:1px solid var(--b2);border-radius:8px;padding:10px 16px;min-width:180px';
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px';
+      lbl.textContent = kpi.label;
+      const val = document.createElement('div');
+      val.style.cssText = 'font-size:18px;font-weight:700;color:var(--gold)';
+      val.innerHTML = kpi.value;
+      const sub = document.createElement('div');
+      sub.style.cssText = 'font-size:9px;color:var(--muted)';
+      sub.textContent = kpi.sub;
+      card.appendChild(lbl); card.appendChild(val); card.appendChild(sub);
+      kpiDiv.appendChild(card);
+    });
   }
 }
 </script>
