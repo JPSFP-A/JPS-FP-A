@@ -21784,13 +21784,14 @@ async function cogsResetToDraft() {
 // ── Non-Fuel Variance (HUB-09) ───────────────────────────────────────────────
 
 // Rate class config: fpa_dim_line code → display label
+// fpa_dim_line.id values (lowercase text PKs) for sales revenue + MWh lines
 const NF_RATE_CLASSES = [
-  { revCode: 'REV_RT10', mwhCode: 'MWH_RT10', label: 'RT10 — Residential' },
-  { revCode: 'REV_RT20', mwhCode: 'MWH_RT20', label: 'RT20 — Commercial/SME' },
-  { revCode: 'REV_RT40', mwhCode: 'MWH_RT40', label: 'RT40 — LV Industrial' },
-  { revCode: 'REV_RT50', mwhCode: 'MWH_RT50', label: 'RT50 — MV Industrial' },
-  { revCode: 'REV_RT60', mwhCode: 'MWH_RT60', label: 'RT60 — Streetlights' },
-  { revCode: 'REV_RT70', mwhCode: 'MWH_RT70', label: 'RT70 — LV/HV Large' },
+  { revCode: 'rev_rt10', mwhCode: 'rev_mwh_rt10', label: 'RT10 — Residential' },
+  { revCode: 'rev_rt20', mwhCode: 'rev_mwh_rt20', label: 'RT20 — Commercial/SME' },
+  { revCode: 'rev_rt40', mwhCode: 'rev_mwh_rt40', label: 'RT40 — LV Industrial' },
+  { revCode: 'rev_rt50', mwhCode: 'rev_mwh_rt50', label: 'RT50 — MV Industrial' },
+  { revCode: 'rev_rt60', mwhCode: 'rev_mwh_rt60', label: 'RT60 — Streetlights' },
+  { revCode: 'rev_rt70', mwhCode: 'rev_mwh_rt70', label: 'RT70 — LV/HV Large' },
 ];
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
