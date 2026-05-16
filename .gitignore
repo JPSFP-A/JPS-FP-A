@@ -1,0 +1,13 @@
+.vercel
+.env.local
+.env
+node_modules/
+~$*.xlsx
+~$*.xlsm
+*.tmp
+*.xlsx
+*.xlsm
+*.xls
+*.pdf
+*.zip
+*.pptx
