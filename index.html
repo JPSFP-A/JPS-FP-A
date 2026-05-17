@@ -13698,76 +13698,136 @@ function buildVersionComparison() {
     el.innerHTML = '<div style="color:var(--muted);padding:20px 0;font-size:13px">No versions loaded. Upload AOP and LE data to enable comparison.</div>';
     return;
   }
-  const KEY_METRICS = [
-    { id: 'revenue',  label: 'Revenue (US$M)',   lineId: 'total_revenue',   scale: 1e6 },
-    { id: 'ebitda',   label: 'EBITDA (US$M)',    lineId: 'ebitda',          scale: 1e6 },
-    { id: 'npat',     label: 'NPAT (US$M)',       lineId: 'npat',            scale: 1e6 },
-    { id: 'cogs',     label: 'COGS (US$M)',       lineId: 'total_cogs',      scale: 1e6 },
-    { id: 'om',       label: 'O&M (US$M)',        lineId: 'total_om',        scale: 1e6 },
-    { id: 'ebitda_m', label: 'EBITDA Margin %',  lineId: 'ebitda_margin',   scale: 1,  pct: true },
-  ];
   const cy = typeof _CY !== 'undefined' ? _CY : new Date().getFullYear();
-  // Sort versions: AOP first, then LEs chronologically
-  const sorted = [...versions].sort((a,b) => {
-    if (a.code?.includes('AOP')) return -1;
-    if (b.code?.includes('AOP')) return 1;
-    return (a.label||'').localeCompare(b.label||'');
-  });
-  const fmt = (v, pct) => v == null || isNaN(v) ? '—' : pct ? v.toFixed(1)+'%' : v.toFixed(1);
-  const delta = (cur, base) => {
+
+  // ── Compute annual aggregate from component line_ids ─────────────────────────
+  // Costs stored as positive numbers in fpa_facts — negate where needed.
+  const REV_LINES  = ['nonfuel','fuel_rev','ipp_fr','ipp_nr','nr_rev','other_r'];
+  const COST_LINES = ['fuel_cost','ipp_cost','nr_cost']; // pure COGS, no opex
+  const OM_LINES   = ['opex'];
+  const DEPN_LINES = ['depn','impairment'];
+  const NFC_INC    = ['nfc_int_inc'];
+  const NFC_EXP    = ['nfc_int_exp','nfc_fees','nfc_lease','nfc_pref'];
+  const TAX_LINES  = ['oth_tax'];
+  const NTAX_LINES = ['oth_ntax'];
+
+  const annualSum = (code, ids, sign = 1) => {
+    let total = 0, found = false;
+    ids.forEach(lid => {
+      for (let m = 1; m <= 12; m++) {
+        const v = fpa.fact(code, lid, cy, m);
+        if (v != null && !isNaN(v)) { total += sign * Math.abs(Number(v)); found = true; }
+      }
+    });
+    return found ? total : null;
+  };
+
+  const calcMetrics = (code) => {
+    const rev    = annualSum(code, REV_LINES,  1);
+    const cogs   = annualSum(code, COST_LINES, 1);
+    const om     = annualSum(code, OM_LINES,   1);
+    const depn   = annualSum(code, DEPN_LINES, 1);
+    const nfcInc = annualSum(code, NFC_INC,    1);
+    const nfcExp = annualSum(code, NFC_EXP,    1);
+    const tax    = annualSum(code, TAX_LINES,  1);
+    const ntax   = annualSum(code, NTAX_LINES, 1); // could be +/-; store as-is
+    const ebitda = rev != null && cogs != null && om != null ? rev - cogs - om : null;
+    const ebit   = ebitda != null && depn != null ? ebitda - depn : null;
+    const nfc    = nfcInc != null && nfcExp != null ? nfcInc - nfcExp : null;
+    const npbt   = ebit != null && nfc != null ? ebit + nfc + (ntax ?? 0) : null;
+    const npat   = npbt != null && tax != null ? npbt - tax : null;
+    return { rev, cogs, om, ebitda, npat };
+  };
+
+  // Sort versions: AOP first, then LEs chronologically, exclude ACTUALS_* (monthly slices)
+  const sorted = [...versions]
+    .filter(v => !/^ACTUALS_/.test(v.code))
+    .sort((a,b) => {
+      if (a.code?.includes('AOP')) return -1;
+      if (b.code?.includes('AOP')) return 1;
+      return (a.label||a.code||'').localeCompare(b.label||b.code||'');
+    });
+
+  if (!sorted.length) {
+    el.innerHTML = '<div style="color:var(--muted);padding:20px 0;font-size:13px">No budget/LE versions found for current year. Upload AOP or LE data to enable comparison.</div>';
+    return;
+  }
+
+  const allMetrics = sorted.map(v => ({ v, m: calcMetrics(v.code) }));
+
+  const fmt  = (v, pct) => v == null || isNaN(v) ? '—' : pct ? v.toFixed(1)+'%' : v.toFixed(1);
+  const fmtM = (v) => v == null || isNaN(v) ? '—' : (v/1e3).toFixed(1);  // US$000 → US$M
+  const delta = (cur, base, pct=false) => {
     if (cur == null || base == null || isNaN(cur) || isNaN(base)) return '';
     const d = cur - base;
-    const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : '';
-    return `<span class="${cls}" style="font-size:10px;margin-left:4px">${d>0?'+':''}${d.toFixed(1)}</span>`;
+    const cls = d >= 0 ? 'pos' : 'neg';
+    const str = pct ? `${d>=0?'+':''}${d.toFixed(1)}%` : `${d>=0?'+':''}${(d/1e3).toFixed(1)}`;
+    return `<span class="${cls}" style="font-size:10px;margin-left:4px">${str}</span>`;
   };
-  // Get annual value for a metric from fpa.facts
-  const getVal = (versionCode, lineId, scale) => {
-    if (typeof fpa === 'undefined') return null;
-    let total = 0; let found = false;
-    for (let m = 1; m <= 12; m++) {
-      const v = fpa.fact(versionCode, lineId, cy, m);
-      if (v != null && !isNaN(v)) { total += Number(v); found = true; }
-    }
-    if (!found) return null;
-    if (lineId === 'ebitda_margin') {
-      const rev = getVal(versionCode, 'total_revenue', 1e6);
-      const ebitda = getVal(versionCode, 'ebitda', 1e6);
-      return (rev && rev !== 0) ? (ebitda / rev * 100) : null;
-    }
-    return total / scale;
-  };
-  const baseCode = sorted[0]?.code;
-  let html = `<div style="overflow-x:auto"><table class="data-table" style="min-width:600px">
+
+  const ROW_DEFS = [
+    { label: 'Revenue (US$M)',   key: 'rev',    pct: false, better: 1  },
+    { label: 'COGS (US$M)',      key: 'cogs',   pct: false, better: -1 },
+    { label: 'O&M (US$M)',       key: 'om',     pct: false, better: -1 },
+    { label: 'EBITDA (US$M)',    key: 'ebitda', pct: false, better: 1, bold: true },
+    { label: 'EBITDA Margin %',  key: 'margin', pct: true,  better: 1  },
+    { label: 'NPAT (US$M)',      key: 'npat',   pct: false, better: 1, bold: true },
+  ];
+
+  const baseM = allMetrics[0]?.m;
+  const lastM = allMetrics[allMetrics.length-1]?.m;
+
+  let html = `<div style="overflow-x:auto"><table class="data-table" style="min-width:${300+sorted.length*110}px">
   <thead><tr>
     <th style="text-align:left;min-width:160px">Metric</th>
     ${sorted.map(v => `<th style="text-align:right">${v.label||v.code}</th>`).join('')}
-    <th style="text-align:right;color:var(--muted);font-size:10px">vs AOP</th>
+    <th style="text-align:right;color:var(--muted);font-size:10px">Latest vs AOP</th>
   </tr></thead><tbody>`;
-  KEY_METRICS.forEach(m => {
-    if (m.id === 'ebitda_m') {
-      // compute from revenue+ebitda
-      const vals = sorted.map(v => {
-        const rev = getVal(v.code,'total_revenue',1e6);
-        const eb  = getVal(v.code,'ebitda',1e6);
-        return (rev && rev!==0) ? (eb/rev*100) : null;
-      });
-      const base = vals[0];
-      const last = vals[vals.length-1];
-      html += `<tr><td style="font-weight:600">${m.label}</td>
-        ${vals.map((v,i) => `<td style="text-align:right">${fmt(v,true)}${i>0?delta(v,vals[i-1]):''}</td>`).join('')}
-        <td style="text-align:right;color:var(--muted)">${delta(last,base)}</td></tr>`;
-    } else {
-      const vals = sorted.map(v => getVal(v.code, m.lineId, m.scale));
-      const base = vals[0];
-      const last = vals[vals.length-1];
-      html += `<tr><td style="font-weight:600">${m.label}</td>
-        ${vals.map((v,i) => `<td style="text-align:right">${fmt(v,false)}${i>0?delta(v,vals[i-1]):''}</td>`).join('')}
-        <td style="text-align:right;color:var(--muted)">${delta(last,base)}</td></tr>`;
-    }
+
+  ROW_DEFS.forEach(rd => {
+    const vals = allMetrics.map(({m}) => {
+      if (rd.key === 'margin') return (m.rev && m.rev !== 0 && m.ebitda != null) ? (m.ebitda / m.rev * 100) : null;
+      return m[rd.key];
+    });
+    const base = vals[0];
+    const last = vals[vals.length-1];
+    const rowStyle = rd.bold ? 'font-weight:700;background:rgba(255,255,255,0.03)' : '';
+    html += `<tr style="${rowStyle}"><td style="font-weight:${rd.bold?700:500}">${rd.label}</td>
+      ${vals.map((v,i) => {
+        const disp = rd.pct ? fmt(v, true) : fmtM(v);
+        const d    = i > 0 ? delta(v, vals[i-1], rd.pct) : '';
+        return `<td style="text-align:right">${disp}${d}</td>`;
+      }).join('')}
+      <td style="text-align:right;color:var(--muted)">${delta(last, base, rd.pct)}</td></tr>`;
   });
+
+  // GWh row
+  const gwh = sorted.map(v => {
+    let tot = 0, found = false;
+    for (let m = 1; m <= 12; m++) {
+      const g = fpa.fact(v.code, 'stat_billed_gwh', cy, m);
+      if (g != null) { tot += Number(g); found = true; }
+    }
+    return found ? tot : null;
+  });
+  html += `<tr><td>Billed GWh</td>
+    ${gwh.map((v,i) => {
+      const disp = v == null ? '—' : v.toFixed(1);
+      const d    = i > 0 && gwh[i-1] != null && v != null ? (() => {
+        const diff = v - gwh[i-1];
+        return `<span class="${diff>=0?'pos':'neg'}" style="font-size:10px;margin-left:4px">${diff>=0?'+':''}${diff.toFixed(1)}</span>`;
+      })() : '';
+      return `<td style="text-align:right">${disp}${d}</td>`;
+    }).join('')}
+    <td style="text-align:right;color:var(--muted)">${gwh.length >= 2 && gwh[0] != null && gwh[gwh.length-1] != null ? (() => {
+      const d = gwh[gwh.length-1] - gwh[0];
+      return `<span class="${d>=0?'pos':'neg'}" style="font-size:10px">${d>=0?'+':''}${d.toFixed(1)}</span>`;
+    })() : ''}</td></tr>`;
+
   html += `</tbody></table></div>
   <div style="font-size:10px;color:var(--muted);margin-top:8px">
-    Δ vs prior version shown inline · "vs AOP" = latest LE vs original AOP · Year: ${cy}
+    Δ vs prior version shown inline · "Latest vs AOP" = most recent LE vs original AOP · FY${cy}
+    · Values computed from fpa_facts component line IDs · US$000 → US$M
   </div>`;
   el.innerHTML = html;
 }
