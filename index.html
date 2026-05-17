@@ -4904,7 +4904,21 @@ function _sbInit() {
 // Safe wrapper — surfaces errors to user via toast, never swallows silently
 async function _sbQ(fn, { silent = false } = {}) {
   if (!_sb) return null;
-  try { return await fn(_sb); } catch(e) {
+  try {
+    const res = await fn(_sb);
+    if (res?.error) {
+      const status = res.error.status ?? res.error.statusCode;
+      if (status === 429) {
+        toast('Rate limit reached — wait a moment and retry', 'w');
+        if (window.JpsMonitor) JpsMonitor.warn('supabase:429', res.error.message ?? 'Too Many Requests');
+        return null;
+      }
+      if (!silent) toast('DB error: ' + (res.error.message || 'Unknown error'), 'err');
+      console.warn('[Supabase] Query error:', res.error);
+      return null;
+    }
+    return res;
+  } catch(e) {
     console.warn('[Supabase] Query error:', e);
     if (!silent) toast('DB error: ' + (e.message || 'Unknown error'), 'err');
     return null;
@@ -6448,9 +6462,9 @@ function _buildYearOptions(selectedYear, extraBefore, extraAfter) {
 function initYearDropdowns() {
   // Dashboard (legacy + 2.0)
   const ds = document.getElementById('dashYrSel');
-  if (ds) { ds.innerHTML = _buildYearOptions(_CY, 1, 4); }
+  if (ds) { ds.innerHTML = _buildYearOptions(_CY, 4, 4); }
   const d2 = document.getElementById('d2YrSel');
-  if (d2) { d2.innerHTML = _buildYearOptions(_CY, 1, 4); dash2Year = _CY; }
+  if (d2) { d2.innerHTML = _buildYearOptions(_CY, 4, 4); dash2Year = _CY; }
 
   // Balance Sheet From / To
   const bsF = document.getElementById('bsYrFrom');
@@ -6475,8 +6489,8 @@ function initYearDropdowns() {
   // Generation year segment buttons
   const gen = document.getElementById('genYrSeg');
   if (gen) {
-    gen.innerHTML = Array.from({length:5},(_,i)=>_CY+i).map((y,i)=>
-      `<div class="sb${i===0?' on':''}" onclick="setGenYear(${y},this)">${y}</div>`
+    gen.innerHTML = Array.from({length:7},(_,i)=>_CY-4+i).map((y,i)=>
+      `<div class="sb${y===_CY?' on':''}" onclick="setGenYear(${y},this)">${y}</div>`
     ).join('');
   }
 
@@ -6513,10 +6527,10 @@ function initYearDropdowns() {
     ).join('');
   }
 
-  // Data Management year selector (show CY-2 through CY+1)
+  // Data Management year selector (show CY-4 through CY+1)
   const dmYr = document.getElementById('dmYearSeg');
   if (dmYr) {
-    const dmYrs = Array.from({length:4},(_,i)=>_CY-2+i);
+    const dmYrs = Array.from({length:6},(_,i)=>_CY-4+i);
     dmYr.innerHTML = dmYrs.map((y,i)=>
       `<div class="sb${y===_CY?' on':''}" onclick="dmSelectYear(${y},this)">${y}</div>`
     ).join('');
