@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pandoc \"C:\\\\Users\\\\jwilson\\\\Documents\\\\New project 2\\\\ABC_Model_Business_Plan.docx\" -o /tmp/abc_plan.md)",
+      "Read(//tmp/**)",
+      "Bash(python \"C:\\\\Users\\\\jwilson\\\\Downloads\\\\FP&A Rebuild\\\\.claude\\\\worktrees\\\\great-vaughan-9fe38c\\\\scripts\\\\office\\\\unpack.py\" \"C:\\\\Users\\\\jwilson\\\\Documents\\\\New project 2\\\\ABC_Model_Business_Plan.docx\" /tmp/abc_unpacked/)",
+      "PowerShell(python -m markitdown \"C:\\\\Users\\\\jwilson\\\\Documents\\\\New project 2\\\\ABC_Model_Business_Plan.pptx\" 2>&1)"
+    ]
+  }
+}

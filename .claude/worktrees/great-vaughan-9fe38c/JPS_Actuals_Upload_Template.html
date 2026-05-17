@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JPS FP&amp;A — Actuals Upload Template</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1a2a3a;font-size:13px}
+
+/* ── Header ── */
+.hdr{background:linear-gradient(135deg,#0a1628 0%,#1a3a5c 100%);color:#fff;padding:18px 32px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.hdr-logo{font-size:24px;font-weight:800;color:#f0b429;letter-spacing:1px;flex-shrink:0}
+.hdr-info{flex:1;min-width:200px}
+.hdr-info h1{font-size:16px;font-weight:600;color:#d4e2f4}
+.hdr-info p{font-size:11px;color:#7da0c4;margin-top:2px}
+.hdr-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+select,input{border:1px solid #2a4a6c;border-radius:5px;padding:6px 10px;font-size:12px;font-family:inherit;background:#132238;color:#d4e2f4}
+select:focus,input:focus{outline:2px solid #f0b429;border-color:transparent}
+.badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700}
+.badge-act{background:#f0b429;color:#0a1628}
+.badge-le{background:#3b82f6;color:#fff}
+.badge-bud{background:#8b5cf6;color:#fff}
+
+/* ── Legend bar ── */
+.legend{background:#fff;border-bottom:2px solid #e2e8f0;padding:10px 32px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600}
+.dot{width:14px;height:14px;border-radius:3px;flex-shrink:0}
+.dot-inp{background:#fef3c7;border:1px solid #f59e0b}
+.dot-der{background:#dbeafe;border:1px solid #3b82f6}
+.dot-tot{background:#f0fdf4;border:1px solid #22c55e}
+.dot-sta{background:#fdf4ff;border:1px solid #a855f7}
+.leg-note{margin-left:auto;font-size:10px;color:#64748b;font-style:italic}
+
+/* ── Status strip ── */
+.status-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;padding:14px 32px;background:#fff;border-bottom:1px solid #e2e8f0}
+.sc{border-radius:7px;padding:10px 12px;text-align:center;border:1px solid}
+.sc-val{font-size:18px;font-weight:700;line-height:1}
+.sc-lbl{font-size:10px;color:#64748b;margin-top:3px}
+.sc-sub{font-size:9px;margin-top:2px;font-weight:600}
+.sc.green{background:#f0fdf4;border-color:#86efac}.sc.green .sc-val{color:#15803d}
+.sc.amber{background:#fffbeb;border-color:#fcd34d}.sc.amber .sc-val{color:#92400e}
+.sc.red  {background:#fef2f2;border-color:#fca5a5}.sc.red   .sc-val{color:#dc2626}
+.sc.blue {background:#eff6ff;border-color:#93c5fd}.sc.blue  .sc-val{color:#1d4ed8}
+.sc.grey {background:#f8fafc;border-color:#e2e8f0}.sc.grey  .sc-val{color:#475569}
+
+/* ── Upload zone ── */
+.upload-zone{margin:16px 32px;border:2px dashed #94a3b8;border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:.2s;background:#f8fafc}
+.upload-zone:hover,.upload-zone.drag{border-color:#3b82f6;background:#eff6ff}
+.uz-icon{font-size:36px;margin-bottom:8px}
+.uz-title{font-size:14px;font-weight:700;color:#334155;margin-bottom:4px}
+.uz-sub{font-size:12px;color:#64748b}
+.uz-readers{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.reader-chip{padding:3px 10px;border-radius:10px;font-size:10px;font-weight:600;background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe}
+.reader-chip.ready{background:#dcfce7;color:#166534;border-color:#86efac}
+.reader-chip.unknown{background:#fef3c7;color:#92400e;border-color:#fcd34d}
+
+/* ── Tabs ── */
+.tabs{background:#fff;border-bottom:2px solid #e2e8f0;padding:0 32px;display:flex;gap:0;overflow-x:auto}
+.tab{padding:11px 18px;cursor:pointer;border-bottom:3px solid transparent;font-weight:600;font-size:12px;color:#64748b;margin-bottom:-2px;white-space:nowrap;transition:.15s}
+.tab.on{border-bottom-color:#0a1628;color:#0a1628}
+.tab:hover:not(.on){border-bottom-color:#94a3b8;color:#334155}
+.tab-status{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:5px;vertical-align:middle}
+.ts-green{background:#22c55e}.ts-amber{background:#f59e0b}.ts-red{background:#ef4444}.ts-grey{background:#94a3b8}
+
+/* ── Content ── */
+.content{padding:20px 32px;max-width:1500px;margin:0 auto}
+.pane{display:none}.pane.on{display:block}
+
+/* ── Section card ── */
+.sec{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:18px;overflow:hidden}
+.sec-hdr{background:#1e3a5c;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sec-hdr h3{font-size:13px;font-weight:600;letter-spacing:.3px}
+.sec-hdr span{font-size:11px;color:#94b4cc;font-style:italic}
+.sec-hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+
+/* ── Table ── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:#f1f5f9;padding:7px 10px;text-align:left;font-size:10px;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;white-space:nowrap;letter-spacing:.3px;text-transform:uppercase}
+th.r,td.r{text-align:right}
+tbody tr{border-bottom:1px solid #f1f5f9;transition:background .1s}
+tbody tr:hover{background:#f8fafc}
+td{padding:6px 10px;vertical-align:middle}
+td.code{font-family:'Consolas',monospace;font-size:11px;color:#475569;white-space:nowrap}
+td.lbl{font-weight:500;color:#1a2a3a}
+td.src{font-size:10px;color:#64748b;font-style:italic;max-width:180px}
+td.formula{font-size:10px;color:#3b82f6;font-family:'Consolas',monospace}
+td.mono{font-family:'Consolas',monospace;font-size:12px}
+
+/* Row types */
+tr.inp td{background:#fef9ec}
+tr.inp td.code{color:#92400e}
+tr.der td{background:#eff6ff}
+tr.der td.code{color:#1e40af}
+tr.tot td{background:#f0fdf4;font-weight:700;border-top:2px solid #86efac}
+tr.sta td{background:#fdf4ff}
+tr.sta td.code{color:#7e22ce}
+tr.hdr-row td{background:#f1f5f9;font-weight:700;font-size:11px;color:#374151;padding:5px 10px}
+
+/* Input cells */
+input.cell-inp{border:1px solid #e2e8f0;border-radius:4px;padding:4px 7px;font-size:12px;font-family:'Consolas',monospace;background:#fff;color:#1a2a3a;width:100%;min-width:90px;text-align:right}
+input.cell-inp:focus{outline:2px solid #f0b429;border-color:transparent;background:#fffbeb}
+input.cell-inp.populated{background:#f0fdf4;border-color:#86efac}
+input.cell-inp.changed{background:#fffbeb;border-color:#f59e0b}
+
+/* Type badges */
+.type-inp{background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-size:9px;font-weight:700}
+.type-der{background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:9px;font-weight:700}
+.type-tot{background:#22c55e;color:#fff;padding:2px 6px;border-radius:3px;font-size:9px;font-weight:700}
+.type-sta{background:#a855f7;color:#fff;padding:2px 6px;border-radius:3px;font-size:9px;font-weight:700}
+
+/* Variance */
+.var-pos{color:#15803d;font-weight:600}
+.var-neg{color:#dc2626;font-weight:600}
+.var-zer{color:#94a3b8}
+
+/* Status dot per row */
+.row-st{width:8px;height:8px;border-radius:50%;display:inline-block}
+.rs-ok{background:#22c55e}.rs-new{background:#3b82f6}.rs-miss{background:#94a3b8}.rs-chg{background:#f59e0b}
+
+/* ── Bottom action bar ── */
+.action-bar{position:sticky;bottom:0;background:#0a1628;padding:12px 32px;display:flex;align-items:center;gap:12px;z-index:100;flex-wrap:wrap}
+.btn{padding:8px 18px;border-radius:6px;border:none;font-size:12px;font-weight:700;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+.btn-gold{background:#f0b429;color:#0a1628}.btn-gold:hover{background:#d97706}
+.btn-ghost{background:transparent;color:#94b4cc;border:1px solid #2a4a6c}.btn-ghost:hover{background:#132238;color:#fff}
+.btn-red{background:#dc2626;color:#fff}.btn-red:hover{background:#b91c1c}
+.btn-green{background:#16a34a;color:#fff}.btn-green:hover{background:#15803d}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.action-info{font-size:11px;color:#7da0c4;flex:1}
+
+/* ── Commit preview modal ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:10px;max-width:700px;width:95%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal-hdr{background:#1e3a5c;color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-radius:10px 10px 0 0}
+.modal-hdr h3{font-size:14px;font-weight:700}
+.modal-close{background:none;border:none;color:#94b4cc;cursor:pointer;font-size:18px;line-height:1}
+.modal-body{padding:18px}
+.commit-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
+.cs-card{background:#f8fafc;border-radius:6px;padding:12px;text-align:center;border:1px solid #e2e8f0}
+.cs-val{font-size:22px;font-weight:700;color:#1e3a5c}
+.cs-lbl{font-size:10px;color:#64748b;margin-top:3px}
+.commit-tbl{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px}
+.commit-tbl th{background:#f1f5f9;padding:6px 8px;text-align:left;border-bottom:2px solid #e2e8f0;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase}
+.commit-tbl td{padding:5px 8px;border-bottom:1px solid #f1f5f9;font-family:'Consolas',monospace;font-size:11px}
+
+/* ── Alerts ── */
+.alert{border-radius:6px;padding:10px 14px;margin:10px 0;font-size:12px;line-height:1.6}
+.alert-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+.alert-ok{background:#f0fdf4;border:1px solid #86efac;color:#15803d}
+.alert-warn{background:#fffbeb;border:1px solid #fcd34d;color:#92400e}
+.alert-err{background:#fef2f2;border:1px solid #fca5a5;color:#dc2626}
+.alert strong{display:block;margin-bottom:2px}
+
+@media print{.action-bar,.hdr-controls,.upload-zone,.tabs{display:none!important}.pane{display:block!important;margin-bottom:24px}}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<div class="hdr">
+  <div class="hdr-logo">JPS</div>
+  <div class="hdr-info">
+    <h1>Actuals Upload Template</h1>
+    <p>Monthly financial data entry · All values USD $000 unless noted · Enter costs as POSITIVE numbers</p>
+  </div>
+  <div class="hdr-controls">
+    <select id="selYear" onchange="onPeriodChange()">
+      <option value="2025">2025</option>
+      <option value="2026" selected>2026</option>
+      <option value="2027">2027</option>
+    </select>
+    <select id="selMonth" onchange="onPeriodChange()">
+      <option value="1">January</option><option value="2">February</option>
+      <option value="3" selected>March</option><option value="4">April</option>
+      <option value="5">May</option><option value="6">June</option>
+      <option value="7">July</option><option value="8">August</option>
+      <option value="9">September</option><option value="10">October</option>
+      <option value="11">November</option><option value="12">December</option>
+    </select>
+    <span class="badge badge-act" id="periodBadge">ACTUALS</span>
+    <span id="dbStatusBadge" style="font-size:11px;color:#7da0c4">⏳ Connecting…</span>
+  </div>
+</div>
+
+<!-- ══ LEGEND ══ -->
+<div class="legend">
+  <div class="leg"><div class="dot dot-inp"></div>INPUT — Enter from source system</div>
+  <div class="leg"><div class="dot dot-der"></div>DERIVED — Platform calculates; do not enter</div>
+  <div class="leg"><div class="dot dot-tot"></div>SUBTOTAL / TOTAL</div>
+  <div class="leg"><div class="dot dot-sta"></div>STATISTICAL — Operational KPI</div>
+  <div class="leg-note">Costs entered as POSITIVE · Platform applies sign convention in P&L · USD $000</div>
+</div>
+
+<!-- ══ STATUS STRIP ══ -->
+<div class="status-strip" id="statusStrip">
+  <div class="sc grey"><div class="sc-val" id="sc-total">—</div><div class="sc-lbl">Total Lines</div><div class="sc-sub" id="sc-pct">Select period</div></div>
+  <div class="sc grey"><div class="sc-val" id="sc-loaded">—</div><div class="sc-lbl">Loaded in DB</div><div class="sc-sub">current values</div></div>
+  <div class="sc grey"><div class="sc-val" id="sc-pending">—</div><div class="sc-lbl">Pending Entry</div><div class="sc-sub">not yet filled</div></div>
+  <div class="sc grey"><div class="sc-val" id="sc-changed">—</div><div class="sc-lbl">Changed</div><div class="sc-sub">vs DB values</div></div>
+  <div class="sc grey"><div class="sc-val" id="sc-period">—</div><div class="sc-lbl">Period</div><div class="sc-sub" id="sc-locked">—</div></div>
+</div>
+
+<!-- ══ FILE UPLOAD ZONE ══ -->
+<div class="upload-zone" id="uploadZone"
+  ondragover="event.preventDefault();this.classList.add('drag')"
+  ondragleave="this.classList.remove('drag')"
+  ondrop="handleDrop(event)"
+  onclick="document.getElementById('fileIn').click()">
+  <input type="file" id="fileIn" style="display:none" accept=".xlsx,.xlsm,.csv" multiple onchange="handleFiles(this.files)">
+  <div class="uz-icon">📂</div>
+  <div class="uz-title">Drop your source files here — or click to browse</div>
+  <div class="uz-sub">Supports .xlsx · .xlsm · .csv · Drop multiple files at once · System auto-identifies each file type</div>
+  <div class="uz-readers" id="readerChips">
+    <span class="reader-chip">Oracle GL Trial Balance</span>
+    <span class="reader-chip">Billing Sales Report</span>
+    <span class="reader-chip">IPP Invoice Summary</span>
+    <span class="reader-chip">Payroll Extract</span>
+    <span class="reader-chip">CapEx Tracker</span>
+    <span class="reader-chip">FA Depreciation Run</span>
+    <span class="reader-chip">Dispatch / Generation Log</span>
+    <span class="reader-chip">Treasury Report</span>
+  </div>
+</div>
+<div id="extractAlert" style="margin:0 32px 10px"></div>
+
+<!-- ══ SECTION TABS ══ -->
+<div class="tabs" id="sectionTabs">
+  <div class="tab on" onclick="switchTab('stat',this)">Statistical <span class="tab-status ts-grey" id="ts-stat"></span></div>
+  <div class="tab" onclick="switchTab('rev',this)">Revenue <span class="tab-status ts-grey" id="ts-rev"></span></div>
+  <div class="tab" onclick="switchTab('ipp',this)">IPP / Pwr <span class="tab-status ts-grey" id="ts-ipp"></span></div>
+  <div class="tab" onclick="switchTab('om',this)">O&amp;M <span class="tab-status ts-grey" id="ts-om"></span></div>
+  <div class="tab" onclick="switchTab('dep',this)">Depreciation <span class="tab-status ts-grey" id="ts-dep"></span></div>
+  <div class="tab" onclick="switchTab('cx',this)">CapEx <span class="tab-status ts-grey" id="ts-cx"></span></div>
+  <div class="tab" onclick="switchTab('nfc',this)">Financing <span class="tab-status ts-grey" id="ts-nfc"></span></div>
+  <div class="tab" onclick="switchTab('bs',this)">Balance Sheet <span class="tab-status ts-grey" id="ts-bs"></span></div>
+  <div class="tab" onclick="switchTab('cf',this)">Cash Flow <span class="tab-status ts-grey" id="ts-cf"></span></div>
+</div>
+
+<!-- ══ CONTENT ══ -->
+<div class="content">
+
+<!-- ─── STATISTICAL ─── -->
+<div id="pane-stat" class="pane on">
+<div class="sec">
+  <div class="sec-hdr"><h3>1 · Statistical — Volumes &amp; Rates</h3><span>Source: Billing System / Dispatch / BOJ / OUR</span></div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Code</th><th>Description</th><th>Type</th><th>Source System</th><th class="r">DB Current</th><th class="r" style="min-width:110px">Input</th><th class="r">Δ vs DB</th><th>Unit</th><th>Notes / Validation</th><th></th></tr></thead>
+    <tbody id="tb-stat"></tbody>
+  </table></div>
+</div>
+</div>
+
+<!-- ─── REVENUE ─── -->
+<div id="pane-rev" class="pane">
+<div class="sec">
+  <div class="sec-hdr"><h3>2 · Revenue — P&amp;L Lines</h3><span>Source: Billing System / Oracle GL Revenue Module</span></div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Code</th><th>Description</th><th>Type</th><th>Source System</th><th class="r">DB Current</th><th class="r" style="min-width:110px">Input</th><th class="r">Δ vs DB</th><th>Unit</th><th>Notes</th><th></th></tr></thead>
+    <tbody id="tb-rev"></tbody>
+  </table></div>
+</div>
+</div>
+
+<!-- ─── IPP ─── -->
+<div id="pane-ipp" class="pane">
+<div class="sec">
+  <div class="sec-hdr"><h3>3 · Purchased Power — IPP Costs</h3><span>Source: IPP Contracts / Oracle Payables</span></div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Code</th><th>Description</th><th>Type</th><th>Source System</th><th class="r">DB Current</th><th class="r" style="min-width:110px">Input</th><th class="r">Δ vs DB</th><th>Unit</th><th>Notes</th><th></th></tr></thead>
+    <tbody id="tb-ipp"></tbody>
+  </table></div>
+</div>
+</div>
+
+<!-- ─── O&M ─── -->
+<div id="pane-om" class="pane">
+<div class="sec">
+  <div class="sec-hdr"><h3>4 · O&amp;M — Operating &amp; Maintenance Detail</h3><span>Source: Oracle GL Cost Centre Report by Category</span></div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Code</th><th>O&amp;M Category</th><th>Type</th><th>Source System</th><th class="r">DB Current</th><th class="r" style="min-width:110px">Input</th><th class="r">Δ vs DB</th><th>Unit</th><th>Notes</th><th></th></tr></thead>
+    <tbody id="tb-om"></tbody>
+  </table></div>
+</div>
+</div>
+
+<!-- ─── DEPRECIATION ─── -->
+<div id="pane-dep" class="pane">
+<div class="sec">
+  <div class="sec-hdr"><h3>5 · Depreciation &amp; Amortisation</h3><span>Source: Oracle Fixed Assets / IFRS 16 Lease Register</span></div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Code</th><th>Description</th><th>Type</th><th>Source System</th><th class="r">DB Current</th><th class="r" style="min-width:110px">Input</th><th class="r">Δ vs DB</th><th>Unit</th><th>Notes</th><th></th></tr></thead>
+    <tbody id="tb-dep"></tbody>
+  </table></div>
+</div>
+</div>
+
+<!-- ─── CAPEX ─── -->
+<div id="pane-cx" class="pane">
+<div class="sec">
+  <div class="sec-hdr"><h3>6 · Capital Expenditure</h3><span>Source: CapEx Tracker / Oracle Projects</span></div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Code</th><th>CapEx Category</th><th>Type</th><th>Source System</th><th class="r">DB Current</th><th class="r" style="min-width:110px">Input</th><th class="r">Δ vs DB</th><th>Unit</th><th>Notes</th><th></th></tr></thead>
+    <tbody id="tb-cx"></tbody>
+  </table></div>
+</div>
+</div>
+
+<!-- ─── FINANCING ─── -->
+<div id="pane-nfc" class="pane">
+<div class="sec">
+  <div class="sec-hdr"><h3>7 · Net Financing Cost</h3><span>Source: Treasury / Oracle GL / IFRS 16 Lease Schedule</span></div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Code</th><th>Description</th><th>Type</th><th>Source System</th><th class="r">DB Current</th><th class="r" style="min-width:110px">Input</th><th class="r">Δ vs DB</th><th>Unit</th><th>Notes</th><th></th></tr></thead>
+    <tbody id="tb-nfc"></tbody>
+  </table></div>
+</div>
+</div>
+
+<!-- ─── BALANCE SHEET ─── -->
+<div id="pane-bs" class="pane">
+<div class="sec">
+  <div class="sec-hdr"><h3>8 · Balance Sheet — Key Lines</h3><span>Source: Oracle GL / Trial Balance at Month End</span></div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Code</th><th>Description</th><th>Type</th><th>Source System</th><th class="r">DB Current</th><th class="r" style="min-width:110px">Input</th><th class="r">Δ vs DB</th><th>Unit</th><th>Notes</th><th></th></tr></thead>
+    <tbody id="tb-bs"></tbody>
+  </table></div>
+</div>
+</div>
+
+<!-- ─── CASH FLOW ─── -->
+<div id="pane-cf" class="pane">
+<div class="sec">
+  <div class="sec-hdr"><h3>9 · Cash Flow — Summary Lines</h3><span>Source: Oracle GL / Treasury / Bank Statements</span></div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Code</th><th>Description</th><th>Type</th><th>Source System</th><th class="r">DB Current</th><th class="r" style="min-width:110px">Input</th><th class="r">Δ vs DB</th><th>Unit</th><th>Notes</th><th></th></tr></thead>
+    <tbody id="tb-cf"></tbody>
+  </table></div>
+</div>
+</div>
+
+</div><!-- /content -->
+
+<!-- ══ ACTION BAR ══ -->
+<div class="action-bar">
+  <div class="action-info" id="actionInfo">Select a period above and enter values or upload a file</div>
+  <button class="btn btn-ghost" onclick="clearAll()">✕ Clear All</button>
+  <button class="btn btn-ghost" onclick="exportCSV()">⬇ Export CSV</button>
+  <button class="btn btn-gold" id="btnPreview" onclick="openPreview()" disabled>👁 Preview &amp; Commit</button>
+</div>
+
+<!-- ══ COMMIT MODAL ══ -->
+<div class="modal-bg" id="commitModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h3>📤 Review &amp; Commit to Database</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="commit-summary" id="commitSummary"></div>
+      <div id="commitAlert"></div>
+      <div style="overflow-x:auto">
+        <table class="commit-tbl"><thead><tr>
+          <th>Code</th><th>Description</th><th>DB Current</th><th>New Value</th><th>Change</th><th>Status</th>
+        </tr></thead>
+        <tbody id="commitTbody"></tbody></table>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-green" id="btnCommit" onclick="doCommit()">✔ Commit to Database</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#374151;margin-left:auto">
+          <input type="checkbox" id="chkLock"> Lock period after commit (prevents further edits)
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const SB_URL = 'https://bhrswnbenkvflpdjhfpa.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJocnN3bmJlbmt2ZmxwZGpoZnBhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI5MTkwMDEsImV4cCI6MjA1ODQ5NTAwMX0.9oMwXHgOjCvOjT1bpqXkbx5y_R0MHxj1A7VTjuH1p3M';
+const sb = createClient(SB_URL, SB_KEY);
+
+// ── Line definitions ─────────────────────────────────────────────────────────
+// type: I=Input, D=Derived, T=Total, S=Statistical
+const LINES = {
+  stat:[
+    {id:'BILLED_GWH', lbl:'Billed Sales',              type:'S', src:'Billing System — Monthly Sales Report',       unit:'GWh',    note:'Sum of all rate class billed units for billing month'},
+    {id:'NETGEN_GWH', lbl:'Net Generation',             type:'S', src:'Dispatch / Plant Operations Log',             unit:'GWh',    note:'JPS-owned + purchased (net of auxiliary load)'},
+    {id:'PEAK_MW',    lbl:'Peak Demand',                type:'S', src:'Dispatch / Metering',                         unit:'MW',     note:'Monthly system peak demand'},
+    {id:'SYSLOSS',    lbl:'System Losses',              type:'D', src:'= 1 − (BILLED / NETGEN)',                    unit:'%',      note:'Auto-calculated — do not enter'},
+    {id:'HEATRATE',   lbl:'Weighted Heat Rate',         type:'I', src:'Plant Operations / Fuel Management',          unit:'BTU/kWh',note:'Weighted avg across all generation units in dispatch'},
+    {id:'NF_CENTS',   lbl:'Non-Fuel Tariff Rate',       type:'I', src:'OUR Approved Tariff Schedule',               unit:'J¢/kWh', note:'Blended non-fuel rate for billing month'},
+    {id:'FX_BILL',    lbl:'FX Billing Rate',            type:'I', src:'Treasury / BOJ Published Rate',              unit:'J$/USD', note:'Rate used for revenue conversion this billing month'},
+    {id:'FX_EOP',     lbl:'FX End-of-Period Rate',      type:'I', src:'Treasury / BOJ Rate at Month End',           unit:'J$/USD', note:'Used for B/S translation at period close'},
+  ],
+  rev:[
+    {id:'FUEL_REV',   lbl:'Fuel Revenue',               type:'I', src:'Billing System — Fuel Charge Line',          unit:'USD 000',note:'Fuel component of customer billing for month'},
+    {id:'FUEL_COST',  lbl:'Fuel Cost',                  type:'I', src:'Fuel Mgmt / Oracle GL — Fuel Cost Centre',   unit:'USD 000',note:'Enter as POSITIVE; platform shows as negative in P&L'},
+    {id:'FUEL_SURP',  lbl:'Fuel Surplus / (Penalty)',   type:'D', src:'= FUEL_REV − FUEL_COST',                    unit:'USD 000',note:'Auto-calculated'},
+    {id:'NONFUEL',    lbl:'Non-Fuel Revenue',            type:'I', src:'Billing System — Non-Fuel Revenue Report',   unit:'USD 000',note:'Total non-fuel tariff revenue billed for month'},
+    {id:'OTHER_REV',  lbl:'Other Operating Revenue',    type:'I', src:'Oracle GL — Miscellaneous Revenue Accounts', unit:'USD 000',note:'Connection fees, reconnection charges, misc'},
+    {id:'REV_TOTAL',  lbl:'TOTAL REVENUE',              type:'T', src:'= NONFUEL + OTHER_REV (excl. fuel pass-thru)',unit:'USD 000',note:'Feeds P&L top line'},
+  ],
+  ipp:[
+    {id:'IPP_FR',     lbl:'IPP Fuel Revenue',           type:'I', src:'IPP Contract Summary / Finance Ops',         unit:'USD 000',note:'Fuel pass-through billed by IPPs to JPS'},
+    {id:'IPP_NR',     lbl:'IPP Non-Fuel Revenue',       type:'I', src:'IPP Contract Summary / Finance Ops',         unit:'USD 000',note:'Capacity / non-fuel component billed by IPPs'},
+    {id:'IPP_COST',   lbl:'Total IPP Costs Paid',       type:'I', src:'Oracle Payables — IPP Vendor Payments',      unit:'USD 000',note:'Total of all IPP invoice payments; enter POSITIVE'},
+    {id:'IPP_NET',    lbl:'IPP Net Contribution',       type:'D', src:'= IPP_FR + IPP_NR − IPP_COST',             unit:'USD 000',note:'Positive = net recovery; negative = net cost to JPS'},
+  ],
+  om:[
+    {id:'OM_PAY',     lbl:'01 · Payroll &amp; Salaries',    type:'I', src:'Oracle HRMS / Payroll Module',               unit:'USD 000',note:'Gross salaries before deductions'},
+    {id:'OM_OT',      lbl:'02 · Overtime',                  type:'I', src:'Oracle HRMS / Payroll Module',               unit:'USD 000',note:'OT paid in month'},
+    {id:'OM_BEN',     lbl:'03 · Employee Benefits',          type:'I', src:'Oracle GL — Benefits Cost Centres',          unit:'USD 000',note:'Health, pension, NIS, NHT, Education Tax'},
+    {id:'OM_DBEN',    lbl:'04 · Discretionary Benefits',     type:'I', src:'Oracle GL — HR Discretionary Accounts',      unit:'USD 000',note:'Bonuses, staff welfare'},
+    {id:'OM_TRN',     lbl:'05 · Training',                   type:'I', src:'Oracle GL — Training Cost Centre',           unit:'USD 000',note:'Formal training, conferences, certifications'},
+    {id:'OM_3PTY',    lbl:'06 · Third Party Services',       type:'I', src:'Oracle Payables — Vendor Invoices (Svc)',     unit:'USD 000',note:'Contracted maintenance, outsourced services, security'},
+    {id:'OM_SUP',     lbl:'07 · Supplies',                   type:'I', src:'Oracle GL — Supplies / Consumables',         unit:'USD 000',note:'Operational consumables, safety equipment'},
+    {id:'OM_MAT',     lbl:'08 · Materials',                  type:'I', src:'Oracle Inventory / Materials Mgmt',          unit:'USD 000',note:'Materials issued from stores for O&M work orders'},
+    {id:'OM_BDR',     lbl:'09 · Billing, Delivery &amp; Recovery',type:'I',src:'Oracle GL — Revenue Ops Cost Centres',  unit:'USD 000',note:'Meter reading, bill printing, collection agents'},
+    {id:'OM_TECH',    lbl:'10 · Technology &amp; IT',         type:'I', src:'Oracle GL — IT Cost Centre',                unit:'USD 000',note:'Software licences, IT support, telecoms'},
+    {id:'OM_OFF',     lbl:'11 · Office Expenses',             type:'I', src:'Oracle GL — Admin Cost Centres',            unit:'USD 000',note:'Rent, utilities, travel, communications'},
+    {id:'OM_ENVR',    lbl:'12 · Environment',                 type:'I', src:'Oracle GL — Environmental Cost Centre',      unit:'USD 000',note:'Environmental compliance, waste disposal, permits'},
+    {id:'OM_INS',     lbl:'13 · Insurance',                   type:'I', src:'Oracle GL / Insurance Schedule',            unit:'USD 000',note:'Monthly premium amortisation per schedule'},
+    {id:'OM_MISC',    lbl:'14 · Miscellaneous',               type:'I', src:'Oracle GL — Miscellaneous Expense',         unit:'USD 000',note:'Items not classified above'},
+    {id:'OM_MGMT',    lbl:'15 · Management Fees',             type:'I', src:'Oracle Payables — Marubeni / Parent Fees',  unit:'USD 000',note:'Monthly management fee per parent agreement'},
+    {id:'OM_TOTAL',   lbl:'TOTAL O&amp;M',                    type:'T', src:'= Sum of OM_* lines',                       unit:'USD 000',note:'Feeds into P&L as OPEX'},
+  ],
+  dep:[
+    {id:'DEP_FA',     lbl:'FA Register Depreciation',   type:'I', src:'Oracle Fixed Assets — Depreciation Run',     unit:'USD 000',note:'Monthly depreciation from completed FA run'},
+    {id:'DEP_SJPC',   lbl:'SJPC Depreciation',          type:'I', src:'SJPC Accounts / Oracle GL',                  unit:'USD 000',note:'JPS share of SJPC depreciation'},
+    {id:'DEP_LEASE',  lbl:'IFRS 16 Lease Depreciation', type:'D', src:'= Auto from fpa_leases schedule',           unit:'USD 000',note:'Auto-calculated — do not enter'},
+    {id:'DEP_SP',     lbl:'Capital Spares',              type:'I', src:'Oracle Fixed Assets',                        unit:'USD 000',note:'Depreciation on strategic spares inventory'},
+    {id:'DEP_IMP',    lbl:'Impairment Charge',           type:'I', src:'Oracle GL / Impairment Event Record',        unit:'USD 000',note:'Enter only if IAS 36 impairment recognised this month'},
+    {id:'DEPN',       lbl:'TOTAL DEPRECIATION',         type:'T', src:'= Sum of DEP_* lines',                       unit:'USD 000',note:'Feeds EBIT (IFRS 16 depr disclosed separately)'},
+  ],
+  cx:[
+    {id:'CX_GEN',     lbl:'Generation',                 type:'I', src:'Oracle Projects — Generation Portfolio',     unit:'USD 000',note:'Capitalised costs on generation assets'},
+    {id:'CX_TX',      lbl:'Transmission',               type:'I', src:'Oracle Projects — Transmission Portfolio',   unit:'USD 000',note:'Lines, towers, substation interconnects'},
+    {id:'CX_DIST',    lbl:'Distribution',               type:'I', src:'Oracle Projects — Distribution Portfolio',   unit:'USD 000',note:'LV/MV network, poles, transformers'},
+    {id:'CX_HURR',    lbl:'Hurricane Restoration',      type:'I', src:'Oracle Projects — Disaster Recovery WOs',    unit:'USD 000',note:'Capitalised restoration costs approved by OUR'},
+    {id:'CX_CUST',    lbl:'Customer Systems',           type:'I', src:'Oracle Projects — Customer Portfolio',       unit:'USD 000',note:'Smart meters, billing, customer connections'},
+    {id:'CX_SS',      lbl:'Substation',                 type:'I', src:'Oracle Projects — Substation Portfolio',     unit:'USD 000',note:'New substation builds and upgrades'},
+    {id:'CX_LOSS',    lbl:'Loss Reduction',             type:'I', src:'Oracle Projects — Loss Reduction Programme', unit:'USD 000',note:'Anti-theft, reconductoring, metering upgrades'},
+    {id:'CX_TOTAL',   lbl:'TOTAL CAPEX',                type:'T', src:'= Sum of CX_* lines',                       unit:'USD 000',note:'Reconcile to Cash Flow — Investing activities'},
+  ],
+  nfc:[
+    {id:'NFC_INT',    lbl:'Interest Expense on Loans',  type:'I', src:'Oracle GL / Treasury Loan Schedule',         unit:'USD 000',note:'Total interest on all debt facilities for month'},
+    {id:'NFC_LEASE',  lbl:'IFRS 16 Lease Interest',     type:'D', src:'= Auto from fpa_leases interest schedule',  unit:'USD 000',note:'Auto-calculated — effective interest method'},
+    {id:'NFC_TOTAL',  lbl:'TOTAL NET FINANCING COST',   type:'T', src:'= NFC_INT + NFC_LEASE',                     unit:'USD 000',note:'Shown net in P&L'},
+  ],
+  bs:[
+    {id:'BS_CASH',    lbl:'Cash &amp; Bank Balances',     type:'I', src:'Treasury / Bank Reconciliation',           unit:'USD 000',note:'All operating and restricted cash at month end'},
+    {id:'BS_RECV',    lbl:'Trade Receivables (Net)',     type:'I', src:'Oracle AR / Aged Debtor Report',             unit:'USD 000',note:'Net of bad debt provision'},
+    {id:'BS_INV',     lbl:'Inventories / Stores',        type:'I', src:'Oracle Inventory — Month-End Balance',       unit:'USD 000',note:'Fuel, materials, spare parts at cost'},
+    {id:'BS_OPRE',    lbl:'Other Current Assets',        type:'I', src:'Oracle GL — Other Current Assets',           unit:'USD 000',note:'Prepayments, deposits, other receivables'},
+    {id:'BS_PPE',     lbl:'Net PPE / Fixed Assets',      type:'I', src:'Oracle Fixed Assets — Net Book Value',       unit:'USD 000',note:'Gross cost less accumulated depreciation'},
+    {id:'BS_ROU',     lbl:'ROU Assets (IFRS 16)',        type:'D', src:'= Auto from fpa_leases ROU schedule',       unit:'USD 000',note:'Auto-calculated from lease register'},
+    {id:'BS_TASSETS', lbl:'TOTAL ASSETS',               type:'T', src:'= Current + Non-Current Assets',             unit:'USD 000',note:'Reconcile to TB / trial balance'},
+    {id:'BS_PAYBL',   lbl:'Trade Payables',              type:'I', src:'Oracle AP — Aged Creditor Report',           unit:'USD 000',note:'Outstanding vendor invoices at month end'},
+    {id:'BS_ACCRUAL', lbl:'Accrued Liabilities',         type:'I', src:'Oracle GL — Accruals / Provisions',          unit:'USD 000',note:'Month-end accruals not yet invoiced'},
+    {id:'BS_DEBTST',  lbl:'Debt — Current Portion',      type:'D', src:'= Auto from fpa_debt_schedule',            unit:'USD 000',note:'Principal due within 12 months'},
+    {id:'BS_DEBTLT',  lbl:'Debt — Long-Term',            type:'D', src:'= Auto from fpa_debt_schedule',            unit:'USD 000',note:'Principal due beyond 12 months'},
+    {id:'BS_LEASE',   lbl:'Lease Liabilities',           type:'D', src:'= Auto from fpa_leases',                   unit:'USD 000',note:'Auto-calculated'},
+    {id:'BS_EQUITY',  lbl:'Total Equity',                type:'I', src:'Oracle GL — Equity Accounts',               unit:'USD 000',note:'Share capital + retained earnings + reserves'},
+  ],
+  cf:[
+    {id:'CF_EBITDA',  lbl:'EBITDA',                     type:'D', src:'= Derived from P&L',                        unit:'USD 000',note:'Auto-derived — do not enter'},
+    {id:'CF_WCCHG',   lbl:'Working Capital Movement',   type:'I', src:'Oracle GL / Treasury Cash Analysis',         unit:'USD 000',note:'Net change in current assets/liabilities (excluding cash)'},
+    {id:'CF_INTPD',   lbl:'Interest Paid',              type:'I', src:'Treasury / Oracle Cash Book',                unit:'USD 000',note:'Cash interest paid in month (may differ from accrual)'},
+    {id:'CF_TAXPD',   lbl:'Tax Paid',                   type:'I', src:'Treasury / Tax Office Payments',             unit:'USD 000',note:'Income tax and withholding tax cash payments'},
+    {id:'CF_OPS',     lbl:'NET CASH FROM OPERATIONS',   type:'T', src:'= EBITDA ± WC − Interest − Tax',            unit:'USD 000',note:'Reconcile to bank statement'},
+    {id:'CF_CAPEX',   lbl:'Capital Expenditure',        type:'D', src:'= CX_TOTAL from CapEx tab',                 unit:'USD 000',note:'Auto-pulled from CapEx section'},
+    {id:'CF_PRPD',    lbl:'Principal Repayments',       type:'D', src:'= Auto from fpa_debt_schedule',            unit:'USD 000',note:'Auto-calculated from debt schedule'},
+    {id:'CF_DRAWDN',  lbl:'Loan Drawdowns',             type:'I', src:'Treasury — Drawdown Notices',               unit:'USD 000',note:'New borrowings received in month'},
+    {id:'CF_DIVID',   lbl:'Dividends Paid',             type:'I', src:'Treasury / Board Resolutions',              unit:'USD 000',note:'Cash dividends paid to shareholders'},
+    {id:'CF_NET',     lbl:'NET CHANGE IN CASH',         type:'T', src:'= Ops + Investing + Financing',             unit:'USD 000',note:'Must reconcile: Opening + Net = Closing cash'},
+  ],
+};
+
+// ── State ────────────────────────────────────────────────────────────────────
+let dbFacts   = {};   // {lineId: value} loaded from Supabase
+let inputVals = {};   // {lineId: value} entered/extracted by user
+let versions  = [];
+let periods   = [];
+let activeVersion = null;
+let activePeriod  = null;
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const [vr, pr] = await Promise.all([
+      sb.from('fpa_versions').select('*').eq('is_active',true).order('created_at',{ascending:false}),
+      sb.from('fpa_dim_period').select('*').order('id',{ascending:false}),
+    ]);
+    versions = vr.data || [];
+    periods  = pr.data || [];
+    document.getElementById('dbStatusBadge').textContent = '● Connected';
+    document.getElementById('dbStatusBadge').style.color = '#22c55e';
+  } catch(e) {
+    document.getElementById('dbStatusBadge').textContent = '○ Offline — manual entry only';
+    document.getElementById('dbStatusBadge').style.color = '#f59e0b';
+  }
+  renderAllSections();
+  await loadDBFacts();
+}
+
+// ── Period change ─────────────────────────────────────────────────────────────
+window.onPeriodChange = async function() {
+  inputVals = {};
+  await loadDBFacts();
+  renderAllSections();
+};
+
+function getPeriodId() {
+  const y = parseInt(document.getElementById('selYear').value);
+  const m = parseInt(document.getElementById('selMonth').value);
+  return y * 100 + m;
+}
+
+async function loadDBFacts() {
+  dbFacts = {};
+  const pid = getPeriodId();
+  const y = Math.floor(pid/100), m = pid%100;
+  const mo = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m];
+
+  // Find ACTUAL version for this period
+  activeVersion = versions.find(v => v.kind==='ACTUAL' && v.period_id===pid) || null;
+  activePeriod  = periods.find(p => p.id===pid) || null;
+
+  // Status strip
+  document.getElementById('sc-period').textContent = `${mo} ${y}`;
+  document.getElementById('sc-locked').textContent  = activePeriod?.is_closed ? '🔒 Locked' : '🔓 Open';
+
+  if (!activeVersion) {
+    document.getElementById('sc-loaded').textContent = '—';
+    updateSummaryCards();
+    return;
+  }
+
+  try {
+    const { data } = await sb.from('fpa_facts')
+      .select('line_id, value')
+      .eq('version_id', activeVersion.id)
+      .eq('period_id', pid);
+    (data||[]).forEach(r => { dbFacts[r.line_id] = parseFloat(r.value); });
+  } catch(e) {}
+
+  updateSummaryCards();
+  renderAllSections();
+}
+
+// ── Render sections ───────────────────────────────────────────────────────────
+function renderAllSections() {
+  Object.keys(LINES).forEach(sec => renderSection(sec));
+  updateTabStatus();
+}
+
+function renderSection(sec) {
+  const tbody = document.getElementById('tb-'+sec);
+  if (!tbody) return;
+  tbody.innerHTML = LINES[sec].map(l => buildRow(l)).join('');
+}
+
+function buildRow(l) {
+  const isInp = l.type === 'I';
+  const isDer = l.type === 'D';
+  const isTot = l.type === 'T';
+  const isSta = l.type === 'S';
+
+  const cls   = isInp||isSta ? 'inp' : isDer ? 'der' : 'tot';
+  const badge = isInp||isSta ? `<span class="type-${isInp?'inp':'sta'}">${isInp?'INPUT':'STAT'}</span>`
+              : isDer ? '<span class="type-der">DERIVED</span>'
+              : '<span class="type-tot">TOTAL</span>';
+
+  const dbVal  = dbFacts[l.id];
+  const inpVal = inputVals[l.id];
+  const curVal = inpVal !== undefined ? inpVal : dbVal;
+
+  const dbStr  = dbVal  !== undefined ? fmtV(dbVal, l.unit)  : '<span style="color:#94a3b8">—</span>';
+  const varStr = (inpVal !== undefined && dbVal !== undefined)
+    ? varCell(inpVal - dbVal) : '<span style="color:#94a3b8">—</span>';
+
+  // Status dot
+  let dotCls = 'rs-miss';
+  if (dbVal !== undefined && inpVal === undefined) dotCls = 'rs-ok';
+  if (inpVal !== undefined && dbVal  === undefined) dotCls = 'rs-new';
+  if (inpVal !== undefined && dbVal  !== undefined) dotCls = 'rs-chg';
+
+  // Input cell
+  const inputCell = (isInp||isSta) && !isDer && !isTot
+    ? `<input class="cell-inp${inpVal!==undefined?' changed':dbVal!==undefined?' populated':''}"
+         id="inp-${l.id}" type="number" step="any"
+         value="${inpVal!==undefined ? inpVal : dbVal!==undefined ? dbVal : ''}"
+         placeholder="${dbVal!==undefined ? fmtV(dbVal,l.unit) : 'Enter value'}"
+         onchange="onCellChange('${l.id}', this.value)"
+         ${activePeriod?.is_closed ? 'disabled title="Period is locked"' : ''}>`
+    : `<span style="color:#94a3b8;font-size:11px">${isDer ? 'auto' : isTot ? 'calculated' : ''}</span>`;
+
+  return `<tr class="${cls}">
+    <td class="code">${l.id}</td>
+    <td class="lbl">${l.lbl}</td>
+    <td>${badge}</td>
+    <td class="src">${l.src}</td>
+    <td class="r mono">${dbStr}</td>
+    <td class="r">${inputCell}</td>
+    <td class="r mono">${varStr}</td>
+    <td style="font-size:10px;color:#64748b;white-space:nowrap">${l.unit}</td>
+    <td class="src">${l.note||''}</td>
+    <td style="text-align:center"><span class="row-st ${dotCls}"></span></td>
+  </tr>`;
+}
+
+window.onCellChange = function(id, val) {
+  const n = parseFloat(val);
+  if (val === '' || isNaN(n)) {
+    delete inputVals[id];
+  } else {
+    inputVals[id] = n;
+  }
+  // Refresh the row dot
+  const inp = document.getElementById('inp-'+id);
+  if (inp) {
+    inp.classList.toggle('changed', inputVals[id] !== undefined);
+    inp.classList.toggle('populated', inputVals[id] === undefined && dbFacts[id] !== undefined);
+  }
+  updateSummaryCards();
+  updateTabStatus();
+  document.getElementById('btnPreview').disabled = Object.keys(inputVals).length === 0;
+};
+
+// ── Summary cards ─────────────────────────────────────────────────────────────
+function updateSummaryCards() {
+  const allLines = Object.values(LINES).flat();
+  const inputLines = allLines.filter(l => l.type==='I'||l.type==='S');
+  const total   = inputLines.length;
+  const loaded  = inputLines.filter(l => dbFacts[l.id] !== undefined).length;
+  const changed = inputLines.filter(l => inputVals[l.id] !== undefined).length;
+  const pending = inputLines.filter(l => dbFacts[l.id] === undefined && inputVals[l.id] === undefined).length;
+  const pct     = total ? Math.round((loaded/total)*100) : 0;
+
+  set('sc-total',   total);
+  set('sc-loaded',  loaded);
+  set('sc-pending', pending);
+  set('sc-changed', changed);
+  set('sc-pct',     `${pct}% complete`);
+
+  const strip = document.getElementById('statusStrip');
+  const cards = strip.querySelectorAll('.sc');
+  // Total
+  cards[0].className = `sc ${pct===100?'green':pct>50?'amber':'grey'}`;
+  // Loaded
+  cards[1].className = `sc ${loaded===total?'green':loaded>0?'amber':'red'}`;
+  // Pending
+  cards[2].className = `sc ${pending===0?'green':pending<5?'amber':'red'}`;
+  // Changed
+  cards[3].className = `sc ${changed>0?'blue':'grey'}`;
+
+  // Action info
+  document.getElementById('actionInfo').textContent = changed > 0
+    ? `${changed} line${changed!==1?'s':''} ready to commit for ${getMonthLabel()}`
+    : loaded > 0 ? `${loaded} lines loaded from DB · modify values above to update`
+    : 'Enter values above or upload a source file';
+}
+
+function updateTabStatus() {
+  Object.keys(LINES).forEach(sec => {
+    const lines = LINES[sec].filter(l=>l.type==='I'||l.type==='S');
+    const loaded = lines.filter(l=>dbFacts[l.id]!==undefined||inputVals[l.id]!==undefined).length;
+    const dot = document.getElementById('ts-'+sec);
+    if (!dot) return;
+    dot.className = 'tab-status ' + (loaded===lines.length?'ts-green':loaded>0?'ts-amber':loaded===0&&lines.length?'ts-red':'ts-grey');
+  });
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+window.switchTab = function(sec, el) {
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  document.getElementById('pane-'+sec).classList.add('on');
+  el.classList.add('on');
+};
+
+// ── File fingerprinting & extraction ─────────────────────────────────────────
+// !! READER FUNCTIONS — to be completed once user provides source files !!
+// Each reader has: name, identify(wb) → bool, extract(wb, month, year) → {lineId: value}
+
+const READERS = [
+  {
+    name: 'Oracle GL Trial Balance',
+    // !! TO IMPLEMENT: Check sheet names like "Trial Balance", "TB", columns "Account Code", "Description", month column
+    identify: (wb) => {
+      const names = wb.SheetNames.map(n=>n.toLowerCase());
+      return names.some(n=>n.includes('trial') || n.includes(' tb') || n==='tb');
+    },
+    extract: (wb, month, year) => {
+      // !! TO IMPLEMENT when user provides actual Oracle GL export
+      // Logic: find account codes → map to line IDs
+      // e.g., accounts 4000-4099 → NONFUEL, 5001 → FUEL_COST, 7000-7999 → OM_* categories
+      return { _reader: 'Oracle GL Trial Balance', _status: 'reader_not_configured' };
+    }
+  },
+  {
+    name: 'Billing Sales Report',
+    identify: (wb) => {
+      const names = wb.SheetNames.map(n=>n.toLowerCase());
+      return names.some(n=>n.includes('billing') || n.includes('sales') || n.includes('rate class'));
+    },
+    extract: (wb, month, year) => {
+      // !! TO IMPLEMENT when user provides billing report
+      // Logic: sum kWh by rate class → BILLED_GWH; sum fuel rev → FUEL_REV; non-fuel → NONFUEL
+      return { _reader: 'Billing Sales Report', _status: 'reader_not_configured' };
+    }
+  },
+  {
+    name: 'IPP Invoice Summary',
+    identify: (wb) => {
+      const names = wb.SheetNames.map(n=>n.toLowerCase());
+      return names.some(n=>n.includes('ipp') || n.includes('purchased power') || n.includes('ppa'));
+    },
+    extract: (wb, month, year) => {
+      // !! TO IMPLEMENT: extract IPP_FR, IPP_NR, IPP_COST
+      return { _reader: 'IPP Invoice Summary', _status: 'reader_not_configured' };
+    }
+  },
+  {
+    name: 'Payroll Extract',
+    identify: (wb) => {
+      const names = wb.SheetNames.map(n=>n.toLowerCase());
+      return names.some(n=>n.includes('payroll') || n.includes('hrms') || n.includes('salary'));
+    },
+    extract: (wb, month, year) => {
+      // !! TO IMPLEMENT: extract OM_PAY, OM_OT, OM_BEN, OM_DBEN
+      return { _reader: 'Payroll Extract', _status: 'reader_not_configured' };
+    }
+  },
+  {
+    name: 'CapEx Tracker',
+    identify: (wb) => {
+      const names = wb.SheetNames.map(n=>n.toLowerCase());
+      return names.some(n=>n.includes('capex') || n.includes('capital') || n.includes('project'));
+    },
+    extract: (wb, month, year) => {
+      // !! TO IMPLEMENT: extract CX_GEN, CX_TX, CX_DIST, etc. by project category
+      return { _reader: 'CapEx Tracker', _status: 'reader_not_configured' };
+    }
+  },
+  {
+    name: 'FA Depreciation Run',
+    identify: (wb) => {
+      const names = wb.SheetNames.map(n=>n.toLowerCase());
+      return names.some(n=>n.includes('depreciation') || n.includes('fixed asset') || n.includes('deprn'));
+    },
+    extract: (wb, month, year) => {
+      // !! TO IMPLEMENT: extract DEP_FA, DEP_SJPC, DEP_SP
+      return { _reader: 'FA Depreciation Run', _status: 'reader_not_configured' };
+    }
+  },
+  {
+    name: 'Dispatch / Generation Log',
+    identify: (wb) => {
+      const names = wb.SheetNames.map(n=>n.toLowerCase());
+      return names.some(n=>n.includes('dispatch') || n.includes('generation') || n.includes('gen log') || n.includes('net gen'));
+    },
+    extract: (wb, month, year) => {
+      // !! TO IMPLEMENT: extract NETGEN_GWH, PEAK_MW, HEATRATE
+      return { _reader: 'Dispatch / Generation Log', _status: 'reader_not_configured' };
+    }
+  },
+  {
+    name: 'Treasury Report',
+    identify: (wb) => {
+      const names = wb.SheetNames.map(n=>n.toLowerCase());
+      return names.some(n=>n.includes('treasury') || n.includes('loan') || n.includes('debt schedule') || n.includes('interest'));
+    },
+    extract: (wb, month, year) => {
+      // !! TO IMPLEMENT: extract NFC_INT, BS_CASH, CF_INTPD, CF_PRPD
+      return { _reader: 'Treasury Report', _status: 'reader_not_configured' };
+    }
+  },
+];
+
+// ── File handling ─────────────────────────────────────────────────────────────
+window.handleDrop = function(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
+};
+
+window.handleFiles = function(files) {
+  if (!files || !files.length) return;
+  [...files].forEach(f => processFile(f));
+};
+
+function processFile(file) {
+  const ext  = file.name.split('.').pop().toLowerCase();
+  const mon  = parseInt(document.getElementById('selMonth').value);
+  const yr   = parseInt(document.getElementById('selYear').value);
+  const alert= document.getElementById('extractAlert');
+
+  if (!['xlsx','xlsm','csv'].includes(ext)) {
+    alert.innerHTML = `<div class="alert alert-warn">⚠ <strong>${file.name}</strong> — unsupported format. Use .xlsx, .xlsm or .csv.</div>`;
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      let result = {};
+      if (ext === 'csv') {
+        result = parseCSVFallback(ev.target.result, file.name);
+      } else {
+        if (typeof XLSX === 'undefined') {
+          alert.innerHTML = `<div class="alert alert-warn">⚠ SheetJS not loaded — paste data manually or use CSV format.</div>`;
+          return;
+        }
+        const wb = XLSX.read(ev.target.result, { type:'binary' });
+        // Try each reader
+        const matched = READERS.find(r => { try { return r.identify(wb); } catch{ return false; } });
+        if (matched) {
+          result = matched.extract(wb, mon, yr);
+          const status = result._status;
+          delete result._reader; delete result._status;
+          if (status === 'reader_not_configured') {
+            // Update chip to show matched but not yet configured
+            showChipStatus(matched.name, 'unknown');
+            alert.innerHTML = `<div class="alert alert-warn">
+              <strong>✓ Identified: ${matched.name}</strong>
+              File recognised but the extraction reader for this file type hasn't been configured yet.
+              Send this file to your FP&A team to train the reader — or enter values manually below.
+            </div>`;
+            return;
+          }
+          showChipStatus(matched.name, 'ready');
+        } else {
+          // Generic fallback — scan all rows for keyword matches
+          result = genericExtract(wb, mon, yr);
+          alert.innerHTML = `<div class="alert alert-warn">
+            <strong>⚠ File type not recognised: ${file.name}</strong>
+            Used generic keyword extraction — ${Object.keys(result).length} lines found.
+            Please verify all values before committing.
+          </div>`;
+        }
+      }
+
+      // Apply extracted values to input fields
+      let applied = 0;
+      Object.entries(result).forEach(([id, val]) => {
+        if (typeof val === 'number' && !isNaN(val)) {
+          inputVals[id] = val;
+          const inp = document.getElementById('inp-'+id);
+          if (inp) { inp.value = val; inp.classList.add('changed'); }
+          applied++;
+        }
+      });
+
+      if (applied > 0) {
+        alert.innerHTML = `<div class="alert alert-ok">
+          <strong>✅ Extracted ${applied} values from ${file.name}</strong>
+          Review the populated fields below — modified cells are highlighted in amber. Click "Preview &amp; Commit" when ready.
+        </div>`;
+        updateSummaryCards(); updateTabStatus();
+        document.getElementById('btnPreview').disabled = false;
+      }
+    } catch(err) {
+      alert.innerHTML = `<div class="alert alert-err">❌ Parse error: ${err.message}</div>`;
+    }
+  };
+  if (ext==='csv') reader.readAsText(file); else reader.readAsBinaryString(file);
+}
+
+// Generic extractor — keyword matching as fallback
+function genericExtract(wb, month, year) {
+  const result = {};
+  const kwMap = {
+    'billed kwh':'BILLED_GWH','billed gwh':'BILLED_GWH','net generation':'NETGEN_GWH',
+    'netgen':'NETGEN_GWH','peak demand':'PEAK_MW','heat rate':'HEATRATE',
+    'fuel revenue':'FUEL_REV','fuel cost':'FUEL_COST','non-fuel revenue':'NONFUEL',
+    'nonfuel':'NONFUEL','other revenue':'OTHER_REV','ipp fuel':'IPP_FR',
+    'ipp non-fuel':'IPP_NR','ipp cost':'IPP_COST','payroll':'OM_PAY',
+    'salary':'OM_PAY','overtime':'OM_OT','benefits':'OM_BEN','training':'OM_TRN',
+    'third party':'OM_3PTY','supplies':'OM_SUP','materials':'OM_MAT','technology':'OM_TECH',
+    'insurance':'OM_INS','management fee':'OM_MGMT','depreciation':'DEP_FA',
+    'interest expense':'NFC_INT','cash':'BS_CASH','receivables':'BS_RECV',
+    'fixed assets':'BS_PPE','equity':'BS_EQUITY','capex':'CX_TOTAL',
+  };
+  const mName = ['','jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'][month];
+
+  wb.SheetNames.slice(0,5).forEach(sn => {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1, defval:''});
+    // Find month column
+    let mCol = -1;
+    for (let r=0; r<Math.min(8,rows.length); r++) {
+      rows[r].forEach((c,ci) => { if (String(c).toLowerCase().includes(mName)) mCol=ci; });
+      if (mCol>=0) break;
+    }
+    rows.forEach(row => {
+      const lbl = String(row[0]||'').toLowerCase().replace(/[^a-z0-9\s-]/g,'').trim();
+      const val = mCol>=0 ? row[mCol] : row[row.length-1];
+      if (typeof val !== 'number' || !lbl) return;
+      Object.entries(kwMap).forEach(([kw,id]) => {
+        if (lbl.includes(kw) && result[id]==null) result[id] = Math.round(val*100)/100;
+      });
+    });
+  });
+  return result;
+}
+
+// CSV fallback — standard format: line_id, value
+function parseCSVFallback(text, filename) {
+  const lines = text.split(/\r?\n/).filter(l=>l.trim());
+  const hdr   = lines[0]?.split(',').map(h=>h.trim().toLowerCase()) || [];
+  const result= {};
+  if (hdr.includes('line_id') && hdr.includes('value')) {
+    const li = hdr.indexOf('line_id'), vi = hdr.indexOf('value');
+    lines.slice(1).forEach(l => {
+      const c = l.split(',');
+      const id= c[li]?.trim(), val = parseFloat(c[vi]);
+      if (id && !isNaN(val)) result[id] = val;
+    });
+  }
+  return result;
+}
+
+function showChipStatus(readerName, status) {
+  document.querySelectorAll('.reader-chip').forEach(chip => {
+    if (chip.textContent.trim() === readerName) chip.classList.add(status);
+  });
+}
+
+// ── Preview & Commit ──────────────────────────────────────────────────────────
+window.openPreview = function() {
+  if (!Object.keys(inputVals).length) return;
+  const allLines = Object.values(LINES).flat();
+  const rows = Object.entries(inputVals).map(([id, val]) => {
+    const line = allLines.find(l=>l.id===id) || {lbl:id, unit:''};
+    const db = dbFacts[id];
+    const chg = db !== undefined ? val - db : null;
+    return { id, lbl: line.lbl, unit: line.unit, db, val, chg };
+  });
+
+  const newRows = rows.filter(r=>r.db===undefined).length;
+  const updRows = rows.filter(r=>r.db!==undefined).length;
+
+  document.getElementById('commitSummary').innerHTML = `
+    <div class="cs-card"><div class="cs-val">${rows.length}</div><div class="cs-lbl">Lines to Commit</div></div>
+    <div class="cs-card"><div class="cs-val" style="color:#3b82f6">${newRows}</div><div class="cs-lbl">New (not in DB)</div></div>
+    <div class="cs-card"><div class="cs-val" style="color:#f59e0b">${updRows}</div><div class="cs-lbl">Updates (override)</div></div>
+  `;
+
+  const missing = !activeVersion;
+  document.getElementById('commitAlert').innerHTML = missing
+    ? `<div class="alert alert-warn">⚠ No ACTUAL version found for ${getMonthLabel()} in fpa_versions. Create one first in the platform.</div>`
+    : `<div class="alert alert-info">Committing to version: <strong>${activeVersion.code} — ${activeVersion.name}</strong> · Period: ${getMonthLabel()}</div>`;
+
+  document.getElementById('commitTbody').innerHTML = rows.map(r => `<tr>
+    <td>${r.id}</td>
+    <td>${r.lbl}</td>
+    <td style="color:#64748b">${r.db !== undefined ? fmtN(r.db) : '—'}</td>
+    <td style="font-weight:700">${fmtN(r.val)}</td>
+    <td class="${r.chg===null?'':r.chg>0?'var-pos':'var-neg'}">${r.chg===null?'NEW':fmtN(r.chg)}</td>
+    <td><span class="badge" style="background:${r.db===undefined?'#dbeafe':'#fef3c7'};color:${r.db===undefined?'#1e40af':'#92400e'}">${r.db===undefined?'INSERT':'UPDATE'}</span></td>
+  </tr>`).join('');
+
+  document.getElementById('btnCommit').disabled = missing;
+  document.getElementById('commitModal').classList.add('open');
+};
+
+window.closeModal = function() {
+  document.getElementById('commitModal').classList.remove('open');
+};
+
+window.doCommit = async function() {
+  if (!activeVersion) return;
+  const pid = getPeriodId();
+  const rows = Object.entries(inputVals).map(([id,val]) => ({
+    version_id: activeVersion.id, line_id: id, period_id: pid,
+    value: val, source: 'upload'
+  }));
+
+  document.getElementById('btnCommit').disabled = true;
+  document.getElementById('btnCommit').textContent = '⏳ Saving…';
+
+  try {
+    const { error } = await sb.from('fpa_facts')
+      .upsert(rows, { onConflict: 'version_id,line_id,period_id' });
+    if (error) throw error;
+
+    // Optionally lock period
+    if (document.getElementById('chkLock').checked && activePeriod) {
+      await sb.from('fpa_dim_period')
+        .update({ is_closed:true, closed_at:new Date().toISOString() })
+        .eq('id', pid);
+    }
+
+    closeModal();
+    await loadDBFacts();
+    inputVals = {};
+    renderAllSections();
+    document.getElementById('extractAlert').innerHTML =
+      `<div class="alert alert-ok">✅ <strong>${rows.length} lines committed</strong> for ${getMonthLabel()}${document.getElementById('chkLock').checked?' · Period locked 🔒':''}</div>`;
+    document.getElementById('btnPreview').disabled = true;
+  } catch(err) {
+    document.getElementById('commitAlert').innerHTML = `<div class="alert alert-err">❌ Commit failed: ${err.message}</div>`;
+    document.getElementById('btnCommit').disabled = false;
+    document.getElementById('btnCommit').textContent = '✔ Commit to Database';
+  }
+};
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+window.clearAll = function() {
+  if (!confirm('Clear all entered values? DB values are not affected.')) return;
+  inputVals = {};
+  document.querySelectorAll('.cell-inp').forEach(inp => {
+    const id = inp.id.replace('inp-','');
+    inp.value = dbFacts[id] !== undefined ? dbFacts[id] : '';
+    inp.classList.remove('changed');
+  });
+  updateSummaryCards(); updateTabStatus();
+  document.getElementById('btnPreview').disabled = true;
+};
+
+window.exportCSV = function() {
+  const allLines = Object.values(LINES).flat();
+  const rows = allLines.filter(l=>l.type==='I'||l.type==='S').map(l => {
+    const val = inputVals[l.id] !== undefined ? inputVals[l.id] : dbFacts[l.id] !== undefined ? dbFacts[l.id] : '';
+    return `${l.id},"${l.lbl}",${val},"${l.unit}"`;
+  });
+  const csv = `line_id,description,value,unit\n` + rows.join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = `JPS_Actuals_${getPeriodId()}.csv`;
+  a.click();
+};
+
+function fmtV(v, unit) {
+  if (v==null||isNaN(v)) return '—';
+  if (unit==='%') return (v*100).toFixed(1)+'%';
+  if (['GWh','MW','BTU/kWh'].includes(unit)) return Number(v).toLocaleString('en-US',{maximumFractionDigits:1});
+  return Number(v).toLocaleString('en-US',{maximumFractionDigits:0});
+}
+function fmtN(v) { return v==null||isNaN(v)?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:0}); }
+function varCell(d) {
+  if (d==null||isNaN(d)) return '<span style="color:#94a3b8">—</span>';
+  const cls = d>0?'var-pos':d<0?'var-neg':'var-zer';
+  return `<span class="${cls}">${d>0?'+':''}${fmtN(d)}</span>`;
+}
+function getMonthLabel() {
+  const mo=['','January','February','March','April','May','June','July','August','September','October','November','December'];
+  return `${mo[parseInt(document.getElementById('selMonth').value)]} ${document.getElementById('selYear').value}`;
+}
+function set(id, val) { const el=document.getElementById(id); if(el) el.textContent=val; }
+
+init();
+</script>
+</body>
+</html>

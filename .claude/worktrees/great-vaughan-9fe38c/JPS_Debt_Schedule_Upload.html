@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JPS FP&amp;A — Debt Schedule Upload</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1a2a3a;font-size:13px}
+
+.header{background:linear-gradient(135deg,#0a1628 0%,#1a3a5c 100%);color:#fff;padding:20px 32px;display:flex;align-items:center;gap:20px}
+.header-logo{font-size:22px;font-weight:700;color:#f0b429;letter-spacing:1px;white-space:nowrap}
+.header-title{flex:1}
+.header-title h1{font-size:18px;font-weight:600;color:#d4e2f4}
+.header-title p{font-size:12px;color:#7da0c4;margin-top:2px}
+.header-badge{background:#f0b429;color:#1a2a3a;padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap}
+
+.content{padding:28px 32px;max-width:1300px;margin:0 auto}
+
+/* Steps */
+.steps{display:flex;gap:0;margin-bottom:28px;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden}
+.step{flex:1;padding:14px 20px;display:flex;align-items:center;gap:12px;border-right:1px solid #e2e8f0;cursor:default;transition:background .15s}
+.step:last-child{border-right:none}
+.step.active{background:#eff6ff}
+.step.done{background:#f0fdf4}
+.step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;background:#e2e8f0;color:#64748b}
+.step.active .step-num{background:#1e40af;color:#fff}
+.step.done .step-num{background:#16a34a;color:#fff}
+.step-label{font-size:12px;font-weight:600;color:#64748b}
+.step.active .step-label{color:#1e40af}
+.step.done .step-label{color:#16a34a}
+.step-sub{font-size:11px;color:#94a3b8}
+
+/* Cards */
+.card{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:20px;overflow:hidden}
+.card-hdr{background:#1e3a5c;color:#fff;padding:11px 16px;display:flex;align-items:center;justify-content:space-between}
+.card-hdr h3{font-size:13px;font-weight:600}
+.card-hdr span{font-size:11px;color:#94b4cc;font-style:italic}
+.card-body{padding:20px}
+
+/* Form */
+.form-row{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px}
+.form-group{display:flex;flex-direction:column;gap:5px;flex:1;min-width:180px}
+.form-group label{font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.4px}
+select,input[type=text],input[type=number]{border:1px solid #cbd5e1;border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;background:#fff;color:#1a2a3a;width:100%}
+select:focus,input:focus{outline:2px solid #3b82f6;border-color:transparent}
+
+/* Buttons */
+.btn{padding:8px 18px;border-radius:6px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:#1e3a5c;color:#fff}
+.btn-primary:hover{background:#0f2a4a}
+.btn-primary:disabled{background:#94a3b8;cursor:not-allowed}
+.btn-success{background:#16a34a;color:#fff}
+.btn-success:hover{background:#15803d}
+.btn-success:disabled{background:#94a3b8;cursor:not-allowed}
+.btn-outline{background:#fff;color:#1e3a5c;border:1px solid #1e3a5c}
+.btn-outline:hover{background:#f0f4f8}
+.btn-yellow{background:#f0b429;color:#1a2a3a}
+.btn-yellow:hover{background:#d97706}
+.btn-danger{background:#dc2626;color:#fff}
+.btn-danger:hover{background:#b91c1c}
+.btn-sm{padding:5px 12px;font-size:11px}
+
+/* Info / alert boxes */
+.alert{border-radius:6px;padding:12px 16px;margin-bottom:16px;font-size:12px;line-height:1.6}
+.alert-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+.alert-info strong{display:block;margin-bottom:3px;color:#1e3a8a;font-size:12px}
+.alert-warn{background:#fffbeb;border:1px solid #fcd34d;color:#92400e}
+.alert-warn strong{display:block;margin-bottom:3px;color:#78350f}
+.alert-ok{background:#f0fdf4;border:1px solid #86efac;color:#15803d}
+.alert-ok strong{display:block;margin-bottom:3px}
+.alert-err{background:#fef2f2;border:1px solid #fca5a5;color:#dc2626}
+.alert-err strong{display:block;margin-bottom:3px}
+
+/* Upload zone */
+.drop-zone{border:2px dashed #94a3b8;border-radius:8px;padding:36px;text-align:center;cursor:pointer;transition:all .2s;background:#f8fafc}
+.drop-zone:hover,.drop-zone.drag-over{border-color:#3b82f6;background:#eff6ff}
+.drop-zone .dz-icon{font-size:36px;margin-bottom:10px}
+.drop-zone .dz-title{font-size:14px;font-weight:600;color:#334155;margin-bottom:4px}
+.drop-zone .dz-sub{font-size:12px;color:#64748b}
+#fileInput{display:none}
+
+/* Column legend */
+.col-legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.col-chip{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap}
+.col-req{background:#fef3c7;color:#92400e;border:1px solid #f59e0b}
+.col-opt{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd}
+.col-calc{background:#f0fdf4;color:#15803d;border:1px solid #86efac}
+
+/* Preview table */
+.tbl-wrap{overflow-x:auto;border-radius:6px;border:1px solid #e2e8f0}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:#1e3a5c;color:#fff;padding:8px 10px;text-align:left;white-space:nowrap;font-size:11px;font-weight:600;letter-spacing:.3px}
+thead th.r{text-align:right}
+tbody td{padding:7px 10px;border-bottom:1px solid #f1f5f9;white-space:nowrap}
+tbody td.r{text-align:right;font-family:'Consolas',monospace}
+tbody tr:hover{background:#f8fafc}
+tbody tr.fac-hdr td{background:#e8f0f8;font-weight:700;color:#1e3a5c;font-size:12px}
+tbody tr.total-row td{background:#f0fdf4;font-weight:700;border-top:2px solid #86efac}
+.badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700}
+.badge-jmd{background:#fef3c7;color:#92400e}
+.badge-usd{background:#d1fae5;color:#065f46}
+.badge-eur{background:#dbeafe;color:#1e40af}
+
+/* Summary cards */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.sum-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:14px;text-align:center}
+.sum-card .sc-val{font-size:22px;font-weight:700;color:#1e3a5c;line-height:1}
+.sum-card .sc-lbl{font-size:11px;color:#64748b;margin-top:4px}
+
+/* Progress */
+.progress-bar{height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin:8px 0}
+.progress-fill{height:100%;background:#16a34a;border-radius:3px;transition:width .3s}
+
+/* Spinner */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Template CSV preview */
+.csv-preview{background:#1a2a3a;color:#a8d8a8;font-family:'Consolas',monospace;font-size:11px;padding:14px;border-radius:6px;overflow-x:auto;white-space:pre;line-height:1.5}
+
+/* Pane switching */
+.pane{display:none}
+.pane.active{display:block}
+
+/* Status log */
+.status-log{background:#0f172a;color:#e2e8f0;font-family:'Consolas',monospace;font-size:11px;padding:14px;border-radius:6px;max-height:200px;overflow-y:auto;line-height:1.7}
+.log-ok{color:#4ade80}
+.log-err{color:#f87171}
+.log-warn{color:#fbbf24}
+.log-info{color:#93c5fd}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-logo">JPS</div>
+  <div class="header-title">
+    <h1>Debt Schedule Upload</h1>
+    <p>FP&amp;A Platform · All loan facilities and monthly amortisation data</p>
+  </div>
+  <div class="header-badge">TREASURY / FINANCE</div>
+</div>
+
+<div class="content">
+
+  <!-- STEP INDICATOR -->
+  <div class="steps" id="stepBar">
+    <div class="step active" id="s1"><div class="step-num">1</div><div><div class="step-label">Select Version</div><div class="step-sub">LE, Budget, Actuals</div></div></div>
+    <div class="step" id="s2"><div class="step-num">2</div><div><div class="step-label">Prepare CSV</div><div class="step-sub">Download template</div></div></div>
+    <div class="step" id="s3"><div class="step-num">3</div><div><div class="step-label">Upload &amp; Validate</div><div class="step-sub">Preview data</div></div></div>
+    <div class="step" id="s4"><div class="step-num">4</div><div><div class="step-label">Confirm Upload</div><div class="step-sub">Save to database</div></div></div>
+  </div>
+
+  <!-- PANE 1 — VERSION SELECT -->
+  <div class="pane active" id="pane1">
+    <div class="card">
+      <div class="card-hdr"><h3>📋 Step 1 — Select a Version</h3><span>Choose the planning version this debt data belongs to</span></div>
+      <div class="card-body">
+        <div class="alert alert-info">
+          <strong>How this works</strong>
+          The debt schedule is tied to a planning <strong>version</strong> (e.g. March 2026 LE, 2026 Budget).
+          Each upload replaces all debt data for that version — existing facilities and schedule rows are deleted and re-created.
+          Actuals versions record the actual debt position at month-end.
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="max-width:380px">
+            <label>Planning Version</label>
+            <select id="versionSel">
+              <option value="">— loading versions… —</option>
+            </select>
+          </div>
+          <div class="form-group" style="max-width:200px">
+            <label>Kind</label>
+            <input type="text" id="versionKind" readonly placeholder="—" style="background:#f8fafc;color:#64748b">
+          </div>
+          <div class="form-group" style="max-width:200px">
+            <label>Year</label>
+            <input type="text" id="versionYear" readonly placeholder="—" style="background:#f8fafc;color:#64748b">
+          </div>
+        </div>
+        <div id="versionAlert"></div>
+        <button class="btn btn-primary" id="btnStep1Next" disabled onclick="goStep(2)">Next — Prepare CSV →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE 2 — PREPARE CSV -->
+  <div class="pane" id="pane2">
+    <div class="card">
+      <div class="card-hdr"><h3>📥 Step 2 — Download the CSV Template</h3><span>Fill in your debt data, one row per facility × month</span></div>
+      <div class="card-body">
+
+        <div class="alert alert-info">
+          <strong>CSV structure — one row per Facility × Month</strong>
+          Each loan facility is identified by a stable <code>facility_code</code> (e.g. <code>NCB_JMD</code>).
+          Repeat facility metadata on every row — the uploader deduplicates automatically.
+          All monetary values should be in the <strong>facility's native currency</strong> (JMD, USD or EUR).
+          Provide <code>fx_rate</code> (local currency per USD) so the platform can convert to USD.
+        </div>
+
+        <div style="margin-bottom:14px">
+          <strong style="font-size:12px;color:#334155">Column reference:</strong>
+          <div class="col-legend" style="margin-top:8px">
+            <span class="col-chip col-req">facility_code ✱</span>
+            <span class="col-chip col-req">facility_name ✱</span>
+            <span class="col-chip col-req">lender ✱</span>
+            <span class="col-chip col-req">currency ✱</span>
+            <span class="col-chip col-req">interest_rate ✱</span>
+            <span class="col-chip col-req">period_id ✱</span>
+            <span class="col-chip col-req">opening_balance ✱</span>
+            <span class="col-chip col-req">closing_balance ✱</span>
+            <span class="col-chip col-opt">original_principal</span>
+            <span class="col-chip col-opt">maturity_date</span>
+            <span class="col-chip col-opt">sort_order</span>
+            <span class="col-chip col-opt">drawdown</span>
+            <span class="col-chip col-opt">principal_repayment</span>
+            <span class="col-chip col-opt">interest_accrued</span>
+            <span class="col-chip col-opt">interest_paid</span>
+            <span class="col-chip col-opt">fx_rate</span>
+            <span class="col-chip col-opt">notes</span>
+          </div>
+          <div style="display:flex;gap:16px;font-size:11px;color:#64748b;margin-top:6px">
+            <span><span class="col-chip col-req" style="font-size:10px">✱ Required</span></span>
+            <span><span class="col-chip col-opt" style="font-size:10px">Optional</span></span>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px">
+          <strong style="font-size:12px;color:#334155;display:block;margin-bottom:6px">Field notes:</strong>
+          <table style="font-size:11px;border-collapse:collapse;width:100%">
+            <thead><tr><th style="text-align:left;padding:5px 8px;background:#f1f5f9;border:1px solid #e2e8f0">Column</th><th style="text-align:left;padding:5px 8px;background:#f1f5f9;border:1px solid #e2e8f0">Format / Example</th><th style="text-align:left;padding:5px 8px;background:#f1f5f9;border:1px solid #e2e8f0">Notes</th></tr></thead>
+            <tbody>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>facility_code</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>NCB_JMD</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">Short stable code — no spaces. Used to match rows across uploads.</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>facility_name</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>NCB Jamaica Dollar Term Loan</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">Full display name shown in reports</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>lender</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>National Commercial Bank</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">Lender full name</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>currency</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>JMD</code> / <code>USD</code> / <code>EUR</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">Currency of the facility</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>interest_rate</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>0.0995</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">Annual rate as decimal (9.95% → 0.0995)</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>original_principal</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>10680000</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">Face value at inception, in facility currency</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>maturity_date</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>2029-12-31</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">YYYY-MM-DD format</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>sort_order</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>1</code>, <code>2</code>, <code>3</code>…</td><td style="padding:5px 8px;border:1px solid #e2e8f0">Display order in debt schedule table</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>period_id</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>202601</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">YYYYMM integer — must exist in fpa_dim_period</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>opening_balance</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>8811000</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">Balance at start of month, facility currency</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>drawdown</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>0</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">New borrowing in month, leave 0 if none</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>principal_repayment</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>267000</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">Capital repaid in month</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>closing_balance</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>8544000</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">Balance at end of month</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>interest_accrued</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>62411</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">Interest charged in month</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>interest_paid</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>62411</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">Interest cash paid in month</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>fx_rate</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>157.5</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">Period-end rate (local per USD). Leave blank for USD facilities.</td></tr>
+              <tr><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>notes</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0"><code>Balloon payment due Q4</code></td><td style="padding:5px 8px;border:1px solid #e2e8f0">Optional narrative, shown in debt schedule</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-bottom:16px">
+          <strong style="font-size:12px;color:#334155;display:block;margin-bottom:6px">Sample CSV rows:</strong>
+          <div class="csv-preview" id="csvPreviewTpl"></div>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-yellow" onclick="downloadTemplate()">⬇ Download Blank Template CSV</button>
+          <button class="btn btn-outline" onclick="downloadExample()">⬇ Download Filled Example CSV</button>
+          <button class="btn btn-primary" style="margin-left:auto" onclick="goStep(3)">Next — Upload File →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE 3 — UPLOAD & VALIDATE -->
+  <div class="pane" id="pane3">
+    <div class="card">
+      <div class="card-hdr"><h3>📤 Step 3 — Upload &amp; Validate</h3><span>Drop your completed CSV file here</span></div>
+      <div class="card-body">
+
+        <div id="uploadVersionBadge" class="alert alert-info" style="margin-bottom:14px"></div>
+
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+          <div class="dz-icon">📂</div>
+          <div class="dz-title">Drop your CSV file here, or click to browse</div>
+          <div class="dz-sub">Accepts .csv files only · Max 10 MB</div>
+        </div>
+        <input type="file" id="fileInput" accept=".csv">
+
+        <div id="validateResult" style="margin-top:16px"></div>
+      </div>
+    </div>
+
+    <!-- PREVIEW — shown after successful parse -->
+    <div class="card" id="previewCard" style="display:none">
+      <div class="card-hdr"><h3>🔍 Data Preview</h3><span id="previewSubtitle"></span></div>
+      <div class="card-body">
+        <div class="summary-grid" id="summaryCards"></div>
+        <div id="previewWarn"></div>
+        <div class="tbl-wrap" id="previewTbl"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-outline" onclick="goStep(2)">← Back</button>
+          <button class="btn btn-success" id="btnConfirm" onclick="goStep(4)">✔ Looks Good — Upload to Database →</button>
+          <span style="font-size:11px;color:#64748b;margin-left:4px">This will <strong>replace</strong> all debt data for the selected version.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE 4 — UPLOADING / DONE -->
+  <div class="pane" id="pane4">
+    <div class="card">
+      <div class="card-hdr"><h3>⬆ Step 4 — Saving to Database</h3><span id="uploadStatusLabel">Processing…</span></div>
+      <div class="card-body">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+        <div class="status-log" id="statusLog"></div>
+        <div id="uploadDoneMsg" style="margin-top:16px"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<script type="module">
+// ── Supabase client ─────────────────────────────────────────────────────────
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const SUPA_URL = 'https://bhrswnbenkvflpdjhfpa.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJocnN3bmJlbmt2ZmxwZGpoZnBhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI5MTkwMDEsImV4cCI6MjA1ODQ5NTAwMX0.9oMwXHgOjCvOjT1bpqXkbx5y_R0MHxj1A7VTjuH1p3M';
+const sb = createClient(SUPA_URL, SUPA_KEY);
+
+// ── State ───────────────────────────────────────────────────────────────────
+let versions = [];
+let selectedVersion = null;
+let parsedRows = [];    // validated CSV rows
+let parsedFacilities = {}; // facility_code → metadata
+
+// ── Column definitions ──────────────────────────────────────────────────────
+const REQUIRED_COLS = ['facility_code','facility_name','lender','currency','interest_rate','period_id','opening_balance','closing_balance'];
+const ALL_COLS = ['facility_code','facility_name','lender','currency','interest_rate','original_principal','maturity_date','sort_order','period_id','opening_balance','drawdown','principal_repayment','closing_balance','interest_accrued','interest_paid','fx_rate','notes'];
+
+const SAMPLE_HEADER = ALL_COLS.join(',');
+const SAMPLE_ROW1   = 'NCB_JMD,NCB Jamaica Dollar Term Loan,National Commercial Bank,JMD,0.0995,4260000,2028-06-30,1,202601,1500000,0,71371,1428629,11812,11812,157.50,';
+const SAMPLE_ROW2   = 'NCB_JMD,NCB Jamaica Dollar Term Loan,National Commercial Bank,JMD,0.0995,4260000,2028-06-30,1,202602,1428629,0,71371,1357258,11249,11249,158.20,';
+const SAMPLE_ROW3   = 'SAGICOR_JMD,Sagicor Jamaica Dollar Term Loan,Sagicor Bank,JMD,0.085,10680000,2030-03-31,2,202601,8811000,0,267000,8544000,62411,62411,157.50,';
+const SAMPLE_ROW4   = 'KFW_EUR,KFW Development Loan,KFW,EUR,0.07,5000000,2032-12-31,3,202601,3879196,0,0,3879196,22629,22629,1.08,';
+
+document.getElementById('csvPreviewTpl').textContent =
+  SAMPLE_HEADER + '\n' + SAMPLE_ROW1 + '\n' + SAMPLE_ROW2 + '\n' + SAMPLE_ROW3 + '\n' + SAMPLE_ROW4;
+
+// ── Load versions ────────────────────────────────────────────────────────────
+async function loadVersions() {
+  const { data, error } = await sb.from('fpa_versions')
+    .select('id,code,name,kind,year,period_id,is_locked')
+    .eq('is_active', true)
+    .order('year', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error) { showVersionAlert('error', 'Could not load versions: ' + error.message); return; }
+  versions = data || [];
+
+  const sel = document.getElementById('versionSel');
+  sel.innerHTML = '<option value="">— select a version —</option>';
+  versions.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.id;
+    opt.textContent = `${v.name} (${v.kind})`;
+    if (v.is_locked) opt.textContent += ' 🔒';
+    sel.appendChild(opt);
+  });
+  sel.onchange = onVersionChange;
+}
+
+function onVersionChange() {
+  const sel = document.getElementById('versionSel');
+  selectedVersion = versions.find(v => v.id === sel.value) || null;
+  document.getElementById('versionKind').value = selectedVersion?.kind || '';
+  document.getElementById('versionYear').value = selectedVersion?.year || '';
+  document.getElementById('btnStep1Next').disabled = !selectedVersion;
+  document.getElementById('versionAlert').innerHTML = '';
+
+  if (selectedVersion?.is_locked) {
+    showVersionAlert('warn', '⚠ This version is locked. You can view but not upload.');
+    document.getElementById('btnStep1Next').disabled = true;
+  }
+}
+
+function showVersionAlert(type, msg) {
+  const map = { error:'alert-err', warn:'alert-warn', ok:'alert-ok', info:'alert-info' };
+  document.getElementById('versionAlert').innerHTML =
+    `<div class="alert ${map[type]||'alert-info'}" style="margin-top:10px">${msg}</div>`;
+}
+
+// ── Step navigation ──────────────────────────────────────────────────────────
+window.goStep = function(n) {
+  if (n === 3 && !selectedVersion) return;
+  if (n === 4) { runUpload(); return; }
+
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  document.getElementById('pane'+n).classList.add('active');
+
+  document.querySelectorAll('.step').forEach((s,i) => {
+    s.classList.remove('active','done');
+    if (i+1 < n) s.classList.add('done');
+    if (i+1 === n) s.classList.add('active');
+  });
+
+  // Populate version badge in pane3
+  if (n === 3 && selectedVersion) {
+    document.getElementById('uploadVersionBadge').innerHTML =
+      `<strong>Version:</strong> ${selectedVersion.name} &nbsp;·&nbsp; <strong>Kind:</strong> ${selectedVersion.kind} &nbsp;·&nbsp; <strong>Year:</strong> ${selectedVersion.year}<br>
+       <small>Uploading will <strong>replace all existing debt data</strong> for this version.</small>`;
+  }
+}
+
+// ── CSV Template download ────────────────────────────────────────────────────
+window.downloadTemplate = function() {
+  const csv = SAMPLE_HEADER + '\n';
+  triggerDownload(csv, 'JPS_DebtSchedule_Template.csv');
+}
+
+window.downloadExample = function() {
+  const csv = [SAMPLE_HEADER, SAMPLE_ROW1, SAMPLE_ROW2, SAMPLE_ROW3, SAMPLE_ROW4].join('\n') + '\n';
+  triggerDownload(csv, 'JPS_DebtSchedule_Example.csv');
+}
+
+function triggerDownload(content, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type:'text/csv' }));
+  a.download = filename;
+  a.click();
+}
+
+// ── Drag & drop / file input ─────────────────────────────────────────────────
+const dz = document.getElementById('dropZone');
+const fi = document.getElementById('fileInput');
+
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+fi.addEventListener('change', () => { if (fi.files[0]) handleFile(fi.files[0]); });
+
+function handleFile(file) {
+  if (!file.name.endsWith('.csv')) {
+    showValidateResult('error', '❌ File must be a .csv file.'); return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showValidateResult('error', '❌ File exceeds 10 MB limit.'); return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => parseCSV(e.target.result, file.name);
+  reader.readAsText(file);
+}
+
+// ── CSV parsing & validation ─────────────────────────────────────────────────
+function parseCSV(text, filename) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) { showValidateResult('error','❌ CSV is empty or has only a header row.'); return; }
+
+  const header = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g,'_'));
+  const errors = [];
+  const warnings = [];
+
+  // Check required columns
+  REQUIRED_COLS.forEach(c => {
+    if (!header.includes(c)) errors.push(`Missing required column: <code>${c}</code>`);
+  });
+  if (errors.length) { showValidateResult('error', '❌ Column errors:<br>' + errors.join('<br>')); return; }
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = splitCSVLine(lines[i]);
+    if (vals.length < 2) continue; // skip blank lines
+    const row = {};
+    header.forEach((h, idx) => { row[h] = (vals[idx] || '').trim(); });
+
+    // Validate required fields
+    const rowErrors = [];
+    if (!row.facility_code)   rowErrors.push('facility_code empty');
+    if (!row.facility_name)   rowErrors.push('facility_name empty');
+    if (!row.currency)        rowErrors.push('currency empty');
+    if (!['JMD','USD','EUR','GBP'].includes(row.currency?.toUpperCase()))
+      rowErrors.push(`currency "${row.currency}" not valid (use JMD/USD/EUR/GBP)`);
+    if (isNaN(parseFloat(row.interest_rate))) rowErrors.push('interest_rate not a number');
+    if (isNaN(parseInt(row.period_id)))       rowErrors.push('period_id not a number');
+    if (isNaN(parseFloat(row.opening_balance))) rowErrors.push('opening_balance not a number');
+    if (isNaN(parseFloat(row.closing_balance))) rowErrors.push('closing_balance not a number');
+
+    if (rowErrors.length) { errors.push(`Row ${i+1} [${row.facility_code||'?'}]: ${rowErrors.join('; ')}`); continue; }
+
+    // Coerce types
+    row.currency = row.currency.toUpperCase();
+    row.interest_rate       = parseFloat(row.interest_rate);
+    row.original_principal  = row.original_principal ? parseFloat(row.original_principal) : null;
+    row.sort_order          = row.sort_order ? parseInt(row.sort_order) : 0;
+    row.period_id           = parseInt(row.period_id);
+    row.opening_balance     = parseFloat(row.opening_balance);
+    row.drawdown            = parseFloat(row.drawdown || 0);
+    row.principal_repayment = parseFloat(row.principal_repayment || 0);
+    row.closing_balance     = parseFloat(row.closing_balance);
+    row.interest_accrued    = parseFloat(row.interest_accrued || 0);
+    row.interest_paid       = parseFloat(row.interest_paid || 0);
+    row.fx_rate             = row.fx_rate ? parseFloat(row.fx_rate) : null;
+    row.usd_closing_balance = (row.fx_rate && row.fx_rate > 0)
+      ? row.closing_balance / row.fx_rate : (row.currency === 'USD' ? row.closing_balance : null);
+
+    // Cross-check balance
+    const calc = row.opening_balance + row.drawdown - row.principal_repayment;
+    if (Math.abs(calc - row.closing_balance) > 1) {
+      warnings.push(`Row ${i+1} [${row.facility_code} ${row.period_id}]: opening+drawdown-repayment (${fmt(calc)}) ≠ closing (${fmt(row.closing_balance)})`);
+    }
+
+    rows.push(row);
+  }
+
+  if (errors.length) {
+    showValidateResult('error', `❌ ${errors.length} validation error(s):<br>` + errors.slice(0,10).join('<br>') +
+      (errors.length > 10 ? `<br>…and ${errors.length-10} more.` : ''));
+    return;
+  }
+
+  parsedRows = rows;
+  // Build facility map
+  parsedFacilities = {};
+  rows.forEach(r => {
+    if (!parsedFacilities[r.facility_code]) {
+      parsedFacilities[r.facility_code] = {
+        facility_code: r.facility_code,
+        facility_name: r.facility_name,
+        lender: r.lender || '',
+        currency: r.currency,
+        interest_rate: r.interest_rate,
+        original_principal: r.original_principal,
+        maturity_date: r.maturity_date || null,
+        sort_order: r.sort_order,
+        notes: r.notes || ''
+      };
+    }
+  });
+
+  showValidateResult('ok', `✅ <strong>${rows.length} rows</strong> parsed from <em>${filename}</em> — ${Object.keys(parsedFacilities).length} facilities, ${[...new Set(rows.map(r=>r.period_id))].length} periods.`);
+  buildPreview(warnings);
+}
+
+function splitCSVLine(line) {
+  // Handle quoted fields
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur);
+  return result;
+}
+
+function showValidateResult(type, msg) {
+  const map = { error:'alert-err', warn:'alert-warn', ok:'alert-ok', info:'alert-info' };
+  document.getElementById('validateResult').innerHTML =
+    `<div class="alert ${map[type]}">${msg}</div>`;
+}
+
+// ── Preview table ─────────────────────────────────────────────────────────────
+function buildPreview(warnings) {
+  const facs = Object.values(parsedFacilities);
+  const periods = [...new Set(parsedRows.map(r=>r.period_id))].sort();
+
+  // Summary cards
+  const totalDebt = Object.keys(parsedFacilities).reduce((s, fc) => {
+    const lastRow = parsedRows.filter(r=>r.facility_code===fc).slice(-1)[0];
+    return s + (lastRow?.usd_closing_balance || 0);
+  }, 0);
+
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="sum-card"><div class="sc-val">${facs.length}</div><div class="sc-lbl">Facilities</div></div>
+    <div class="sum-card"><div class="sc-val">${parsedRows.length}</div><div class="sc-lbl">Schedule Rows</div></div>
+    <div class="sum-card"><div class="sc-val">${periods.length}</div><div class="sc-lbl">Months</div></div>
+    <div class="sum-card"><div class="sc-val">US$${fmtM(totalDebt)}</div><div class="sc-lbl">Total Debt (latest, USD)</div></div>
+  `;
+
+  // Warnings
+  let warnHtml = '';
+  if (warnings.length) {
+    warnHtml = `<div class="alert alert-warn" style="margin-bottom:12px"><strong>⚠ ${warnings.length} balance check warning(s)</strong><br>${warnings.slice(0,5).join('<br>')}</div>`;
+  }
+  document.getElementById('previewWarn').innerHTML = warnHtml;
+
+  // Preview table — show first 3 periods for each facility
+  const previewPeriods = periods.slice(0, 6);
+  let html = '<table><thead><tr>';
+  html += '<th>Facility</th><th>Lender</th><th>CCY</th><th>Rate</th>';
+  previewPeriods.forEach(p => html += `<th class="r">${fmtPeriod(p)}<br><small style="font-weight:400;color:#94b4cc">Closing Bal</small></th>`);
+  html += '<th class="r">Interest Accrued (latest)</th></tr></thead><tbody>';
+
+  facs.forEach(fac => {
+    const fcRows = parsedRows.filter(r => r.facility_code === fac.facility_code);
+    const ccyBadge = `<span class="badge badge-${fac.currency.toLowerCase()}">${fac.currency}</span>`;
+    html += `<tr><td><strong>${fac.facility_name}</strong><br><code style="font-size:10px;color:#64748b">${fac.facility_code}</code></td>`;
+    html += `<td>${fac.lender||'—'}</td><td>${ccyBadge}</td>`;
+    html += `<td class="r">${(fac.interest_rate*100).toFixed(2)}%</td>`;
+    previewPeriods.forEach(p => {
+      const r = fcRows.find(x => x.period_id === p);
+      html += `<td class="r">${r ? fmt(r.closing_balance) : '—'}</td>`;
+    });
+    const lastRow = fcRows.slice(-1)[0];
+    html += `<td class="r">${lastRow ? fmt(lastRow.interest_accrued) : '—'}</td>`;
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('previewTbl').innerHTML = html;
+  document.getElementById('previewSubtitle').textContent =
+    `${facs.length} facilities · ${periods.length} periods · showing first ${previewPeriods.length} months`;
+
+  document.getElementById('previewCard').style.display = 'block';
+}
+
+// ── Upload to Supabase ────────────────────────────────────────────────────────
+async function runUpload() {
+  if (!selectedVersion || !parsedRows.length) return;
+
+  // Switch to pane 4
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  document.getElementById('pane4').classList.add('active');
+  document.querySelectorAll('.step').forEach((s,i) => {
+    s.classList.remove('active','done');
+    if (i < 3) s.classList.add('done');
+    if (i === 3) s.classList.add('active');
+  });
+
+  const log = document.getElementById('statusLog');
+  const fill = document.getElementById('progressFill');
+  const statusLabel = document.getElementById('uploadStatusLabel');
+
+  function logLine(cls, msg) {
+    log.innerHTML += `<div class="${cls}">${msg}</div>`;
+    log.scrollTop = log.scrollHeight;
+  }
+  function setProgress(pct) { fill.style.width = pct + '%'; }
+
+  logLine('log-info', `▶ Starting upload for version: ${selectedVersion.name}`);
+  setProgress(5);
+
+  // Step 1 — Delete existing facilities (cascade deletes schedule rows)
+  logLine('log-info', '🗑  Removing existing debt data for this version…');
+  const { error: delErr } = await sb
+    .from('fpa_debt_facilities')
+    .delete()
+    .eq('version_id', selectedVersion.id);
+
+  if (delErr) {
+    logLine('log-err', '❌ Delete failed: ' + delErr.message);
+    statusLabel.textContent = 'Failed'; return;
+  }
+  logLine('log-ok', '✔ Existing data cleared.');
+  setProgress(15);
+
+  // Step 2 — Insert facilities
+  const facKeys = Object.keys(parsedFacilities);
+  logLine('log-info', `⬆ Inserting ${facKeys.length} facilities…`);
+
+  const facilityInserts = facKeys.map(fc => ({
+    version_id: selectedVersion.id,
+    ...parsedFacilities[fc],
+    created_by: null
+  }));
+
+  const { data: insertedFacs, error: facErr } = await sb
+    .from('fpa_debt_facilities')
+    .insert(facilityInserts)
+    .select('id, facility_code');
+
+  if (facErr) {
+    logLine('log-err', '❌ Facility insert failed: ' + facErr.message);
+    statusLabel.textContent = 'Failed'; return;
+  }
+
+  // Build code → id map
+  const facIdMap = {};
+  insertedFacs.forEach(f => { facIdMap[f.facility_code] = f.id; });
+  logLine('log-ok', `✔ ${insertedFacs.length} facilities inserted.`);
+  setProgress(35);
+
+  // Step 3 — Insert schedule rows in batches of 200
+  logLine('log-info', `⬆ Inserting ${parsedRows.length} schedule rows…`);
+
+  const scheduleRows = parsedRows.map(r => ({
+    facility_id:          facIdMap[r.facility_code],
+    period_id:            r.period_id,
+    opening_balance:      r.opening_balance,
+    drawdown:             r.drawdown,
+    principal_repayment:  r.principal_repayment,
+    closing_balance:      r.closing_balance,
+    interest_accrued:     r.interest_accrued,
+    interest_paid:        r.interest_paid,
+    fx_rate:              r.fx_rate,
+    usd_closing_balance:  r.usd_closing_balance
+  }));
+
+  const BATCH = 200;
+  let inserted = 0;
+  for (let i = 0; i < scheduleRows.length; i += BATCH) {
+    const batch = scheduleRows.slice(i, i + BATCH);
+    const { error: schErr } = await sb.from('fpa_debt_schedule').insert(batch);
+    if (schErr) {
+      logLine('log-err', `❌ Schedule insert failed at row ${i}: ${schErr.message}`);
+      statusLabel.textContent = 'Failed'; return;
+    }
+    inserted += batch.length;
+    setProgress(35 + Math.round((inserted / scheduleRows.length) * 55));
+    logLine('log-ok', `  ✔ Rows ${i+1}–${Math.min(i+BATCH, scheduleRows.length)} saved.`);
+  }
+
+  setProgress(100);
+  logLine('log-ok', `✅ Upload complete — ${insertedFacs.length} facilities, ${inserted} schedule rows saved.`);
+  statusLabel.textContent = 'Complete ✔';
+
+  document.getElementById('uploadDoneMsg').innerHTML = `
+    <div class="alert alert-ok">
+      <strong>✅ Debt schedule uploaded successfully</strong>
+      Version: <strong>${selectedVersion.name}</strong> · ${insertedFacs.length} facilities · ${inserted} monthly rows<br>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-outline btn-sm" onclick="location.reload()">Upload Another Version</button>
+      </div>
+    </div>`;
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmt(n) {
+  if (n == null || isNaN(n)) return '—';
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits:0, maximumFractionDigits:0 });
+}
+function fmtM(n) {
+  if (!n) return '0';
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(1)+'M';
+  if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(0)+'K';
+  return n.toFixed(0);
+}
+function fmtPeriod(pid) {
+  const months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const y = Math.floor(pid/100), m = pid%100;
+  return months[m] + ' ' + y;
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+loadVersions();
+</script>
+</body>
+</html>

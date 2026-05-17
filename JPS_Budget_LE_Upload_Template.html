@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>JPS FP&A — Budget / LE Upload</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2d3248;
+  --accent:#6c7bff;--accent2:#4ade80;--accent3:#fb923c;--accent4:#f472b6;
+  --warn:#facc15;--danger:#f87171;--text:#e2e8f0;--muted:#94a3b8;
+  --tag-i:#6c7bff;--tag-d:#4ade80;--tag-t:#fb923c;--tag-s:#f472b6;--tag-a:#a78bfa;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:13px;min-height:100vh;}
+
+/* ── header ── */
+#appHeader{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+#appHeader h1{font-size:16px;font-weight:700;color:#fff;white-space:nowrap;}
+#appHeader .badge{background:#6c7bff22;border:1px solid var(--accent);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;}
+#appHeader .badge.le{background:#fb923c22;border-color:var(--accent3);color:var(--accent3);}
+#appHeader .spacer{flex:1;}
+select,button{font-family:inherit;font-size:12px;}
+.sel-wrap{display:flex;align-items:center;gap:6px;color:var(--muted);}
+.sel-wrap select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:6px;cursor:pointer;}
+.btn{padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-weight:600;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-success{background:var(--accent2);color:#000;}
+.btn-warn{background:var(--warn);color:#000;}
+.btn-danger{background:var(--danger);color:#fff;}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted);}
+.btn-sm{padding:4px 10px;font-size:11px;}
+
+/* ── status strip ── */
+#statusStrip{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;gap:20px;flex-wrap:wrap;align-items:center;}
+.ss-item{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.ss-val{font-size:18px;font-weight:700;color:#fff;}
+.ss-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.ss-divider{width:1px;background:var(--border);height:32px;}
+.ss-lock{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.lock-chip{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;}
+.lock-open{background:#4ade8022;border:1px solid var(--accent2);color:var(--accent2);}
+.lock-closed{background:#f8717122;border:1px solid var(--danger);color:var(--danger);}
+
+/* ── legend ── */
+#legend{background:var(--surface);border-bottom:1px solid var(--border);padding:6px 20px;display:flex;gap:16px;align-items:center;}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);}
+.leg-dot{width:10px;height:10px;border-radius:2px;}
+.leg-i{background:var(--tag-i);}
+.leg-d{background:var(--tag-d);}
+.leg-t{background:var(--tag-t);}
+.leg-a{background:var(--tag-a);}
+
+/* ── layout ── */
+#main{display:flex;height:calc(100vh - 120px);}
+#sidebar{width:200px;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;}
+#content{flex:1;overflow-y:auto;padding:16px 20px;}
+
+/* ── sidebar nav ── */
+.nav-section{padding:12px 14px 4px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.nav-item{padding:8px 14px;cursor:pointer;border-left:3px solid transparent;color:var(--muted);display:flex;align-items:center;gap:8px;transition:all .15s;}
+.nav-item:hover{background:var(--surface2);color:var(--text);}
+.nav-item.active{border-left-color:var(--accent);background:var(--surface2);color:var(--text);}
+.nav-item .ni-icon{font-size:15px;width:18px;text-align:center;}
+.nav-item .ni-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;display:none;}
+.nav-item.has-data .ni-badge{display:block;}
+
+/* ── section cards ── */
+.section-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;}
+.card-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.card-header h2{font-size:14px;font-weight:700;color:#fff;}
+.card-header .card-icon{font-size:18px;}
+.card-header .card-desc{color:var(--muted);font-size:12px;margin-top:2px;}
+.card-header .card-hdr-right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.card-body{padding:16px;}
+
+/* ── tables ── */
+.driver-table{width:100%;border-collapse:collapse;}
+.driver-table th{background:var(--surface2);padding:7px 10px;text-align:left;font-size:11px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);white-space:nowrap;}
+.driver-table th.num{text-align:right;}
+.driver-table td{padding:6px 10px;border-bottom:1px solid #1e2235;vertical-align:middle;}
+.driver-table tr:last-child td{border-bottom:none;}
+.driver-table tr:hover td{background:#ffffff05;}
+.driver-table td.tag-cell{width:32px;}
+.tag{display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;}
+.tag-i{background:var(--tag-i);}
+.tag-d{background:var(--tag-d);}
+.tag-t{background:var(--tag-t);}
+.tag-a{background:var(--tag-a);}
+.row-total td{font-weight:700;background:#ffffff08;color:var(--accent3);}
+.row-derived td{color:var(--accent2);}
+td.num{text-align:right;}
+td.lbl{font-weight:500;}
+td.note{color:var(--muted);font-size:11px;}
+.inp{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;width:100%;text-align:right;font-family:inherit;font-size:12px;}
+.inp:focus{outline:none;border-color:var(--accent);}
+.inp.changed{border-color:var(--warn)!important;background:#facc1510;}
+.inp-wide{width:200px;}
+.inp-sm{width:80px;}
+
+/* ── monthly grid ── */
+.month-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-top:8px;}
+.month-grid .mh{font-size:10px;color:var(--muted);text-align:center;padding:3px 0;}
+.month-grid .mc input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;font-size:11px;text-align:center;font-family:inherit;}
+.month-grid .mc input:focus{outline:none;border-color:var(--accent);}
+.month-grid .mc input.changed{border-color:var(--warn);background:#facc1510;}
+.mg-label{grid-column:1/-1;font-size:11px;font-weight:600;color:var(--muted);padding:6px 0 2px;border-top:1px solid var(--border);margin-top:4px;}
+.mg-label:first-child{border-top:none;margin-top:0;}
+
+/* ── tabs inside card ── */
+.card-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);}
+.card-tab{padding:8px 14px;cursor:pointer;font-size:12px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;}
+.card-tab:hover{color:var(--text);}
+.card-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.card-tab-pane{display:none;padding:14px 0 0;}
+.card-tab-pane.active{display:block;}
+
+/* ── debt auto-load ── */
+.auto-load-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.auto-load-bar .al-icon{font-size:20px;}
+.auto-load-bar .al-text{flex:1;}
+.auto-load-bar .al-title{font-weight:600;font-size:13px;color:#fff;}
+.auto-load-bar .al-sub{font-size:11px;color:var(--muted);}
+
+/* ── P&L derived summary ── */
+.pnl-section{margin-bottom:12px;}
+.pnl-section h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.pnl-row{display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:5px;}
+.pnl-row:hover{background:var(--surface2);}
+.pnl-row.total{background:#ffffff08;font-weight:700;}
+.pnl-row.grand{background:#6c7bff15;font-weight:700;color:var(--accent);}
+.pnl-lbl{flex:1;font-size:12px;}
+.pnl-val{font-size:12px;font-weight:600;text-align:right;min-width:100px;font-family:'Courier New',monospace;}
+.pnl-note{font-size:10px;color:var(--muted);min-width:200px;}
+
+/* ── modal ── */
+.modal-overlay{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:1000;display:none;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:700px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-header h3{font-size:15px;font-weight:700;color:#fff;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;}
+.modal-body{padding:16px 20px;overflow-y:auto;flex:1;}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+
+/* ── preview table ── */
+.preview-table{width:100%;border-collapse:collapse;font-size:12px;}
+.preview-table th{background:var(--surface2);padding:6px 10px;text-align:left;color:var(--muted);font-weight:600;font-size:11px;}
+.preview-table td{padding:6px 10px;border-bottom:1px solid #1e2235;}
+.preview-table tr:last-child td{border-bottom:none;}
+.chip{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;}
+.chip-new{background:#4ade8022;border:1px solid var(--accent2);color:var(--accent2);}
+.chip-upd{background:#facc1522;border:1px solid var(--warn);color:var(--warn);}
+.chip-same{background:#94a3b822;border:1px solid var(--muted);color:var(--muted);}
+
+/* ── toast ── */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 18px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;max-width:350px;}
+#toast.show{opacity:1;}
+#toast.ok{border-color:var(--accent2);color:var(--accent2);}
+#toast.err{border-color:var(--danger);color:var(--danger);}
+#toast.info{border-color:var(--accent);color:var(--accent);}
+
+/* ── helpers ── */
+.flex{display:flex;align-items:center;gap:8px;}
+.gap-4{gap:4px;}
+.mt8{margin-top:8px;}
+.mt12{margin-top:12px;}
+.mt16{margin-top:16px;}
+.text-muted{color:var(--muted);}
+.text-warn{color:var(--warn);}
+.text-ok{color:var(--accent2);}
+.text-accent{color:var(--accent);}
+.hidden{display:none!important;}
+hr.divider{border:none;border-top:1px solid var(--border);margin:12px 0;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ HEADER ═══════════════════════════════ -->
+<div id="appHeader">
+  <h1>🏗️ JPS FP&amp;A</h1>
+  <span class="badge" id="versionBadge">Loading…</span>
+  <div class="sel-wrap">
+    <span>Type:</span>
+    <select id="selType" onchange="onTypeChange()">
+      <option value="BUDGET">Budget</option>
+      <option value="LE1">LE 1</option>
+      <option value="LE2">LE 2</option>
+      <option value="LE3">LE 3</option>
+    </select>
+  </div>
+  <div class="sel-wrap">
+    <span>Year:</span>
+    <select id="selYear" onchange="onYearChange()">
+      <option>2025</option><option selected>2026</option><option>2027</option><option>2028</option>
+    </select>
+  </div>
+  <div class="sel-wrap">
+    <span>Version:</span>
+    <select id="selVersion" onchange="onVersionChange()"><option value="">— select —</option></select>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
+  <button class="btn btn-warn btn-sm" onclick="showPreviewModal()">👁 Preview &amp; Commit</button>
+  <button class="btn btn-success btn-sm" onclick="commitAll()">✅ Commit All</button>
+</div>
+
+<!-- ═══════════════════════════════ STATUS STRIP ═══════════════════════════════ -->
+<div id="statusStrip">
+  <div class="ss-item"><div class="ss-val" id="ssTotal">—</div><div class="ss-lbl">Drivers</div></div>
+  <div class="ss-divider"></div>
+  <div class="ss-item"><div class="ss-val text-ok" id="ssSaved">0</div><div class="ss-lbl">Saved in DB</div></div>
+  <div class="ss-divider"></div>
+  <div class="ss-item"><div class="ss-val text-warn" id="ssChanged">0</div><div class="ss-lbl">Unsaved Changes</div></div>
+  <div class="ss-divider"></div>
+  <div class="ss-item"><div class="ss-val text-muted" id="ssBlanks">0</div><div class="ss-lbl">Still Blank</div></div>
+  <div class="ss-divider"></div>
+  <div class="ss-item" style="flex-direction:row;gap:8px;">
+    <div style="font-size:11px;color:var(--muted);">Forecast period:</div>
+    <div id="ssForecast" style="font-size:12px;font-weight:600;color:#fff;">Jan 2026 – Dec 2026</div>
+  </div>
+  <div class="ss-lock">
+    <span class="lock-chip lock-open" id="lockChip">● OPEN</span>
+    <button class="btn btn-ghost btn-sm" id="btnLock" onclick="toggleLock()">🔒 Finalise</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ LEGEND ═══════════════════════════════ -->
+<div id="legend">
+  <span style="font-size:11px;font-weight:700;color:var(--muted);margin-right:4px;">Legend:</span>
+  <div class="leg-item"><div class="leg-dot leg-i"></div> Driver Input (editable)</div>
+  <div class="leg-item"><div class="leg-dot leg-d"></div> Auto-Derived (calculated)</div>
+  <div class="leg-item"><div class="leg-dot leg-t"></div> Total / Subtotal</div>
+  <div class="leg-item"><div class="leg-dot leg-a"></div> Auto-Loaded from DB</div>
+</div>
+
+<!-- ═══════════════════════════════ MAIN ═══════════════════════════════ -->
+<div id="main">
+
+  <!-- ── sidebar ── -->
+  <div id="sidebar">
+    <div class="nav-section">Assumptions</div>
+    <div class="nav-item active" onclick="showSection('macro')" id="nav-macro">
+      <span class="ni-icon">🌐</span> Macro <span class="ni-badge" id="nb-macro">●</span>
+    </div>
+    <div class="nav-item" onclick="showSection('volume')" id="nav-volume">
+      <span class="ni-icon">⚡</span> Volumes <span class="ni-badge" id="nb-volume">●</span>
+    </div>
+    <div class="nav-item" onclick="showSection('revenue')" id="nav-revenue">
+      <span class="ni-icon">💰</span> Revenue <span class="ni-badge" id="nb-revenue">●</span>
+    </div>
+    <div class="nav-item" onclick="showSection('fuel')" id="nav-fuel">
+      <span class="ni-icon">🛢️</span> Fuel &amp; IPP <span class="ni-badge" id="nb-fuel">●</span>
+    </div>
+    <div class="nav-item" onclick="showSection('om')" id="nav-om">
+      <span class="ni-icon">🔧</span> O&amp;M <span class="ni-badge" id="nb-om">●</span>
+    </div>
+    <div class="nav-item" onclick="showSection('capex')" id="nav-capex">
+      <span class="ni-icon">🏗️</span> CapEx <span class="ni-badge" id="nb-capex">●</span>
+    </div>
+    <div class="nav-item" onclick="showSection('debt')" id="nav-debt">
+      <span class="ni-icon">🏦</span> Debt Service <span class="ni-badge" id="nb-debt">●</span>
+    </div>
+    <div class="nav-section">Output</div>
+    <div class="nav-item" onclick="showSection('pnl')" id="nav-pnl">
+      <span class="ni-icon">📊</span> Derived P&amp;L
+    </div>
+    <div class="nav-item" onclick="showSection('upload')" id="nav-upload">
+      <span class="ni-icon">📂</span> Import File
+    </div>
+  </div>
+
+  <!-- ── content area ── -->
+  <div id="content">
+
+    <!-- ══ MACRO ASSUMPTIONS ══ -->
+    <div id="sec-macro" class="section-pane">
+      <div class="section-card">
+        <div class="card-header">
+          <span class="card-icon">🌐</span>
+          <div><h2>Macro Assumptions</h2><div class="card-desc">FX rates, inflation, tariff escalation — monthly inputs for full forecast year</div></div>
+        </div>
+        <div class="card-body">
+          <!-- FX Monthly -->
+          <div class="mg-label" style="border-top:none;margin-top:0;">FX Rate — USD/JMD (Average, each month)</div>
+          <div class="month-grid" id="mgFxAvg">
+            <div class="mh">Jan</div><div class="mh">Feb</div><div class="mh">Mar</div><div class="mh">Apr</div>
+            <div class="mh">May</div><div class="mh">Jun</div><div class="mh">Jul</div><div class="mh">Aug</div>
+            <div class="mh">Sep</div><div class="mh">Oct</div><div class="mh">Nov</div><div class="mh">Dec</div>
+          </div>
+          <div class="mg-label">FX Rate — USD/JMD (End of Period)</div>
+          <div class="month-grid" id="mgFxEop"></div>
+          <div class="mg-label">EUR/JMD (Average, each month)</div>
+          <div class="month-grid" id="mgFxEur"></div>
+
+          <hr class="divider"/>
+          <table class="driver-table mt8">
+            <thead><tr><th></th><th>Driver</th><th class="num">Value</th><th>Unit</th><th>Notes / Source</th></tr></thead>
+            <tbody>
+              <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">CPI Inflation (annual)</td><td class="num"><input class="inp inp-sm" id="inp_INFLATION" data-key="INFLATION" placeholder="0.0" onchange="markChanged(this)"/></td><td>%</td><td class="note">BOJ / Statistical Institute of Jamaica target</td></tr>
+              <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Electricity Tariff Escalation</td><td class="num"><input class="inp inp-sm" id="inp_TARIFF_ESC" data-key="TARIFF_ESC" placeholder="0.0" onchange="markChanged(this)"/></td><td>%</td><td class="note">Regulatory agreement / OUR approved rate</td></tr>
+              <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Salary Escalation</td><td class="num"><input class="inp inp-sm" id="inp_SALARY_ESC" data-key="SALARY_ESC" placeholder="0.0" onchange="markChanged(this)"/></td><td>%</td><td class="note">Negotiated / CBA rate</td></tr>
+              <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">O&amp;M Non-Payroll Escalation</td><td class="num"><input class="inp inp-sm" id="inp_OM_ESC" data-key="OM_ESC" placeholder="0.0" onchange="markChanged(this)"/></td><td>%</td><td class="note">Blended USD/JMD cost escalation</td></tr>
+              <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Discount Rate (WACC)</td><td class="num"><input class="inp inp-sm" id="inp_WACC" data-key="WACC" placeholder="0.0" onchange="markChanged(this)"/></td><td>%</td><td class="note">Used for NPV / project evaluation</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /sec-macro -->
+
+    <!-- ══ VOLUMES ══ -->
+    <div id="sec-volume" class="section-pane hidden">
+      <div class="section-card">
+        <div class="card-header">
+          <span class="card-icon">⚡</span>
+          <div><h2>Volume Plan</h2><div class="card-desc">GWh sales by rate class, generation mix, system losses, peak demand</div></div>
+          <div class="card-hdr-right"><button class="btn btn-ghost btn-sm" onclick="fillMonthly('vol')">⚡ Spread Equally</button></div>
+        </div>
+        <div class="card-body">
+          <div class="card-tabs">
+            <div class="card-tab active" onclick="switchCardTab('vol','sales')">Sales by Rate Class</div>
+            <div class="card-tab" onclick="switchCardTab('vol','gen')">Generation Mix</div>
+            <div class="card-tab" onclick="switchCardTab('vol','losses')">System Losses</div>
+          </div>
+
+          <div id="vol-sales" class="card-tab-pane active">
+            <p class="text-muted mt8" style="font-size:11px;margin-bottom:8px;">Enter monthly GWh billed for each rate class. Totals auto-derive.</p>
+            <div id="mgVolSales"></div>
+          </div>
+
+          <div id="vol-gen" class="card-tab-pane">
+            <p class="text-muted mt8" style="font-size:11px;margin-bottom:8px;">Net generation by fuel type (GWh). IPP must match IPP contract schedule.</p>
+            <div id="mgVolGen"></div>
+          </div>
+
+          <div id="vol-losses" class="card-tab-pane">
+            <p class="text-muted mt8" style="font-size:11px;margin-bottom:8px;">System loss targets and peak demand forecast.</p>
+            <table class="driver-table mt8">
+              <thead><tr><th></th><th>Driver</th><th class="num">Annual Target</th><th>Unit</th><th>Notes</th></tr></thead>
+              <tbody>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">T&D Loss Target</td><td class="num"><input class="inp inp-sm" id="inp_LOSS_PCT" data-key="LOSS_PCT" placeholder="0.0" onchange="markChanged(this)"/></td><td>%</td><td class="note">Board-approved target</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Peak Demand</td><td class="num"><input class="inp inp-sm" id="inp_PEAK_MW" data-key="PEAK_MW" placeholder="0" onchange="markChanged(this)"/></td><td>MW</td><td class="note">Annual peak from load forecast</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Avg Heat Rate (own gen)</td><td class="num"><input class="inp inp-sm" id="inp_HEAT_RATE" data-key="HEAT_RATE" placeholder="0.0" onchange="markChanged(this)"/></td><td>BTU/kWh</td><td class="note">Weighted avg across own generation fleet</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-d">D</span></td><td class="lbl row-derived">Total Net Generation</td><td class="num" id="der_NETGEN" style="color:var(--accent2);">—</td><td>GWh</td><td class="note">Sum of all gen types</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-d">D</span></td><td class="lbl row-derived">Implied System Loss</td><td class="num" id="der_SYS_LOSS" style="color:var(--accent2);">—</td><td>%</td><td class="note">= 1 − (Billed / Net Gen)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /sec-volume -->
+
+    <!-- ══ REVENUE ══ -->
+    <div id="sec-revenue" class="section-pane hidden">
+      <div class="section-card">
+        <div class="card-header">
+          <span class="card-icon">💰</span>
+          <div><h2>Revenue Build</h2><div class="card-desc">Tariff rates by class → derives fuel and non-fuel revenue</div></div>
+        </div>
+        <div class="card-body">
+          <table class="driver-table">
+            <thead>
+              <tr>
+                <th></th><th>Rate Class</th>
+                <th class="num">Non-Fuel Rate (J¢/kWh)</th>
+                <th class="num">Fuel Rate (J¢/kWh)</th>
+                <th class="num">Blended (J¢/kWh)</th>
+                <th>Source / Note</th>
+              </tr>
+            </thead>
+            <tbody id="revTariffBody">
+              <!-- built by JS -->
+            </tbody>
+          </table>
+          <hr class="divider"/>
+          <table class="driver-table">
+            <thead><tr><th></th><th>Line</th><th class="num">Annual (J$M)</th><th>Note</th></tr></thead>
+            <tbody>
+              <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Other Revenue (non-tariff)</td><td class="num"><input class="inp inp-sm" id="inp_OTHER_REV" data-key="OTHER_REV" placeholder="0" onchange="markChanged(this)"/></td><td class="note">Substation rental, fibre, connections</td></tr>
+              <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Government Subsidy / OUR Adj</td><td class="num"><input class="inp inp-sm" id="inp_GOV_SUB" data-key="GOV_SUB" placeholder="0" onchange="markChanged(this)"/></td><td class="note">Approved regulatory adjustment</td></tr>
+              <tr class="row-total"><td class="tag-cell"><span class="tag tag-t">T</span></td><td class="lbl">Total Revenue</td><td class="num" id="der_TOTAL_REV">—</td><td class="note">Tariff revenue + other</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /sec-revenue -->
+
+    <!-- ══ FUEL & IPP ══ -->
+    <div id="sec-fuel" class="section-pane hidden">
+      <div class="section-card">
+        <div class="card-header">
+          <span class="card-icon">🛢️</span>
+          <div><h2>Fuel &amp; IPP</h2><div class="card-desc">Fuel price assumptions and IPP contract terms</div></div>
+        </div>
+        <div class="card-body">
+          <div class="card-tabs">
+            <div class="card-tab active" onclick="switchCardTab('fuel','fuelprices')">Fuel Prices</div>
+            <div class="card-tab" onclick="switchCardTab('fuel','ipp')">IPP Contracts</div>
+          </div>
+
+          <div id="fuel-fuelprices" class="card-tab-pane active">
+            <p class="text-muted mt8" style="font-size:11px;margin-bottom:8px;">Monthly fuel price forecasts. Used with heat rates and generation volumes to derive fuel cost.</p>
+            <div class="mg-label" style="border-top:none;margin-top:0;">Bunker C (USD/barrel)</div>
+            <div class="month-grid" id="mgBunker"></div>
+            <div class="mg-label">Diesel (USD/barrel)</div>
+            <div class="month-grid" id="mgDiesel"></div>
+            <div class="mg-label">LNG / Natural Gas (USD/mmBTU)</div>
+            <div class="month-grid" id="mgLNG"></div>
+            <hr class="divider"/>
+            <table class="driver-table">
+              <thead><tr><th></th><th>Parameter</th><th class="num">Value</th><th>Unit</th><th>Note</th></tr></thead>
+              <tbody>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Bunker share of fuel mix</td><td class="num"><input class="inp inp-sm" id="inp_BUNKER_PCT" data-key="BUNKER_PCT" placeholder="0" onchange="markChanged(this)"/></td><td>%</td><td class="note">% of total own-gen BTU from bunker</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Diesel share of fuel mix</td><td class="num"><input class="inp inp-sm" id="inp_DIESEL_PCT" data-key="DIESEL_PCT" placeholder="0" onchange="markChanged(this)"/></td><td>%</td><td class="note">% of total own-gen BTU from diesel</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">LNG/Gas share of fuel mix</td><td class="num"><input class="inp inp-sm" id="inp_LNG_PCT" data-key="LNG_PCT" placeholder="0" onchange="markChanged(this)"/></td><td>%</td><td class="note">% of total own-gen BTU from gas</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-d">D</span></td><td class="lbl row-derived">Estimated Fuel Cost</td><td class="num" id="der_FUEL_COST" style="color:var(--accent2);">—</td><td>J$M</td><td class="note">Auto-calculated</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div id="fuel-ipp" class="card-tab-pane">
+            <p class="text-muted mt8" style="font-size:11px;margin-bottom:8px;">IPP contracted rates and capacity. Fuel surcharge pass-through is automatic per contract terms.</p>
+            <table class="driver-table">
+              <thead>
+                <tr>
+                  <th>IPP Name</th>
+                  <th class="num">Contracted MW</th>
+                  <th class="num">Non-Fuel Rate (US¢/kWh)</th>
+                  <th class="num">Est. kWh (Annual, M)</th>
+                  <th class="num">Est. NF Cost (J$M)</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody id="ippContractBody">
+                <!-- built by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /sec-fuel -->
+
+    <!-- ══ O&M ══ -->
+    <div id="sec-om" class="section-pane hidden">
+      <div class="section-card">
+        <div class="card-header">
+          <span class="card-icon">🔧</span>
+          <div><h2>O&amp;M Budget</h2><div class="card-desc">Payroll (headcount × salary) plus non-payroll line items by category</div></div>
+        </div>
+        <div class="card-body">
+          <div class="card-tabs">
+            <div class="card-tab active" onclick="switchCardTab('om','payroll')">Payroll</div>
+            <div class="card-tab" onclick="switchCardTab('om','nonpay')">Non-Payroll</div>
+          </div>
+
+          <div id="om-payroll" class="card-tab-pane active">
+            <p class="text-muted mt8" style="font-size:11px;margin-bottom:8px;">Headcount by department × avg salary. Salary escalation applied from Macro assumptions.</p>
+            <table class="driver-table" id="payrollTable">
+              <thead>
+                <tr>
+                  <th>Department</th>
+                  <th class="num">Headcount</th>
+                  <th class="num">Avg Annual Salary (J$K)</th>
+                  <th class="num">Annual Cost (J$M)</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody id="payrollBody">
+                <!-- built by JS -->
+              </tbody>
+              <tfoot>
+                <tr class="row-total"><td><strong>TOTAL PAYROLL</strong></td><td class="num" id="payTotalHC">—</td><td class="num">—</td><td class="num" id="payTotalCost">—</td><td></td></tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div id="om-nonpay" class="card-tab-pane">
+            <p class="text-muted mt8" style="font-size:11px;margin-bottom:8px;">Non-payroll operating costs. Enter annual budgeted amount. Monthly spread auto-calculated (1/12).</p>
+            <table class="driver-table">
+              <thead><tr><th></th><th>Line Item</th><th class="num">Annual Budget (J$M)</th><th>Currency</th><th>Note</th></tr></thead>
+              <tbody>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Repairs &amp; Maintenance — Generation</td><td class="num"><input class="inp inp-sm" id="inp_OM_MAINT_GEN" data-key="OM_MAINT_GEN" placeholder="0" onchange="markChanged(this)"/></td><td>JMD</td><td class="note">Planned maintenance programme</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Repairs &amp; Maintenance — T&D</td><td class="num"><input class="inp inp-sm" id="inp_OM_MAINT_TD" data-key="OM_MAINT_TD" placeholder="0" onchange="markChanged(this)"/></td><td>JMD</td><td class="note">Grid maintenance, line clearing</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Materials &amp; Supplies</td><td class="num"><input class="inp inp-sm" id="inp_OM_MAT" data-key="OM_MAT" placeholder="0" onchange="markChanged(this)"/></td><td>JMD</td><td class="note">Consumables, spare parts</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Outsourced Services</td><td class="num"><input class="inp inp-sm" id="inp_OM_OUTSOURCE" data-key="OM_OUTSOURCE" placeholder="0" onchange="markChanged(this)"/></td><td>JMD</td><td class="note">Contractors, professional services</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Insurance</td><td class="num"><input class="inp inp-sm" id="inp_OM_INS" data-key="OM_INS" placeholder="0" onchange="markChanged(this)"/></td><td>JMD</td><td class="note">Property, liability, storm insurance</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">IT &amp; Telecoms</td><td class="num"><input class="inp inp-sm" id="inp_OM_IT" data-key="OM_IT" placeholder="0" onchange="markChanged(this)"/></td><td>JMD</td><td class="note">Licences, connectivity, SCADA</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">G&amp;A / Corporate</td><td class="num"><input class="inp inp-sm" id="inp_OM_GA" data-key="OM_GA" placeholder="0" onchange="markChanged(this)"/></td><td>JMD</td><td class="note">Legal, audit, board, travel</td></tr>
+                <tr><td class="tag-cell"><span class="tag tag-i">I</span></td><td class="lbl">Other O&amp;M</td><td class="num"><input class="inp inp-sm" id="inp_OM_OTHER" data-key="OM_OTHER" placeholder="0" onchange="markChanged(this)"/></td><td>JMD</td><td class="note">Miscellaneous</td></tr>
+                <tr class="row-total"><td class="tag-cell"><span class="tag tag-t">T</span></td><td class="lbl"><strong>Total Non-Payroll O&amp;M</strong></td><td class="num" id="der_OM_NP_TOTAL">—</td><td></td><td></td></tr>
+                <tr class="row-total"><td class="tag-cell"><span class="tag tag-t">T</span></td><td class="lbl"><strong>Total O&amp;M (inc. Payroll)</strong></td><td class="num" id="der_OM_TOTAL">—</td><td></td><td class="note">= Payroll + Non-Payroll</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /sec-om -->
+
+    <!-- ══ CAPEX ══ -->
+    <div id="sec-capex" class="section-pane hidden">
+      <div class="section-card">
+        <div class="card-header">
+          <span class="card-icon">🏗️</span>
+          <div><h2>Capital Expenditure Plan</h2><div class="card-desc">Project-by-project CapEx budget with monthly spend profile</div></div>
+          <div class="card-hdr-right"><button class="btn btn-ghost btn-sm" onclick="addCapexRow()">+ Add Project</button></div>
+        </div>
+        <div class="card-body">
+          <table class="driver-table" id="capexTable">
+            <thead>
+              <tr>
+                <th>Project Name</th>
+                <th>Category</th>
+                <th class="num">Total Budget (J$M)</th>
+                <th class="num">Q1</th><th class="num">Q2</th><th class="num">Q3</th><th class="num">Q4</th>
+                <th class="num">Annual Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="capexBody">
+              <!-- rows built by JS -->
+            </tbody>
+            <tfoot>
+              <tr class="row-total">
+                <td colspan="2"><strong>TOTAL CAPEX</strong></td>
+                <td class="num" id="capexTotalBudget">—</td>
+                <td class="num" id="capexTotalQ1">—</td>
+                <td class="num" id="capexTotalQ2">—</td>
+                <td class="num" id="capexTotalQ3">—</td>
+                <td class="num" id="capexTotalQ4">—</td>
+                <td class="num" id="capexTotalAnn">—</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+          <div class="auto-load-bar mt12">
+            <div class="al-icon">ℹ️</div>
+            <div class="al-text">
+              <div class="al-title">CapEx → Depreciation</div>
+              <div class="al-sub">Depreciation is automatically modelled based on CapEx additions and asset class useful life. Review in the Derived P&amp;L tab.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /sec-capex -->
+
+    <!-- ══ DEBT SERVICE ══ -->
+    <div id="sec-debt" class="section-pane hidden">
+      <div class="section-card">
+        <div class="card-header">
+          <span class="card-icon">🏦</span>
+          <div><h2>Debt Service</h2><div class="card-desc">Auto-loaded from approved debt schedule in database</div></div>
+          <div class="card-hdr-right">
+            <button class="btn btn-ghost btn-sm" onclick="loadDebtSchedule()">🔄 Refresh from DB</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="auto-load-bar">
+            <div class="al-icon">🏦</div>
+            <div class="al-text">
+              <div class="al-title">Debt data is auto-loaded from <code>fpa_debt_facilities</code> and <code>fpa_debt_schedule</code></div>
+              <div class="al-sub">To update loan terms or repayment schedules, use the <strong>JPS Debt Schedule Upload</strong> template. Changes reflect here immediately.</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="window.open('JPS_Debt_Schedule_Upload.html','_blank')">Open Debt Template →</button>
+          </div>
+          <div id="debtSummaryTable" class="mt12">
+            <p class="text-muted" style="text-align:center;padding:20px;">Loading debt schedule…</p>
+          </div>
+        </div>
+      </div>
+    </div><!-- /sec-debt -->
+
+    <!-- ══ DERIVED P&L ══ -->
+    <div id="sec-pnl" class="section-pane hidden">
+      <div class="section-card">
+        <div class="card-header">
+          <span class="card-icon">📊</span>
+          <div><h2>Derived P&amp;L Summary</h2><div class="card-desc">All lines calculated from drivers above. Read-only — edit the upstream sections to adjust.</div></div>
+          <div class="card-hdr-right">
+            <button class="btn btn-ghost btn-sm" onclick="recalcPnL()">🔄 Recalculate</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportPnLCSV()">⬇ Export</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="pnlSummary">
+            <p class="text-muted" style="text-align:center;padding:30px;">Fill in the driver sections above, then click Recalculate.</p>
+          </div>
+        </div>
+      </div>
+    </div><!-- /sec-pnl -->
+
+    <!-- ══ IMPORT FILE ══ -->
+    <div id="sec-upload" class="section-pane hidden">
+      <div class="section-card">
+        <div class="card-header">
+          <span class="card-icon">📂</span>
+          <div><h2>Import from File</h2><div class="card-desc">Upload a board-approved budget Excel or CSV to pre-populate driver fields</div></div>
+        </div>
+        <div class="card-body">
+          <div id="uploadDropZone" style="border:2px dashed var(--border);border-radius:10px;padding:30px;text-align:center;cursor:pointer;transition:all .2s;" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="handleFileDrop(event)">
+            <div style="font-size:36px;margin-bottom:8px;">📁</div>
+            <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:4px;">Drop file here or click to browse</div>
+            <div style="font-size:12px;color:var(--muted);">Accepts: .xlsx, .xls, .csv</div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFileSelect(event)"/>
+          </div>
+          <div id="uploadReaders" class="mt12">
+            <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">Supported Budget File Readers:</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;" id="readerChips"></div>
+          </div>
+          <div class="mt12" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;">
+            <p style="font-size:12px;font-weight:600;margin-bottom:6px;">💡 CSV Format (simple import)</p>
+            <p style="font-size:11px;color:var(--muted);margin-bottom:6px;">You can also upload a 2-column CSV: <code>key, value</code> — one driver per row.</p>
+            <pre style="font-size:11px;color:var(--accent2);background:var(--bg);padding:8px;border-radius:4px;">key,value
+INFLATION,5.5
+FX_AVG_JAN,157.5
+FX_AVG_FEB,158.2
+TARIFF_ESC,3.0
+PEAK_MW,650
+...</pre>
+          </div>
+          <div id="uploadPreview" class="mt12 hidden"></div>
+        </div>
+      </div>
+    </div><!-- /sec-upload -->
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ═══════════════════════════════ PREVIEW MODAL ═══════════════════════════════ -->
+<div class="modal-overlay" id="previewModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Preview &amp; Commit — Budget Assumptions</h3>
+      <button class="modal-close" onclick="closeModal('previewModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Review all pending changes before writing to <code>fpa_assumptions</code>.</p>
+      <table class="preview-table" id="previewTable">
+        <thead><tr><th>Category</th><th>Key</th><th>Sub-key</th><th>Current</th><th>New</th><th>Status</th></tr></thead>
+        <tbody id="previewBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('previewModal')">Cancel</button>
+      <button class="btn btn-success" onclick="commitFromModal()">✅ Commit to Database</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════ SCRIPTS ═══════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+'use strict';
+/* ──────────────────────────────────────────────
+   SUPABASE
+────────────────────────────────────────────── */
+const SB_URL = 'https://bhrswnbenkvflpdjhfpa.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJocnN3bmJlbmt2ZmxwZGpoZnBhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2MTgwNDAsImV4cCI6MjA1OTE5NDA0MH0.pLCqSp-vNxhEjPb5yd_3hMDGRNBIPMIq3HS3o3PSSTU';
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+/* ──────────────────────────────────────────────
+   CONSTANTS / CONFIG
+────────────────────────────────────────────── */
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MO_KEYS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
+const RATE_CLASSES = [
+  {id:'RC_RESID', lbl:'Residential'},
+  {id:'RC_COMM',  lbl:'Commercial'},
+  {id:'RC_INDUS', lbl:'Industrial'},
+  {id:'RC_GOVT',  lbl:'Government'},
+  {id:'RC_STLTG', lbl:'Street Lighting'},
+];
+
+const GEN_TYPES = [
+  {id:'GEN_BUNKC', lbl:'Own Gen — Bunker C'},
+  {id:'GEN_DIESEL',lbl:'Own Gen — Diesel'},
+  {id:'GEN_GAS',   lbl:'Own Gen — LNG/Gas'},
+  {id:'GEN_WIND',  lbl:'Renewable — Wind'},
+  {id:'GEN_SOLAR', lbl:'Renewable — Solar'},
+  {id:'GEN_IPP',   lbl:'IPP (all contracts)'},
+];
+
+const IPP_CONTRACTS = [
+  {id:'IPP_BMR',  lbl:'Bogue (BMR)',      mw:120},
+  {id:'IPP_JPS',  lbl:'Jamalco',          mw:36},
+  {id:'IPP_WEST', lbl:'West Kingston',    mw:57},
+  {id:'IPP_WIND', lbl:'Content Wind',     mw:62},
+  {id:'IPP_8RIV', lbl:'Eight Rivers',     mw:37},
+];
+
+const PAYROLL_DEPTS = [
+  'Generation Operations','Transmission Operations','Distribution Operations',
+  'Customer Services','Engineering & Projects','Finance & Procurement',
+  'IT & Technology','HR & Admin','Executive & Legal',
+];
+
+const CAPEX_CATS = ['Generation','Transmission','Distribution','Customer Systems','IT & Telecoms','Vehicles & Equipment','Other'];
+
+/* ──────────────────────────────────────────────
+   STATE
+────────────────────────────────────────────── */
+let _versionId   = null;
+let _type        = 'BUDGET';
+let _year        = 2026;
+let _dbValues    = {};   // key → value from DB
+let _localValues = {};   // key → value from UI (pending)
+let _changed     = new Set();
+let _locked      = false;
+let _capexRows   = [];
+
+/* ──────────────────────────────────────────────
+   INIT
+────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', async () => {
+  buildMonthGrids();
+  buildRateClassTable();
+  buildIPPTable();
+  buildPayrollTable();
+  buildCapexTable();
+  buildReaderChips();
+  await loadVersions();
+  showSection('macro');
+});
+
+/* ──────────────────────────────────────────────
+   VERSION LOADING
+────────────────────────────────────────────── */
+async function loadVersions() {
+  const type = document.getElementById('selType').value;
+  const year = parseInt(document.getElementById('selYear').value);
+  try {
+    const { data } = await sb.from('fpa_versions')
+      .select('id,version_label,version_type,fiscal_year,is_locked')
+      .in('version_type', ['BUDGET','LE1','LE2','LE3'])
+      .eq('fiscal_year', year)
+      .order('created_at', {ascending:false});
+    const sel = document.getElementById('selVersion');
+    sel.innerHTML = '<option value="">— select or create new —</option>';
+    (data||[]).forEach(v => {
+      const o = document.createElement('option');
+      o.value = v.id;
+      o.textContent = `${v.version_label} (${v.version_type} ${v.fiscal_year})`;
+      sel.appendChild(o);
+    });
+    updateVersionBadge();
+  } catch(e) { toast('Failed to load versions: '+e.message,'err'); }
+}
+
+async function onVersionChange() {
+  const vid = document.getElementById('selVersion').value;
+  if (!vid) { _versionId = null; clearAll(); return; }
+  _versionId = vid;
+  updateVersionBadge();
+  await loadFromDB();
+  await loadDebtSchedule();
+}
+
+function onTypeChange() { loadVersions(); }
+function onYearChange() {
+  _year = parseInt(document.getElementById('selYear').value);
+  document.getElementById('ssForecast').textContent = `Jan ${_year} – Dec ${_year}`;
+  loadVersions();
+}
+
+function updateVersionBadge() {
+  const sel = document.getElementById('selVersion');
+  const type = document.getElementById('selType').value;
+  const badge = document.getElementById('versionBadge');
+  const txt = sel.options[sel.selectedIndex]?.text || '—';
+  badge.textContent = txt === '— select or create new —' ? 'No version selected' : txt;
+  badge.className = 'badge' + (type !== 'BUDGET' ? ' le' : '');
+}
+
+/* ──────────────────────────────────────────────
+   DB LOAD / SAVE
+────────────────────────────────────────────── */
+async function loadFromDB() {
+  if (!_versionId) return;
+  try {
+    const { data } = await sb.from('fpa_assumptions')
+      .select('category,key,sub_key,year,month,value_num,value_text')
+      .eq('version_id', _versionId);
+    _dbValues = {};
+    (data||[]).forEach(r => {
+      const k = buildDBKey(r.category, r.key, r.sub_key, r.year, r.month);
+      _dbValues[k] = r.value_num ?? r.value_text;
+    });
+    populateUI();
+    updateStatus();
+    toast('Loaded from database','ok');
+  } catch(e) { toast('Load error: '+e.message,'err'); }
+}
+
+function buildDBKey(cat, key, sub, year, month) {
+  return [cat||'', key||'', sub||'', year||'', month||''].join('|');
+}
+
+function populateUI() {
+  // Simple scalar inputs
+  document.querySelectorAll('[data-key]').forEach(el => {
+    const key = el.dataset.key;
+    const k = buildDBKey('MACRO', key, null, _year, null);
+    const v = _dbValues[k];
+    if (v !== undefined) { el.value = v; el.classList.remove('changed'); }
+  });
+  // Monthly grids
+  populateMonthGrid('FX_AVG', 'mgFxAvg');
+  populateMonthGrid('FX_EOP', 'mgFxEop');
+  populateMonthGrid('FX_EUR', 'mgFxEur');
+  populateMonthGrid('BUNKER', 'mgBunker');
+  populateMonthGrid('DIESEL', 'mgDiesel');
+  populateMonthGrid('LNG',    'mgLNG');
+  // Rate classes
+  RATE_CLASSES.forEach(rc => {
+    const nf = document.getElementById(`inp_${rc.id}_NF`);
+    const fr = document.getElementById(`inp_${rc.id}_FR`);
+    if (nf) { const k = buildDBKey('REV', rc.id+'_NF', null, _year, null); nf.value = _dbValues[k]||''; }
+    if (fr) { const k = buildDBKey('REV', rc.id+'_FR', null, _year, null); fr.value = _dbValues[k]||''; }
+  });
+  // IPP contracts
+  IPP_CONTRACTS.forEach(ipp => {
+    const el = document.getElementById(`inp_${ipp.id}_NF`);
+    if (el) { const k = buildDBKey('IPP', ipp.id+'_NF', null, _year, null); el.value = _dbValues[k]||''; }
+  });
+  // Payroll
+  PAYROLL_DEPTS.forEach((dept, i) => {
+    const hc = document.getElementById(`inp_PAY_HC_${i}`);
+    const sal = document.getElementById(`inp_PAY_SAL_${i}`);
+    if (hc) { const k = buildDBKey('PAYROLL', 'HC_'+i, null, _year, null); hc.value = _dbValues[k]||''; }
+    if (sal) { const k = buildDBKey('PAYROLL', 'SAL_'+i, null, _year, null); sal.value = _dbValues[k]||''; }
+  });
+}
+
+function populateMonthGrid(key, gridId) {
+  MO_KEYS.forEach((mo, i) => {
+    const inp = document.getElementById(`inp_${key}_${mo}`);
+    if (!inp) return;
+    const k = buildDBKey('MACRO', key, null, _year, i+1);
+    const v = _dbValues[k];
+    if (v !== undefined) { inp.value = v; inp.classList.remove('changed'); }
+  });
+}
+
+async function commitAll() {
+  if (!_versionId) { toast('Select a version first','err'); return; }
+  const rows = buildUpsertRows();
+  if (!rows.length) { toast('No changes to commit','info'); return; }
+  try {
+    const { error } = await sb.from('fpa_assumptions').upsert(rows, {onConflict:'version_id,category,key,sub_key,year,month'});
+    if (error) throw error;
+    rows.forEach(r => {
+      const k = buildDBKey(r.category, r.key, r.sub_key, r.year, r.month);
+      _dbValues[k] = r.value_num ?? r.value_text;
+    });
+    _changed.clear();
+    document.querySelectorAll('.changed').forEach(el => el.classList.remove('changed'));
+    updateStatus();
+    toast(`Committed ${rows.length} driver values ✓`, 'ok');
+  } catch(e) { toast('Commit error: '+e.message,'err'); }
+}
+
+function buildUpsertRows() {
+  if (!_versionId) return [];
+  const rows = [];
+  // Scalar inputs
+  document.querySelectorAll('[data-key]').forEach(el => {
+    const v = el.value.trim();
+    if (!v) return;
+    rows.push({
+      version_id: _versionId, category:'MACRO', key: el.dataset.key,
+      sub_key: null, year: _year, month: null, value_num: parseFloat(v)||null
+    });
+  });
+  // Monthly grids
+  [['FX_AVG','mgFxAvg'],['FX_EOP','mgFxEop'],['FX_EUR','mgFxEur'],
+   ['BUNKER','mgBunker'],['DIESEL','mgDiesel'],['LNG','mgLNG']].forEach(([key,gid]) => {
+    MO_KEYS.forEach((mo,i) => {
+      const inp = document.getElementById(`inp_${key}_${mo}`);
+      if (!inp || !inp.value.trim()) return;
+      rows.push({version_id:_versionId, category:'MACRO', key, sub_key:null, year:_year, month:i+1, value_num:parseFloat(inp.value)||null});
+    });
+  });
+  // Rev tariffs
+  RATE_CLASSES.forEach(rc => {
+    ['NF','FR'].forEach(t => {
+      const el = document.getElementById(`inp_${rc.id}_${t}`);
+      if (!el || !el.value.trim()) return;
+      rows.push({version_id:_versionId, category:'REV', key:rc.id+'_'+t, sub_key:null, year:_year, month:null, value_num:parseFloat(el.value)||null});
+    });
+  });
+  // IPP
+  IPP_CONTRACTS.forEach(ipp => {
+    const el = document.getElementById(`inp_${ipp.id}_NF`);
+    if (!el || !el.value.trim()) return;
+    rows.push({version_id:_versionId, category:'IPP', key:ipp.id+'_NF', sub_key:null, year:_year, month:null, value_num:parseFloat(el.value)||null});
+  });
+  // Payroll
+  PAYROLL_DEPTS.forEach((dept,i) => {
+    ['HC','SAL'].forEach(t => {
+      const el = document.getElementById(`inp_PAY_${t}_${i}`);
+      if (!el || !el.value.trim()) return;
+      rows.push({version_id:_versionId, category:'PAYROLL', key:t+'_'+i, sub_key:dept, year:_year, month:null, value_num:parseFloat(el.value)||null});
+    });
+  });
+  // Non-payroll O&M
+  ['OM_MAINT_GEN','OM_MAINT_TD','OM_MAT','OM_OUTSOURCE','OM_INS','OM_IT','OM_GA','OM_OTHER'].forEach(k => {
+    const el = document.getElementById(`inp_${k}`);
+    if (!el || !el.value.trim()) return;
+    rows.push({version_id:_versionId, category:'OM', key:k, sub_key:null, year:_year, month:null, value_num:parseFloat(el.value)||null});
+  });
+  // CapEx
+  _capexRows.forEach((r,i) => {
+    if (!r.name) return;
+    ['budget','q1','q2','q3','q4'].forEach(f => {
+      const el = document.getElementById(`capex_${f}_${i}`);
+      if (!el || !el.value.trim()) return;
+      rows.push({version_id:_versionId, category:'CAPEX', key:'ROW_'+i, sub_key:f+'|'+r.name+'|'+r.cat, year:_year, month:null, value_num:parseFloat(el.value)||null});
+    });
+  });
+  return rows;
+}
+
+/* ──────────────────────────────────────────────
+   DEBT SCHEDULE AUTO-LOAD
+────────────────────────────────────────────── */
+async function loadDebtSchedule() {
+  const el = document.getElementById('debtSummaryTable');
+  el.innerHTML = '<p class="text-muted" style="text-align:center;padding:20px;">Loading…</p>';
+  if (!_versionId) { el.innerHTML = '<p class="text-muted" style="text-align:center;padding:20px;">Select a version first.</p>'; return; }
+  try {
+    // Get facilities for this version
+    const { data: facs } = await sb.from('fpa_debt_facilities')
+      .select('id, facility_code, facility_name, lender, currency, interest_rate, original_principal, maturity_date')
+      .eq('version_id', _versionId)
+      .order('sort_order');
+
+    if (!facs || !facs.length) {
+      el.innerHTML = `<div class="auto-load-bar"><div class="al-icon">⚠️</div><div class="al-text"><div class="al-title">No debt schedule found for this version</div><div class="al-sub">Use the Debt Schedule Upload template to load facility data.</div></div></div>`;
+      return;
+    }
+
+    // For each facility get annual totals
+    let html = `<table class="driver-table"><thead><tr>
+      <th></th><th>Facility</th><th>Lender</th><th>CCY</th>
+      <th class="num">Rate %</th><th class="num">Opening (J$M)</th>
+      <th class="num">Repayments (J$M)</th><th class="num">Interest (J$M)</th>
+      <th class="num">Closing (J$M)</th><th>Maturity</th>
+    </tr></thead><tbody>`;
+
+    let totOp=0, totRep=0, totInt=0, totCl=0;
+    for (const f of facs) {
+      // Get schedule rows for this facility in the budget year
+      const { data: sched } = await sb.from('fpa_debt_schedule as ds')
+        .select('opening_balance,principal_repayment,interest_accrued,closing_balance')
+        .eq('facility_id', f.id)
+        .limit(1).order('period_id');
+
+      // Sum across year using aggregate — simpler approach: get all periods for this year
+      const { data: periods } = await sb.from('fpa_dim_period').select('id').eq('fiscal_year', _year);
+      const pids = (periods||[]).map(p=>p.id);
+
+      const { data: rows } = await sb.from('fpa_debt_schedule')
+        .select('opening_balance,principal_repayment,interest_accrued,closing_balance')
+        .eq('facility_id', f.id)
+        .in('period_id', pids.length ? pids : [-1])
+        .order('period_id');
+
+      const fRows = rows||[];
+      const op  = fRows[0]?.opening_balance || 0;
+      const rep = fRows.reduce((a,r)=>a+(r.principal_repayment||0),0);
+      const int = fRows.reduce((a,r)=>a+(r.interest_accrued||0),0);
+      const cl  = fRows[fRows.length-1]?.closing_balance || 0;
+      totOp+=op; totRep+=rep; totInt+=int; totCl+=cl;
+      const fmt = v => (v/1e6).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
+      html += `<tr>
+        <td class="tag-cell"><span class="tag" style="background:var(--tag-a)">A</span></td>
+        <td class="lbl">${f.facility_name}<br><span style="font-size:10px;color:var(--muted)">${f.facility_code}</span></td>
+        <td>${f.lender||'—'}</td><td>${f.currency}</td>
+        <td class="num">${f.interest_rate||'—'}</td>
+        <td class="num">${fmt(op)}</td><td class="num">${fmt(rep)}</td>
+        <td class="num">${fmt(int)}</td><td class="num">${fmt(cl)}</td>
+        <td>${f.maturity_date||'—'}</td>
+      </tr>`;
+    }
+    const fmt2 = v => (v/1e6).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
+    html += `</tbody><tfoot><tr class="row-total">
+      <td></td><td colspan="4"><strong>TOTAL DEBT SERVICE</strong></td>
+      <td class="num">${fmt2(totOp)}</td><td class="num">${fmt2(totRep)}</td>
+      <td class="num">${fmt2(totInt)}</td><td class="num">${fmt2(totCl)}</td><td></td>
+    </tr></tfoot></table>`;
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = `<p class="text-muted" style="text-align:center;padding:20px;">Error: ${e.message}</p>`; }
+}
+
+/* ──────────────────────────────────────────────
+   BUILD DYNAMIC UI ELEMENTS
+────────────────────────────────────────────── */
+function buildMonthGrids() {
+  // Helper: build a 12-cell grid inside a container
+  function buildGrid(containerId, key) {
+    const c = document.getElementById(containerId);
+    if (!c) return;
+    MO_KEYS.forEach((mo, i) => {
+      const cell = document.createElement('div');
+      cell.className = 'mc';
+      const inp = document.createElement('input');
+      inp.id = `inp_${key}_${mo}`;
+      inp.placeholder = '0';
+      inp.dataset.gridKey = key;
+      inp.dataset.month = i+1;
+      inp.addEventListener('change', function(){markChanged(this);});
+      cell.appendChild(inp);
+      c.appendChild(cell);
+    });
+  }
+  buildGrid('mgFxAvg','FX_AVG');
+  buildGrid('mgFxEop','FX_EOP');
+  buildGrid('mgFxEur','FX_EUR');
+  buildGrid('mgBunker','BUNKER');
+  buildGrid('mgDiesel','DIESEL');
+  buildGrid('mgLNG','LNG');
+
+  // Volume sales monthly grids
+  const salesC = document.getElementById('mgVolSales');
+  const genC   = document.getElementById('mgVolGen');
+  if (salesC) {
+    RATE_CLASSES.forEach(rc => {
+      const lbl = document.createElement('div');
+      lbl.className = 'mg-label'; lbl.textContent = rc.lbl;
+      salesC.appendChild(lbl);
+      const row = document.createElement('div');
+      row.className = 'month-grid';
+      MO_KEYS.forEach((mo,i) => {
+        const cell = document.createElement('div'); cell.className='mc';
+        const inp = document.createElement('input');
+        inp.id = `inp_${rc.id}_${mo}`;
+        inp.placeholder='0'; inp.dataset.gridKey=rc.id; inp.dataset.month=i+1;
+        inp.addEventListener('change',function(){markChanged(this);});
+        cell.appendChild(inp); row.appendChild(cell);
+      });
+      salesC.appendChild(row);
+    });
+  }
+  if (genC) {
+    GEN_TYPES.forEach(g => {
+      const lbl = document.createElement('div');
+      lbl.className = 'mg-label'; lbl.textContent = g.lbl;
+      genC.appendChild(lbl);
+      const row = document.createElement('div');
+      row.className = 'month-grid';
+      MO_KEYS.forEach((mo,i) => {
+        const cell = document.createElement('div'); cell.className='mc';
+        const inp = document.createElement('input');
+        inp.id = `inp_${g.id}_${mo}`;
+        inp.placeholder='0'; inp.dataset.gridKey=g.id; inp.dataset.month=i+1;
+        inp.addEventListener('change',function(){markChanged(this);});
+        cell.appendChild(inp); row.appendChild(cell);
+      });
+      genC.appendChild(row);
+    });
+  }
+}
+
+function buildRateClassTable() {
+  const tbody = document.getElementById('revTariffBody');
+  if (!tbody) return;
+  RATE_CLASSES.forEach(rc => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="tag-cell"><span class="tag tag-i">I</span></td>
+      <td class="lbl">${rc.lbl}</td>
+      <td class="num"><input class="inp inp-sm" id="inp_${rc.id}_NF" placeholder="0.0" onchange="markChanged(this);calcRevTotals();"/></td>
+      <td class="num"><input class="inp inp-sm" id="inp_${rc.id}_FR" placeholder="0.0" onchange="markChanged(this);calcRevTotals();"/></td>
+      <td class="num" id="blended_${rc.id}" style="color:var(--accent2);">—</td>
+      <td class="note">OUR tariff schedule ${new Date().getFullYear()}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function buildIPPTable() {
+  const tbody = document.getElementById('ippContractBody');
+  if (!tbody) return;
+  IPP_CONTRACTS.forEach(ipp => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="lbl">${ipp.lbl}</td>
+      <td class="num">${ipp.mw}</td>
+      <td class="num"><input class="inp inp-sm" id="inp_${ipp.id}_NF" placeholder="0.0" onchange="markChanged(this);"/></td>
+      <td class="num" id="ipp_kwh_${ipp.id}">—</td>
+      <td class="num" id="ipp_cost_${ipp.id}">—</td>
+      <td class="note">Contract terms from power purchase agreement</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function buildPayrollTable() {
+  const tbody = document.getElementById('payrollBody');
+  if (!tbody) return;
+  PAYROLL_DEPTS.forEach((dept, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="lbl">${dept}</td>
+      <td class="num"><input class="inp inp-sm" id="inp_PAY_HC_${i}" placeholder="0" onchange="markChanged(this);calcPayroll();"/></td>
+      <td class="num"><input class="inp inp-sm" id="inp_PAY_SAL_${i}" placeholder="0" onchange="markChanged(this);calcPayroll();"/></td>
+      <td class="num" id="pay_cost_${i}" style="color:var(--accent2);">—</td>
+      <td class="note"></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function buildCapexTable() {
+  // Seed with 5 blank rows
+  for (let i=0;i<5;i++) _capexRows.push({name:'',cat:'',budget:0,q1:0,q2:0,q3:0,q4:0});
+  renderCapexRows();
+}
+
+function renderCapexRows() {
+  const tbody = document.getElementById('capexBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  _capexRows.forEach((r,i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input class="inp inp-wide" id="capex_name_${i}" value="${r.name}" placeholder="Project name" onchange="_capexRows[${i}].name=this.value;markChanged(this);calcCapex();"/></td>
+      <td><select class="inp" id="capex_cat_${i}" onchange="_capexRows[${i}].cat=this.value;markChanged(this);">
+        <option value="">— Category —</option>
+        ${CAPEX_CATS.map(c=>`<option${r.cat===c?' selected':''}>${c}</option>`).join('')}
+      </select></td>
+      <td class="num"><input class="inp inp-sm" id="capex_budget_${i}" value="${r.budget||''}" placeholder="0" onchange="_capexRows[${i}].budget=parseFloat(this.value)||0;markChanged(this);calcCapex();"/></td>
+      <td class="num"><input class="inp inp-sm" id="capex_q1_${i}" value="${r.q1||''}" placeholder="0" onchange="_capexRows[${i}].q1=parseFloat(this.value)||0;calcCapex();"/></td>
+      <td class="num"><input class="inp inp-sm" id="capex_q2_${i}" value="${r.q2||''}" placeholder="0" onchange="_capexRows[${i}].q2=parseFloat(this.value)||0;calcCapex();"/></td>
+      <td class="num"><input class="inp inp-sm" id="capex_q3_${i}" value="${r.q3||''}" placeholder="0" onchange="_capexRows[${i}].q3=parseFloat(this.value)||0;calcCapex();"/></td>
+      <td class="num"><input class="inp inp-sm" id="capex_q4_${i}" value="${r.q4||''}" placeholder="0" onchange="_capexRows[${i}].q4=parseFloat(this.value)||0;calcCapex();"/></td>
+      <td class="num" id="capex_ann_${i}" style="color:var(--accent2);">—</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="removeCapexRow(${i})">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+  calcCapex();
+}
+
+function addCapexRow() {
+  _capexRows.push({name:'',cat:'',budget:0,q1:0,q2:0,q3:0,q4:0});
+  renderCapexRows();
+}
+
+function removeCapexRow(i) {
+  _capexRows.splice(i,1);
+  renderCapexRows();
+}
+
+function buildReaderChips() {
+  const BUDGET_READERS = [
+    'Board-Approved Budget Model (.xlsx)',
+    'OUR Tariff Schedule',
+    'HR Headcount & Salary File',
+    'CapEx Project Register',
+    'IPP Contract Summary',
+    'Fuel Price Forecast (Bloomberg/OUR)',
+    'Macroeconomic Assumptions Sheet',
+    'Generic CSV (key,value)',
+  ];
+  const c = document.getElementById('readerChips');
+  BUDGET_READERS.forEach(r => {
+    const chip = document.createElement('div');
+    chip.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:11px;color:var(--muted);cursor:default;';
+    chip.textContent = r;
+    chip.title = 'Reader not yet configured — upload a file to train this reader';
+    c.appendChild(chip);
+  });
+}
+
+/* ──────────────────────────────────────────────
+   CALCULATIONS
+────────────────────────────────────────────── */
+function calcRevTotals() {
+  let totalRev = 0;
+  RATE_CLASSES.forEach(rc => {
+    const nf = parseFloat(document.getElementById(`inp_${rc.id}_NF`)?.value)||0;
+    const fr = parseFloat(document.getElementById(`inp_${rc.id}_FR`)?.value)||0;
+    const bl = document.getElementById(`blended_${rc.id}`);
+    if (bl) bl.textContent = nf+fr ? (nf+fr).toFixed(2) : '—';
+  });
+  const other = parseFloat(document.getElementById('inp_OTHER_REV')?.value)||0;
+  const sub = parseFloat(document.getElementById('inp_GOV_SUB')?.value)||0;
+  const totEl = document.getElementById('der_TOTAL_REV');
+  if (totEl) totEl.textContent = (other+sub) ? (other+sub).toLocaleString() : '—';
+}
+
+function calcPayroll() {
+  let totalHC=0, totalCost=0;
+  PAYROLL_DEPTS.forEach((dept,i) => {
+    const hc  = parseFloat(document.getElementById(`inp_PAY_HC_${i}`)?.value)||0;
+    const sal = parseFloat(document.getElementById(`inp_PAY_SAL_${i}`)?.value)||0;
+    const cost = hc * sal / 1000; // J$K per head → J$M
+    totalHC += hc; totalCost += cost;
+    const el = document.getElementById(`pay_cost_${i}`);
+    if (el) el.textContent = cost ? cost.toFixed(1) : '—';
+  });
+  const thcEl = document.getElementById('payTotalHC');
+  const tcoEl = document.getElementById('payTotalCost');
+  if (thcEl) thcEl.textContent = totalHC || '—';
+  if (tcoEl) tcoEl.textContent = totalCost ? totalCost.toFixed(1) : '—';
+  // Roll into OM total
+  calcOMTotal(totalCost);
+}
+
+function calcOMTotal(payrollCost) {
+  const keys = ['OM_MAINT_GEN','OM_MAINT_TD','OM_MAT','OM_OUTSOURCE','OM_INS','OM_IT','OM_GA','OM_OTHER'];
+  let npTotal = keys.reduce((a,k) => a + (parseFloat(document.getElementById(`inp_${k}`)?.value)||0), 0);
+  const el = document.getElementById('der_OM_NP_TOTAL');
+  const el2 = document.getElementById('der_OM_TOTAL');
+  if (el) el.textContent = npTotal ? npTotal.toFixed(1) : '—';
+  if (el2) el2.textContent = (npTotal + (payrollCost||0)) ? (npTotal+(payrollCost||0)).toFixed(1) : '—';
+}
+
+function calcCapex() {
+  let totB=0,totQ1=0,totQ2=0,totQ3=0,totQ4=0,totA=0;
+  _capexRows.forEach((r,i) => {
+    const q1=parseFloat(document.getElementById(`capex_q1_${i}`)?.value)||0;
+    const q2=parseFloat(document.getElementById(`capex_q2_${i}`)?.value)||0;
+    const q3=parseFloat(document.getElementById(`capex_q3_${i}`)?.value)||0;
+    const q4=parseFloat(document.getElementById(`capex_q4_${i}`)?.value)||0;
+    const ann=q1+q2+q3+q4;
+    const annEl=document.getElementById(`capex_ann_${i}`);
+    if(annEl) annEl.textContent = ann ? ann.toFixed(1) : '—';
+    const b=parseFloat(document.getElementById(`capex_budget_${i}`)?.value)||0;
+    totB+=b; totQ1+=q1; totQ2+=q2; totQ3+=q3; totQ4+=q4; totA+=ann;
+  });
+  const f=(id,v) => { const el=document.getElementById(id); if(el) el.textContent=v?v.toFixed(1):'—'; };
+  f('capexTotalBudget',totB); f('capexTotalQ1',totQ1); f('capexTotalQ2',totQ2);
+  f('capexTotalQ3',totQ3); f('capexTotalQ4',totQ4); f('capexTotalAnn',totA);
+}
+
+function recalcPnL() {
+  // Pull driver values
+  const px   = parseFloat(document.getElementById('inp_OTHER_REV')?.value)||0;
+  const sub  = parseFloat(document.getElementById('inp_GOV_SUB')?.value)||0;
+  const payroll = parseFloat(document.getElementById('payTotalCost')?.textContent)||0;
+  const keys = ['OM_MAINT_GEN','OM_MAINT_TD','OM_MAT','OM_OUTSOURCE','OM_INS','OM_IT','OM_GA','OM_OTHER'];
+  const npOM = keys.reduce((a,k)=>a+(parseFloat(document.getElementById(`inp_${k}`)?.value)||0),0);
+  const capexAnn = parseFloat(document.getElementById('capexTotalAnn')?.textContent)||0;
+
+  const pnl = document.getElementById('pnlSummary');
+  if (!pnl) return;
+  pnl.innerHTML = `
+    <div class="pnl-section">
+      <h3>Revenue</h3>
+      <div class="pnl-row"><span class="pnl-lbl">Non-Fuel Revenue</span><span class="pnl-val">—</span><span class="pnl-note">Tariff rates × GWh billed by class</span></div>
+      <div class="pnl-row"><span class="pnl-lbl">Fuel Surcharge Revenue</span><span class="pnl-val">—</span><span class="pnl-note">Pass-through to customers</span></div>
+      <div class="pnl-row"><span class="pnl-lbl">Other Revenue</span><span class="pnl-val">${px.toLocaleString()}</span><span class="pnl-note">Rental, fibre, connections</span></div>
+      <div class="pnl-row total"><span class="pnl-lbl">Total Revenue</span><span class="pnl-val">—</span><span class="pnl-note">= NF + Fuel + Other + Subsidy</span></div>
+    </div>
+    <div class="pnl-section">
+      <h3>Direct Costs</h3>
+      <div class="pnl-row"><span class="pnl-lbl">Fuel Cost (own generation)</span><span class="pnl-val">—</span><span class="pnl-note">Price × volume × heat rate</span></div>
+      <div class="pnl-row"><span class="pnl-lbl">IPP Purchased Power</span><span class="pnl-val">—</span><span class="pnl-note">Contract NF rate × contracted kWh</span></div>
+      <div class="pnl-row total"><span class="pnl-lbl">Gross Profit</span><span class="pnl-val">—</span><span class="pnl-note">Revenue – Fuel – IPP</span></div>
+    </div>
+    <div class="pnl-section">
+      <h3>Operating Expenses</h3>
+      <div class="pnl-row"><span class="pnl-lbl">Payroll</span><span class="pnl-val">${payroll.toFixed(1)}</span><span class="pnl-note">Headcount × salary (J$M)</span></div>
+      <div class="pnl-row"><span class="pnl-lbl">Non-Payroll O&M</span><span class="pnl-val">${npOM.toFixed(1)}</span><span class="pnl-note">Maintenance + G&A + other</span></div>
+      <div class="pnl-row"><span class="pnl-lbl">Depreciation</span><span class="pnl-val">—</span><span class="pnl-note">Modelled from existing assets + CapEx additions</span></div>
+      <div class="pnl-row total"><span class="pnl-lbl">EBIT</span><span class="pnl-val">—</span><span class="pnl-note">Gross Profit – Total OpEx</span></div>
+    </div>
+    <div class="pnl-section">
+      <h3>Below the Line</h3>
+      <div class="pnl-row"><span class="pnl-lbl">Interest Expense</span><span class="pnl-val">—</span><span class="pnl-note">Auto-loaded from debt schedule</span></div>
+      <div class="pnl-row"><span class="pnl-lbl">Lease Finance Charge</span><span class="pnl-val">—</span><span class="pnl-note">IFRS 16</span></div>
+      <div class="pnl-row total"><span class="pnl-lbl">EBT</span><span class="pnl-val">—</span><span class="pnl-note">EBIT – Net Finance Costs</span></div>
+      <div class="pnl-row"><span class="pnl-lbl">Income Tax</span><span class="pnl-val">—</span><span class="pnl-note">Statutory rate × EBT</span></div>
+    </div>
+    <div class="pnl-section">
+      <h3></h3>
+      <div class="pnl-row grand"><span class="pnl-lbl" style="font-size:14px;">Net Profit / (Loss)</span><span class="pnl-val" style="font-size:14px;">—</span><span class="pnl-note">Complete all driver sections for full P&L</span></div>
+    </div>
+    <div class="pnl-section">
+      <h3>Cash Flow Highlights</h3>
+      <div class="pnl-row"><span class="pnl-lbl">EBITDA</span><span class="pnl-val">—</span><span class="pnl-note">EBIT + Depreciation</span></div>
+      <div class="pnl-row"><span class="pnl-lbl">CapEx</span><span class="pnl-val">${capexAnn.toFixed(1)}</span><span class="pnl-note">From CapEx plan above</span></div>
+      <div class="pnl-row"><span class="pnl-lbl">Debt Repayment</span><span class="pnl-val">—</span><span class="pnl-note">From debt schedule</span></div>
+      <div class="pnl-row total"><span class="pnl-lbl">Free Cash Flow</span><span class="pnl-val">—</span><span class="pnl-note">EBITDA – CapEx – Debt Service – Tax</span></div>
+    </div>
+    <p class="text-muted mt12" style="font-size:11px;">ℹ️ Lines showing <strong>—</strong> require volume and tariff inputs to calculate. Fill in the Volumes and Revenue sections for a complete P&L.</p>`;
+}
+
+/* ──────────────────────────────────────────────
+   FILE IMPORT
+────────────────────────────────────────────── */
+function handleFileDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadDropZone').style.borderColor='var(--border)';
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+}
+function handleFileSelect(e) { if(e.target.files[0]) handleFile(e.target.files[0]); }
+
+function handleFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'csv') { handleCSV(file); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(e.target.result, {type:'array'});
+    const extracted = extractBudgetFile(wb, file.name);
+    showUploadPreview(extracted, file.name);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function handleCSV(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n');
+    const extracted = {};
+    lines.forEach(line => {
+      const parts = line.split(',');
+      if (parts.length >= 2) {
+        const key = parts[0].trim().toUpperCase();
+        const val = parseFloat(parts[1].trim());
+        if (key && !isNaN(val)) extracted[key] = val;
+      }
+    });
+    showUploadPreview(extracted, file.name);
+  };
+  reader.readAsText(file);
+}
+
+function extractBudgetFile(wb, filename) {
+  // !! TO IMPLEMENT: specific readers per named file type
+  // Generic fallback: scan all cells for numbers next to known keys
+  const extracted = {};
+  const KNOWN_KEYS = ['INFLATION','FX_AVG','FX_EOP','TARIFF_ESC','SALARY_ESC','WACC','PEAK_MW','HEAT_RATE','LOSS_PCT'];
+  wb.SheetNames.forEach(sn => {
+    const ws = wb.Sheets[sn];
+    const data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    data.forEach(row => {
+      row.forEach((cell, ci) => {
+        if (typeof cell === 'string') {
+          const upper = cell.toUpperCase().replace(/[^A-Z0-9_]/g,'_');
+          const match = KNOWN_KEYS.find(k => upper.includes(k));
+          if (match && typeof row[ci+1] === 'number') {
+            extracted[match] = row[ci+1];
+          }
+        }
+      });
+    });
+  });
+  extracted._source = filename;
+  return extracted;
+}
+
+function showUploadPreview(extracted, filename) {
+  const div = document.getElementById('uploadPreview');
+  div.classList.remove('hidden');
+  const keys = Object.keys(extracted).filter(k=>!k.startsWith('_'));
+  if (!keys.length) {
+    div.innerHTML = `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;color:var(--muted);">No recognisable driver keys found in <strong>${filename}</strong>.<br>Try the CSV format (key,value) as a fallback.</div>`;
+    return;
+  }
+  let html = `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;">
+    <div style="font-size:12px;font-weight:600;margin-bottom:8px;">Extracted from: <span style="color:var(--accent)">${filename}</span> — ${keys.length} drivers found</div>
+    <table class="preview-table"><thead><tr><th>Key</th><th>Value</th><th>Status</th></tr></thead><tbody>`;
+  keys.forEach(k => {
+    const v = extracted[k];
+    html += `<tr><td>${k}</td><td>${v}</td><td><span class="chip chip-new">IMPORT</span></td></tr>`;
+  });
+  html += `</tbody></table>
+    <div style="margin-top:10px;display:flex;gap:8px;">
+      <button class="btn btn-success btn-sm" onclick="applyExtracted(${JSON.stringify(extracted).replace(/"/g,'&quot;')})">✅ Apply to Form</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('uploadPreview').classList.add('hidden')">Dismiss</button>
+    </div></div>`;
+  div.innerHTML = html;
+}
+
+function applyExtracted(extracted) {
+  Object.keys(extracted).filter(k=>!k.startsWith('_')).forEach(k => {
+    const el = document.getElementById(`inp_${k}`);
+    if (el) { el.value = extracted[k]; el.classList.add('changed'); _changed.add(k); }
+  });
+  updateStatus();
+  toast(`Applied ${Object.keys(extracted).filter(k=>!k.startsWith('_')).length} driver values from file`,'ok');
+}
+
+/* ──────────────────────────────────────────────
+   STATUS + LOCK
+────────────────────────────────────────────── */
+function markChanged(el) {
+  el.classList.add('changed');
+  _changed.add(el.id || el.dataset.key);
+  updateStatus();
+}
+
+function updateStatus() {
+  const all = document.querySelectorAll('[data-key], [data-grid-key]');
+  const filled = [...all].filter(el=>el.value?.trim()).length;
+  const blank  = all.length - filled;
+  const chg    = _changed.size;
+  document.getElementById('ssTotal').textContent   = all.length;
+  document.getElementById('ssSaved').textContent   = Object.keys(_dbValues).length;
+  document.getElementById('ssChanged').textContent = chg;
+  document.getElementById('ssBlanks').textContent  = blank;
+}
+
+function clearAll() { _dbValues={}; _changed.clear(); updateStatus(); }
+
+function toggleLock() {
+  _locked = !_locked;
+  const chip = document.getElementById('lockChip');
+  const btn  = document.getElementById('btnLock');
+  if (_locked) {
+    chip.className='lock-chip lock-closed'; chip.textContent='🔒 FINALISED';
+    btn.textContent='🔓 Re-open';
+  } else {
+    chip.className='lock-chip lock-open'; chip.textContent='● OPEN';
+    btn.textContent='🔒 Finalise';
+  }
+}
+
+/* ──────────────────────────────────────────────
+   PREVIEW MODAL
+────────────────────────────────────────────── */
+function showPreviewModal() {
+  const rows = buildUpsertRows();
+  const tbody = document.getElementById('previewBody');
+  tbody.innerHTML = '';
+  if (!rows.length) { toast('No pending changes','info'); return; }
+  rows.forEach(r => {
+    const k = buildDBKey(r.category,r.key,r.sub_key,r.year,r.month);
+    const existing = _dbValues[k];
+    const status = existing !== undefined
+      ? (existing == r.value_num ? 'same' : 'upd')
+      : 'new';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.category}</td><td>${r.key}</td><td>${r.sub_key||'—'}</td>
+      <td>${existing??'—'}</td><td>${r.value_num??r.value_text}</td>
+      <td><span class="chip chip-${status}">${status.toUpperCase()}</span></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('previewModal').classList.add('open');
+}
+
+async function commitFromModal() {
+  closeModal('previewModal');
+  await commitAll();
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+/* ──────────────────────────────────────────────
+   MONTHLY GRID FILL HELPERS
+────────────────────────────────────────────── */
+function fillMonthly(section) {
+  // Spread an annual value equally across 12 months for volume section
+  toast('Enter annual target first, then use this to spread across months.','info');
+}
+
+/* ──────────────────────────────────────────────
+   EXPORT
+────────────────────────────────────────────── */
+function exportCSV() {
+  const rows = buildUpsertRows();
+  if (!rows.length) { toast('Nothing to export','info'); return; }
+  let csv = 'category,key,sub_key,year,month,value\n';
+  rows.forEach(r => {
+    csv += `${r.category},${r.key},${r.sub_key||''},${r.year},${r.month||''},${r.value_num??r.value_text}\n`;
+  });
+  download(`budget_assumptions_${_year}_${Date.now()}.csv`, csv);
+}
+
+function exportPnLCSV() {
+  toast('P&L export — complete all driver sections first for a full export.','info');
+}
+
+function download(filename, text) {
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(text);
+  a.download = filename; a.click();
+}
+
+/* ──────────────────────────────────────────────
+   NAV
+────────────────────────────────────────────── */
+function showSection(id) {
+  document.querySelectorAll('.section-pane').forEach(el=>el.classList.add('hidden'));
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const pane = document.getElementById('sec-'+id);
+  const nav  = document.getElementById('nav-'+id);
+  if (pane) pane.classList.remove('hidden');
+  if (nav)  nav.classList.add('active');
+}
+
+function switchCardTab(card, tab) {
+  // Tabs within a card
+  const panes = document.querySelectorAll(`#sec-${card} .card-tab-pane`);
+  panes.forEach(p => p.classList.remove('active'));
+  const tabs = document.querySelectorAll(`#sec-${card} .card-tab`);
+  tabs.forEach(t => t.classList.remove('active'));
+  const tpane = document.getElementById(`${card}-${tab}`);
+  if (tpane) tpane.classList.add('active');
+  // Find and activate the matching tab button
+  tabs.forEach(t => { if(t.textContent.toLowerCase().replace(/[^a-z]/g,'').includes(tab.toLowerCase().replace(/[^a-z]/g,''))) t.classList.add('active'); });
+}
+
+/* ──────────────────────────────────────────────
+   TOAST
+────────────────────────────────────────────── */
+function toast(msg, type='info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>el.className='',3500);
+}
+</script>
+</body>
+</html>

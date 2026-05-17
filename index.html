@@ -24,16 +24,7 @@
   --table-header-bg:#0d1a2e;--table-header-text:#d4e2f4;
 }
 /* LIGHT THEME */
-:root.theme-light{
-  --bg:#f0f4f8;--s1:#ffffff;--s2:#f8fafc;--card:#ffffff;--card2:#f1f5f9;--card3:#e8eef5;
-  --border:#dde3ec;--b2:#c8d2e0;
-  --gold:#d4920a;--glo:rgba(212,146,10,.1);--blue:#2563eb;--teal:#0891b2;
-  --green:#059669;--red:#dc2626;--amber:#d97706;--purple:#7c3aed;--pink:#db2777;
-  --text:#0f172a;--muted:#475569;--dim:#e2e8f0;
-  --chart-grid:rgba(0,0,0,.06);--shadow:rgba(0,0,0,.08);
-  --input-bg:#f1f5f9;--input-text:#0f172a;
-  --table-header-bg:#1e3a5f;--table-header-text:#ffffff;
-}
+
 /* JPS CORPORATE THEME */
 :root.theme-jps{
   --bg:#eef2f7;--s1:#ffffff;--s2:#e4eaf2;--card:#ffffff;--card2:#dce4f0;--card3:#cfd9ea;
@@ -44,6 +35,17 @@
   --chart-grid:rgba(0,61,165,.07);--shadow:rgba(0,30,80,.15);
   --input-bg:#dce4f0;--input-text:#0d1e3a;
   --table-header-bg:#003da5;--table-header-text:#ffffff;
+}
+/* SLATE EXECUTIVE THEME */
+:root.theme-slate{
+  --bg:#0f172a;--s1:#1e293b;--s2:#172033;--card:#1e293b;--card2:#263248;--card3:#2d3f58;
+  --border:#334155;--b2:#475569;
+  --gold:#fbbf24;--glo:rgba(251,191,36,.12);--blue:#38bdf8;--teal:#2dd4bf;
+  --green:#34d399;--red:#fb7185;--amber:#fbbf24;--purple:#a78bfa;--pink:#f472b6;
+  --text:#f1f5f9;--muted:#94a3b8;--dim:#334155;
+  --chart-grid:rgba(255,255,255,.04);--shadow:rgba(0,0,0,.4);
+  --input-bg:#1e293b;--input-text:#f1f5f9;
+  --table-header-bg:#1e293b;--table-header-text:#f1f5f9;
 }
 /* JPS-specific overrides — navy topbar, blue accent bar */
 :root.theme-jps .topbar{
@@ -455,6 +457,13 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
   /* Charts: white background when printing */
   canvas{background:#fff!important;}
 }
+/* ── SKELETON LOADING (Rule 12) ──────────────────────────────────────────────── */
+@keyframes skel-shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.skel{border-radius:5px;background:linear-gradient(90deg,var(--card) 25%,var(--card2) 50%,var(--card) 75%);background-size:800px 100%;animation:skel-shimmer 1.4s infinite linear}
+.skel-row{height:12px;margin:7px 4px;border-radius:4px}
+.skel-card{height:80px;border-radius:8px;margin-bottom:8px}
+.skel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:12px}
+
 /* ── Data Management Hub ──────────────────────────────────────────────────────── */
 /* ── HUB FULLSCREEN LANDING ─────────────────────────────────────────────────── */
 #pane-hub.on{
@@ -707,10 +716,10 @@ select.sel:focus{border-color:var(--gold)}
 :root.theme-jps .nav-dd-item.on{background:#eef4fb;border-left-color:#003da5;color:#003da5;}
 :root.theme-jps .nav-crumb{color:rgba(255,255,255,.45);border-left-color:rgba(255,255,255,.15);}
 /* Dark theme navbar */
-:root:not(.theme-light):not(.theme-jps) .navbar{background:var(--s2);border-bottom:1px solid var(--border);box-shadow:none;}
-:root:not(.theme-light):not(.theme-jps) .tab{color:var(--muted);}
-:root:not(.theme-light):not(.theme-jps) .tab:hover{color:var(--text);background:transparent;}
-:root:not(.theme-light):not(.theme-jps) .tab.on{color:var(--text);border-bottom-color:var(--gold);background:rgba(240,180,41,.05);}
+:root:not(.theme-jps):not(.theme-slate) .navbar{background:var(--s2);border-bottom:1px solid var(--border);box-shadow:none;}
+:root:not(.theme-jps):not(.theme-slate) .tab{color:var(--muted);}
+:root:not(.theme-jps):not(.theme-slate) .tab:hover{color:var(--text);background:transparent;}
+:root:not(.theme-jps):not(.theme-slate) .tab.on{color:var(--text);border-bottom-color:var(--gold);background:rgba(240,180,41,.05);}
 
 /* MAIN */
 .main{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:12px}
@@ -925,7 +934,7 @@ tr.der td{color:var(--teal)}
 .theme-btn{padding:0 9px;font-size:10px;font-weight:700;color:var(--muted);cursor:pointer;background:var(--card2);border:none;font-family:var(--sans);border-right:1px solid var(--b2);line-height:26px;transition:all .15s}
 .theme-btn:last-child{border-right:none}
 .theme-btn.on{background:var(--gold);color:#000}
-:root.theme-light tbody tr:hover{background:rgba(0,0,0,.02)}
+:root.theme-jps tbody tr:hover{background:rgba(0,61,165,.03)}
 
 /* ═══ PRINT / PDF STYLES — Session 11 ═══════════════ */
 #printCoverPage { display:none; }
@@ -1157,8 +1166,8 @@ tr.der td{color:var(--teal)}
 /* Heatmap — variance intensity 1–5 */
 .hp1{background:rgba(16,185,129,.08)}.hp2{background:rgba(16,185,129,.18)}.hp3{background:rgba(16,185,129,.30)}.hp4{background:rgba(16,185,129,.42)}.hp5{background:rgba(16,185,129,.58);color:#047857}
 .hn1{background:rgba(239,68,68,.08)}.hn2{background:rgba(239,68,68,.18)}.hn3{background:rgba(239,68,68,.30)}.hn4{background:rgba(239,68,68,.42)}.hn5{background:rgba(239,68,68,.58);color:#7f1d1d}
-:root.theme-light .hp5{color:#065f46}
-:root.theme-light .hn5{color:#991b1b}
+:root.theme-jps .hp5{color:#065f46}
+:root.theme-jps .hn5{color:#991b1b}
 /* Variance col */
 .d2-is .var-col{font-weight:700}
 .d2-is .var-col.hp1,.d2-is .var-col.hp2,.d2-is .var-col.hp3,.d2-is .var-col.hp4,.d2-is .var-col.hp5{color:var(--green)}
@@ -1488,9 +1497,8 @@ tr.der td{color:var(--teal)}
     <div class="cg">
       <span class="cl">Theme</span>
       <div class="theme-seg" id="themeSeg">
-        <button class="theme-btn on" id="themeD" onclick="setTheme('dark',this)">☾ Dark</button>
-        <button class="theme-btn" id="themeL" onclick="setTheme('light',this)">☀ Light</button>
-        <button class="theme-btn" id="themeJ" onclick="setTheme('jps',this)">⚡ JPS</button>
+        <button class="theme-btn on" data-theme="jps" onclick="setTheme('jps',this)">☀ JPS Corporate</button>
+        <button class="theme-btn" data-theme="slate" onclick="setTheme('slate',this)">🌙 Slate</button>
       </div>
     </div>
     <div class="ml" style="display:flex;gap:6px;align-items:center">
@@ -8661,9 +8669,29 @@ const fmtV=v=>{if(!v&&v!==0)return'<span class="dim">–</span>';const n=Math.ro
 const fmtP=v=>{if(!v&&v!==0||isNaN(v))return'<span class="dim">–</span>';const s=(Math.abs(v)*100).toFixed(1)+'%';return v>=0?`<span class="pos">${s}</span>`:`<span class="neg">(${s})</span>`;};
 const sumArr=a=>(a||[]).reduce((s,x)=>s+(x||0),0);
 const toast=(msg,t='i')=>{const el=document.getElementById('toast');el.textContent=(t==='ok'?'✅ ':t==='w'?'⚠️ ':t==='err'?'❌ ':'ℹ️ ')+msg;el.className='show';el.style.borderColor=t==='err'?'var(--red)':t==='w'?'var(--amber)':'var(--b2)';clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),4000);};
-// Debounce helper — prevents chart rebuild storms on rapid edits
+// Debounce helper — prevents chart rebuild storms on rapid edits (Rule 15)
 function _debounce(fn,ms=120){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
 const refreshAllDebounced=_debounce(()=>refreshAll(),150);
+// Auto-debounce search inputs with no-arg oninput calls (300ms) on DOM ready
+(function _wireDebounce(){
+  const wire=()=>{
+    document.querySelectorAll('input[oninput]').forEach(el=>{
+      const attr=el.getAttribute('oninput')||'';
+      // Only match exact no-arg calls: "renderFoo()" — skip parameterized ones
+      const m=attr.match(/^([a-zA-Z_$][a-zA-Z0-9_$]*)\(\)$/);
+      if(!m)return;
+      const fnName=m[1];
+      if(typeof window[fnName]!=='function')return;
+      if(el._debounced)return;
+      const dFn=_debounce(window[fnName],300);
+      el.removeAttribute('oninput');
+      el.addEventListener('input',dFn);
+      el._debounced=true;
+    });
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',wire);
+  else wire();
+})();
 let charts={};
 const mkChart=(id,cfg)=>{
   if(charts[id]){try{charts[id].destroy();}catch(e){} delete charts[id];}
@@ -16022,10 +16050,10 @@ function buildTaxRateInputs() {
 
 // ── Theme System ────────────────────────────────────────
 function setTheme(name, btn) { auditLog('theme','UI Theme',null,name);
-  document.documentElement.className = name === 'dark' ? '' : 'theme-' + name;
-  localStorage.setItem('jps_theme', name);
+  document.documentElement.className = name === 'jps' ? 'theme-jps' : name === 'slate' ? 'theme-slate' : '';
   document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
+  document.querySelectorAll(`.theme-btn[data-theme="${name}"]`).forEach(b=>b.classList.add('on'));
+  localStorage.setItem('jps_theme', name);
   // Refresh theme color cache so all charts pick up the new palette
   _cacheThemeColors();
   // Re-render charts with updated colors
@@ -16034,11 +16062,10 @@ function setTheme(name, btn) { auditLog('theme','UI Theme',null,name);
 }
 
 function applyThemeOnLoad() {
-  const saved = localStorage.getItem('jps_theme') || 'dark';
-  document.documentElement.className = saved === 'dark' ? '' : 'theme-' + saved;
-  const btnMap = {dark:'themeD', light:'themeL', jps:'themeJ'};
-  const el = document.getElementById(btnMap[saved]);
-  if (el) { document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('on')); el.classList.add('on'); }
+  const saved = localStorage.getItem('jps_theme') || 'jps';
+  document.documentElement.className = saved === 'jps' ? 'theme-jps' : saved === 'slate' ? 'theme-slate' : '';
+  document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll(`.theme-btn[data-theme="${saved}"]`).forEach(b=>b.classList.add('on'));
 }
 
 // ═══════════════════════════════════════════════════════
