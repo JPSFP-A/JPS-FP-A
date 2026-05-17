@@ -251,6 +251,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
 /* Applied to appShell when user logs in via Flash Report route */
 .flash-mode .tabbar          { display:none !important; }
 .flash-mode .navbar          { display:none !important; }
+.flash-mode #sidebar         { display:none !important; }
 .flash-mode .topbar .cg      { display:none !important; }
 .flash-mode .topbar .sp      { display:none !important; }
 .flash-mode .topbar .btn-ai,
@@ -438,7 +439,9 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
 }
 /* Print */
 @media print{
-  .topbar,.tabbar,.navbar,.flash-ctrl-bar,#welcomeScreen{display:none!important;}
+  .topbar,.tabbar,.navbar,.flash-ctrl-bar,#welcomeScreen,#sidebar{display:none!important;}
+  #app-shell{display:block!important;}
+  .main{padding:0!important;}
   #pane-rpt-flash{display:flex!important;height:auto!important;overflow:visible!important;background:#fff!important;}
   #flashDocument{overflow:visible!important;padding:0!important;}
   .flash-page{box-shadow:none!important;max-width:100%!important;}
@@ -672,67 +675,95 @@ select.sel:focus{border-color:var(--gold)}
 .tab:hover{color:#1e293b;background:#f8fafc;}
 .tab.on{color:#1e293b;border-bottom-color:var(--gold);background:#fffdf5;}
 
-/* ── NAVBAR — single-row dropdown menu (replaces 3-row tabbar) ── */
-.navbar{
-  background:var(--s1);border-bottom:1px solid var(--border);
-  box-shadow:0 1px 4px var(--shadow);
-  display:flex;align-items:stretch;flex-shrink:0;
-  position:relative;z-index:200;height:38px;
+/* ── LEFT SIDEBAR NAVIGATION ── */
+#app-shell{display:flex;flex:1;overflow:hidden;min-height:0;}
+#sidebar{
+  width:220px;flex-shrink:0;
+  background:#0e1929;
+  border-right:1px solid rgba(255,255,255,.07);
+  display:flex;flex-direction:column;
+  overflow-y:auto;overflow-x:hidden;
+  z-index:100;
 }
-.nav-group{position:relative;display:flex;}
-.nav-grp-btn{
-  display:flex;align-items:center;gap:5px;
-  padding:0 14px;height:38px;
-  font-size:11px;font-weight:700;letter-spacing:.03em;
-  color:var(--muted);cursor:pointer;
-  border-right:1px solid var(--border);
-  border-bottom:3px solid transparent;
-  white-space:nowrap;user-select:none;
-  transition:color .15s,background .15s;
+.sdb-brand{
+  display:flex;align-items:center;gap:9px;
+  padding:13px 14px 11px;
+  border-bottom:1px solid rgba(255,255,255,.07);
+  flex-shrink:0;
 }
-.nav-grp-btn:hover{color:var(--text);background:var(--card2);}
-.nav-grp-btn.nav-active{color:var(--text);border-bottom-color:var(--gold);background:rgba(240,180,41,.06);}
-.nav-dd{
-  display:none;position:absolute;top:100%;left:0;
-  background:var(--card);border:1px solid var(--border);
-  border-radius:0 4px 8px 8px;
-  box-shadow:0 8px 28px rgba(0,0,0,.35);
-  min-width:200px;z-index:2000;padding:4px 0;
+.sdb-brand-icon{
+  width:26px;height:26px;border-radius:6px;flex-shrink:0;
+  background:linear-gradient(135deg,#003da5,#00aeef);
+  display:flex;align-items:center;justify-content:center;font-size:13px;
 }
-.nav-group.open>.nav-dd{display:block;}
-.nav-dd-item{
+.sdb-brand-name{font-size:11.5px;font-weight:800;color:#fff;line-height:1.2;white-space:nowrap;}
+.sdb-brand-sub{font-size:8.5px;color:rgba(255,255,255,.38);letter-spacing:.04em;}
+.sdb-nav{flex:1;padding:8px 0;overflow-y:auto;overflow-x:hidden;}
+/* Single nav items */
+.sni{
   display:flex;align-items:center;gap:8px;
-  padding:7px 16px;font-size:11px;font-weight:600;
-  color:var(--muted);cursor:pointer;white-space:nowrap;
-  transition:all .1s;
+  padding:6.5px 14px 6.5px 16px;
+  font-size:11px;font-weight:600;letter-spacing:.02em;
+  color:rgba(255,255,255,.5);
+  cursor:pointer;white-space:nowrap;
+  border-left:2px solid transparent;
+  transition:all .15s;
 }
-.nav-dd-item:hover{background:var(--card2);color:var(--text);}
-.nav-dd-item.on{color:var(--text);background:rgba(240,180,41,.09);border-left:2px solid var(--gold);padding-left:14px;}
-.nav-dd-sep{height:1px;background:var(--border);margin:4px 0;}
-.nav-crumb{
-  margin-left:auto;display:flex;align-items:center;
-  padding:0 16px;font-size:10px;font-weight:700;letter-spacing:.04em;
-  color:var(--muted);border-left:1px solid var(--border);
-  text-transform:uppercase;
+.sni:hover{color:rgba(255,255,255,.9);background:rgba(255,255,255,.05);}
+.sni.on{color:#fff;border-left-color:var(--gold);background:rgba(240,180,41,.1);}
+.sni .sni-ico{font-size:12px;flex-shrink:0;opacity:.75;}
+.sni.on .sni-ico{opacity:1;}
+/* Section groups */
+.sdb-grp{margin-top:4px;}
+.sdb-gh{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:5px 14px 5px 16px;
+  font-size:8.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:rgba(255,255,255,.3);cursor:pointer;
+  transition:color .15s;
+  user-select:none;
 }
-/* JPS theme navbar */
-:root.theme-jps .navbar{background:#003da5;border-bottom:2px solid #00aeef;box-shadow:none;}
-:root.theme-jps .nav-grp-btn{color:rgba(255,255,255,.7);border-right-color:rgba(255,255,255,.15);border-bottom-color:transparent;}
-:root.theme-jps .nav-grp-btn:hover{color:#fff;background:rgba(255,255,255,.1);}
-:root.theme-jps .nav-grp-btn.nav-active{color:#fff;border-bottom-color:#00aeef;background:rgba(0,174,239,.2);}
-:root.theme-jps .nav-dd{background:#fff;border-color:#d0dcea;}
-:root.theme-jps .nav-dd-item{color:#4a6080;}
-:root.theme-jps .nav-dd-item:hover{background:#f0f4f9;color:#0d1e3a;}
-:root.theme-jps .nav-dd-item.on{background:#eef4fb;border-left-color:#003da5;color:#003da5;}
-:root.theme-jps .nav-crumb{color:rgba(255,255,255,.45);border-left-color:rgba(255,255,255,.15);}
-/* Dark theme navbar */
-:root:not(.theme-jps):not(.theme-slate) .navbar{background:var(--s2);border-bottom:1px solid var(--border);box-shadow:none;}
-:root:not(.theme-jps):not(.theme-slate) .tab{color:var(--muted);}
-:root:not(.theme-jps):not(.theme-slate) .tab:hover{color:var(--text);background:transparent;}
-:root:not(.theme-jps):not(.theme-slate) .tab.on{color:var(--text);border-bottom-color:var(--gold);background:rgba(240,180,41,.05);}
+.sdb-gh:hover{color:rgba(255,255,255,.55);}
+.sdb-gh .sdb-arr{font-size:7px;transition:transform .2s;}
+.sdb-grp.open .sdb-arr{transform:rotate(180deg);}
+.sdb-items{overflow:hidden;max-height:0;transition:max-height .25s ease;}
+.sdb-grp.open .sdb-items{max-height:600px;}
+.sdb-sep{height:1px;background:rgba(255,255,255,.06);margin:6px 12px;}
+/* Footer with user info */
+.sdb-footer{
+  border-top:1px solid rgba(255,255,255,.07);
+  padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;
+}
+.sdb-avatar{
+  width:26px;height:26px;border-radius:50%;
+  background:linear-gradient(135deg,#003da5,#00aeef);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:#fff;font-weight:800;flex-shrink:0;
+}
+.sdb-uname{font-size:10px;font-weight:700;color:rgba(255,255,255,.8);line-height:1.3;}
+.sdb-urole{font-size:8.5px;font-weight:700;color:var(--gold);letter-spacing:.05em;}
+/* Collapse sidebar toggle */
+.sdb-toggle{
+  display:flex;align-items:center;justify-content:center;
+  width:24px;height:24px;border-radius:5px;border:none;
+  background:rgba(255,255,255,.08);color:rgba(255,255,255,.5);
+  cursor:pointer;flex-shrink:0;margin-left:auto;
+  font-size:10px;transition:all .15s;
+}
+.sdb-toggle:hover{background:rgba(255,255,255,.15);color:#fff;}
+/* JPS theme sidebar */
+:root.theme-jps #sidebar{background:#002060;border-right-color:rgba(0,174,239,.15);}
+:root.theme-jps .sni.on{border-left-color:#00aeef;background:rgba(0,174,239,.15);}
+:root.theme-jps .sdb-urole{color:#00aeef;}
+/* Slate theme sidebar */
+:root.theme-slate #sidebar{background:#0f1f35;}
+/* Navbar kept hidden (legacy) */
+.navbar{display:none!important;}
+/* Compat: keep .nav-group, .nav-grp-btn etc in DOM hidden */
+.nav-group,.nav-grp-btn,.nav-dd,.nav-dd-item,.nav-crumb{display:none!important;}
 
 /* MAIN */
-.main{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:12px}
+.main{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:12px;min-width:0;}
 .pane{display:none;flex-direction:column;gap:12px}.pane.on{display:flex}
 
 /* BANNERS */
@@ -1547,100 +1578,120 @@ tr.der td{color:var(--teal)}
   </div>
 </div>
 
-<!-- NAVBAR — single-row dropdown navigation -->
-<nav class="navbar" id="navbar">
-  <!-- Hub (no dropdown) -->
-  <div class="nav-group" id="nav-hub">
-    <div class="nav-grp-btn nav-active" data-pane="hub" onclick="showPane('hub',null);navClose();const _hn=document.getElementById('hubUserName');if(_hn)_hn.textContent=currentUser?.name?.split(' ')[0]||'User';hubBuildStatusCards()">🗂 Hub</div>
-  </div>
-  <!-- Overview (no dropdown) -->
-  <div class="nav-group" id="nav-overview">
-    <div class="nav-grp-btn" data-pane="dash" onclick="showPane('dash',null);navClose()">📊 Overview</div>
-  </div>
-  <!-- Reports dropdown -->
-  <div class="nav-group" id="nav-reports">
-    <div class="nav-grp-btn" onclick="navToggle('nav-reports')">📊 Reports <span style="font-size:8px;opacity:.55">▾</span></div>
-    <div class="nav-dd">
-      <div class="nav-dd-item" data-pane="dash2"    onclick="showPane('dash2',null);navClose()">🎯 Dashboard</div>
-      <div class="nav-dd-sep"></div>
-      <div class="nav-dd-item" data-pane="rpt-pl"    onclick="showPane('rpt-pl',null);navClose()">📋 Income Statement</div>
-      <div class="nav-dd-item" data-pane="rpt-bs"    onclick="showPane('rpt-bs',null);navClose()">⚖ Balance Sheet</div>
-      <div class="nav-dd-item" data-pane="rpt-cf"    onclick="showPane('rpt-cf',null);navClose()">💧 Cash Flow</div>
-      <div class="nav-dd-item" data-pane="rpt-dep"   onclick="showPane('rpt-dep',null);navClose()">📉 Depreciation</div>
-      <div class="nav-dd-sep"></div>
-      <div class="nav-dd-item" data-pane="rpt-var"   onclick="showPane('rpt-var',null);navClose()">📊 Variance Analysis</div>
-      <div class="nav-dd-item" data-pane="rpt-kpi"   onclick="showPane('rpt-kpi',null);navClose()">📐 Ratios &amp; KPIs</div>
-      <div class="nav-dd-item" data-pane="rpt-rev"   onclick="showPane('rpt-rev',null);navClose()">⚡ Revenue &amp; Gen</div>
-      <div class="nav-dd-item" data-pane="rpt-flash" onclick="showPane('rpt-flash',null);navClose()">📰 Flash Report</div>
-      <div class="nav-dd-item" data-pane="rpt-vc" onclick="showPane('rpt-vc',null);navClose()">📊 Version Compare</div>
-      <div class="nav-dd-sep"></div>
-      <div class="nav-dd-item" data-pane="fin-cpl" onclick="showPane('fin-cpl',null);cplLoad();navClose()">🧩 Consolidated P&amp;L</div>
+<!-- APP SHELL: sidebar + main content -->
+<div id="app-shell">
+
+<!-- LEFT SIDEBAR NAVIGATION -->
+<aside id="sidebar">
+  <div class="sdb-brand">
+    <div class="sdb-brand-icon">⚡</div>
+    <div>
+      <div class="sdb-brand-name">FP&amp;A Cloud</div>
+      <div class="sdb-brand-sub" id="sdbPeriodSub">JPS · Loading…</div>
     </div>
   </div>
-  <!-- Workings dropdown -->
-  <div class="nav-group" id="nav-workings">
-    <div class="nav-grp-btn" onclick="navToggle('nav-workings')">📁 Workings <span style="font-size:8px;opacity:.55">▾</span></div>
-    <div class="nav-dd">
-      <div class="nav-dd-item" data-pane="wrk-sc"     onclick="showPane('wrk-sc',null);navClose()">🎯 Scenarios</div>
-      <div class="nav-dd-item" data-pane="wrk-gen"    onclick="showPane('wrk-gen',null);navClose()">⚡ Generation &amp; Fuel</div>
-      <div class="nav-dd-item" data-pane="wrk-coll"   onclick="showPane('wrk-coll',null);navClose()">💳 Collections</div>
-      <div class="nav-dd-item" data-pane="wrk-debt"   onclick="showPane('wrk-debt',null);navClose()">🏦 Debt &amp; Financing</div>
-      <div class="nav-dd-item" data-pane="wrk-leases" onclick="showPane('wrk-leases',null);navClose()">📄 Lease Register</div>
+  <div class="sdb-nav" id="sdbNav">
+    <!-- Standalone: Hub -->
+    <div class="sni on" data-pane="hub" onclick="showPane('hub',null);const _hn=document.getElementById('hubUserName');if(_hn)_hn.textContent=currentUser?.name?.split(' ')[0]||'User';hubBuildStatusCards()"><span class="sni-ico">🗂</span>Hub</div>
+    <!-- Standalone: Overview -->
+    <div class="sni" data-pane="dash" onclick="showPane('dash',null)"><span class="sni-ico">📊</span>Overview</div>
+
+    <div class="sdb-sep"></div>
+
+    <!-- Reports group -->
+    <div class="sdb-grp open" id="sgrp-reports">
+      <div class="sdb-gh" onclick="sdbToggle('sgrp-reports')">Reports <span class="sdb-arr">▾</span></div>
+      <div class="sdb-items">
+        <div class="sni" data-pane="dash2"     onclick="showPane('dash2',null)"><span class="sni-ico">🎯</span>Dashboard</div>
+        <div class="sni" data-pane="rpt-pl"    onclick="showPane('rpt-pl',null)"><span class="sni-ico">📋</span>Income Statement</div>
+        <div class="sni" data-pane="rpt-bs"    onclick="showPane('rpt-bs',null)"><span class="sni-ico">⚖</span>Balance Sheet</div>
+        <div class="sni" data-pane="rpt-cf"    onclick="showPane('rpt-cf',null)"><span class="sni-ico">💧</span>Cash Flow</div>
+        <div class="sni" data-pane="rpt-dep"   onclick="showPane('rpt-dep',null)"><span class="sni-ico">📉</span>Depreciation</div>
+        <div class="sni" data-pane="rpt-var"   onclick="showPane('rpt-var',null)"><span class="sni-ico">📊</span>Variance</div>
+        <div class="sni" data-pane="rpt-kpi"   onclick="showPane('rpt-kpi',null)"><span class="sni-ico">📐</span>Ratios &amp; KPIs</div>
+        <div class="sni" data-pane="rpt-rev"   onclick="showPane('rpt-rev',null)"><span class="sni-ico">⚡</span>Revenue &amp; Gen</div>
+        <div class="sni" data-pane="rpt-flash" onclick="showPane('rpt-flash',null)"><span class="sni-ico">📰</span>Flash Report</div>
+        <div class="sni" data-pane="rpt-vc"    onclick="showPane('rpt-vc',null)"><span class="sni-ico">🔀</span>Version Compare</div>
+        <div class="sni" data-pane="fin-cpl"   onclick="showPane('fin-cpl',null);cplLoad()"><span class="sni-ico">🧩</span>Consolidated P&amp;L</div>
+      </div>
+    </div>
+
+    <!-- Workings group -->
+    <div class="sdb-grp open" id="sgrp-workings">
+      <div class="sdb-gh" onclick="sdbToggle('sgrp-workings')">Workings <span class="sdb-arr">▾</span></div>
+      <div class="sdb-items">
+        <div class="sni" data-pane="wrk-sc"     onclick="showPane('wrk-sc',null)"><span class="sni-ico">🎯</span>Scenarios</div>
+        <div class="sni" data-pane="wrk-gen"    onclick="showPane('wrk-gen',null)"><span class="sni-ico">⚡</span>Generation &amp; Fuel</div>
+        <div class="sni" data-pane="wrk-coll"   onclick="showPane('wrk-coll',null)"><span class="sni-ico">💳</span>Collections</div>
+        <div class="sni" data-pane="wrk-debt"   onclick="showPane('wrk-debt',null)"><span class="sni-ico">🏦</span>Debt &amp; Financing</div>
+        <div class="sni" data-pane="wrk-leases" onclick="showPane('wrk-leases',null)"><span class="sni-ico">📄</span>Lease Register</div>
+      </div>
+    </div>
+
+    <!-- Assumptions group -->
+    <div class="sdb-grp open" id="sgrp-assumptions">
+      <div class="sdb-gh" onclick="sdbToggle('sgrp-assumptions')">Assumptions <span class="sdb-arr">▾</span></div>
+      <div class="sdb-items">
+        <div class="sni" data-pane="ass-rev"   onclick="showPane('ass-rev',null)"><span class="sni-ico">📈</span>Revenue &amp; Tariff</div>
+        <div class="sni" data-pane="ass-om"    onclick="showPane('ass-om',null)"><span class="sni-ico">🔧</span>O&amp;M</div>
+        <div class="sni" data-pane="ass-capex" onclick="showPane('ass-capex',null)"><span class="sni-ico">🏗</span>CapEx</div>
+        <div class="sni" data-pane="ass-dep"   onclick="showPane('ass-dep',null)"><span class="sni-ico">📉</span>Depreciation</div>
+        <div class="sni" data-pane="ass-other" onclick="showPane('ass-other',null)"><span class="sni-ico">📋</span>Other &amp; Financing</div>
+        <div class="sni" data-pane="ass-proj"  onclick="showPane('ass-proj',null)"><span class="sni-ico">📈</span>5-Year Projection</div>
+      </div>
+    </div>
+
+    <!-- Finance Entries group -->
+    <div class="sdb-grp open" id="sgrp-finentries">
+      <div class="sdb-gh" onclick="sdbToggle('sgrp-finentries')">Finance Entries <span class="sdb-arr">▾</span></div>
+      <div class="sdb-items">
+        <div class="sni" data-pane="fin-otherinc" onclick="showPane('fin-otherinc',null);otherIncLoad()"><span class="sni-ico">📊</span>Other Income</div>
+        <div class="sni" data-pane="fin-fxgl"     onclick="showPane('fin-fxgl',null);fxGLLoad()"><span class="sni-ico">💹</span>FX Gain/Loss</div>
+        <div class="sni" data-pane="fin-ifrs16"   onclick="showPane('fin-ifrs16',null);ifrs16Load()"><span class="sni-ico">📐</span>IFRS 16</div>
+        <div class="sni" data-pane="fin-nf-var"   onclick="showPane('fin-nf-var',null);nfVarLoad()"><span class="sni-ico">📈</span>Non-Fuel Variance</div>
+      </div>
+    </div>
+
+    <!-- Operations group -->
+    <div class="sdb-grp open" id="sgrp-ops">
+      <div class="sdb-gh" onclick="sdbToggle('sgrp-ops')">Operations <span class="sdb-arr">▾</span></div>
+      <div class="sdb-items">
+        <div class="sni" data-pane="ops-ipp"  onclick="showPane('ops-ipp',null);opsIppLoad()"><span class="sni-ico">🔌</span>IPP Schedule</div>
+        <div class="sni" data-pane="ops-fuel" onclick="showPane('ops-fuel',null);opsFuelLoad()"><span class="sni-ico">⛽</span>Fuel Assumptions</div>
+        <div class="sni" data-pane="ops-loss" onclick="showPane('ops-loss',null);opsLossLoad()"><span class="sni-ico">📉</span>Loss Analysis</div>
+        <div class="sni" data-pane="ops-cogs" onclick="showPane('ops-cogs',null);opsCogsLoad();checkCogsVersion()"><span class="sni-ico">💰</span>COGS Summary</div>
+      </div>
+    </div>
+
+    <div class="sdb-sep"></div>
+
+    <!-- Standalone: AI -->
+    <div class="sni" data-pane="ai-comm" onclick="showPane('ai-comm',null)"><span class="sni-ico">✦</span>AI Commentary</div>
+
+    <!-- Admin group -->
+    <div class="sdb-grp open" id="sgrp-admin">
+      <div class="sdb-gh" onclick="sdbToggle('sgrp-admin')">Admin <span class="sdb-arr">▾</span></div>
+      <div class="sdb-items">
+        <div class="sni" data-pane="adm-data"    onclick="showPane('adm-data',null)"><span class="sni-ico">📂</span>Data Manager</div>
+        <div class="sni" data-pane="adm-audit"   onclick="showPane('adm-audit',null)"><span class="sni-ico">🔍</span>Audit Trail</div>
+        <div class="sni" data-pane="adm-sec"     id="sniSecItem" style="display:none" onclick="showPane('adm-sec',null);secLoadUsers();rbInit()"><span class="sni-ico">🔒</span>Security</div>
+        <div class="sni" data-pane="adm-users"   onclick="showPane('adm-users',null);loadAndRenderUsers()"><span class="sni-ico">👥</span>Users &amp; Roles</div>
+        <div class="sni" data-pane="adm-commits" onclick="showPane('adm-commits',null);commitLoad()"><span class="sni-ico">📥</span>Commits</div>
+        <div class="sni" data-pane="adm-fx"      onclick="showPane('adm-fx',null);fxLoad()"><span class="sni-ico">💱</span>FX Rates</div>
+        <div class="sni" data-pane="adm-glmap"   onclick="showPane('adm-glmap',null);glMappingLoad()"><span class="sni-ico">🗺</span>GL Mapping</div>
+        <div class="sni" data-pane="adm-guide"   onclick="showPane('adm-guide',null)"><span class="sni-ico">📖</span>Guide</div>
+      </div>
+    </div>
+  </div><!-- /sdb-nav -->
+
+  <div class="sdb-footer">
+    <div class="sdb-avatar" id="sdbAvatar">—</div>
+    <div style="min-width:0">
+      <div class="sdb-uname" id="sdbUserName">—</div>
+      <div class="sdb-urole" id="sdbUserRole">ADMIN</div>
     </div>
   </div>
-  <!-- Assumptions dropdown -->
-  <div class="nav-group" id="nav-assumptions">
-    <div class="nav-grp-btn" onclick="navToggle('nav-assumptions')">⚙ Assumptions <span style="font-size:8px;opacity:.55">▾</span></div>
-    <div class="nav-dd">
-      <div class="nav-dd-item" data-pane="ass-rev"   onclick="showPane('ass-rev',null);navClose()">📈 Revenue &amp; Tariff</div>
-      <div class="nav-dd-item" data-pane="ass-om"    onclick="showPane('ass-om',null);navClose()">🔧 O&amp;M</div>
-      <div class="nav-dd-item" data-pane="ass-capex" onclick="showPane('ass-capex',null);navClose()">🏗 CapEx</div>
-      <div class="nav-dd-item" data-pane="ass-dep"   onclick="showPane('ass-dep',null);navClose()">📉 Depreciation</div>
-      <div class="nav-dd-item" data-pane="ass-other" onclick="showPane('ass-other',null);navClose()">📋 Other &amp; Financing</div>
-      <div class="nav-dd-item" data-pane="ass-proj"  onclick="showPane('ass-proj',null);navClose()">📈 5-Year Projection</div>
-    </div>
-  </div>
-  <!-- Finance Entries dropdown (HUB-10/11/12) -->
-  <div class="nav-group" id="nav-finentries">
-    <div class="nav-grp-btn" onclick="navToggle('nav-finentries')">📊 Finance Entries <span style="font-size:8px;opacity:.55">▾</span></div>
-    <div class="nav-dd">
-      <div class="nav-dd-item" data-pane="fin-otherinc"  onclick="showPane('fin-otherinc',null);otherIncLoad();navClose()">📊 Other Income</div>
-      <div class="nav-dd-item" data-pane="fin-fxgl"      onclick="showPane('fin-fxgl',null);fxGLLoad();navClose()">💹 FX Gain/Loss</div>
-      <div class="nav-dd-item" data-pane="fin-ifrs16"    onclick="showPane('fin-ifrs16',null);ifrs16Load();navClose()">📐 IFRS 16</div>
-      <div class="nav-dd-item" data-pane="fin-nf-var"    onclick="showPane('fin-nf-var',null);nfVarLoad();navClose()">📈 Non-Fuel Variance</div>
-    </div>
-  </div>
-  <!-- Operations / COGS dropdown -->
-  <div class="nav-group" id="nav-ops">
-    <div class="nav-grp-btn" onclick="navToggle('nav-ops')">⚙ Operations <span style="font-size:8px;opacity:.55">▾</span></div>
-    <div class="nav-dd" id="navdd-ops">
-      <div class="nav-dd-item" data-pane="ops-ipp"  onclick="showPane('ops-ipp',null);opsIppLoad();navClose()">🔌 IPP Schedule</div>
-      <div class="nav-dd-item" data-pane="ops-fuel" onclick="showPane('ops-fuel',null);opsFuelLoad();navClose()">⛽ Fuel Assumptions</div>
-      <div class="nav-dd-item" data-pane="ops-loss" onclick="showPane('ops-loss',null);opsLossLoad();navClose()">📉 Loss Analysis</div>
-      <div class="nav-dd-item" data-pane="ops-cogs" onclick="showPane('ops-cogs',null);opsCogsLoad();checkCogsVersion();navClose()">💰 COGS Summary</div>
-    </div>
-  </div>
-  <!-- AI (no dropdown) -->
-  <div class="nav-group" id="nav-ai">
-    <div class="nav-grp-btn" data-pane="ai-comm" onclick="showPane('ai-comm',null);navClose()">✦ AI</div>
-  </div>
-  <!-- Admin dropdown -->
-  <div class="nav-group" id="nav-admin">
-    <div class="nav-grp-btn" onclick="navToggle('nav-admin')">🛠 Admin <span style="font-size:8px;opacity:.55">▾</span></div>
-    <div class="nav-dd">
-      <div class="nav-dd-item" data-pane="adm-data"    onclick="showPane('adm-data',null);navClose()">📂 Data Manager</div>
-      <div class="nav-dd-item" data-pane="adm-audit"   onclick="showPane('adm-audit',null);navClose()">🔍 Audit Trail</div>
-      <div class="nav-dd-item" data-pane="adm-sec"     id="navSecItem" style="display:none" onclick="showPane('adm-sec',null);secLoadUsers();rbInit();navClose()">🔒 Security</div>
-      <div class="nav-dd-item" data-pane="adm-users"   onclick="showPane('adm-users',null);loadAndRenderUsers();navClose()">👥 Users &amp; Roles</div>
-      <div class="nav-dd-item" data-pane="adm-commits" onclick="showPane('adm-commits',null);commitLoad();navClose()">📥 Commits</div>
-      <div class="nav-dd-item" data-pane="adm-fx"      onclick="showPane('adm-fx',null);fxLoad();navClose()">💱 FX Rates</div>
-      <div class="nav-dd-item" data-pane="adm-glmap"   onclick="showPane('adm-glmap',null);glMappingLoad();navClose()">🗺 GL Mapping</div>
-      <div class="nav-dd-item" data-pane="adm-guide"   onclick="showPane('adm-guide',null);navClose()">📖 Guide</div>
-    </div>
-  </div>
-  <!-- Active pane breadcrumb -->
-  <div class="nav-crumb" id="navCrumb">Overview</div>
-</nav>
+</aside>
 
 <!-- OLD TABBAR — hidden, kept for DOM-based role-visibility checks -->
 <div class="tabbar" id="oldTabbar">
@@ -4598,6 +4649,7 @@ tr.der td{color:var(--teal)}
 </div>
 
 </div><!-- /main -->
+</div><!-- /app-shell -->
 
 <!-- Tariff Review Modal -->
 <div class="mbg" id="tariffRevModal">
@@ -8337,7 +8389,12 @@ async function doLogin() {
     roleDisp.style.color = currentUser.role==='admin'?'var(--gold)':currentUser.role==='analyst'?'var(--teal)':'var(--muted)';
   }
   const avatar = document.getElementById('userAvatar');
-  if (avatar) avatar.textContent = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const _initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  if (avatar) avatar.textContent = _initials;
+  // Sync sidebar footer
+  const sdbAv2 = document.getElementById('sdbAvatar'); if (sdbAv2) sdbAv2.textContent = _initials;
+  const sdbNm2 = document.getElementById('sdbUserName'); if (sdbNm2) sdbNm2.textContent = name.split(' ')[0];
+  const sdbRl2 = document.getElementById('sdbUserRole'); if (sdbRl2) sdbRl2.textContent = currentUser.role.toUpperCase();
   const ws = document.getElementById('welcomeScreen');
   ws.style.transition = 'opacity .45s ease';
   ws.style.opacity = '0';
@@ -14608,16 +14665,19 @@ const _tabBuilders = {
 
 // ── Navbar helpers ───────────────────────────────────────────────────────────
 const _navPaneGroup = {
-  hub:'nav-hub',
-  dash:'nav-reports',dash2:'nav-reports','rpt-pl':'nav-reports','rpt-bs':'nav-reports','rpt-cf':'nav-reports',
-  'rpt-dep':'nav-reports','rpt-var':'nav-reports','rpt-kpi':'nav-reports',
-  'rpt-rev':'nav-reports','rpt-flash':'nav-reports',
-  'wrk-sc':'nav-workings','wrk-gen':'nav-workings','wrk-coll':'nav-workings',
-  'wrk-debt':'nav-workings','wrk-leases':'nav-workings',
-  'ass-rev':'nav-assumptions','ass-om':'nav-assumptions','ass-capex':'nav-assumptions',
-  'ass-dep':'nav-assumptions','ass-other':'nav-assumptions','ass-proj':'nav-assumptions',
-  'ai-comm':'nav-ai',
-  'adm-data':'nav-admin','adm-audit':'nav-admin','adm-sec':'nav-admin','adm-guide':'nav-admin',
+  hub:'sgrp-hub', dash:'sgrp-reports', dash2:'sgrp-reports',
+  'rpt-pl':'sgrp-reports','rpt-bs':'sgrp-reports','rpt-cf':'sgrp-reports',
+  'rpt-dep':'sgrp-reports','rpt-var':'sgrp-reports','rpt-kpi':'sgrp-reports',
+  'rpt-rev':'sgrp-reports','rpt-flash':'sgrp-reports','rpt-vc':'sgrp-reports','fin-cpl':'sgrp-reports',
+  'wrk-sc':'sgrp-workings','wrk-gen':'sgrp-workings','wrk-coll':'sgrp-workings',
+  'wrk-debt':'sgrp-workings','wrk-leases':'sgrp-workings',
+  'ass-rev':'sgrp-assumptions','ass-om':'sgrp-assumptions','ass-capex':'sgrp-assumptions',
+  'ass-dep':'sgrp-assumptions','ass-other':'sgrp-assumptions','ass-proj':'sgrp-assumptions',
+  'fin-otherinc':'sgrp-finentries','fin-fxgl':'sgrp-finentries','fin-ifrs16':'sgrp-finentries','fin-nf-var':'sgrp-finentries',
+  'ops-ipp':'sgrp-ops','ops-fuel':'sgrp-ops','ops-loss':'sgrp-ops','ops-cogs':'sgrp-ops',
+  'ai-comm':'sgrp-ai',
+  'adm-data':'sgrp-admin','adm-audit':'sgrp-admin','adm-sec':'sgrp-admin','adm-users':'sgrp-admin',
+  'adm-commits':'sgrp-admin','adm-fx':'sgrp-admin','adm-glmap':'sgrp-admin','adm-guide':'sgrp-admin',
 };
 const _navPaneLabels = {
   hub:'Hub',dash:'Overview',dash2:'Dashboard','rpt-pl':'Income Statement','rpt-bs':'Balance Sheet',
@@ -14631,26 +14691,24 @@ const _navPaneLabels = {
   'adm-sec':'Security','adm-guide':'Guide',
 };
 function _navUpdateActive(paneId) {
-  document.querySelectorAll('.nav-grp-btn').forEach(b=>b.classList.remove('nav-active'));
-  document.querySelectorAll('.nav-dd-item').forEach(i=>i.classList.remove('on'));
-  const groupId = _navPaneGroup[paneId];
-  if (groupId) document.getElementById(groupId)?.querySelector('.nav-grp-btn')?.classList.add('nav-active');
-  document.querySelectorAll(`.nav-dd-item[data-pane="${paneId}"]`).forEach(i=>i.classList.add('on'));
-  // Also mark single-pane group buttons (hub, ai)
-  document.querySelectorAll(`.nav-grp-btn[data-pane="${paneId}"]`).forEach(b=>b.classList.add('nav-active'));
-  const crumb = document.getElementById('navCrumb');
-  if (crumb) crumb.textContent = _navPaneLabels[paneId] || paneId;
+  // Update sidebar nav items
+  document.querySelectorAll('#sidebar .sni').forEach(i=>i.classList.remove('on'));
+  document.querySelectorAll(`#sidebar .sni[data-pane="${paneId}"]`).forEach(i=>{
+    i.classList.add('on');
+    // Auto-expand parent sdb-grp if collapsed
+    const grp = i.closest('.sdb-grp');
+    if (grp && !grp.classList.contains('open')) grp.classList.add('open');
+  });
+  // Legacy nav-grp-btn compat (hidden, no-op)
 }
-function navToggle(groupId) {
-  const grp = document.getElementById(groupId);
-  if (!grp) return;
-  const wasOpen = grp.classList.contains('open');
-  navClose();
-  if (!wasOpen) grp.classList.add('open');
+// Sidebar section toggle
+function sdbToggle(grpId) {
+  const grp = document.getElementById(grpId);
+  if (grp) grp.classList.toggle('open');
 }
-function navClose() {
-  document.querySelectorAll('.nav-group.open').forEach(g=>g.classList.remove('open'));
-}
+// Legacy compat — no-op (no dropdown overlays in sidebar mode)
+function navToggle(groupId) {}
+function navClose() {}
 // Close dropdowns when clicking outside navbar
 document.addEventListener('click', e => {
   if (!e.target.closest('.nav-group') && !e.target.closest('.navbar')) navClose();
@@ -14691,24 +14749,19 @@ function _applyTabVisibility() {
     const visibleTabs = [...tg.querySelectorAll('.tab')].filter(t => t.style.display !== 'none');
     tg.style.display = visibleTabs.length > 0 ? '' : 'none';
   });
-  // Update new navbar dropdown items
-  document.querySelectorAll('.nav-dd-item[data-pane]').forEach(item => {
+  // Update sidebar nav items
+  document.querySelectorAll('#sidebar .sni[data-pane]').forEach(item => {
     item.style.display = canViewPane(item.dataset.pane) ? '' : 'none';
   });
-  // Hide nav groups whose dropdown items are all hidden
-  document.querySelectorAll('.nav-group').forEach(grp => {
-    const items = grp.querySelectorAll('.nav-dd-item');
-    if (!items.length) return; // single-pane group (hub, ai) — check btn
+  // Hide sidebar groups if all their items are hidden
+  document.querySelectorAll('#sidebar .sdb-grp').forEach(grp => {
+    const items = grp.querySelectorAll('.sni[data-pane]');
     const anyVisible = [...items].some(i => i.style.display !== 'none');
     grp.style.display = anyVisible ? '' : 'none';
   });
-  // Hide single-pane groups (hub, ai) if pane inaccessible
-  document.querySelectorAll('.nav-grp-btn[data-pane]').forEach(btn => {
-    btn.parentElement.style.display = canViewPane(btn.dataset.pane) ? '' : 'none';
-  });
-  // Security nav item — admins only
-  const navSec = document.getElementById('navSecItem');
-  if (navSec) navSec.style.display = currentUser?.role === 'admin' ? '' : 'none';
+  // Security sidebar item — admins only
+  const sniSec = document.getElementById('sniSecItem');
+  if (sniSec) sniSec.style.display = currentUser?.role === 'admin' ? '' : 'none';
   const oldSec = document.getElementById('securityTab');
   if (oldSec) oldSec.style.display = currentUser?.role === 'admin' ? '' : 'none';
 }
@@ -14765,11 +14818,13 @@ function setActiveMonth(m){
   // Update brand subtitle
   const MO_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const brandSub = document.getElementById('brandSub');
-  if (brandSub) {
-    const verCode = fpa?.versions?.find(v=>v.id===fpa.activeVersionId)?.code || '';
-    const verLabel = verCode.startsWith('LE_') ? `LE ${verCode.replace('LE_','').replace('_',' ')}` : verCode || 'LE';
-    brandSub.textContent = `Jamaica Public Service Co. · ${MO_SHORT[activeMonth-1]} ${_CY} ${verLabel}`;
-  }
+  const verCode = fpa?.versions?.find(v=>v.id===fpa.activeVersionId)?.code || '';
+  const verLabel = verCode.startsWith('LE_') ? `LE ${verCode.replace('LE_','').replace('_',' ')}` : verCode || 'LE';
+  const _brandTxt = `Jamaica Public Service Co. · ${MO_SHORT[activeMonth-1]} ${_CY} ${verLabel}`;
+  if (brandSub) brandSub.textContent = _brandTxt;
+  // Sync sidebar brand sub
+  const sdbSub = document.getElementById('sdbPeriodSub');
+  if (sdbSub) sdbSub.textContent = `JPS · ${MO_SHORT[activeMonth-1]} ${_CY} ${verLabel}`;
   refreshAll();
   _saveState();
 }
@@ -18140,6 +18195,11 @@ function _initPlatform() {
             const nd = document.getElementById('userNameDisp'); if (nd) nd.textContent = currentUser.name;
             const rd = document.getElementById('userRoleDisp'); if (rd) { rd.textContent = currentUser.role.toUpperCase(); rd.style.color = currentUser.role==='admin'?'var(--gold)':currentUser.role==='analyst'?'var(--teal)':'var(--muted)'; }
             const av = document.getElementById('userAvatar'); if (av) av.textContent = currentUser.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+            // Sync sidebar footer
+            const initials = currentUser.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+            const sdbAv = document.getElementById('sdbAvatar'); if (sdbAv) sdbAv.textContent = initials;
+            const sdbNm = document.getElementById('sdbUserName'); if (sdbNm) sdbNm.textContent = currentUser.name.split(' ')[0];
+            const sdbRl = document.getElementById('sdbUserRole'); if (sdbRl) sdbRl.textContent = currentUser.role.toUpperCase();
             // Data Manager button is visible to all users (view status + upload for admin/analyst)
           });
           _sbStartRealtime();
