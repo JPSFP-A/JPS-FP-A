@@ -5214,8 +5214,8 @@ function fpaApplyToLegacyGlobals() {
 }
 
 // ── Populate actualsStore from committed ACTUALS_YYYY_MM versions in DB ─────
-// Builds minimal storeEntry objects so Variance Analysis shows non-fuel
-// revenue actuals vs AOP budget without requiring a manual Excel upload.
+// Maps all 92 DB line_ids into a full actualsStore entry so Variance Analysis
+// shows real P&L, BS, and CF actuals without requiring a manual Excel upload.
 function fpaBootstrapActualsFromFacts() {
   const MO_LABELS = ['January','February','March','April','May','June',
                      'July','August','September','October','November','December'];
@@ -5229,48 +5229,125 @@ function fpaBootstrapActualsFromFacts() {
     // Don't overwrite a real upload (non-partial)
     if (actualsStore[yr]?.[mo] && !actualsStore[yr][mo]._partial) return;
 
-    const nonfuel = fpa.fact(ver.code, 'nonfuel', yr, mo) ?? 0;
-    const gwh     = fpa.fact(ver.code, 'stat_billed_gwh', yr, mo) ?? 0;
-    if (!nonfuel && !gwh) return;
+    // ── Read all DB line_ids for this version/period ───────────────────────
+    const f = (lid) => fpa.fact(ver.code, lid, yr, mo) ?? 0;
 
-    // AOP budget for same month
-    const aopVer = 'AOP_' + yr;
-    const budNF  = fpa.fact(aopVer, 'nonfuel', yr, mo) ?? 0;
+    // Revenue
+    const nonfuel   = f('nonfuel');
+    const fuelSales = f('fuel_rev');
+    const ippFR     = f('ipp_fr');   // IPP fixed recovery (revenue)
+    const ippNR     = f('ipp_nr');   // IPP non-regulated (revenue)
+    const nrRev     = f('nr_rev');
+    const otherRev  = f('other_r');
+    const totalSales = nonfuel + fuelSales + ippFR + ippNR + nrRev + otherRev;
 
-    const _pl = (nf) => ({
-      nonFuelSales: nf, totalSales: nf, grossProfit: nf,
-      fuelSales: 0, fuelCost: 0, ppaCost: 0, otherCOS: 0, totalCOS: 0,
-      sga: 0, maintenance: 0, opex: 0, ebitda: 0, depn: 0,
-      depreciation: 0, ebit: 0, intIncome: 0, intExpense: 0,
-      nfc: 0, otherIncome: 0, pretax: 0, tax: 0, netIncome: 0,
+    // COGS
+    const fuelCost  = Math.abs(f('fuel_cost'));
+    const ippCost   = Math.abs(f('ipp_cost'));
+    const nrCost    = Math.abs(f('nr_cost'));
+    const totalCOS  = fuelCost + ippCost + nrCost;
+    const grossProfit = totalSales - totalCOS;
+
+    // Opex
+    const opex      = Math.abs(f('opex'));
+
+    // Depreciation
+    const depn      = Math.abs(f('depn'));
+    const impair    = Math.abs(f('impairment'));
+    const totalDepn = depn + impair;
+
+    // EBITDA / EBIT
+    const ebitda    = grossProfit - opex;
+    const ebit      = ebitda - totalDepn;
+
+    // Non-financing charges (below EBIT)
+    const intInc    = f('nfc_int_inc');
+    const intExp    = Math.abs(f('nfc_int_exp'));
+    const nfcFees   = Math.abs(f('nfc_fees'));
+    const nfcLease  = Math.abs(f('nfc_lease'));
+    const nfcPref   = Math.abs(f('nfc_pref'));
+    const nfc       = intInc - intExp - nfcFees - nfcLease - nfcPref;
+
+    // Tax & other
+    const taxCharge = Math.abs(f('oth_tax'));
+    const ntaxOther = f('oth_ntax');
+
+    const pretax    = ebit + nfc + ntaxOther;
+    const netIncome = pretax - taxCharge;
+
+    // Stats
+    const gwh       = f('stat_billed_gwh');
+
+    if (!nonfuel && !fuelSales && !gwh) return;
+
+    // ── AOP budget for same month (limited lines) ──────────────────────────
+    const aopCode  = 'AOP_' + yr;
+    const budNF    = fpa.fact(aopCode, 'nonfuel', yr, mo) ?? 0;
+    const budGwh   = fpa.fact(aopCode, 'stat_billed_gwh', yr, mo) ?? 0;
+
+    // ── Build P&L objects ──────────────────────────────────────────────────
+    const _pl = (nf, fs, tc, gp, op, ebd, dp, eb, ii, ie, pt, tx, ni, ns) => ({
+      nonFuelSales: nf,  fuelSales: fs,   totalSales: ns ?? (nf + fs),
+      grossProfit: gp,   fuelCost,        ppaCost: ippCost, otherCOS: nrCost, totalCOS: tc,
+      sga: 0,            maintenance: 0,  opex: op,
+      ebitda: ebd,       depn: dp,        depreciation: dp,
+      ebit: eb,          intIncome: ii,   intExpense: ie,
+      nfc,               otherIncome: 0,  pretax: pt,  tax: tx,  netIncome: ni,
     });
+
+    const pl = _pl(nonfuel, fuelSales, totalCOS, grossProfit, opex, ebitda,
+                   totalDepn, ebit, intInc, intExp, pretax, taxCharge, netIncome, totalSales);
+    const budget = _pl(budNF, 0, 0, budNF, 0, 0, 0, 0, 0, 0, 0, 0, 0, budNF);
+
+    // ── Balance Sheet ──────────────────────────────────────────────────────
+    const bs = {
+      cash:       f('cash'),       rcash:     f('rcash'),
+      recv:       f('recv'),       unbill:    f('unbill'),
+      finv:       f('finv'),       matls:     f('matls'),
+      curAssets:  f('cur_a'),      ppe:       f('ppe'),
+      cwip:       f('cwip'),       rouAsset:  f('rou_asset'),
+      totAssets:  f('tot_a'),      ap:        f('ap'),
+      ltd:        f('ltd'),        leases:    f('leases'),
+      curLiab:    f('cur_l'),      totLiab:   f('tot_l'),
+      equity:     f('equity'),     totLE:     f('tot_le'),
+    };
+
+    // ── Cash Flow ──────────────────────────────────────────────────────────
+    const cf = {
+      netIncome:  f('cf_ni'),      depn:      f('cf_depn'),
+      opsPreWC:   f('cf_ops_pre'), opsNet:    f('cf_ops_net'),
+      invNet:     f('cf_inv_net'), finNet:    f('cf_fin_net'),
+      netChange:  f('cf_change'),  openCash:  f('cf_open'),
+      closeCash:  f('cf_close'),   capex:     f('cf_capex'),
+      drawdown:   f('cf_drawdown'),loanRep:   f('cf_loanrep'),
+    };
 
     const entry = {
       month: MO_LABELS[mo - 1] + ' ' + yr,
-      pl: _pl(nonfuel), budget: _pl(budNF),
+      pl, budget,
       ytdActual: null, ytdBudget: null,
-      rev: { salesMWh: gwh * 1000, energy: gwh * 1000 },
-      bs: {}, cf: {}, seg: {},
+      rev: { salesMWh: gwh * 1000, energy: gwh * 1000, budgetMWh: budGwh * 1000 },
+      bs, cf, seg: {},
       _partial: true,
-      uploadMeta: { file: 'db_import', ts: new Date().toISOString(), status: '✅ DB — non-fuel only' },
+      uploadMeta: { file: 'db_import', ts: new Date().toISOString(), status: '✅ DB — full P&L, BS, CF' },
     };
-    actualsStore[mo]             = entry;
+    actualsStore[mo]              = entry;
     (actualsStore[yr] ??= {})[mo] = entry;
     if (yr >= (actualsYear ?? 0)) actualsYear = yr;
   });
 
-  // Compute YTD for actualsYear months in sequence
+  // ── Compute YTD accumulators for actualsYear ──────────────────────────────
   const yr = actualsYear;
-  let ytdNF = 0, ytdBudNF = 0;
+  const ytdAct = {}, ytdBud = {};
   for (let m = 1; m <= 12; m++) {
     const e = actualsStore[yr]?.[m];
     if (!e) break;
-    ytdNF    += e.pl.nonFuelSales ?? 0;
-    ytdBudNF += e.budget.nonFuelSales ?? 0;
-    e.ytdActual = { ...e.pl,    nonFuelSales: ytdNF,    totalSales: ytdNF,    grossProfit: ytdNF };
-    e.ytdBudget = { ...e.budget, nonFuelSales: ytdBudNF, totalSales: ytdBudNF, grossProfit: ytdBudNF };
+    for (const [k, v] of Object.entries(e.pl))     ytdAct[k] = (ytdAct[k] ?? 0) + (Number(v) || 0);
+    for (const [k, v] of Object.entries(e.budget)) ytdBud[k] = (ytdBud[k] ?? 0) + (Number(v) || 0);
+    e.ytdActual = { ...ytdAct };
+    e.ytdBudget = { ...ytdBud };
   }
-  console.log('[FPA] actualsStore bridge: loaded', actVers.length, 'partial month entries for', yr);
+  console.log('[FPA] actualsStore bridge: loaded', actVers.length, 'full-P&L entries for yr', yr);
 }
 
 // ── Bridge O&M / CapEx / Collections / Depreciation ───
