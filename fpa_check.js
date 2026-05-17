@@ -65,6 +65,42 @@ async function _sbQ(fn, { silent = false } = {}) {
   }
 }
 
+// ── Skeleton loading helpers (Rule 12) ──────────────────────────────────────
+function _showSkeleton(containerId, count = 6, cardCls = 'skel-card') {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.setAttribute('data-loading', 'true');
+  el.innerHTML = `<div class="skeleton ${cardCls}"></div>`.repeat(count);
+}
+function _hideSkeleton(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.removeAttribute('data-loading');
+  // Caller replaces innerHTML — just clear skeletons if they're still there
+  if (el.querySelector('.skeleton')) el.innerHTML = '';
+}
+
+// ── Client-side TTL cache (Rule 13) ─────────────────────────────────────────
+const _CACHE_TTL = { actuals: 300_000, budget: 900_000 }; // 5min / 15min
+function _cacheGet(key, ttl) {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > ttl) { sessionStorage.removeItem(key); return null; }
+    console.log(`[cache] hit: ${key}, age: ${Math.round((Date.now()-ts)/1000)}s`);
+    return data;
+  } catch { return null; }
+}
+function _cacheSet(key, data) {
+  try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch { /* quota */ }
+}
+function _cacheBust(prefix) {
+  try {
+    Object.keys(sessionStorage).filter(k => k.startsWith(prefix)).forEach(k => sessionStorage.removeItem(k));
+  } catch { /* ignore */ }
+}
+
 // ═══════════════════════════════════════════════════════
 //  FPA DATA-ACCESS LAYER
 //  All platform data loads from Supabase at bootstrap.
@@ -151,6 +187,34 @@ async function fpaBootstrap() {
     _updateDbStatusBadge();
     return false;
   }
+
+  // ── Skeleton placeholders while data loads (Rule 12) ──────────────────────
+  _showSkeleton('kpiScoreCards', 9, 'skel-card');
+  _showSkeleton('cfKpis', 4, 'skel-card');
+
+  // ── Check cache before hitting DB (Rule 13) ──────────────────────────────
+  const _bootCacheKey = `jps_cache_boot_${_ENV}`;
+  const _cached = _cacheGet(_bootCacheKey, _CACHE_TTL.actuals);
+  if (_cached) {
+    try {
+      fpa.versions = _cached.versions || [];
+      fpa.lines    = _cached.lines    || [];
+      fpa.periods  = _cached.periods  || [];
+      fpa.facts    = _cached.facts    || {};
+      fpa.loadedAt = new Date();
+      console.log('[FPA] Boot from cache — skipping DB fetch for core data');
+      _hideSkeleton('kpiScoreCards');
+      _hideSkeleton('cfKpis');
+      _updateDbStatusBadge();
+      fpaApplyToLegacyGlobals();
+      showBootstrapOverlay(null);
+      return true;
+    } catch(e) {
+      console.warn('[FPA] Cache restore failed, falling back to DB:', e.message);
+      _cacheBust('jps_cache_boot_');
+    }
+  }
+
   const t0 = performance.now();
   try {
     showBootstrapOverlay('Connecting to Supabase...');
@@ -318,6 +382,21 @@ async function fpaBootstrap() {
     const totalFactRows = Object.values(fpa.facts).reduce((s,vf)=>s+Object.values(vf).reduce((ss,lf)=>ss+Object.keys(lf).length,0),0);
     console.log(`[FPA] Bootstrap complete in ${ms}ms — ${fpa.versions.length} versions, ${fpa.lines.length} lines, ${Object.keys(fpa.facts).length} ver codes, ${totalFactRows} total fact rows`);
     showBootstrapOverlay(null);  // hide
+
+    // ── Cache summary data for fast reload (Rule 13) ──────────────────────
+    const _cacheKey = `jps_cache_boot_${_ENV}`;
+    try {
+      _cacheSet(_cacheKey, {
+        versions: fpa.versions,
+        lines:    fpa.lines,
+        periods:  fpa.periods,
+        facts:    fpa.facts,
+      });
+    } catch { /* large payload — skip cache on quota error */ }
+
+    // ── Clear skeleton placeholders (Rule 12) ─────────────────────────────
+    _hideSkeleton('kpiScoreCards');
+    _hideSkeleton('cfKpis');
 
     // Apply DB data into legacy globals for existing UI compatibility
     fpaApplyToLegacyGlobals();
@@ -4515,13 +4594,13 @@ function buildCFKpis() {
   const closingCash = act?.bs?.cash || 0;
   const moLbl = `${MONTHS[mo-1]} ${cfYear}`;
   const kpis = [
-    {lbl:'Total Receipts',   v:fmtN(totalRec),  d:act?'Actual':moLbl,  c:'gr'},
-    {lbl:'Total Disbursements',v:fmtN(totalDisb),d:act?'Actual':moLbl, c:'r'},
-    {lbl:'Net Cash Flow',    v:fmtN(netCF),     d:netCF>=0?'Inflow':'Outflow', c:netCF>=0?'gr':'r'},
-    {lbl:'Closing Cash',     v:fmtN(closingCash),d:'End of period',  c:'t'},
+    {key:'receipts',     lbl:'Total Receipts',      v:fmtN(totalRec),   d:act?'Actual':moLbl,         c:'gr'},
+    {key:'disbursements',lbl:'Total Disbursements', v:fmtN(totalDisb),  d:act?'Actual':moLbl,         c:'r'},
+    {key:'netcf',        lbl:'Net Cash Flow',       v:fmtN(netCF),      d:netCF>=0?'Inflow':'Outflow',c:netCF>=0?'gr':'r'},
+    {key:'closingcash',  lbl:'Closing Cash',        v:fmtN(closingCash),d:'End of period',            c:'t'},
   ];
   document.getElementById('cfKpis').innerHTML = kpis.map(k=>
-    `<div class="kpi ${k.c}"><div class="kpi-l">${k.lbl}</div><div class="kpi-v">${k.v}</div><div class="kpi-d flat">${k.d}</div></div>`
+    `<div class="kpi kpi-card ${k.c}" data-kpi="${k.key}" data-metric="${k.key}"><div class="kpi-l">${k.lbl}</div><div class="kpi-v">${k.v}</div><div class="kpi-d flat">${k.d}</div></div>`
   ).join('');
 }
 
@@ -4739,19 +4818,19 @@ function buildKpiScoreCards() {
   const fmtK   = v => v?'$'+Math.round(v).toLocaleString():'—';
 
   const cards = [
-    { label:'Total Revenue',        val: fmtK(totalRev),       sub:`${yr} Annual`,            cls:'b' },
-    { label:'Non-Fuel Revenue',     val: fmtK(nonFuelRev),     sub:`${yr} Annual`,            cls:'t' },
-    { label:'EBITDA',               val: fmtK(ebitda),         sub:`${yr} Annual`,            cls:'g' },
-    { label:'EBITDA Margin (NF)',   val: fmtPct(ebitdaMargin), sub:`vs Non-Fuel Revenue`,     cls: ebitdaMargin>20?'gr':'g', thresh:'≥ 20%' },
-    { label:'Net Income',           val: fmtK(netInc),         sub:`${yr} Annual`,            cls: netInc>=0?'gr':'r' },
-    { label:'Net Margin',           val: fmtPct(netMargin),    sub:`vs Total Revenue`,        cls: netMargin>=5?'gr':'r' },
-    { label:'Interest Coverage',    val: fmtX(intCov),         sub:`EBIT / Interest Expense`, cls: intCov>=2?'gr':intCov>=1.5?'g':'r', thresh:'≥ 1.5×' },
-    { label:'Avg System Loss',      val: fmtPct(avgLoss),      sub:`Target ≤ 26%`,            cls: avgLoss<=26?'gr':'r' },
-    { label:'Billed Sales',         val: totalBilled.toFixed(0)+' GWh', sub:`${yr} Total Net Gen → Billed`, cls:'t' },
+    { key:'revenue',      label:'Total Revenue',        val: fmtK(totalRev),       sub:`${yr} Annual`,            cls:'b' },
+    { key:'nonfuel',      label:'Non-Fuel Revenue',     val: fmtK(nonFuelRev),     sub:`${yr} Annual`,            cls:'t' },
+    { key:'ebitda',       label:'EBITDA',               val: fmtK(ebitda),         sub:`${yr} Annual`,            cls:'g' },
+    { key:'ebitda-margin',label:'EBITDA Margin (NF)',   val: fmtPct(ebitdaMargin), sub:`vs Non-Fuel Revenue`,     cls: ebitdaMargin>20?'gr':'g', thresh:'≥ 20%' },
+    { key:'netinc',       label:'Net Income',           val: fmtK(netInc),         sub:`${yr} Annual`,            cls: netInc>=0?'gr':'r' },
+    { key:'netmargin',    label:'Net Margin',           val: fmtPct(netMargin),    sub:`vs Total Revenue`,        cls: netMargin>=5?'gr':'r' },
+    { key:'intcov',       label:'Interest Coverage',    val: fmtX(intCov),         sub:`EBIT / Interest Expense`, cls: intCov>=2?'gr':intCov>=1.5?'g':'r', thresh:'≥ 1.5×' },
+    { key:'sysloss',      label:'Avg System Loss',      val: fmtPct(avgLoss),      sub:`Target ≤ 26%`,            cls: avgLoss<=26?'gr':'r' },
+    { key:'billed',       label:'Billed Sales',         val: totalBilled.toFixed(0)+' GWh', sub:`${yr} Total Net Gen → Billed`, cls:'t' },
   ];
 
   el.innerHTML = cards.map(c => `
-    <div class="kpi ${c.cls}">
+    <div class="kpi kpi-card ${c.cls}" data-kpi="${c.key}" data-metric="${c.key}">
       <div class="kpi-l">${c.label}</div>
       <div class="kpi-v">${c.val}</div>
       <div class="kpi-d" style="color:var(--muted)">${c.sub}</div>

@@ -1235,6 +1235,12 @@ tr.der td{color:var(--teal)}
 .d2-is .var-col{font-weight:700}
 .d2-is .var-col.hp1,.d2-is .var-col.hp2,.d2-is .var-col.hp3,.d2-is .var-col.hp4,.d2-is .var-col.hp5{color:var(--green)}
 .d2-is .var-col.hn1,.d2-is .var-col.hn2,.d2-is .var-col.hn3,.d2-is .var-col.hn4,.d2-is .var-col.hn5{color:var(--red)}
+/* ── Skeleton loading (Rule 12) ─────────────────────────────────────── */
+@keyframes _skel-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skeleton{background:linear-gradient(90deg,var(--bg2,#1e293b) 25%,var(--bg3,#334155) 50%,var(--bg2,#1e293b) 75%);background-size:200% 100%;animation:_skel-shimmer 1.5s infinite;border-radius:6px}
+.skel-card{height:80px;margin:4px}
+.skel-row{height:36px;margin:3px 0}
+.skel-chart{height:200px;margin:8px 0}
 
 </style>
 </head>
@@ -4905,6 +4911,17 @@ async function _sbQ(fn, { silent = false } = {}) {
   }
 }
 
+// ── Skeleton loading helpers ─────────────────────────────────────────────────
+// _fpaBooting = true until bootstrap() completes. Builders check this flag and
+// show shimmer rows instead of empty content while Supabase data is in flight.
+let _fpaBooting = true;
+function _skelRows(n=6, cols=14) {
+  const ws=[72,88,64,91,78,60,85,70,56,82,68,75];
+  return Array.from({length:n},(_,i)=>
+    `<tr><td colspan="${cols}"><div class="skel skel-row" style="width:${ws[i%ws.length]}%"></div></td></tr>`
+  ).join('');
+}
+
 // ═══════════════════════════════════════════════════════
 //  FPA DATA-ACCESS LAYER  (Session 10)
 //  All platform data loads from Supabase at bootstrap.
@@ -5158,6 +5175,7 @@ async function fpaBootstrap() {
     const totalFactRows = Object.values(fpa.facts).reduce((s,vf)=>s+Object.values(vf).reduce((ss,lf)=>ss+Object.keys(lf).length,0),0);
     console.log(`[FPA] Bootstrap complete in ${ms}ms — ${fpa.versions.length} versions, ${fpa.lines.length} lines, ${Object.keys(fpa.facts).length} ver codes, ${totalFactRows} total fact rows`);
     showBootstrapOverlay(null);  // hide
+    _fpaBooting = false;         // unlock skeleton guards
 
     // Apply DB data into legacy globals for existing UI compatibility
     fpaApplyToLegacyGlobals();
@@ -9726,6 +9744,7 @@ function buildCFKpis() {
 const fuelCostByMonth2026 = Array(12).fill(0);
 
 function buildCFReport(){
+  if (_fpaBooting) { const el=document.getElementById('cfB'); if(el) el.innerHTML=_skelRows(8,6); return; }
   cfSelectedMonth = parseInt(document.getElementById('cfMo')?.value || 2);
   buildCFCovenants();
   buildCFKpis();
@@ -9782,6 +9801,7 @@ const revBudgetMonthly = {
 let selectedKpiYear = _CY;
 
 function buildKpiTab() {
+  if (_fpaBooting) { const el=document.getElementById('kpiScoreCards'); if(el) el.innerHTML='<div class="skel skel-card" style="width:100%;height:60px"></div>'; return; }
   buildYrSeg('kpiYrSeg', selectedKpiYear, (y, btn) => {
     selectedKpiYear = y;
     buildKpiTab();
@@ -10883,6 +10903,7 @@ function setRevRptView(v, btn) {
 
 // ─── REVENUE & GENERATION REPORT BUILDER ────────────────────────────────────
 function buildRevReport() {
+  if (_fpaBooting) { const el=document.getElementById('revRptB'); if(el) el.innerHTML=_skelRows(8,5); return; }
   // Defer chart rendering until pane is painted (avoids zero-width canvas on first open)
   if (!document.getElementById('cGenMixDash')?.offsetParent) {
     return requestAnimationFrame(() => buildRevReport());
@@ -12160,6 +12181,7 @@ function buildActualsLog() {
 
 // ─── MAIN VARIANCE REPORT BUILDER ──────────────────────────────────────────
 function buildVarReport() {
+  if (_fpaBooting) { const el=document.getElementById('varB'); if(el) el.innerHTML=_skelRows(10,4); return; }
   const mo = parseInt(document.getElementById('varMo')?.value || 1);
   const data = _acts(mo);
   if (!data) {
@@ -17105,6 +17127,7 @@ function setBSMode(mode,btn){
   buildMonthlyBS(bsMonthlyYear);
 }
 function buildMonthlyBS(yr){
+  if (_fpaBooting) { const el=document.getElementById('bsMonB'); if(el) el.innerHTML=_skelRows(10,14); return; }
   yr=yr||bsMonthlyYear; bsMonthlyYear=yr;
   buildYrSeg('bsMoYrSeg',yr,(y)=>{bsMonthlyYear=y;buildMonthlyBS(y);});
   const MO=MONTHS;
@@ -17153,6 +17176,7 @@ function addBSLine(){
 }
 
 function buildMonthlyPL(yr){
+  if (_fpaBooting) { const el=document.getElementById('plMonB'); if(el) el.innerHTML=_skelRows(12,14); return; }
   yr=yr||plMonthlyYear; plMonthlyYear=yr;
   buildYrSeg('plMoYrSeg',yr,(y,btn)=>{plMonthlyYear=y;buildMonthlyPL(y);});
 
@@ -20856,6 +20880,7 @@ async function otherIncLoad() {
   if (!body) return;
   const yr = parseInt(document.getElementById('otherIncYearSel')?.value || new Date().getFullYear());
   if (!sb) { body.innerHTML = '<tr><td colspan="14" style="color:var(--muted);padding:14px;text-align:center">Supabase not connected.</td></tr>'; return; }
+  body.innerHTML = _skelRows(8, 14);
   try {
     const { data, error } = await sb.from('fpa_other_income').select('*').eq('version', _otherIncVersion).eq('period_year', yr);
     if (error) throw error;
@@ -20940,6 +20965,7 @@ async function fxGLLoad() {
   if (!body) return;
   const yr = parseInt(document.getElementById('fxGLYearSel')?.value || new Date().getFullYear());
   if (!sb) { body.innerHTML = '<tr><td colspan="14" style="color:var(--muted);padding:14px;text-align:center">Supabase not connected.</td></tr>'; return; }
+  body.innerHTML = _skelRows(6, 14);
   try {
     const { data: fxr } = await sb.from('fpa_fx_rates').select('period_month,rate_value').eq('version', 'Actual').eq('period_year', yr).eq('rate_type','billing_jmd_usd');
     _fxRatesForGL = {};
@@ -21051,6 +21077,9 @@ function ifrs16SetVersion(v, btn) {
 
 async function ifrs16Load() {
   const sb = _sb;
+  ['ifrs16IppBody','ifrs16PropBody','ifrs16PLBody'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.innerHTML = _skelRows(4,14);
+  });
   if (!sb) {
     ['ifrs16IppBody','ifrs16PropBody','ifrs16PLBody'].forEach(id => {
       const el = document.getElementById(id);
@@ -22202,6 +22231,9 @@ let _nfVarFacts = []; // raw fpa_facts rows for current version
 
 async function nfVarLoad() {
   const sb = _sb;
+  ['nfVarRevBody','nfVarMwhBody','nfVarRateBody'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.innerHTML = _skelRows(5,14);
+  });
   if (!sb) { toast('DB not connected', 'err'); return; }
 
   // Populate year selector
@@ -22477,6 +22509,8 @@ let _cplVersions = []; // accepted versions used
 
 async function cplLoad() {
   const sb = _sb;
+  const _cplBodyEl = document.getElementById('cplBody');
+  if (_cplBodyEl) _cplBodyEl.innerHTML = _skelRows(10, 14);
   if (!sb) { toast('DB not connected', 'err'); return; }
 
   // Populate year selector
