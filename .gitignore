@@ -11,3 +11,44 @@ node_modules/
 *.pdf
 *.zip
 *.pptx
+# Claude Code worktrees and session files
+.claude/worktrees/
+.claude/launch.json
+.claude/settings.local.json
+# Raw data files
+2026 Cash Flow/
+2026 NonFuel Variance/
+Presentation March 2026/
+desktop.ini
+# Development scratch files
+*.js
+!index.js
+!config.js
+!jps-monitor.js
+!fpa_check.js
+!fpa_check_git.js
+# Temp/debug scripts
+_*.js
+_*.txt
+binary_search*.js
+count_*.js
+parse_*.js
+scan_*.js
+search_*.js
+test_*.js
+tmp*.js
+# Old versions and workfiles
+JPS_FPA_Platform_v*.html
+JPS_Actuals_Upload_Template.html
+JPS_Budget_LE_Upload_Template.html
+JPS_Debt_Schedule_Upload.html
+JPS_Upload_Template_*.html
+*Upload_Template*.html
+audit_hardcoded_values_*.md
+session_*.md
+team_task_tracker*.html
+proposal_*.html
+theme-preview.html
+Welcome.jpg
+JPS-Logo-*.png
+glossary.json
