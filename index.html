@@ -463,6 +463,16 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);height:100vh
 .skel-row{height:12px;margin:7px 4px;border-radius:4px}
 .skel-card{height:80px;border-radius:8px;margin-bottom:8px}
 .skel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:12px}
+/* ── Financial Term Tooltips (Rule: no XSS — definitions are code-defined, not user data) ── */
+.tip{cursor:help;border-bottom:1px dashed rgba(148,163,184,.4);position:relative;display:inline}
+.tip[data-tip]::after{
+  content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;
+  transform:translateX(-50%);background:var(--card,#1a2035);color:var(--text,#e2e8f0);
+  border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 11px;
+  font-size:11px;line-height:1.5;font-weight:400;width:max-content;max-width:280px;
+  white-space:normal;pointer-events:none;opacity:0;transition:opacity .18s;z-index:9999
+}
+.tip[data-tip]:hover::after{opacity:1}
 
 /* ── Data Management Hub ──────────────────────────────────────────────────────── */
 /* ── HUB FULLSCREEN LANDING ─────────────────────────────────────────────────── */
@@ -11052,7 +11062,7 @@ function buildRevReport() {
       ? (fav ? `<span class="pos">${(Math.abs(pct)*100).toFixed(1)}%</span>` : `<span class="neg">(${(Math.abs(pct)*100).toFixed(1)}%)</span>`)
       : '<span class="dim">–</span>';
     rHtml += `<tr class="${trCls}">
-      <td style="padding-left:${indent}">${r.highlight||r.tot?`<strong>${r.name}</strong>`:r.name}</td>
+      <td style="padding-left:${indent}">${r.highlight||r.tot?`<strong>${_tipLbl(r.name)}</strong>`:_tipLbl(r.name)}</td>
       <td class="ac">${fmt(a)}</td>
       <td class="gld">${hasBud ? fmt(b) : '<span class="dim">–</span>'}</td>
       <td>${diffDisp}</td>
@@ -12151,7 +12161,7 @@ function buildVarReport() {
       const indent = r.tot || r.highlight ? '10px' : '22px';
       const dispA = (() => { const n=Math.round(Math.abs(a)).toLocaleString(); return a<0?`<span class="neg">(${n})</span>`:a===0?`<span class="dim">–</span>`:`${n}`; })();
       aoHtml += `<tr class="${trC}">
-        <td style="padding-left:${indent}">${r.tot||r.highlight?`<strong>${r.name}</strong>`:r.name}</td>
+        <td style="padding-left:${indent}">${r.tot||r.highlight?`<strong>${_tipLbl(r.name)}</strong>`:_tipLbl(r.name)}</td>
         <td class="ac">${dispA}</td>
         <td style="text-align:left;font-size:9px;color:var(--muted)">${notes[r.key]||''}</td>
       </tr>`;
@@ -12305,7 +12315,7 @@ function buildVarReport() {
       ? `<span style="font-size:8px;font-weight:700;padding:1px 5px;border-radius:10px;background:rgba(16,185,129,.15);color:var(--green)">FAV</span>`
       : `<span style="font-size:8px;font-weight:700;padding:1px 5px;border-radius:10px;background:rgba(239,68,68,.15);color:var(--red)">ADV</span>`;
     html += `<tr class="${trCls}">
-      <td style="padding-left:${indent}">${r.tot||r.highlight?`<strong>${r.name}</strong>`:r.name}</td>
+      <td style="padding-left:${indent}">${r.tot||r.highlight?`<strong>${_tipLbl(r.name)}</strong>`:_tipLbl(r.name)}</td>
       <td class="ac">${fmtN(a)}</td>
       <td class="gld">${fmtN(b)}</td>
       <td>${diffDisp}</td>
@@ -13496,7 +13506,7 @@ function _d2IS() {
     }).join('');
 
     return `<tr class="${cls}">
-      <td style="padding-left:${12 + indent * 10}px">${label}</td>
+      <td style="padding-left:${12 + indent * 10}px">${_tipLbl(label)}</td>
       <td>${fmt(aopV)}</td>
       ${mo ? `<td>${fmt(actYTD)}</td><td class="var-col ${hcYTD}">${fmtVar(actYTD, aopYTD, posGood)}</td>` : ''}
       ${moCells}
@@ -20157,6 +20167,43 @@ function flashExportXLSX() {
 function _escHtml(str) {
   if (str === null || str === undefined) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── Financial term tooltip definitions (code-defined — not user data, no XSS risk) ──
+const _TIPS = {
+  'EBITDA':               'Earnings Before Interest, Tax, Depreciation & Amortisation. Key profitability measure before non-cash charges and financing.',
+  'EBIT':                 'Earnings Before Interest & Tax. Operating profit after depreciation and impairment (IAS 36).',
+  'Gross Profit':         'Total Revenue less Fuel Cost and IPP/Purchased Power. Measures core generation margin.',
+  'Total O&M':            'Total Operations & Maintenance expense. Excludes depreciation and financing costs.',
+  'Net Financing Cost':   'Interest expense net of interest income, plus loan fees, IFRS 16 lease interest, and preference dividends.',
+  'Income Tax':           'Corporation tax. Standard rate for Jamaican utilities is 25% of taxable profit.',
+  'Net Income':           'Net Profit After Tax (NPAT). Bottom-line earnings for the period.',
+  'IPP / Purchased Power':'Independent Power Producers. Third-party generators (e.g., BMR) contracted to supply power to JPS.',
+  'Depreciation & Amort.':'Non-cash charge for wear of PP&E (IAS 16) and amortisation of intangibles. Added back to compute EBITDA.',
+  'Total Revenue':        'Revenue from fuel sales, non-fuel tariff, IPP pass-through, non-regulated operations, and other income.',
+  'Fuel Cost':            'Cost of bunker fuel, LNG, and other generation fuel purchased to produce electricity.',
+  'Non-Fuel Revenue':     'Tariff revenue excluding fuel recovery component. Reflects base rate effectiveness.',
+  'T&D Loss':             'Transmission & Distribution loss. Energy generated but not successfully delivered or billed to customers.',
+  'LE':                   'Latest Estimate. Rolling forecast updated monthly based on actual performance and revised assumptions.',
+  'AOP':                  'Annual Operating Plan. Board-approved budget for the financial year.',
+  'DSCR':                 'Debt Service Coverage Ratio. EBITDA / (Interest + Principal). Lenders typically require ≥ 1.20×.',
+  'YTD':                  'Year-to-Date. Cumulative total to the selected closed month.',
+  'GWh':                  'Gigawatt-hours. Unit of electrical energy billed to end customers.',
+  'GCT':                  'General Consumption Tax. Jamaican VAT equivalent at 15% (Standard Rate).',
+  'OUR':                  'Office of Utilities Regulation. Regulates JPS tariff rates and rate case proceedings.',
+  'BOJ':                  'Bank of Jamaica. Central bank setting monetary policy and governing foreign exchange.',
+  'PP&E':                 "Property, Plant & Equipment. Includes generation assets, T&D infrastructure, and fleet. Measured under IAS 16.",
+  'CWIP':                 "Capital Work-in-Progress. Assets under construction not yet available for use (IAS 16).",
+  'ROU Asset':            'Right-of-Use Asset. Lease assets recognised on-balance-sheet under IFRS 16.',
+  'NPBT':                 'Net Profit Before Tax. Earnings after financing costs but before corporation tax.',
+  'NPAT':                 'Net Profit After Tax. Final bottom-line earnings after deducting income tax.',
+  'ICR':                  'Interest Coverage Ratio. EBIT / Interest Expense. Measures ability to service debt from operations.',
+};
+// Returns escaped HTML with tooltip wrapper if term is in _TIPS; plain escaped text otherwise.
+function _tipLbl(text) {
+  const def = _TIPS[text];
+  if (!def) return _escHtml(text);
+  return `<abbr class="tip" data-tip="${_escHtml(def)}">${_escHtml(text)}</abbr>`;
 }
 
 // ════════════════════════════════════════════════════════
