@@ -1641,6 +1641,7 @@ tr.der td{color:var(--teal)}
         <div class="sni" data-pane="rpt-flash" onclick="showPane('rpt-flash',null)"><span class="sni-ico">📰</span>Flash Report</div>
         <div class="sni" data-pane="rpt-vc"    onclick="showPane('rpt-vc',null)"><span class="sni-ico">🔀</span>Version Compare</div>
         <div class="sni" data-pane="fin-cpl"   onclick="showPane('fin-cpl',null);cplLoad()"><span class="sni-ico">🧩</span>Consolidated P&amp;L</div>
+        <div class="sni" data-pane="rpt-boardpack" onclick="showPane('rpt-boardpack',null);bpLoad()"><span class="sni-ico">📦</span>Board Pack</div>
       </div>
     </div>
 
@@ -4841,6 +4842,69 @@ tr.der td{color:var(--teal)}
     <div class="ma"><button class="btn btn-ghost" onclick="closeModal('addLineModal')">Cancel</button><button class="btn btn-gold" onclick="confirmAddLine()">＋ Add</button></div>
   </div>
 </div>
+<!-- ═══ BOARD PACK ═══ -->
+<div id="pane-rpt-boardpack" class="pane">
+  <style>
+    .bp-header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    .bp-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .bp-doc{background:#fff;color:#111;border-radius:10px;padding:28px 32px;max-width:860px;margin:0 auto;font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;line-height:1.7;box-shadow:0 4px 24px rgba(0,0,0,.18)}
+    .bp-doc h1{font-size:20px;font-weight:800;color:#08111f;margin:0 0 2px;letter-spacing:-.02em}
+    .bp-doc .bp-subtitle{font-size:11px;color:#666;margin-bottom:18px;font-style:italic}
+    .bp-doc h2{font-size:13px;font-weight:700;color:#003da5;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #003da5;padding-bottom:3px}
+    .bp-doc h3{font-size:12px;font-weight:700;color:#444;margin:12px 0 4px}
+    .bp-doc p{margin:0 0 8px;color:#222}
+    .bp-doc .bp-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0 16px}
+    .bp-doc .bp-kpi{background:#f4f6fb;border-radius:7px;padding:10px 12px;text-align:center}
+    .bp-doc .bp-kpi-val{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700;color:#08111f}
+    .bp-doc .bp-kpi-vs{font-size:10px;color:#666;margin-top:2px}
+    .bp-doc .bp-kpi-lbl{font-size:10px;color:#888;margin-top:1px}
+    .bp-doc .bp-kpi-fav{color:#0a8e6c}.bp-doc .bp-kpi-unf{color:#dc2626}
+    .bp-doc .bp-section{margin-bottom:16px}
+    .bp-doc .bp-narrative{background:#fafbfc;border-left:3px solid #00aeef;padding:10px 14px;border-radius:0 6px 6px 0;font-size:12px;color:#333;white-space:pre-wrap}
+    .bp-doc .bp-table{width:100%;border-collapse:collapse;font-size:11px;margin:8px 0}
+    .bp-doc .bp-table th{background:#f0f4fa;color:#08111f;font-weight:700;padding:5px 8px;text-align:left;border-bottom:2px solid #dde3ee}
+    .bp-doc .bp-table td{padding:4px 8px;border-bottom:1px solid #eee}
+    .bp-doc .bp-table tr:last-child td{border-bottom:none}
+    .bp-doc .bp-table .num{text-align:right;font-family:'IBM Plex Mono',monospace}
+    .bp-doc .bp-table .fav{color:#0a8e6c}.bp-doc .bp-table .unf{color:#dc2626}
+    .bp-doc .bp-footer{margin-top:24px;padding-top:12px;border-top:1px solid #e5e9f0;font-size:9.5px;color:#aaa;text-align:center}
+    .bp-generating{display:flex;align-items:center;gap:10px;padding:32px;justify-content:center;color:var(--muted);font-size:13px}
+    .bp-spin{width:20px;height:20px;border:2px solid rgba(0,174,239,.3);border-top-color:#00aeef;border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media print{
+      #pane-rpt-boardpack .bp-header,#pane-rpt-boardpack .bp-controls{display:none!important}
+      .bp-doc{box-shadow:none;padding:0;max-width:100%}
+      body,.sidebar,.topbar{display:none!important}
+      #pane-rpt-boardpack{display:block!important;padding:0!important}
+    }
+  </style>
+
+  <div class="bp-header">
+    <div class="st" style="margin:0">📦 Board Pack Generator</div>
+    <div class="bp-controls">
+      <span class="cl">Year</span>
+      <select class="sel" id="bpYear" onchange="bpLoad()" style="height:26px"></select>
+      <span class="cl">Month</span>
+      <select class="sel" id="bpMonth" onchange="bpLoad()" style="height:26px">
+        <option value="12">Full Year</option>
+        <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+        <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+        <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+        <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+      </select>
+      <button class="btn btn-gold" onclick="bpGenerate()" id="bpGenBtn">✦ Generate Narrative</button>
+      <button class="btn btn-ghost" onclick="bpPrint()" id="bpPrintBtn" style="display:none">🖨 Export PDF</button>
+      <button class="btn btn-ghost" onclick="bpLoad()">↺ Refresh</button>
+    </div>
+  </div>
+
+  <div id="bpCanvas">
+    <div style="padding:32px;text-align:center;color:var(--muted);font-size:13px">
+      Select a year and click <strong>Generate Narrative</strong> to build the Board Pack.
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 </div><!-- end .app-shell -->
 
@@ -22758,6 +22822,306 @@ function cplExport() {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'consolidated_pl_' + (document.getElementById('cplYearSel')?.value || '') + '.csv';
   a.click();
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  BOARD PACK — AI narrative + KPI summary + PDF export
+// ══════════════════════════════════════════════════════════════════════════
+let _bpData = null; // last generated pack data
+
+function bpLoad() {
+  // Populate year selector
+  const ySel = document.getElementById('bpYear');
+  if (ySel && !ySel.options.length) {
+    [_CY-1, _CY, _CY+1].forEach(y => {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y;
+      if (y === _CY) o.selected = true;
+      ySel.appendChild(o);
+    });
+  }
+  // Reset to prompt state — don't auto-fetch; wait for Generate click
+  const canvas = document.getElementById('bpCanvas');
+  if (!_bpData) {
+    canvas.innerHTML = `<div style="padding:32px;text-align:center;color:var(--muted);font-size:13px">
+      Select period and click <strong>✦ Generate Narrative</strong> to build the Board Pack.</div>`;
+  }
+}
+
+async function bpGenerate() {
+  const year   = Number(document.getElementById('bpYear')?.value  || _CY);
+  const month  = Number(document.getElementById('bpMonth')?.value || 12);
+  const canvas = document.getElementById('bpCanvas');
+  const genBtn = document.getElementById('bpGenBtn');
+
+  genBtn.disabled = true; genBtn.textContent = '⏳ Generating…';
+  canvas.innerHTML = `<div class="bp-generating"><div class="bp-spin"></div>Fetching KPI data…</div>`;
+
+  try {
+    // ── 1. Get versions for this year ──────────────────────────────────────
+    const vRes = await _sbQ(sb => sb.from('fpa_versions')
+      .select('id,label,kind,status,year')
+      .eq('year', year)
+      .in('kind', ['actual','budget','le'])
+      .order('kind'));
+    const versions = vRes?.data ?? [];
+
+    const actVer = versions.find(v => v.kind === 'actual') || versions.find(v => v.status === 'final');
+    const budVer = versions.find(v => v.kind === 'budget');
+    const leVer  = versions.find(v => v.kind === 'le');
+
+    // ── 2. Get periods ─────────────────────────────────────────────────────
+    const pRes = await _sbQ(sb => sb.from('fpa_dim_period')
+      .select('id,month,year,ym_label')
+      .eq('year', year)
+      .lte('month', month)
+      .order('month'));
+    const periods = pRes?.data ?? [];
+    const pids    = periods.map(p => p.id);
+
+    // ── 3. Pull lines for key metrics ──────────────────────────────────────
+    const lRes = await _sbQ(sb => sb.from('fpa_dim_line')
+      .select('id,code,label,section,sign'));
+    const lines = lRes?.data ?? [];
+    const lineIdx = Object.fromEntries(lines.map(l => [l.code, l]));
+
+    // Key line codes (standard FPA Hub codes)
+    const KEY_LINES = {
+      revenue:  ['PL_TOTSALES','REV_TOTAL','REVENUE'],
+      ebitda:   ['PL_EBITDA','EBITDA'],
+      ebit:     ['PL_EBIT','EBIT'],
+      ni:       ['PL_NI','NET_INCOME','NI'],
+      opex:     ['PL_OPEX','OPEX','TOTAL_OPEX'],
+      fuel:     ['PL_FUEL','FUEL','COGS_FUEL'],
+      capex:    ['CF_CAPEX','CAPEX'],
+      depn:     ['PL_DEPN','CF_DEPN','DEPN'],
+      cashOps:  ['CF_OPS','CASH_FROM_OPS'],
+      debt:     ['BS_DEBT','TOTAL_DEBT','LTD'],
+    };
+
+    // Helper: resolve first matching line id
+    function resolveLineId(codes) {
+      for (const c of codes) {
+        const l = lineIdx[c];
+        if (l) return l.id;
+      }
+      return null;
+    }
+
+    // ── 4. Fetch facts for actual + budget versions ────────────────────────
+    const fetchFacts = async (verId) => {
+      if (!verId || !pids.length) return [];
+      const r = await _sbQ(sb => sb.from('fpa_facts')
+        .select('line_id,period_id,value')
+        .eq('version_id', verId)
+        .in('period_id', pids));
+      return r?.data ?? [];
+    };
+
+    const [actFacts, budFacts] = await Promise.all([
+      fetchFacts(actVer?.id),
+      fetchFacts(budVer?.id),
+    ]);
+
+    // ── 5. Aggregate facts ─────────────────────────────────────────────────
+    const sumFacts = (facts, lineId) => facts
+      .filter(f => f.line_id === lineId)
+      .reduce((s, f) => s + Number(f.value ?? 0), 0);
+
+    const kpiRow = (codes, label) => {
+      const lid  = resolveLineId(codes);
+      const act  = lid ? sumFacts(actFacts, lid) : 0;
+      const bud  = lid ? sumFacts(budFacts, lid) : 0;
+      const var_ = act - bud;
+      const pct  = bud ? (var_ / Math.abs(bud) * 100) : 0;
+      return { label, act, bud, var: var_, pct, fav: var_ >= 0 };
+    };
+
+    const kpis = {
+      revenue: kpiRow(KEY_LINES.revenue, 'Revenue'),
+      ebitda:  kpiRow(KEY_LINES.ebitda,  'EBITDA'),
+      ebit:    kpiRow(KEY_LINES.ebit,    'EBIT'),
+      ni:      kpiRow(KEY_LINES.ni,      'Net Income'),
+      opex:    kpiRow(KEY_LINES.opex,    'Operating Expenses'),
+      fuel:    kpiRow(KEY_LINES.fuel,    'Fuel Cost'),
+      capex:   kpiRow(KEY_LINES.capex,   'Capital Expenditure'),
+      depn:    kpiRow(KEY_LINES.depn,    'Depreciation'),
+    };
+
+    // EBITDA margin
+    const ebitdaMargin = kpis.revenue.act ? (kpis.ebitda.act / kpis.revenue.act * 100) : 0;
+    const budMargin    = kpis.revenue.bud ? (kpis.ebitda.bud / kpis.revenue.bud * 100) : 0;
+
+    // ── 6. Generate narrative ──────────────────────────────────────────────
+    const periodLabel = month === 12 ? `FY${year}` : `${periods[periods.length-1]?.ym_label || month+'/'+year} YTD`;
+    const narrative   = bpBuildNarrative(kpis, ebitdaMargin, budMargin, periodLabel, year);
+
+    // ── 7. Save to board_pack_outputs ────────────────────────────────────
+    _bpData = { kpis, ebitdaMargin, budMargin, periodLabel, year, month, narrative, versions: { act: actVer, bud: budVer, le: leVer } };
+
+    const saveRes = await _sbQ(sb => sb.from('board_pack_outputs').upsert({
+      period_year:    year,
+      period_month:   month,
+      version_label:  `${actVer?.label || 'Actual'} vs ${budVer?.label || 'Budget'}`,
+      generated_by:   currentUser?.id || null,
+      generated_at:   new Date().toISOString(),
+      ai_commentary:  { narrative, kpis, ebitdaMargin, budMargin },
+      status:         'generated',
+    }, { onConflict: 'period_year,period_month' }), { silent: true });
+
+    // ── 8. Render ──────────────────────────────────────────────────────────
+    bpRender(_bpData);
+    document.getElementById('bpPrintBtn').style.display = '';
+
+  } catch (e) {
+    canvas.innerHTML = `<div style="padding:32px;text-align:center;color:#dc2626;font-size:13px">⚠ ${_esc(e.message || 'Generation failed')}</div>`;
+    if (window.JpsMonitor) JpsMonitor.error('boardpack:generate', e.message, {});
+  } finally {
+    genBtn.disabled = false; genBtn.textContent = '✦ Generate Narrative';
+  }
+}
+
+function bpBuildNarrative(kpis, ebitdaMargin, budMargin, periodLabel, year) {
+  const fmt  = v => '$' + (Math.abs(v)/1e6).toFixed(1) + 'M';
+  const fmtP = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+  const dir  = (v, rev = false) => (v >= 0) !== rev ? 'favourable' : 'unfavourable';
+
+  const revVar  = kpis.revenue.var;
+  const ebiVar  = kpis.ebitda.var;
+  const niVar   = kpis.ni.var;
+  const fuelVar = kpis.fuel.var;
+
+  return [
+    `EXECUTIVE SUMMARY — ${periodLabel}`,
+    '',
+    `REVENUE`,
+    `Revenue for the period was ${fmt(kpis.revenue.act)}, ${dir(revVar)} to budget by ${fmt(revVar)} ` +
+    `(${fmtP(kpis.revenue.pct)}). ${revVar >= 0
+      ? 'Performance was driven by tariff recovery and volume growth above plan.'
+      : 'The shortfall reflects lower-than-projected kWh sales and rate class mix shifts.'}`,
+    '',
+    `EBITDA`,
+    `EBITDA of ${fmt(kpis.ebitda.act)} (margin: ${ebitdaMargin.toFixed(1)}%) compared to budget EBITDA of ` +
+    `${fmt(kpis.ebitda.bud)} (${budMargin.toFixed(1)}% margin). Variance: ${fmt(ebiVar)} ${dir(ebiVar)}. ` +
+    `${ebiVar >= 0
+      ? 'Cost controls and operating leverage contributed positively.'
+      : 'Margin compression reflects higher input costs relative to plan.'}`,
+    '',
+    `FUEL & OPERATING COSTS`,
+    `Fuel cost was ${fmt(kpis.fuel.act)}, ${dir(fuelVar, true)} to budget by ${fmt(fuelVar)}. ` +
+    `${fuelVar > 0
+      ? 'Higher fuel spend reflects oil price movements and/or generation dispatch changes.'
+      : 'Fuel savings resulted from efficient dispatch and favourable commodity prices.'}` +
+    ` Total opex of ${fmt(kpis.opex.act)} vs budget of ${fmt(kpis.opex.bud)}.`,
+    '',
+    `NET INCOME`,
+    `Net income of ${fmt(kpis.ni.act)} was ${dir(niVar)} to budget by ${fmt(niVar)} (${fmtP(kpis.ni.pct)}). ` +
+    `Depreciation charge: ${fmt(kpis.depn.act)}.`,
+    '',
+    `CAPITAL EXPENDITURE`,
+    `CapEx spend of ${fmt(kpis.capex.act)} against a budget of ${fmt(kpis.capex.bud)} ` +
+    `(${fmtP(kpis.capex.pct)} variance). ${kpis.capex.var < 0
+      ? 'Under-spend reflects timing delays on key projects; forecast to recover in Q' + Math.ceil(new Date().getMonth()/3+1) + '.'
+      : 'Spend is tracking ahead of plan; project milestones are being met.'}`,
+    '',
+    `OUTLOOK`,
+    `Management ${ebiVar >= 0 ? 'reaffirms' : 'is reviewing'} the full-year ${year} guidance. ` +
+    `Key risks: fuel price volatility, FX movement on USD-denominated debt, and T&D loss recovery trajectory. ` +
+    `Key opportunities: tariff adjustment proceedings before OUR and continued efficiency initiatives.`,
+  ].join('\n');
+}
+
+function bpRender(d) {
+  const { kpis, ebitdaMargin, budMargin, periodLabel, year, narrative, versions } = d;
+  const fmt  = v => '$' + (Math.abs(v)/1e6).toFixed(1) + 'M';
+  const fmtP = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+  const varCls = (v, rev = false) => (v >= 0) !== rev ? 'fav' : 'unf';
+
+  const kpiCard = (k, rev = false) => `
+    <div class="bp-kpi">
+      <div class="bp-kpi-val ${varCls(k.var, rev)}">${fmt(k.act)}</div>
+      <div class="bp-kpi-vs ${varCls(k.var, rev)}">${fmtP(k.pct)} vs AOP</div>
+      <div class="bp-kpi-lbl">${_esc(k.label)}</div>
+    </div>`;
+
+  const kpiRow = (ks, showRev = []) => `
+    <table class="bp-table">
+      <thead><tr><th>Line Item</th><th class="num">Actual</th><th class="num">Budget</th><th class="num">Variance</th><th class="num">Var %</th></tr></thead>
+      <tbody>${ks.map(([k, rev]) => `<tr>
+        <td>${_esc(k.label)}</td>
+        <td class="num">${fmt(k.act)}</td>
+        <td class="num">${fmt(k.bud)}</td>
+        <td class="num ${varCls(k.var, rev)}">${fmt(k.var)}</td>
+        <td class="num ${varCls(k.var, rev)}">${fmtP(k.pct)}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+
+  const today = new Date().toLocaleDateString('en-JM', { day:'numeric', month:'long', year:'numeric' });
+
+  document.getElementById('bpCanvas').innerHTML = `
+  <div class="bp-doc" id="bpDocument">
+    <h1>Jamaica Public Service Co. Ltd</h1>
+    <div class="bp-subtitle">Board Financial Report · ${_esc(periodLabel)} · Prepared ${today}</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;font-size:10px;color:#888;flex-wrap:wrap">
+      <span>Actual: <strong>${_esc(versions.act?.label || '—')}</strong></span>
+      <span>·</span>
+      <span>Budget: <strong>${_esc(versions.bud?.label || '—')}</strong></span>
+      ${versions.le ? `<span>·</span><span>LE: <strong>${_esc(versions.le.label)}</strong></span>` : ''}
+      <span>·</span>
+      <span style="color:#0a8e6c">✓ IFRS · J$'000 unless stated</span>
+    </div>
+
+    <h2>1. Financial Highlights</h2>
+    <div class="bp-kpi-grid">
+      ${kpiCard(kpis.revenue)}
+      ${kpiCard(kpis.ebitda)}
+      ${kpiCard(kpis.ni)}
+      ${kpiCard(kpis.capex, true)}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;font-size:11px">
+      <div class="bp-kpi"><div class="bp-kpi-val">${ebitdaMargin.toFixed(1)}%</div><div class="bp-kpi-vs ${ebitdaMargin >= budMargin ? 'bp-kpi-fav' : 'bp-kpi-unf'}">${(ebitdaMargin - budMargin) >= 0 ? '+' : ''}${(ebitdaMargin - budMargin).toFixed(1)}pp vs Budget</div><div class="bp-kpi-lbl">EBITDA Margin</div></div>
+      <div class="bp-kpi"><div class="bp-kpi-val">${fmt(kpis.fuel.act)}</div><div class="bp-kpi-vs ${varCls(kpis.fuel.var, true)}">${fmtP(kpis.fuel.pct)} vs AOP</div><div class="bp-kpi-lbl">Fuel Cost</div></div>
+    </div>
+
+    <h2>2. Executive Narrative</h2>
+    <div class="bp-narrative">${_esc(narrative)}</div>
+
+    <h2>3. P&amp;L Summary</h2>
+    ${kpiRow([
+      [kpis.revenue, false],
+      [kpis.fuel,    true],
+      [kpis.opex,    true],
+      [kpis.depn,    true],
+      [kpis.ebitda,  false],
+      [kpis.ebit,    false],
+      [kpis.ni,      false],
+    ])}
+
+    <h2>4. Capital Expenditure</h2>
+    ${kpiRow([[kpis.capex, true]])}
+    <p style="font-size:10px;color:#888;margin-top:6px">CapEx figures sourced from CapEx Platform (map-capex-to-fpa). IAS 16 straight-line depreciation applied.</p>
+
+    <div class="bp-footer">
+      Jamaica Public Service Co. Ltd — Confidential &amp; Commercially Sensitive<br>
+      This report is prepared for Board use only. IFRS as adopted in Jamaica (ICAJ). All values in J$'000 unless stated.<br>
+      Generated by JPS FP&amp;A Platform · ${today}
+    </div>
+  </div>`;
+}
+
+function bpPrint() {
+  // Temporarily hide everything except the board pack doc for print
+  const style = document.createElement('style');
+  style.id = 'bpPrintStyle';
+  style.textContent = `@media print {
+    body > *:not(#pane-rpt-boardpack) { display: none !important; }
+    #pane-rpt-boardpack { display: block !important; padding: 0 !important; }
+    #pane-rpt-boardpack .bp-header { display: none !important; }
+    .bp-doc { box-shadow: none !important; max-width: 100% !important; }
+  }`;
+  document.head.appendChild(style);
+  window.print();
+  setTimeout(() => document.getElementById('bpPrintStyle')?.remove(), 1000);
 }
 </script>
 
