@@ -5207,7 +5207,70 @@ function fpaApplyToLegacyGlobals() {
   // FX, generation, leases, insurance, impairments bridges — disabled.
   // All operational assumption data stays zeroed until upload is validated.
 
+  // ── Populate actualsStore from ACTUALS_YYYY_MM facts ──────────────────────
+  try { fpaBootstrapActualsFromFacts(); } catch(e) { console.warn('[FPA] actualsStore bridge:', e); }
+
   console.log('[FPA] Legacy globals hydrated from DB');
+}
+
+// ── Populate actualsStore from committed ACTUALS_YYYY_MM versions in DB ─────
+// Builds minimal storeEntry objects so Variance Analysis shows non-fuel
+// revenue actuals vs AOP budget without requiring a manual Excel upload.
+function fpaBootstrapActualsFromFacts() {
+  const MO_LABELS = ['January','February','March','April','May','June',
+                     'July','August','September','October','November','December'];
+  const actVers = fpa.versions.filter(v => /^ACTUALS_(\d{4})_(\d{2})$/.test(v.code));
+  if (!actVers.length) return;
+
+  actVers.forEach(ver => {
+    const [, yrStr, moStr] = ver.code.match(/^ACTUALS_(\d{4})_(\d{2})$/);
+    const yr = Number(yrStr), mo = Number(moStr);
+
+    // Don't overwrite a real upload (non-partial)
+    if (actualsStore[yr]?.[mo] && !actualsStore[yr][mo]._partial) return;
+
+    const nonfuel = fpa.fact(ver.code, 'nonfuel', yr, mo) ?? 0;
+    const gwh     = fpa.fact(ver.code, 'stat_billed_gwh', yr, mo) ?? 0;
+    if (!nonfuel && !gwh) return;
+
+    // AOP budget for same month
+    const aopVer = 'AOP_' + yr;
+    const budNF  = fpa.fact(aopVer, 'nonfuel', yr, mo) ?? 0;
+
+    const _pl = (nf) => ({
+      nonFuelSales: nf, totalSales: nf, grossProfit: nf,
+      fuelSales: 0, fuelCost: 0, ppaCost: 0, otherCOS: 0, totalCOS: 0,
+      sga: 0, maintenance: 0, opex: 0, ebitda: 0, depn: 0,
+      depreciation: 0, ebit: 0, intIncome: 0, intExpense: 0,
+      nfc: 0, otherIncome: 0, pretax: 0, tax: 0, netIncome: 0,
+    });
+
+    const entry = {
+      month: MO_LABELS[mo - 1] + ' ' + yr,
+      pl: _pl(nonfuel), budget: _pl(budNF),
+      ytdActual: null, ytdBudget: null,
+      rev: { salesMWh: gwh * 1000, energy: gwh * 1000 },
+      bs: {}, cf: {}, seg: {},
+      _partial: true,
+      uploadMeta: { file: 'db_import', ts: new Date().toISOString(), status: '✅ DB — non-fuel only' },
+    };
+    actualsStore[mo]             = entry;
+    (actualsStore[yr] ??= {})[mo] = entry;
+    if (yr >= (actualsYear ?? 0)) actualsYear = yr;
+  });
+
+  // Compute YTD for actualsYear months in sequence
+  const yr = actualsYear;
+  let ytdNF = 0, ytdBudNF = 0;
+  for (let m = 1; m <= 12; m++) {
+    const e = actualsStore[yr]?.[m];
+    if (!e) break;
+    ytdNF    += e.pl.nonFuelSales ?? 0;
+    ytdBudNF += e.budget.nonFuelSales ?? 0;
+    e.ytdActual = { ...e.pl,    nonFuelSales: ytdNF,    totalSales: ytdNF,    grossProfit: ytdNF };
+    e.ytdBudget = { ...e.budget, nonFuelSales: ytdBudNF, totalSales: ytdBudNF, grossProfit: ytdBudNF };
+  }
+  console.log('[FPA] actualsStore bridge: loaded', actVers.length, 'partial month entries for', yr);
 }
 
 // ── Bridge O&M / CapEx / Collections / Depreciation ───
