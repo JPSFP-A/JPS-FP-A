@@ -5155,11 +5155,10 @@ function fpaApplyToLegacyGlobals() {
   // Only sums months that have a committed ACTUALS_YYYY_MM upload — everything
   // else returns null (stays zero in plLines).
   const blendedAnnual = (lineId, y) => {
-    // Years before the current actuals year: always zero — not populated from HIST_ACTUAL
-    if (y < actualsYear) return null;
-    // Future years beyond current actuals year: always zero — not populated from FORECAST_BASE
-    if (y > actualsYear) return null;
-    // Current actuals year: sum only months that have a committed ACTUALS_YYYY_MM upload
+    // Allow current year + up to 1 prior year (PY) from committed ACTUALS_YYYY_MM uploads.
+    // Anything older or future stays zero.
+    if (y < actualsYear - 1) return null;
+    if (y > actualsYear)     return null;
     let sum = 0, any = false;
     for (let m = 1; m <= 12; m++) {
       const monthActCode = `ACTUALS_${y}_${String(m).padStart(2,'0')}`;
