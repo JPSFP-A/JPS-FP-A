@@ -3253,7 +3253,7 @@ tr.der td{color:var(--teal)}
       <div class="comm-grid" id="commGrid"></div>
       <!-- Long-form commentary -->
       <div class="tc2">
-        <div class="th"><div class="tt">📋 Executive Commentary — Feb 2026 Latest Estimate <span class="badge badge-ai">AI Generated</span></div><div class="ta"><button class="gen-btn" style="font-size:9px;padding:4px 10px;height:auto" onclick="generateExecSummary()"><span class="spinner" id="execSpinner"></span>✦ Generate</button><button class="btn btn-ghost" onclick="copyCommentary()">📋 Copy</button></div></div>
+        <div class="th"><div class="tt">📋 Executive Commentary — <span id="execCommHdr">Latest Estimate</span> <span class="badge badge-ai">AI Generated</span></div><div class="ta"><button class="gen-btn" style="font-size:9px;padding:4px 10px;height:auto" onclick="generateExecSummary()"><span class="spinner" id="execSpinner"></span>✦ Generate</button><button class="btn btn-ghost" onclick="copyCommentary()">📋 Copy</button></div></div>
         <div id="execComm" style="padding:16px;font-size:11px;color:var(--muted);line-height:1.8;min-height:120px">
           <em>Click "Generate" to produce AI-powered executive commentary based on your current LE data...</em>
         </div>
@@ -6431,6 +6431,10 @@ function _updateDynamicLabels() {
   // Brand subtitle
   const brand = document.getElementById('brandSub');
   if (brand) brand.textContent = `Jamaica Public Service Co. · ${_CY} LE`;
+
+  // AI commentary header
+  const execHdr = document.getElementById('execCommHdr');
+  if (execHdr) execHdr.textContent = `${MONTHS[cfSelectedMonth-1] || ''} ${_CY} Latest Estimate`;
 
   // Dashboard chart labels and section titles
   const scNIYrs = document.getElementById('ctScNIYrs');
@@ -13764,13 +13768,17 @@ async function sendAIMessage(){
 function quickPrompt(txt){document.getElementById('aiInput').value=txt; sendAIMessage();}
 function addUserMsg(msg){
   const el=document.getElementById('aiMessages');
-  el.innerHTML+=`<div class="ai-msg user"><div class="ai-avatar usr">👤</div><div class="ai-bubble">${msg}</div></div>`;
-  el.scrollTop=el.scrollHeight;
+  const wrap=document.createElement('div'); wrap.className='ai-msg user';
+  const av=document.createElement('div'); av.className='ai-avatar usr'; av.textContent='👤';
+  const bbl=document.createElement('div'); bbl.className='ai-bubble'; bbl.textContent=msg;
+  wrap.append(av,bbl); el.appendChild(wrap); el.scrollTop=el.scrollHeight;
 }
 function addBotMsg(msg){
   const el=document.getElementById('aiMessages');
-  el.innerHTML+=`<div class="ai-msg"><div class="ai-avatar bot">✦</div><div class="ai-bubble">${msg}</div></div>`;
-  el.scrollTop=el.scrollHeight;
+  const wrap=document.createElement('div'); wrap.className='ai-msg';
+  const av=document.createElement('div'); av.className='ai-avatar bot'; av.textContent='✦';
+  const bbl=document.createElement('div'); bbl.className='ai-bubble'; bbl.innerHTML=msg; // Claude output — structured HTML
+  wrap.append(av,bbl); el.appendChild(wrap); el.scrollTop=el.scrollHeight;
 }
 
 function getFinancialContext(){
