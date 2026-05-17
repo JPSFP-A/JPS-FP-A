@@ -22168,9 +22168,10 @@ function cplRenderCoverage(year, vers) {
   if (!div) return;
 
   const EXTS = [
-    { key: 'sales', label: '📊 Sales' },
-    { key: 'cogs',  label: '⛽ COGS'  },
-    { key: 'om',    label: '🔧 O&M'   },
+    { key: 'sales',   label: '📊 Sales'   },
+    { key: 'cogs',    label: '⛽ COGS'    },
+    { key: 'om',      label: '🔧 O&M'     },
+    { key: 'propel',  label: '📈 Propel'  },
   ];
   const byExt = {};
   for (const v of vers) byExt[v.extension] = v;
