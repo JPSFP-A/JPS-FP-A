@@ -7265,7 +7265,7 @@ async function dmBuildSeedOptions() {
   fpa.versions.filter(v => /^ACTUALS_/.test(v.code)).forEach(v =>
     opts.push({ value: v.code, label: `${v.name || v.code} (Actual)` })
   );
-  sel.innerHTML = opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+  sel.innerHTML = opts.map(o => `<option value="${_escHtml(o.value)}">${_escHtml(o.label)}</option>`).join('');
 }
 
 async function dmApplySeed() {
@@ -7630,7 +7630,7 @@ function openEraseModal() {
     .sort((a,b) => (b.year||0) - (a.year||0));
   yearly.forEach(v => {
     const factCount = Object.values(fpa.facts[v.code]||{}).length;
-    sel.innerHTML += `<option value="year:${v.code}">${v.name} (${factCount} lines)</option>`;
+    sel.innerHTML += `<option value="year:${_escHtml(v.code)}">${_escHtml(v.name)} (${factCount} lines)</option>`;
   });
 
   // "All monthly actuals for year YYYY" — one option per year that has per-month versions
