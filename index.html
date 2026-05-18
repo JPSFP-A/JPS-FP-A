@@ -133,58 +133,41 @@ button { font-family: inherit; cursor: pointer; }
 .ws-out-sub{font-size:8px;color:rgba(255,255,255,.32);margin-top:1px}
 
 /* ===================== HUB SCREEN ===================== */
-#hubScreen {
-  position: fixed; inset: 0; z-index: 90;
-  display: none; overflow-y: auto;
-  background: linear-gradient(160deg, #F5F6FA 0%, #E8ECF5 100%);
-}
-html[data-theme="slate"] #hubScreen {
-  background: linear-gradient(160deg, #0F172A 0%, #1E293B 100%);
-}
-#hubScreen.visible { display: block; }
-.hub-wrap { max-width: 1120px; margin: 0 auto; padding: 34px 28px 50px; }
-.hub-head {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 26px; flex-wrap: wrap; gap: 16px;
-}
-.hub-head h1 { font-size: 26px; font-weight: 700; }
-.hub-head .hub-sub { font-size: 13px; color: var(--muted); margin-top: 3px; }
-.hub-enter-btn {
-  padding: 12px 22px; border: none; border-radius: 9px;
-  background: linear-gradient(135deg, var(--teal), #0090C8);
-  color: #fff; font-size: 14px; font-weight: 600;
-  box-shadow: 0 6px 16px rgba(0,174,239,.32);
-}
-.hub-enter-btn:hover { filter: brightness(1.08); }
-.hub-flow-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 14px; padding: 22px; box-shadow: var(--shadow);
-  margin-bottom: 22px;
-}
-.hub-flow-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-.hub-flow-card .fc-sub { font-size: 11.5px; color: var(--muted); margin-bottom: 12px; }
-.hub-svg { width: 100%; height: auto; display: block; }
-@keyframes hfDash { to { stroke-dashoffset: -16; } }
-.hf-line { stroke-dasharray: 6 4; animation: hfDash 1s linear infinite; }
-.hf-node { cursor: pointer; transition: opacity .15s; }
-.hf-node:hover { opacity: .8; }
-.hub-quick {
-  display: flex; gap: 10px; flex-wrap: wrap;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow);
-}
-.hub-quick-lbl {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 1px; color: var(--muted); align-self: center;
-  margin-right: 4px;
-}
-.hub-qbtn {
-  padding: 9px 15px; border: 1px solid var(--border);
-  background: var(--bg); color: var(--text);
-  border-radius: 8px; font-size: 12.5px; font-weight: 500;
-  transition: background .15s, border-color .15s, color .15s;
-}
-.hub-qbtn:hover { background: var(--teal); color: #fff; border-color: var(--teal); }
+#hubScreen{display:none;position:fixed;inset:0;z-index:90;flex-direction:column;background:linear-gradient(135deg,#001428 0%,#003da5 42%,#001428 100%);overflow-y:auto}
+#hubScreen.visible{display:flex}
+.hub-landing{min-height:100%;flex:1;display:flex;flex-direction:column;align-items:center;padding:24px 32px 36px;position:relative}
+.hub-landing::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 600px 300px at 20% 50%,rgba(0,174,239,.07) 0%,transparent 70%),radial-gradient(ellipse 400px 400px at 80% 30%,rgba(0,61,165,.12) 0%,transparent 70%)}
+.hub-lhdr{width:100%;max-width:1020px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;position:relative}
+.hub-lbrand{display:flex;align-items:center;gap:14px}
+.hub-lbrand-icon{width:38px;height:38px;border-radius:9px;background:linear-gradient(135deg,#003da5,#00aeef);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.hub-ltitle{font-size:18px;font-weight:800;color:#fff;letter-spacing:-.01em}
+.hub-lsub{font-size:10px;color:rgba(255,255,255,.5);font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:1px}
+.hub-lwelcome{font-size:11px;color:rgba(255,255,255,.6);text-align:right;line-height:1.5}
+.hub-lwelcome strong{color:#fff;font-weight:700}
+.hub-enter-btn{background:linear-gradient(135deg,#003da5,#00aeef);border:none;color:#fff;font-size:12px;font-weight:700;padding:8px 22px;border-radius:8px;cursor:pointer;letter-spacing:.04em;box-shadow:0 4px 18px rgba(0,174,239,.25);transition:all .15s}
+.hub-enter-btn:hover{opacity:.9;transform:translateY(-1px)}
+.hub-diagram-wrap{width:100%;max-width:1020px;position:relative}
+.hub-diagram-label{font-size:9.5px;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;text-align:center}
+.hub-flow-svg{width:100%;display:block;overflow:visible}
+.hf-line{fill:none;stroke-width:1.5;stroke-dasharray:5 3;animation:hfDash 2s linear infinite}
+.hf-line2{fill:none;stroke-width:1.5;stroke-dasharray:5 3;animation:hfDash 2s linear infinite reverse}
+@keyframes hfDash{to{stroke-dashoffset:-16}}
+.hf-node{cursor:pointer}
+.hf-rect-role{fill:rgba(0,10,35,.75);stroke-width:1.5;transition:fill .2s}
+.hf-node:hover .hf-rect-role{fill:rgba(0,40,100,.6)}
+.hf-role-label{text-anchor:start;font-size:11.5px;font-weight:700;fill:#fff;font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle}
+.hf-role-sub{text-anchor:start;font-size:9px;fill:rgba(255,255,255,.45);font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle}
+.hf-rect-eng{fill:rgba(0,20,55,.85);stroke:#00aeef;stroke-width:1.5}
+.hf-node:hover .hf-rect-eng{fill:rgba(0,40,100,.8)}
+.hf-eng-label{text-anchor:middle;font-size:12px;font-weight:800;fill:#fff;font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle}
+.hf-eng-sub{text-anchor:middle;font-size:9px;fill:rgba(255,255,255,.6);font-family:'IBM Plex Sans',sans-serif;dominant-baseline:middle}
+.hf-rect-out{fill:rgba(0,10,35,.75);stroke:#22c55e;stroke-width:1.5;transition:fill .2s}
+.hf-node:hover .hf-rect-out{fill:rgba(0,60,30,.45)}
+.hf-out-label{text-anchor:middle;font-size:10.5px;font-weight:600;fill:rgba(255,255,255,.85);font-family:'IBM Plex Sans',sans-serif;dominant-baseline:central}
+.hub-quick-bar{display:flex;align-items:center;gap:10px;margin-top:18px;padding:12px 20px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);flex-wrap:wrap;justify-content:center;position:relative;width:100%;max-width:1020px}
+.hub-quick-label{font-size:9.5px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-right:4px}
+.hub-quick-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.75);font-size:10px;font-weight:600;padding:6px 14px;border-radius:7px;cursor:pointer;transition:all .15s;letter-spacing:.03em}
+.hub-quick-btn:hover{background:rgba(0,174,239,.2);border-color:#00aeef;color:#fff}
 
 /* ===================== APP SHELL ===================== */
 #appShell { display: none; flex-direction: column; height: 100vh; }
@@ -706,110 +689,75 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
      2. HUB SCREEN
      ============================================================ -->
 <div id="hubScreen">
-  <div class="hub-wrap">
-    <div class="hub-head">
-      <div>
-        <h1>JPS FP&amp;A Platform</h1>
-        <div class="hub-sub">
-          Welcome, <b id="hubUserName">Demo User</b> &middot;
-          <span id="hubRoleDisp">Revenue Analyst</span> &middot; Period: April 2026
+  <div class="hub-landing">
+    <div class="hub-lhdr">
+      <div class="hub-lbrand">
+        <div class="hub-lbrand-icon">⚡</div>
+        <div>
+          <div class="hub-ltitle">JPS FP&amp;A Platform</div>
+          <div class="hub-lsub">Integrated Financial Planning &amp; Analysis</div>
         </div>
       </div>
-      <button class="hub-enter-btn" onclick="enterPlatform()">Enter Platform &rarr;</button>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="hub-lwelcome">Welcome back, <strong id="hubUserName">User</strong><br><span style="color:rgba(255,255,255,.4);font-size:10px" id="hubRoleDisp"></span></div>
+        <button class="hub-enter-btn" onclick="enterPlatform()">Enter Platform →</button>
+      </div>
     </div>
-
-    <div class="hub-flow-card">
-      <h3>Data Flow &mdash; Role Inputs to Platform Outputs</h3>
-      <div class="fc-sub">Click any node to jump straight into that section of the platform.</div>
-      <svg class="hub-svg" viewBox="0 0 1020 510" xmlns="http://www.w3.org/2000/svg">
-        <!-- connecting lines: roles -> engines -->
-        <g stroke="#00AEEF" stroke-width="2" fill="none">
-          <line class="hf-line" x1="210" y1="72"  x2="400" y2="200" />
-          <line class="hf-line" x1="210" y1="152" x2="400" y2="215" />
-          <line class="hf-line" x1="210" y1="232" x2="400" y2="240" />
-          <line class="hf-line" x1="210" y1="312" x2="400" y2="270" />
-          <line class="hf-line" x1="210" y1="392" x2="400" y2="295" />
-        </g>
-        <!-- engines -> outputs -->
-        <g stroke="#15803D" stroke-width="2" fill="none">
-          <line class="hf-line" x1="620" y1="210" x2="800" y2="62"  />
-          <line class="hf-line" x1="620" y1="215" x2="800" y2="137" />
-          <line class="hf-line" x1="620" y1="225" x2="800" y2="212" />
-          <line class="hf-line" x1="620" y1="285" x2="800" y2="287" />
-          <line class="hf-line" x1="620" y1="295" x2="800" y2="362" />
-          <line class="hf-line" x1="620" y1="305" x2="800" y2="437" />
-        </g>
-
-        <!-- LEFT role nodes -->
-        <g class="hf-node" onclick="hubNav('p7')">
-          <rect x="20" y="50"  width="190" height="44" rx="8" fill="#3B82F6" />
-          <text x="115" y="77" text-anchor="middle" fill="#fff" font-size="13" font-weight="600" font-family="IBM Plex Sans">Revenue Analyst</text>
-        </g>
-        <g class="hf-node" onclick="hubNav('p7')">
-          <rect x="20" y="130" width="190" height="44" rx="8" fill="#00AEEF" />
-          <text x="115" y="157" text-anchor="middle" fill="#fff" font-size="13" font-weight="600" font-family="IBM Plex Sans">Operations Engineer</text>
-        </g>
-        <g class="hf-node" onclick="hubNav('p11')">
-          <rect x="20" y="210" width="190" height="44" rx="8" fill="#F59E0B" />
-          <text x="115" y="237" text-anchor="middle" fill="#fff" font-size="13" font-weight="600" font-family="IBM Plex Sans">O&amp;M Specialist</text>
-        </g>
-        <g class="hf-node" onclick="hubNav('p5')">
-          <rect x="20" y="290" width="190" height="44" rx="8" fill="#A78BFA" />
-          <text x="115" y="317" text-anchor="middle" fill="#fff" font-size="13" font-weight="600" font-family="IBM Plex Sans">CapEx Manager</text>
-        </g>
-        <g class="hf-node" onclick="hubNav('p4')">
-          <rect x="20" y="370" width="190" height="44" rx="8" fill="#34D399" />
-          <text x="115" y="397" text-anchor="middle" fill="#fff" font-size="13" font-weight="600" font-family="IBM Plex Sans">Treasury Analyst</text>
-        </g>
-
-        <!-- CENTER engine boxes -->
-        <g class="hf-node" onclick="hubNav('p2')">
-          <rect x="400" y="180" width="220" height="58" rx="10" fill="#FFFFFF" stroke="#00AEEF" stroke-width="2.5" />
-          <text x="510" y="206" text-anchor="middle" fill="#1A1A2E" font-size="14" font-weight="700" font-family="IBM Plex Sans">P&amp;L Engine</text>
-          <text x="510" y="224" text-anchor="middle" fill="#888899" font-size="10" font-family="IBM Plex Sans">Consolidated income statement</text>
-        </g>
-        <g class="hf-node" onclick="hubNav('p4')">
-          <rect x="400" y="262" width="220" height="58" rx="10" fill="#FFFFFF" stroke="#00AEEF" stroke-width="2.5" />
-          <text x="510" y="288" text-anchor="middle" fill="#1A1A2E" font-size="14" font-weight="700" font-family="IBM Plex Sans">Cash Flow Model</text>
-          <text x="510" y="306" text-anchor="middle" fill="#888899" font-size="10" font-family="IBM Plex Sans">Indirect method projections</text>
-        </g>
-
-        <!-- RIGHT output nodes -->
-        <g class="hf-node" onclick="hubNav('p2')">
-          <rect x="800" y="42"  width="195" height="40" rx="8" fill="#FFFFFF" stroke="#15803D" stroke-width="2" />
-          <text x="897" y="67" text-anchor="middle" fill="#1A1A2E" font-size="12" font-weight="600" font-family="IBM Plex Sans">Income Statement</text>
-        </g>
-        <g class="hf-node" onclick="hubNav('p1')">
-          <rect x="800" y="117" width="195" height="40" rx="8" fill="#FFFFFF" stroke="#15803D" stroke-width="2" />
-          <text x="897" y="142" text-anchor="middle" fill="#1A1A2E" font-size="12" font-weight="600" font-family="IBM Plex Sans">Flash Report</text>
-        </g>
-        <g class="hf-node" onclick="hubNav('p10')">
-          <rect x="800" y="192" width="195" height="40" rx="8" fill="#FFFFFF" stroke="#15803D" stroke-width="2" />
-          <text x="897" y="217" text-anchor="middle" fill="#1A1A2E" font-size="12" font-weight="600" font-family="IBM Plex Sans">KPIs &amp; Ratios</text>
-        </g>
-        <g class="hf-node" onclick="hubNav('p3')">
-          <rect x="800" y="267" width="195" height="40" rx="8" fill="#FFFFFF" stroke="#15803D" stroke-width="2" />
-          <text x="897" y="292" text-anchor="middle" fill="#1A1A2E" font-size="12" font-weight="600" font-family="IBM Plex Sans">Balance Sheet</text>
-        </g>
-        <g class="hf-node" onclick="hubNav('p4')">
-          <rect x="800" y="342" width="195" height="40" rx="8" fill="#FFFFFF" stroke="#15803D" stroke-width="2" />
-          <text x="897" y="367" text-anchor="middle" fill="#1A1A2E" font-size="12" font-weight="600" font-family="IBM Plex Sans">Cash Flow</text>
-        </g>
-        <g class="hf-node" onclick="hubNav('p13')">
-          <rect x="800" y="417" width="195" height="40" rx="8" fill="#FFFFFF" stroke="#15803D" stroke-width="2" />
-          <text x="897" y="442" text-anchor="middle" fill="#1A1A2E" font-size="12" font-weight="600" font-family="IBM Plex Sans">Scenario Analysis</text>
-        </g>
+    <div class="hub-diagram-wrap">
+      <div class="hub-diagram-label">Select a role profile to open your area — only your relevant sections will be shown</div>
+      <svg class="hub-flow-svg" viewBox="0 0 1020 510" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="hfgIn" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="rgba(0,174,239,.5)"/><stop offset="100%" stop-color="rgba(0,174,239,.15)"/></linearGradient>
+          <linearGradient id="hfgOut" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="rgba(34,197,94,.2)"/><stop offset="100%" stop-color="rgba(34,197,94,.6)"/></linearGradient>
+          <marker id="hfArr" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="rgba(0,174,239,.6)"/></marker>
+          <marker id="hfArr2" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="rgba(34,197,94,.7)"/></marker>
+        </defs>
+        <!-- Role → Engine lines -->
+        <path d="M242,44  C310,44  390,175 390,175" class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+        <path d="M242,127 C310,127 390,175 390,175" class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+        <path d="M242,210 C310,210 390,175 390,175" class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+        <path d="M242,293 C310,293 390,175 390,175" class="hf-line" stroke="url(#hfgIn)" stroke-opacity=".6" marker-end="url(#hfArr)"/>
+        <path d="M242,293 C310,293 390,370 390,370" class="hf-line" stroke="url(#hfgIn)" stroke-opacity=".6" marker-end="url(#hfArr)"/>
+        <path d="M242,376 C310,376 390,370 390,370" class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+        <path d="M242,459 C310,459 390,370 390,370" class="hf-line" stroke="url(#hfgIn)" marker-end="url(#hfArr)"/>
+        <!-- Engine → Output lines -->
+        <path d="M600,175 C645,175 670,45  670,45"  class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+        <path d="M600,175 C645,175 670,120 670,120" class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+        <path d="M600,175 C645,175 670,195 670,195" class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+        <path d="M600,175 C645,175 670,270 670,270" class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+        <path d="M600,370 C645,370 670,345 670,345" class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+        <path d="M600,370 C645,370 670,420 670,420" class="hf-line2" stroke="url(#hfgOut)" marker-end="url(#hfArr2)"/>
+        <!-- Role nodes -->
+        <g class="hf-node" onclick="hubNav('p7')"><rect x="5" y="9"   width="235" height="70" rx="10" class="hf-rect-role" stroke="#3b82f6"/><rect x="5" y="9"   width="5" height="70" rx="3" fill="#3b82f6" opacity=".9"/><circle cx="33" cy="44" r="14" fill="rgba(59,130,246,.18)" stroke="#3b82f6" stroke-width="1"/><text x="33" y="44" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#3b82f6" font-family="IBM Plex Sans,sans-serif" font-weight="800">$</text><text x="58" y="41" class="hf-role-label">Revenue Analyst</text><text x="58" y="56" class="hf-role-sub">Tariff rates · billing volumes · fuel revenue</text></g>
+        <g class="hf-node" onclick="hubNav('p7')"><rect x="5" y="92"  width="235" height="70" rx="10" class="hf-rect-role" stroke="#00aeef"/><rect x="5" y="92"  width="5" height="70" rx="3" fill="#00aeef" opacity=".9"/><circle cx="33" cy="127" r="14" fill="rgba(0,174,239,.18)" stroke="#00aeef" stroke-width="1"/><text x="33" y="127" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#00aeef" font-family="IBM Plex Sans,sans-serif" font-weight="800">G</text><text x="58" y="124" class="hf-role-label">Operations Engineer</text><text x="58" y="139" class="hf-role-sub">Net generation · fuel cost · heat rates · system losses</text></g>
+        <g class="hf-node" onclick="hubNav('p11')"><rect x="5" y="175" width="235" height="70" rx="10" class="hf-rect-role" stroke="#f59e0b"/><rect x="5" y="175" width="5" height="70" rx="3" fill="#f59e0b" opacity=".9"/><circle cx="33" cy="210" r="14" fill="rgba(245,158,11,.18)" stroke="#f59e0b" stroke-width="1"/><text x="33" y="210" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#f59e0b" font-family="IBM Plex Sans,sans-serif" font-weight="800">O</text><text x="58" y="207" class="hf-role-label">O&amp;M Specialist</text><text x="58" y="222" class="hf-role-sub">Operating costs · maintenance · overheads</text></g>
+        <g class="hf-node" onclick="hubNav('p5')"><rect x="5" y="258" width="235" height="70" rx="10" class="hf-rect-role" stroke="#a78bfa"/><rect x="5" y="258" width="5" height="70" rx="3" fill="#a78bfa" opacity=".9"/><circle cx="33" cy="293" r="14" fill="rgba(167,139,250,.18)" stroke="#a78bfa" stroke-width="1"/><text x="33" y="293" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#a78bfa" font-family="IBM Plex Sans,sans-serif" font-weight="800">C</text><text x="58" y="290" class="hf-role-label">CapEx Manager</text><text x="58" y="305" class="hf-role-sub">Project spend · depreciation · asset register</text></g>
+        <g class="hf-node" onclick="hubNav('p4')"><rect x="5" y="341" width="235" height="70" rx="10" class="hf-rect-role" stroke="#34d399"/><rect x="5" y="341" width="5" height="70" rx="3" fill="#34d399" opacity=".9"/><circle cx="33" cy="376" r="14" fill="rgba(52,211,153,.18)" stroke="#34d399" stroke-width="1"/><text x="33" y="376" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#34d399" font-family="IBM Plex Sans,sans-serif" font-weight="800">T</text><text x="58" y="373" class="hf-role-label">Treasury Analyst</text><text x="58" y="388" class="hf-role-sub">Loans · leases · interest · covenant ratios</text></g>
+        <g class="hf-node" onclick="hubNav('p3')"><rect x="5" y="424" width="235" height="70" rx="10" class="hf-rect-role" stroke="#f472b6"/><rect x="5" y="424" width="5" height="70" rx="3" fill="#f472b6" opacity=".9"/><circle cx="33" cy="459" r="14" fill="rgba(244,114,182,.18)" stroke="#f472b6" stroke-width="1"/><text x="33" y="459" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#f472b6" font-family="IBM Plex Sans,sans-serif" font-weight="800">AR</text><text x="58" y="456" class="hf-role-label">Collections Manager</text><text x="58" y="471" class="hf-role-sub">Cash receipts · DSO · A/R aging · recovery</text></g>
+        <!-- Engine nodes -->
+        <g class="hf-node" onclick="hubNav('p2')"><rect x="392" y="80"  width="206" height="190" rx="12" class="hf-rect-eng"/><text x="495" y="120" class="hf-eng-label">P&amp;L Engine</text><text x="495" y="142" class="hf-eng-sub">Revenue · COGS</text><text x="495" y="158" class="hf-eng-sub">EBITDA · Depreciation</text><text x="495" y="174" class="hf-eng-sub">Tax · Net Income</text><text x="495" y="193" class="hf-eng-sub" style="fill:rgba(0,174,239,.5);font-size:8px">Consolidated P&amp;L</text><text x="495" y="250" font-size="9" fill="rgba(255,255,255,.3)" text-anchor="middle" font-family="IBM Plex Sans,sans-serif">click to view report</text></g>
+        <g class="hf-node" onclick="hubNav('p4')"><rect x="392" y="290" width="206" height="160" rx="12" class="hf-rect-eng"/><text x="495" y="330" class="hf-eng-label">Cash Flow Model</text><text x="495" y="352" class="hf-eng-sub">Operating · Investing</text><text x="495" y="368" class="hf-eng-sub">Financing · Net Cash</text><text x="495" y="420" font-size="9" fill="rgba(255,255,255,.3)" text-anchor="middle" font-family="IBM Plex Sans,sans-serif">click to view report</text></g>
+        <!-- Output nodes -->
+        <g class="hf-node" onclick="hubNav('p2')"><rect x="672" y="20"  width="192" height="50" rx="8" class="hf-rect-out"/><text x="768" y="45"  class="hf-out-label">Income Statement</text></g>
+        <g class="hf-node" onclick="hubNav('p9')"><rect x="672" y="95"  width="192" height="50" rx="8" class="hf-rect-out"/><text x="768" y="120" class="hf-out-label">KPIs &amp; Ratios</text></g>
+        <g class="hf-node" onclick="hubNav('p1')"><rect x="672" y="170" width="192" height="50" rx="8" class="hf-rect-out"/><text x="768" y="195" class="hf-out-label">Overview</text></g>
+        <g class="hf-node" onclick="hubNav('p3')"><rect x="672" y="245" width="192" height="50" rx="8" class="hf-rect-out"/><text x="768" y="270" class="hf-out-label">Balance Sheet</text></g>
+        <g class="hf-node" onclick="hubNav('p4')"><rect x="672" y="320" width="192" height="50" rx="8" class="hf-rect-out"/><text x="768" y="345" class="hf-out-label">Cash Flow Statement</text></g>
+        <g class="hf-node" onclick="hubNav('p13')"><rect x="672" y="395" width="192" height="50" rx="8" class="hf-rect-out"/><text x="768" y="420" class="hf-out-label">Scenario Analysis</text></g>
+        <!-- Column labels -->
+        <text x="122" y="4"  text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,.3)" font-family="IBM Plex Sans,sans-serif" font-weight="700">ROLE PROFILES</text>
+        <text x="495" y="68" text-anchor="middle" font-size="8.5" fill="rgba(0,174,239,.5)"   font-family="IBM Plex Sans,sans-serif" font-weight="700">CALCULATION ENGINES</text>
+        <text x="768" y="8"  text-anchor="middle" font-size="8.5" fill="rgba(34,197,94,.5)"   font-family="IBM Plex Sans,sans-serif" font-weight="700">REPORTS &amp; OUTPUTS</text>
       </svg>
     </div>
-
-    <div class="hub-quick">
-      <span class="hub-quick-lbl">Quick Access</span>
-      <button class="hub-qbtn" onclick="hubNav('p1')">Overview</button>
-      <button class="hub-qbtn" onclick="hubNav('p2')">Income Statement</button>
-      <button class="hub-qbtn" onclick="hubNav('p10')">KPIs</button>
-      <button class="hub-qbtn" onclick="hubNav('p13')">Scenario Manager</button>
-      <button class="hub-qbtn" onclick="hubNav('p14')">AI Commentary</button>
-      <button class="hub-qbtn" onclick="enterPlatform()">Full Platform</button>
+    <div class="hub-quick-bar">
+      <span class="hub-quick-label">Quick Access:</span>
+      <button class="hub-quick-btn" onclick="hubNav('p1')">⚡ Overview</button>
+      <button class="hub-quick-btn" onclick="hubNav('p2')">📊 Income Statement</button>
+      <button class="hub-quick-btn" onclick="hubNav('p9')">📐 KPIs &amp; Ratios</button>
+      <button class="hub-quick-btn" onclick="hubNav('p13')">🎲 Scenario Manager</button>
+      <button class="hub-quick-btn" onclick="hubNav('p14')">🤖 AI Commentary</button>
+      <button class="hub-quick-btn" onclick="enterPlatform()">🗂 Full Platform →</button>
     </div>
   </div>
 </div>
