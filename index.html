@@ -829,7 +829,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
     <div class="tb-ctrl-grp">
       <span class="tb-ctrl-lbl">Year</span>
       <div id="yr-nav" class="yr-nav">
-        <button class="yr-btn active-yr" data-yr="2026" onclick="setActiveYear(2026)">2026</button>
+        <!-- Populated dynamically by _renderYrNav() — placeholder seeded at DOMContentLoaded -->
       </div>
     </div>
 
@@ -2409,7 +2409,7 @@ function afterLogin() {
   document.getElementById('hubUserName').textContent = _user.name;
   document.getElementById('hubRoleDisp').textContent = _user.role;
   if (window.JpsMonitor && JpsMonitor.setUser) {
-    try { JpsMonitor.setUser(_user.id, _user.email); } catch (e) {}
+    try { JpsMonitor.setUser(_user.id, _user.email); } catch (e) { console.error('[FPA] JpsMonitor.setUser failed:', e); }
   }
 }
 
@@ -2450,8 +2450,29 @@ function navTo(pageId) {
     loadPage(pageId);
     _loadedPages.add(pageId);
   }
+  // Patch year literals in static pages so they never show stale hardcoded years
+  if (pg) _patchYrLabels(pg);
   const main = document.getElementById('main');
   if (main) main.scrollTop = 0;
+}
+
+// Replace hardcoded year literals in text nodes of a page element.
+// Only targets text nodes — does not touch attributes, scripts, or data.
+function _patchYrLabels(el) {
+  if (!el) return;
+  const cy = _CY, py = _CY - 1, ppy = _CY - 2;
+  var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+  var node;
+  while ((node = walker.nextNode())) {
+    var t = node.textContent;
+    // Only patch if year literals are present (avoid touching unrelated content)
+    if (/\b(2026|2025|2024)\b/.test(t)) {
+      node.textContent = t
+        .replace(/\b2026\b/g, String(cy))
+        .replace(/\b2025\b/g, String(py))
+        .replace(/\b2024\b/g, String(ppy));
+    }
+  }
 }
 
 /* ===================================================================
@@ -2589,6 +2610,7 @@ function _pgLoad(id, on) {
    Key: line_id | period_id (YYYYMM) | view_type ('Month'|'YTD'|'FY')
    ==================================================================== */
 const _cmCache = {};
+let _lastActuals = null; // populated by loadP1; used by _aiGetContext
 
 async function _loadCommentary(lineIds, periodId, viewType) {
   const r = await _sbQ(function(sb) {
@@ -2636,7 +2658,7 @@ async function _cmSave(cell) {
   const note = cell.querySelector('textarea').value.trim();
   const key  = lid + '|' + pid + '|' + vt;
   let updatedBy = null;
-  try { updatedBy = (await _supabase.auth.getUser())?.data?.user?.email; } catch(_) {}
+  try { updatedBy = (await _getSB().auth.getUser())?.data?.user?.email; } catch(e) { console.warn('[FPA] auth.getUser failed in _cmSave:', e); }
   const r = await _sbQ(function(sb) {
     return sb.from('fpa_commentary').upsert({
       line_id: lid, period_id: pid, view_type: vt,
@@ -2700,6 +2722,17 @@ async function loadP1() {
   const gm_a  = rev_a - fc_a - ic_a, gm_b = rev_b - fc_b - ic_b;
   const ebdMg_a = rev_a ? (ebd_a / rev_a * 100) : 0;
   const ebdMg_b = rev_b ? (ebd_b / rev_b * 100) : 0;
+
+  // Cache for AI context — always reflects latest fetched actuals
+  _lastActuals = {
+    ctx: ctx,
+    rev_a: rev_a,   ebd_a: ebd_a,   ni_a: ni_a,
+    cpx_a: cpx_a,   gwh_a: gwh_a,   ocf_a: ocf_a,
+    fc_a: fc_a,     ic_a: ic_a,     opx_a: opx_a,
+    dep_a: dep_a,   fin_a: fin_a,   tax_a: tax_a,
+    ebdMg_a: ebdMg_a,
+    niMg_a: rev_a ? (ni_a / rev_a * 100) : 0,
+  };
 
   function kpi(lbl, a, b, isMoney, higherGood) {
     const pct = b ? ((a - b) / Math.abs(b) * 100) : 0;
@@ -3179,6 +3212,8 @@ function _getCtx() {
 // --- State setters (each reloads active page) ---
 function _reloadActive() {
   _loadedPages.clear();
+  // Clear commentary cache — keys are period-specific, stale when year/view changes
+  Object.keys(_cmCache).forEach(function(k) { delete _cmCache[k]; });
   const pg = document.querySelector('.page.active');
   if (pg) loadPage(pg.id);
 }
@@ -3435,32 +3470,36 @@ function aiQuickPrompt(text) {
 }
 
 function _aiGetContext() {
-  const ctx = {
-    period: 'April 2026 YTD',
-    version: 'Actuals',
+  const viewCtx = _getCtx();
+  const a = _lastActuals || {};
+  const ac = a.ctx || {};
+  const out = {
+    period: (viewCtx && viewCtx.viewLbl) || ('YTD ' + _CY),
+    comparison: (viewCtx && viewCtx.cmpLbl) || 'AOP',
+    currency: 'JMD $000s',
   };
   const incPnl = document.getElementById('ctxPnl');
   const incKpi = document.getElementById('ctxKpi');
   const incOps = document.getElementById('ctxOps');
 
   if (!incPnl || incPnl.checked) {
-    ctx.revenue_ytd_usd_000 = 275100;
-    ctx.ebitda_ytd_usd_000 = 71900;
-    ctx.npat_ytd_usd_000 = 19930;
-    ctx.revenue_vs_aop_pct = 0.6;
-    ctx.ebitda_vs_aop_pct = -1.1;
+    out.revenue_usd_000     = a.rev_a  ?? 0;
+    out.ebitda_usd_000      = a.ebd_a  ?? 0;
+    out.npat_usd_000        = a.ni_a   ?? 0;
+    out.capex_usd_000       = a.cpx_a  ?? 0;
+    out.ocf_usd_000         = a.ocf_a  ?? 0;
   }
   if (!incKpi || incKpi.checked) {
-    ctx.ebitda_margin_pct = 26.1;
-    ctx.net_margin_pct = 7.2;
-    ctx.net_debt_to_ebitda = 2.6;
+    out.ebitda_margin_pct   = a.ebdMg_a ?? 0;
+    out.net_margin_pct      = a.niMg_a  ?? 0;
   }
   if (!incOps || incOps.checked) {
-    ctx.gwh_billed = 1082;
-    ctx.td_loss_pct = 18.4;
-    ctx.collections_rate_pct = 96.8;
+    out.gwh_billed          = a.gwh_a   ?? 0;
+    out.fuel_cost_usd_000   = a.fc_a    ?? 0;
+    out.ipp_cost_usd_000    = a.ic_a    ?? 0;
+    out.opex_usd_000        = a.opx_a   ?? 0;
   }
-  return ctx;
+  return out;
 }
 
 /* ============================================================
@@ -3469,12 +3508,10 @@ function _aiGetContext() {
 function initPlatform() {
   const sb = _getSB();
   if (!sb) return;
-  _sbQ(function (s) {
-    return s.from('fpa_versions').select('*').order('code');
-  }, { silent: true }).then(function (res) {
-    if (!res || !res.data) return;
-    console.log('[FPA v2] versions loaded:', res.data.length);
-  });
+  // Warm up vMap cache; reuse _ensureVMap rather than separate full-table query
+  _ensureVMap().then(function() {
+    console.log('[FPA v2] vMap ready, versions:', Object.keys(_vMap || {}).length);
+  }).catch(function(e) { console.error('[FPA] vMap warmup failed:', e); });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -3483,6 +3520,10 @@ document.addEventListener('DOMContentLoaded', function () {
   if (el) el.focus();
   const tb = document.getElementById('themeBtn');
   if (tb) tb.textContent = document.documentElement.dataset.theme === 'slate' ? '☀' : '🌙';
+  // Seed year nav with current year — _renderYrNav() will replace with full list after login
+  const yrNav = document.getElementById('yr-nav');
+  if (yrNav) yrNav.innerHTML = '<button class="yr-btn active-yr" data-yr="'
+    + _CY + '" onclick="setActiveYear(' + _CY + ')">' + _CY + '</button>';
 });
 </script>
 </body>
