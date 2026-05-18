@@ -571,6 +571,16 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
   border-radius: 6px; height: 16px;
 }
 
+/* ===================== PAGE LOADING ===================== */
+.pg-loading { opacity: .5; pointer-events: none; transition: opacity .2s; }
+.pg-loading::after {
+  content: ''; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 36px; height: 36px; border: 3px solid var(--teal);
+  border-top-color: transparent; border-radius: 50%;
+  animation: spin .7s linear infinite; z-index: 100;
+}
+@keyframes spin { to { transform: translate(-50%,-50%) rotate(360deg); } }
+
 /* ===================== MISC ===================== */
 .assum-row td:first-child { font-weight: 500; }
 .kv-list { font-size: 12.5px; }
@@ -2370,10 +2380,563 @@ function navTo(pageId) {
   if (main) main.scrollTop = 0;
 }
 
+/* ===================================================================
+   FPA DATA ENGINE
+   Version map: UI pill → DB version code (dynamic _CY)
+   Costs stored POSITIVE in DB; displayed as (x) on P&L via _fmtCost
+   =================================================================== */
+
+function _verCode(uiVer) {
+  const m = {
+    'Budget':  'AOP_'         + _CY,
+    'LE1':     'LE_'          + _CY + '_01',
+    'LE2':     'LE_'          + _CY + '_02',
+    'Actuals': 'HIST_ACTUAL_' + _CY + '_YTD',
+  };
+  return m[uiVer] || ('AOP_' + _CY);
+}
+
+let _vMap = null;
+let _vMapP = null; // in-flight promise guard
+async function _ensureVMap() {
+  if (_vMap) return;
+  if (!_vMapP) {
+    _vMapP = _sbQ(function(sb) {
+      return sb.from('fpa_versions').select('id,code').eq('is_active', true);
+    }).then(function(r) {
+      _vMap = {};
+      (r && r.data || []).forEach(function(v) { _vMap[v.code] = v.id; });
+    });
+  }
+  return _vMapP;
+}
+
+async function _fetchFacts(vCode, lines, pStart, pEnd) {
+  await _ensureVMap();
+  const vid = (_vMap || {})[vCode];
+  if (!vid) return {};
+  const r = await _sbQ(function(sb) {
+    return sb.from('fpa_facts')
+      .select('line_id,period_id,value')
+      .eq('version_id', vid)
+      .in('line_id', lines)
+      .gte('period_id', pStart)
+      .lte('period_id', pEnd);
+  });
+  if (!r || !r.data) return {};
+  const o = {};
+  r.data.forEach(function(row) {
+    if (!o[row.line_id]) o[row.line_id] = {};
+    o[row.line_id][row.period_id] = Number(row.value) || 0;
+  });
+  return o;
+}
+
+function _fSum(f, lid) {
+  const m = f[lid]; if (!m) return 0;
+  return Object.values(m).reduce(function(a, b) { return a + b; }, 0);
+}
+function _fVal(f, lid, p) { return ((f[lid] || {})[p]) || 0; }
+function _fSumP(f, lid, periods) {
+  const m = f[lid] || {};
+  return periods.reduce(function(a, p) { return a + (m[p] || 0); }, 0);
+}
+
+// Format $000s — parens for negatives
+function _fmtM(v, dp) {
+  dp = (dp == null) ? 0 : dp;
+  const n = Number.isFinite(+v) ? +v : 0;
+  const abs = Math.abs(n).toFixed(dp).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return n < 0 ? '(' + abs + ')' : (n === 0 ? '—' : abs);
+}
+// Cost stored positive → display as (x)
+function _fmtCost(v, dp) {
+  dp = (dp == null) ? 0 : dp;
+  const n = Math.abs(Number.isFinite(+v) ? +v : 0);
+  if (n === 0) return '—';
+  return '(' + n.toFixed(dp).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ')';
+}
+function _fmtPct(act, bud) {
+  if (!bud || !Number.isFinite(+bud) || +bud === 0) return '—';
+  const p = ((+act - +bud) / Math.abs(+bud)) * 100;
+  return (p >= 0 ? '+' : '') + p.toFixed(1) + '%';
+}
+function _vc(v, higherGood) {
+  higherGood = (higherGood !== false);
+  if (!v || v === 0) return 'neut';
+  return (v > 0) === higherGood ? 'fav' : 'adv';
+}
+function _ragBadge(act, bud, higherGood) {
+  higherGood = (higherGood !== false);
+  if (!bud || +bud === 0) return '<span class="rag rag-a">N/A</span>';
+  const p = ((+act - +bud) / Math.abs(+bud)) * 100;
+  const fav = higherGood ? p >= 0 : p <= 0;
+  const mild = !fav && Math.abs(p) < 2.5;
+  const cls = fav ? 'rag-g' : (mild ? 'rag-a' : 'rag-r');
+  const lbl = fav ? 'GREEN' : (mild ? 'AMBER' : 'RED');
+  return '<span class="rag ' + cls + '">' + lbl + '</span>';
+}
+
+const _MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function _pLabel(pid) { return _MONS[(pid % 100) - 1] || String(pid); }
+function _pStart(yr) { return ((yr || _CY) * 100) + 1; }
+function _pEnd(yr)   { return ((yr || _CY) * 100) + 12; }
+
+function _pgLoad(id, on) {
+  const pg = document.getElementById(id);
+  if (pg) pg.classList[on ? 'add' : 'remove']('pg-loading');
+}
+
+/* ----- p1: OVERVIEW ----- */
+async function loadP1() {
+  _pgLoad('p1', true);
+  const LINES = ['pl_total_sales','nr_rev','fuel_rev','ebitda','net_inc','cf_capex',
+    'stat_billed_gwh','opex','depn','nfc_int_exp','tax','cf_ops_net','fuel_cost','ipp_cost'];
+  const [aF, bF] = await Promise.all([
+    _fetchFacts('HIST_ACTUAL_' + _CY + '_YTD', LINES, _pStart(), _pEnd()),
+    _fetchFacts('AOP_' + _CY,                  LINES, _pStart(), _pEnd()),
+  ]);
+  _pgLoad('p1', false);
+
+  const aPeriods = Object.keys(aF['pl_total_sales'] || aF['ebitda'] || {})
+    .map(Number).sort(function(a, b) { return a - b; });
+  const ytdMo  = aPeriods.length ? aPeriods[aPeriods.length - 1] % 100 : 0;
+  const ytdLbl = ytdMo ? ('Jan–' + _MONS[ytdMo - 1] + ' ' + _CY) : ('YTD ' + _CY);
+
+  function sa(lid) { return _fSumP(aF, lid, aPeriods); }
+  function sb(lid) { return _fSumP(bF, lid, aPeriods); }
+
+  const rev_a = sa('pl_total_sales'), rev_b = sb('pl_total_sales');
+  const ebd_a = sa('ebitda'),         ebd_b = sb('ebitda');
+  const ni_a  = sa('net_inc'),        ni_b  = sb('net_inc');
+  const cpx_a = Math.abs(sa('cf_capex')), cpx_b = Math.abs(sb('cf_capex'));
+  const gwh_a = sa('stat_billed_gwh'), gwh_b = sb('stat_billed_gwh');
+  const nfr_a = sa('nr_rev'),   nfr_b = sb('nr_rev');
+  const frl_a = sa('fuel_rev'), frl_b = sb('fuel_rev');
+  const fc_a  = sa('fuel_cost'), fc_b = sb('fuel_cost');
+  const ic_a  = sa('ipp_cost'),  ic_b = sb('ipp_cost');
+  const opx_a = sa('opex'),     opx_b = sb('opex');
+  const dep_a = sa('depn'),     dep_b = sb('depn');
+  const fin_a = sa('nfc_int_exp'), fin_b = sb('nfc_int_exp');
+  const tax_a = sa('tax'),      tax_b = sb('tax');
+  const ocf_a = sa('cf_ops_net'), ocf_b = sb('cf_ops_net');
+  const gm_a  = rev_a - fc_a - ic_a, gm_b = rev_b - fc_b - ic_b;
+  const ebdMg_a = rev_a ? (ebd_a / rev_a * 100) : 0;
+  const ebdMg_b = rev_b ? (ebd_b / rev_b * 100) : 0;
+
+  function kpi(lbl, a, b, isMoney, higherGood) {
+    const pct = b ? ((a - b) / Math.abs(b) * 100) : 0;
+    const up = (pct >= 0) === (higherGood !== false);
+    return '<div class="kpi-card">'
+      + '<div class="k-lbl">' + lbl + '</div>'
+      + '<div class="k-val">' + (isMoney ? '$' : '') + _fmtM(a) + '</div>'
+      + '<div class="k-delta ' + (up ? 'k-up' : 'k-warn') + '">'
+      + (up ? '&#9650;' : '&#9660;') + ' '
+      + (pct >= 0 ? '+' : '−') + Math.abs(pct).toFixed(1) + '% vs AOP'
+      + '</div>'
+      + '<div class="k-aop">AOP YTD: ' + (isMoney ? '$' : '') + _fmtM(b) + '</div>'
+      + '</div>';
+  }
+
+  function ragRow(lbl, a, b, higherGood, isPct) {
+    const v = a - b;
+    const vStr = isPct
+      ? (v >= 0 ? '+' : '') + v.toFixed(1) + 'pp'
+      : _fmtM(v);
+    const vCls = _vc(v, higherGood);
+    const aStr = isPct ? a.toFixed(1) + '%' : _fmtM(a);
+    const bStr = isPct ? b.toFixed(1) + '%' : _fmtM(b);
+    return '<tr><td>' + lbl + '</td>'
+      + '<td class="num">' + aStr + '</td>'
+      + '<td class="num">' + bStr + '</td>'
+      + '<td class="num ' + vCls + '">' + vStr + '</td>'
+      + '<td class="num ' + vCls + '">' + (isPct ? '—' : _fmtPct(a, b)) + '</td>'
+      + '<td>' + _ragBadge(a, b, higherGood) + '</td>'
+      + '<td style="text-align:left">—</td></tr>';
+  }
+
+  function plRow(lbl, a, b, cls, isCost) {
+    const v = a - b;
+    const hg = !isCost;
+    const vCls = _vc(v, hg);
+    return '<tr class="' + (cls || 'rind') + '"><td>' + lbl + '</td>'
+      + '<td class="num">' + (isCost ? _fmtCost(a) : _fmtM(a)) + '</td>'
+      + '<td class="num">' + (isCost ? _fmtCost(b) : _fmtM(b)) + '</td>'
+      + '<td class="num ' + vCls + '">' + _fmtPct(a, b) + '</td></tr>';
+  }
+
+  const noData = !aPeriods.length;
+  const html = ''
+    + '<div class="page-head"><h1>Overview</h1>'
+    + '<div class="ph-sub">YTD ' + ytdLbl + ' &middot; Actual vs AOP &middot; JMD $000s</div></div>'
+    + (noData ? '<div class="notice-bar">No actuals data loaded for ' + _CY + '. Contact FP&amp;A to upload.</div>' : '')
+    + '<div class="kpi-strip">'
+    + kpi('Revenue YTD', rev_a, rev_b, true, true)
+    + kpi('EBITDA YTD',  ebd_a, ebd_b, true, true)
+    + kpi('NPAT YTD',    ni_a,  ni_b,  true, true)
+    + kpi('CapEx YTD',   cpx_a, cpx_b, true, false)
+    + kpi('GWh Billed',  gwh_a, gwh_b, false, true)
+    + '</div>'
+    + '<div class="card"><div class="card-head">RAG Performance Scorecard'
+    + ' <span class="ch-sub">YTD ' + ytdLbl + '</span></div>'
+    + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+    + '<th>Metric</th><th>YTD Actual</th><th>YTD AOP</th>'
+    + '<th>Variance</th><th>Var %</th><th>RAG</th><th>Commentary</th>'
+    + '</tr></thead><tbody>'
+    + ragRow('Total Revenue',       rev_a,    rev_b,    true,  false)
+    + ragRow('EBITDA',              ebd_a,    ebd_b,    true,  false)
+    + ragRow('NPAT',                ni_a,     ni_b,     true,  false)
+    + ragRow('EBITDA Margin %',     ebdMg_a,  ebdMg_b,  true,  true)
+    + ragRow('CapEx Spend',         cpx_a,    cpx_b,    false, false)
+    + ragRow('GWh Billed',          gwh_a,    gwh_b,    true,  false)
+    + ragRow('Operating Cash Flow', ocf_a,    ocf_b,    true,  false)
+    + '</tbody></table></div></div>'
+    + '<div class="grid-2">'
+    + '<div class="card"><div class="card-head">YTD Income Summary'
+    + ' <span class="ch-sub">JMD $000s</span></div>'
+    + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+    + '<th>Line</th><th>YTD Actual</th><th>AOP YTD</th><th>Var %</th>'
+    + '</tr></thead><tbody>'
+    + '<tr class="rsec"><td colspan="4">Revenue</td></tr>'
+    + plRow('Non-Fuel Revenue',    nfr_a, nfr_b, 'rind', false)
+    + plRow('Fuel Cost Recovery',  frl_a, frl_b, 'rind', false)
+    + plRow('Total Revenue',       rev_a, rev_b, 'rs',   false)
+    + '<tr class="rsec"><td colspan="4">Cost of Generation</td></tr>'
+    + plRow('Fuel &amp; IPP Energy', fc_a + ic_a, fc_b + ic_b, 'rind', true)
+    + plRow('Operating Expenses',  opx_a, opx_b, 'rind', true)
+    + plRow('Gross Margin',        gm_a,  gm_b,  'rs',   false)
+    + '<tr class="rsec"><td colspan="4">Operating</td></tr>'
+    + plRow('EBITDA',              ebd_a, ebd_b, 'rs',   false)
+    + plRow('Depreciation',        dep_a, dep_b, 'rind', true)
+    + plRow('Finance Costs (net)', fin_a, fin_b, 'rind', true)
+    + plRow('Tax',                 tax_a, tax_b, 'rind', true)
+    + plRow('NPAT',                ni_a,  ni_b,  'rs',   false)
+    + '</tbody></table></div></div>'
+    + '<div class="card"><div class="card-head">Efficiency Metrics'
+    + ' <span class="ch-sub">YTD ' + ytdLbl + '</span></div>'
+    + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+    + '<th>Metric</th><th>Actual</th><th>AOP</th><th>RAG</th>'
+    + '</tr></thead><tbody>'
+    + '<tr><td>EBITDA Margin %</td>'
+    + '<td class="num">' + ebdMg_a.toFixed(1) + '%</td>'
+    + '<td class="num">' + ebdMg_b.toFixed(1) + '%</td>'
+    + '<td>' + _ragBadge(ebdMg_a, ebdMg_b) + '</td></tr>'
+    + '<tr><td>Fuel Cost / Revenue</td>'
+    + '<td class="num">' + (rev_a ? (fc_a / rev_a * 100).toFixed(1) : '—') + '%</td>'
+    + '<td class="num">' + (rev_b ? (fc_b / rev_b * 100).toFixed(1) : '—') + '%</td>'
+    + '<td>' + _ragBadge(rev_a ? fc_a / rev_a : 0, rev_b ? fc_b / rev_b : 0, false) + '</td></tr>'
+    + '<tr><td>NPAT Margin %</td>'
+    + '<td class="num">' + (rev_a ? (ni_a / rev_a * 100).toFixed(1) : '—') + '%</td>'
+    + '<td class="num">' + (rev_b ? (ni_b / rev_b * 100).toFixed(1) : '—') + '%</td>'
+    + '<td>' + _ragBadge(rev_a ? ni_a / rev_a : 0, rev_b ? ni_b / rev_b : 0) + '</td></tr>'
+    + '<tr><td>Operating Cash Conversion</td>'
+    + '<td class="num">' + (ebd_a ? (ocf_a / ebd_a * 100).toFixed(1) : '—') + '%</td>'
+    + '<td class="num">' + (ebd_b ? (ocf_b / ebd_b * 100).toFixed(1) : '—') + '%</td>'
+    + '<td>' + _ragBadge(ebd_a ? ocf_a / ebd_a : 0, ebd_b ? ocf_b / ebd_b : 0) + '</td></tr>'
+    + '</tbody></table></div></div>'
+    + '</div>';
+
+  const pg = document.getElementById('p1');
+  if (pg) pg.innerHTML = html;
+}
+
+/* ----- p2: CONSOLIDATED P&L ----- */
+async function loadP2() {
+  _pgLoad('p2', true);
+  const LINES = ['pl_total_sales','nr_rev','fuel_rev','fuel_cost','ipp_cost',
+    'opex','ebitda','depn','ebit','nfc_int_exp','nfc_int_inc',
+    'pretax','tax','net_inc'];
+  const [aF, bF] = await Promise.all([
+    _fetchFacts('HIST_ACTUAL_' + _CY + '_YTD', LINES, _pStart(), _pEnd()),
+    _fetchFacts('AOP_' + _CY,                  LINES, _pStart(), _pEnd()),
+  ]);
+  _pgLoad('p2', false);
+
+  const aPeriods = Object.keys(aF['pl_total_sales'] || aF['ebitda'] || {})
+    .map(Number).sort(function(a, b) { return a - b; });
+  const ytdMo  = aPeriods.length ? aPeriods[aPeriods.length - 1] % 100 : 0;
+  const ytdLbl = ytdMo ? ('Jan–' + _MONS[ytdMo - 1] + ' ' + _CY) : ('YTD ' + _CY);
+  const nCols  = aPeriods.length + 5;
+
+  function sa(lid) { return _fSumP(aF, lid, aPeriods); }
+  function sb(lid) { return _fSumP(bF, lid, aPeriods); }
+  function sbFY(lid) { return _fSum(bF, lid); }
+
+  function row(lbl, lid, cls, isCost) {
+    const moCells = aPeriods.map(function(p) {
+      const v = _fVal(aF, lid, p);
+      return '<td class="num">' + (isCost ? _fmtCost(v) : _fmtM(v)) + '</td>';
+    }).join('');
+    const ytdA = sa(lid), ytdB = sb(lid), fyB = sbFY(lid);
+    const v$   = ytdA - ytdB;
+    const hg   = !isCost;
+    const vCls = _vc(v$, hg);
+    const fmt  = isCost ? _fmtCost : _fmtM;
+    return '<tr class="' + (cls || 'rind') + '"><td>' + lbl + '</td>'
+      + moCells
+      + '<td class="num">' + fmt(ytdA) + '</td>'
+      + '<td class="num">' + fmt(ytdB) + '</td>'
+      + '<td class="num ' + vCls + '">' + _fmtM(v$) + '</td>'
+      + '<td class="num ' + vCls + '">' + _fmtPct(ytdA, ytdB) + '</td>'
+      + '<td class="num">' + fmt(fyB) + '</td>'
+      + '</tr>';
+  }
+  function sec(lbl) {
+    return '<tr class="rsec"><td colspan="' + nCols + '">' + lbl + '</td></tr>';
+  }
+
+  const moHdr = aPeriods.map(function(p) { return '<th>' + _pLabel(p) + '</th>'; }).join('');
+  const html = ''
+    + '<div class="page-head"><h1>Consolidated P&amp;L</h1>'
+    + '<div class="ph-sub">Income Statement &middot; ' + ytdLbl + ' &middot; JMD $000s</div></div>'
+    + '<div class="notice-bar">' + ytdLbl + ' = Actuals. AOP FY = full-year plan. Adverse shown as (x).</div>'
+    + '<div class="card"><div class="card-head">Statement of Comprehensive Income'
+    + ' <span class="ch-sub">Monthly &middot; YTD &middot; vs AOP</span></div>'
+    + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+    + '<th>Description</th>' + moHdr
+    + '<th>YTD Actual</th><th>AOP YTD</th><th>Var $</th><th>Var %</th><th>AOP FY</th>'
+    + '</tr></thead><tbody>'
+    + sec('Revenue')
+    + row('Non-Fuel Revenue',             'nr_rev',        'rind', false)
+    + row('Fuel Cost Recovery',           'fuel_rev',      'rind', false)
+    + row('Total Revenue',                'pl_total_sales','rs',   false)
+    + sec('Cost of Generation')
+    + row('Fuel Cost',                    'fuel_cost',     'rind', true)
+    + row('IPP Purchased Energy',         'ipp_cost',      'rind', true)
+    + sec('Operating Expenses')
+    + row('Operating Expenses',           'opex',          'rind', true)
+    + row('EBITDA',                       'ebitda',        'rs',   false)
+    + sec('Depreciation')
+    + row('Depreciation &amp; Amortization','depn',        'rind', true)
+    + row('EBIT',                         'ebit',          'rs',   false)
+    + sec('Finance Costs')
+    + row('Interest Expense',             'nfc_int_exp',   'rind', true)
+    + row('Interest Income',              'nfc_int_inc',   'rind', false)
+    + row('Net Profit Before Tax',        'pretax',        'rs',   false)
+    + sec('Taxation')
+    + row('Income Tax Expense',           'tax',           'rind', true)
+    + row('Net Profit After Tax',         'net_inc',       'rs',   false)
+    + '</tbody></table></div></div>';
+
+  const pg = document.getElementById('p2');
+  if (pg) pg.innerHTML = html;
+}
+
+/* ----- p3: BALANCE SHEET ----- */
+async function loadP3() {
+  _pgLoad('p3', true);
+  const LINES = [
+    'ppe','cwip','rou_asset','eqinv','finv','bs_dta',
+    'recv','cash','bs_prepaid','bs_other_recv','unbill',
+    'tot_a',
+    'ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl',
+    'bs_curr_ltd','bs_cust_dep','bs_payroll_tax',
+    'ltd','leases','bs_cust_dep_lt','bs_due_to','pension','bs_dtl',
+    'bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref'
+  ];
+
+  await _ensureVMap();
+  const ytdVid = (_vMap || {})['HIST_ACTUAL_' + _CY + '_YTD'];
+  let maxPer = _pStart();
+  if (ytdVid) {
+    const mr = await _sbQ(function(sb) {
+      return sb.from('fpa_facts').select('period_id')
+        .eq('version_id', ytdVid)
+        .order('period_id', { ascending: false }).limit(1);
+    });
+    if (mr && mr.data && mr.data.length) maxPer = mr.data[0].period_id;
+  }
+
+  const pyCode  = 'HIST_ACTUAL_' + _PY;
+  const pyPer   = _PY * 100 + 12;
+
+  const [cF, pF] = await Promise.all([
+    _fetchFacts('HIST_ACTUAL_' + _CY + '_YTD', LINES, maxPer, maxPer),
+    _fetchFacts(pyCode,                         LINES, pyPer,  pyPer),
+  ]);
+  _pgLoad('p3', false);
+
+  const curLbl = _pLabel(maxPer) + ' ' + _CY;
+  const priLbl = 'Dec ' + _PY;
+
+  function cv(lid) { return _fVal(cF, lid, maxPer); }
+  function pv(lid) { return _fVal(pF, lid, pyPer); }
+
+  const ppe_c  = cv('ppe'),  ppe_p  = pv('ppe');
+  const cwip_c = cv('cwip'), cwip_p = pv('cwip');
+  const rou_c  = cv('rou_asset'), rou_p = pv('rou_asset');
+  const nca_c  = ppe_c + cwip_c + rou_c + cv('eqinv') + cv('finv') + cv('bs_dta');
+  const nca_p  = ppe_p + cwip_p + rou_p + pv('eqinv') + pv('finv') + pv('bs_dta');
+  const recv_c = cv('recv'), recv_p = pv('recv');
+  const cash_c = cv('cash'), cash_p = pv('cash');
+  const oth_c  = cv('bs_prepaid') + cv('bs_other_recv') + cv('unbill');
+  const oth_p  = pv('bs_prepaid') + pv('bs_other_recv') + pv('unbill');
+  const ca_c   = recv_c + cash_c + oth_c;
+  const ca_p   = recv_p + cash_p + oth_p;
+  const ta_c   = cv('tot_a') || (nca_c + ca_c);
+  const ta_p   = pv('tot_a') || (nca_p + ca_p);
+  const eq_c   = cv('bs_share_cap') + cv('bs_retained') + cv('bs_cap_res') + cv('bs_cap_redm') + cv('bs_pref');
+  const eq_p   = pv('bs_share_cap') + pv('bs_retained') + pv('bs_cap_res') + pv('bs_cap_redm') + pv('bs_pref');
+  const ncl_c  = cv('ltd') + cv('leases') + cv('bs_cust_dep_lt') + cv('bs_due_to') + cv('pension') + cv('bs_dtl');
+  const ncl_p  = pv('ltd') + pv('leases') + pv('bs_cust_dep_lt') + pv('bs_due_to') + pv('pension') + pv('bs_dtl');
+  const cl_c   = cv('ap') + cv('bs_int_acc') + cv('bs_corp_tax') + cv('bs_bank_od') + cv('lease_cl') + cv('bs_curr_ltd') + cv('bs_cust_dep') + cv('bs_payroll_tax');
+  const cl_p   = pv('ap') + pv('bs_int_acc') + pv('bs_corp_tax') + pv('bs_bank_od') + pv('lease_cl') + pv('bs_curr_ltd') + pv('bs_cust_dep') + pv('bs_payroll_tax');
+  const tel_c  = eq_c + ncl_c + cl_c;
+  const tel_p  = eq_p + ncl_p + cl_p;
+
+  function bsRow(lbl, c, p, cls) {
+    const mv = c - p;
+    const mvCls = mv > 0 ? 'fav' : (mv < 0 ? 'adv' : 'neut');
+    return '<tr class="' + (cls || 'rind') + '"><td>' + lbl + '</td>'
+      + '<td class="num">' + _fmtM(c) + '</td>'
+      + '<td class="num">' + _fmtM(p) + '</td>'
+      + '<td class="num ' + mvCls + '">' + _fmtM(mv) + '</td>'
+      + '</tr>';
+  }
+  function sec(lbl) { return '<tr class="rsec"><td colspan="4">' + lbl + '</td></tr>'; }
+
+  const html = ''
+    + '<div class="page-head"><h1>Balance Sheet</h1>'
+    + '<div class="ph-sub">Statement of Financial Position &middot; As at ' + curLbl + ' &middot; JMD $000s</div></div>'
+    + '<div class="card"><div class="card-head">Statement of Financial Position'
+    + ' <span class="ch-sub">' + curLbl + ' vs ' + priLbl + '</span></div>'
+    + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+    + '<th>Description</th><th>' + curLbl + '</th><th>' + priLbl + '</th><th>Movement</th>'
+    + '</tr></thead><tbody>'
+    + sec('Non-Current Assets')
+    + bsRow('Property, Plant &amp; Equipment (Net)', ppe_c,  ppe_p)
+    + bsRow('Capital Work in Progress',              cwip_c, cwip_p)
+    + bsRow('Right-of-Use Assets (IFRS 16)',         rou_c,  rou_p)
+    + bsRow('Equity Investments',          cv('eqinv'),       pv('eqinv'))
+    + bsRow('Financial Investments',       cv('finv'),        pv('finv'))
+    + bsRow('Deferred Tax Asset',          cv('bs_dta'),      pv('bs_dta'))
+    + bsRow('Total Non-Current Assets',    nca_c,             nca_p,  'rs')
+    + sec('Current Assets')
+    + bsRow('Trade Receivables',           recv_c,            recv_p)
+    + bsRow('Cash &amp; Equivalents',      cash_c,            cash_p)
+    + bsRow('Prepayments &amp; Other',     oth_c,             oth_p)
+    + bsRow('Total Current Assets',        ca_c,              ca_p,   'rs')
+    + bsRow('TOTAL ASSETS',                ta_c,              ta_p,   'rs')
+    + sec('Equity')
+    + bsRow('Share Capital',               cv('bs_share_cap'), pv('bs_share_cap'))
+    + bsRow('Retained Earnings',           cv('bs_retained'),  pv('bs_retained'))
+    + bsRow('Capital Reserves',            cv('bs_cap_res'),   pv('bs_cap_res'))
+    + bsRow('Preference Shares',           cv('bs_pref'),      pv('bs_pref'))
+    + bsRow('Total Equity',                eq_c,               eq_p,  'rs')
+    + sec('Non-Current Liabilities')
+    + bsRow('Long-Term Borrowings',        cv('ltd'),          pv('ltd'))
+    + bsRow('Lease Liabilities (IFRS 16)', cv('leases'),       pv('leases'))
+    + bsRow('Customer Deposits (LT)',      cv('bs_cust_dep_lt'),pv('bs_cust_dep_lt'))
+    + bsRow('Deferred Tax Liability',      cv('bs_dtl'),       pv('bs_dtl'))
+    + bsRow('Pension Obligations',         cv('pension'),      pv('pension'))
+    + bsRow('Total Non-Current Liabilities',ncl_c,            ncl_p, 'rs')
+    + sec('Current Liabilities')
+    + bsRow('Accounts Payable',            cv('ap'),           pv('ap'))
+    + bsRow('Accrued Interest',            cv('bs_int_acc'),   pv('bs_int_acc'))
+    + bsRow('Corporate Tax Payable',       cv('bs_corp_tax'),  pv('bs_corp_tax'))
+    + bsRow('Bank Overdraft',              cv('bs_bank_od'),   pv('bs_bank_od'))
+    + bsRow('Current Lease Liabilities',   cv('lease_cl'),     pv('lease_cl'))
+    + bsRow('Current Portion LTD',         cv('bs_curr_ltd'),  pv('bs_curr_ltd'))
+    + bsRow('Customer Deposits (Current)', cv('bs_cust_dep'),  pv('bs_cust_dep'))
+    + bsRow('Total Current Liabilities',   cl_c,               cl_p,  'rs')
+    + bsRow('TOTAL EQUITY &amp; LIABILITIES', tel_c,           tel_p, 'rs')
+    + '</tbody></table></div></div>';
+
+  const pg = document.getElementById('p3');
+  if (pg) pg.innerHTML = html;
+}
+
+/* ----- p4: CASH FLOW ----- */
+async function loadP4() {
+  _pgLoad('p4', true);
+  const LINES = [
+    'cf_ni','cf_depn','cf_def_tax','cf_netint','cf_intpd',
+    'cf_wc_recv','cf_wc_ap','cf_wc_inv','cf_wc_corptax',
+    'cf_wc_emp','cf_wc_due_fr','cf_wc_due_to','cf_wc_matls',
+    'cf_wc_payrtax','cf_wc_decomm',
+    'cf_tax_exp','cf_ops_net',
+    'cf_capex','cf_disp','cf_inv_net',
+    'cf_loanrep','cf_amort_debt','cf_orddiv','cf_lease_p',
+    'cf_fx','cf_rcash','cf_fin_net',
+    'cf_open','cf_close','cf_change'
+  ];
+  const [aF, bF] = await Promise.all([
+    _fetchFacts('HIST_ACTUAL_' + _CY + '_YTD', LINES, _pStart(), _pEnd()),
+    _fetchFacts('AOP_' + _CY,                  LINES, _pStart(), _pEnd()),
+  ]);
+  _pgLoad('p4', false);
+
+  const aPeriods = Object.keys(aF['cf_ops_net'] || aF['cf_close'] || {})
+    .map(Number).sort(function(a, b) { return a - b; });
+  const ytdMo  = aPeriods.length ? aPeriods[aPeriods.length - 1] % 100 : 0;
+  const ytdLbl = ytdMo ? ('Jan–' + _MONS[ytdMo - 1] + ' ' + _CY) : ('YTD ' + _CY);
+
+  function sa(lid) { return _fSumP(aF, lid, aPeriods); }
+  function sb(lid) { return _fSumP(bF, lid, aPeriods); }
+
+  function cfRow(lbl, lid, cls, higherGood) {
+    const a = sa(lid), b = sb(lid), v = a - b;
+    const hg = (higherGood !== undefined) ? higherGood : true;
+    const vCls = _vc(v, hg);
+    return '<tr class="' + (cls || 'rind') + '"><td>' + lbl + '</td>'
+      + '<td class="num">' + _fmtM(a) + '</td>'
+      + '<td class="num">' + _fmtM(b) + '</td>'
+      + '<td class="num ' + vCls + '">' + _fmtM(v) + '</td></tr>';
+  }
+  function sec(lbl) { return '<tr class="rsec"><td colspan="4">' + lbl + '</td></tr>'; }
+
+  const html = ''
+    + '<div class="page-head"><h1>Cash Flow</h1>'
+    + '<div class="ph-sub">Statement of Cash Flows (Indirect) &middot; YTD ' + ytdLbl + ' &middot; JMD $000s</div></div>'
+    + '<div class="card"><div class="card-head">Statement of Cash Flows'
+    + ' <span class="ch-sub">Indirect method &middot; YTD vs AOP</span></div>'
+    + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+    + '<th>Description</th><th>YTD Actual</th><th>AOP YTD</th><th>Var $</th>'
+    + '</tr></thead><tbody>'
+    + sec('Operating Activities')
+    + cfRow('Net Income',                    'cf_ni',       'rind', true)
+    + cfRow('Add: Depreciation',             'cf_depn',     'rind', true)
+    + cfRow('Add: Deferred Tax',             'cf_def_tax',  'rind', true)
+    + cfRow('Net Interest Adjustment',       'cf_netint',   'rind', true)
+    + cfRow('WC: Trade Receivables',         'cf_wc_recv',  'rind', false)
+    + cfRow('WC: Accounts Payable',          'cf_wc_ap',    'rind', true)
+    + cfRow('WC: Inventories',               'cf_wc_inv',   'rind', false)
+    + cfRow('WC: Corp Tax &amp; Payroll',    'cf_wc_corptax','rind', false)
+    + cfRow('WC: Employee Costs',            'cf_wc_emp',   'rind', false)
+    + cfRow('WC: Due From / Other',          'cf_wc_due_fr','rind', false)
+    + cfRow('Tax Paid',                      'cf_tax_exp',  'rind', false)
+    + cfRow('Interest Paid',                 'cf_intpd',    'rind', false)
+    + cfRow('Net Cash from Operating',       'cf_ops_net',  'rs',   true)
+    + sec('Investing Activities')
+    + cfRow('Capital Expenditure',           'cf_capex',    'rind', false)
+    + cfRow('Asset Disposals',               'cf_disp',     'rind', true)
+    + cfRow('Net Cash from Investing',       'cf_inv_net',  'rs',   false)
+    + sec('Financing Activities')
+    + cfRow('Loan Repayments',               'cf_loanrep',  'rind', false)
+    + cfRow('Debt Amortization',             'cf_amort_debt','rind', false)
+    + cfRow('Lease Payments (IFRS 16)',      'cf_lease_p',  'rind', false)
+    + cfRow('Dividends Paid',                'cf_orddiv',   'rind', false)
+    + cfRow('FX &amp; Other',                'cf_fx',       'rind', false)
+    + cfRow('Net Cash from Financing',       'cf_fin_net',  'rs',   false)
+    + sec('Net Movement')
+    + cfRow('Net Change in Cash',            'cf_change',   'rs',   true)
+    + cfRow('Opening Cash Balance',          'cf_open',     'rind', false)
+    + cfRow('Closing Cash Balance',          'cf_close',    'rs',   true)
+    + '</tbody></table></div></div>';
+
+  const pg = document.getElementById('p4');
+  if (pg) pg.innerHTML = html;
+}
+
+/* ----- DISPATCHER ----- */
 function loadPage(id) {
-  // Stub — wire to real data loaders as fpa_facts is populated.
-  console.log('[FPA v2] load page:', id);
-  if (id === 'p15') loadAuditFromDB();
+  console.log('[FPA] load:', id);
+  if      (id === 'p1')  loadP1();
+  else if (id === 'p2')  loadP2();
+  else if (id === 'p3')  loadP3();
+  else if (id === 'p4')  loadP4();
+  else if (id === 'p15') loadAuditFromDB();
+  // p5–p16: static HTML retained
 }
 
 /* ---------- Version selector ---------- */
