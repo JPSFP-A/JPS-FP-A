@@ -190,10 +190,31 @@ button { font-family: inherit; cursor: pointer; }
   background: rgba(0,174,239,.13); color: var(--teal);
   border-radius: 11px; margin-left: 4px;
 }
-.ver-group { display: flex; gap: 4px; background: var(--bg); padding: 3px; border-radius: 8px; }
+/* topbar control groups */
+.tb-ctrl-grp { display: flex; flex-direction: column; gap: 2px; }
+.tb-ctrl-lbl { font-size: 9px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+/* year pills */
+.yr-nav { display: flex; gap: 3px; }
+.yr-btn {
+  padding: 4px 10px; border: none; background: transparent;
+  color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer;
+  border-radius: 6px; transition: background .15s, color .15s;
+}
+.yr-btn.active-yr { background: rgba(0,174,239,.18); color: var(--teal); }
+.yr-btn:hover:not(.active-yr) { background: var(--border); color: var(--text); }
+/* view toggle (Mo / YTD / FY) */
+.view-grp { display: flex; gap: 2px; background: var(--bg); padding: 2px; border-radius: 7px; }
+.view-btn {
+  padding: 4px 10px; border: none; background: transparent;
+  color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer;
+  border-radius: 5px; transition: background .15s, color .15s;
+}
+.view-btn.active-view { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+/* comparison pills (AOP / LE1 / LE2 / PY) */
+.ver-group { display: flex; gap: 3px; background: var(--bg); padding: 3px; border-radius: 8px; }
 .ver-btn {
-  padding: 5px 12px; border: none; background: transparent;
-  color: var(--muted); font-size: 12px; font-weight: 600;
+  padding: 4px 10px; border: none; background: transparent;
+  color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer;
   border-radius: 6px; transition: background .15s, color .15s;
 }
 .ver-btn.active-ver { background: var(--teal); color: #fff; }
@@ -794,16 +815,41 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
       <b>JPS <span>FP&amp;A</span> Hub</b>
     </div>
 
-    <div class="ver-group" role="group" aria-label="Version selector">
-      <button class="ver-btn"            data-v="Budget"  onclick="setActiveVersion('Budget')">Budget</button>
-      <button class="ver-btn"            data-v="LE1"     onclick="setActiveVersion('LE1')">LE1</button>
-      <button class="ver-btn"            data-v="LE2"     onclick="setActiveVersion('LE2')">LE2</button>
-      <button class="ver-btn active-ver" data-v="Actuals" onclick="setActiveVersion('Actuals')">Actuals</button>
+    <!-- Year selector -->
+    <div class="tb-ctrl-grp">
+      <span class="tb-ctrl-lbl">Year</span>
+      <div id="yr-nav" class="yr-nav">
+        <button class="yr-btn active-yr" data-yr="2026" onclick="setActiveYear(2026)">2026</button>
+      </div>
     </div>
 
-    <div class="tb-period">
-      <div id="mo-nav" class="mo-nav"><span class="mo-btn active-mo" data-mo="0">YTD</span></div>
-      &nbsp;|&nbsp;<b class="version-label">Actuals</b> <span id="tb-cy"></span>
+    <!-- Month selector -->
+    <div class="tb-ctrl-grp">
+      <span class="tb-ctrl-lbl">Month</span>
+      <div id="mo-nav" class="mo-nav">
+        <button class="mo-btn active-mo" data-mo="0" onclick="setActiveMo(0)">Latest</button>
+      </div>
+    </div>
+
+    <!-- View toggle -->
+    <div class="tb-ctrl-grp">
+      <span class="tb-ctrl-lbl">View</span>
+      <div class="view-grp">
+        <button class="view-btn"             data-v="Month" onclick="setActiveView('Month')">Mo</button>
+        <button class="view-btn active-view" data-v="YTD"   onclick="setActiveView('YTD')">YTD</button>
+        <button class="view-btn"             data-v="FY"    onclick="setActiveView('FY')">FY</button>
+      </div>
+    </div>
+
+    <!-- Comparison selector -->
+    <div class="tb-ctrl-grp">
+      <span class="tb-ctrl-lbl">vs</span>
+      <div class="ver-group" role="group" aria-label="Comparison selector">
+        <button class="ver-btn active-ver" data-v="Budget" onclick="setActiveCmp('Budget')">AOP</button>
+        <button class="ver-btn"            data-v="LE1"    onclick="setActiveCmp('LE1')">LE1</button>
+        <button class="ver-btn"            data-v="LE2"    onclick="setActiveCmp('LE2')">LE2</button>
+        <button class="ver-btn"            data-v="PY"     onclick="setActiveCmp('PY')">PY</button>
+      </div>
     </div>
 
     <div class="tb-right">
@@ -2429,6 +2475,27 @@ async function _ensureVMap() {
   return _vMapP;
 }
 
+// Discover & cache max available month for a year (needed before _getCtx can work)
+async function _ensureMaxMo(yr) {
+  if (_yearMaxMo[yr] != null) return;
+  await _ensureVMap();
+  const isCY = (yr === _CY);
+  const vCode = isCY ? ('HIST_ACTUAL_' + yr + '_YTD') : ('HIST_ACTUAL_' + yr);
+  const vid = (_vMap || {})[vCode];
+  if (vid) {
+    const mr = await _sbQ(function(sb) {
+      return sb.from('fpa_facts').select('period_id')
+        .eq('version_id', vid)
+        .order('period_id', { ascending: false }).limit(1);
+    });
+    if (mr && mr.data && mr.data.length) {
+      _yearMaxMo[yr] = mr.data[0].period_id % 100;
+      return;
+    }
+  }
+  _yearMaxMo[yr] = isCY ? 0 : 12; // fallback
+}
+
 async function _fetchFacts(vCode, lines, pStart, pEnd) {
   await _ensureVMap();
   const vid = (_vMap || {})[vCode];
@@ -2508,30 +2575,24 @@ function _pgLoad(id, on) {
 /* ----- p1: OVERVIEW ----- */
 async function loadP1() {
   _pgLoad('p1', true);
+  await _ensureMaxMo(_activeYear);
+  const ctx = _getCtx();
+  if (!ctx) { _pgLoad('p1', false); return; }
+
   const LINES = ['pl_total_sales','nr_rev','fuel_rev','ebitda','net_inc','cf_capex',
     'stat_billed_gwh','opex','depn','nfc_int_exp','tax','cf_ops_net','fuel_cost','ipp_cost'];
   const [aF, bF] = await Promise.all([
-    _fetchFacts('HIST_ACTUAL_' + _CY + '_YTD', LINES, _pStart(), _pEnd()),
-    _fetchFacts('AOP_' + _CY,                  LINES, _pStart(), _pEnd()),
+    _fetchFacts(ctx.actCode, LINES, ctx.actStart, ctx.actEnd),
+    _fetchFacts(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
   ]);
   _pgLoad('p1', false);
 
-  const _allPeriods = Object.keys(aF['pl_total_sales'] || aF['ebitda'] || {})
-    .map(Number).sort(function(a, b) { return a - b; });
-  const aPeriods = _activeMo > 0
-    ? _allPeriods.filter(function(p) { return p % 100 === _activeMo; })
-    : _allPeriods;
-  const ytdMo  = _allPeriods.length ? _allPeriods[_allPeriods.length - 1] % 100 : 0;
-  const curMo  = _activeMo > 0 ? _activeMo : ytdMo;
-  const ytdLbl = _activeMo > 0
-    ? (_MONS[_activeMo - 1] + ' ' + _CY)
-    : (ytdMo ? ('Jan–' + _MONS[ytdMo - 1] + ' ' + _CY) : ('YTD ' + _CY));
+  // Refresh nav pills with discovered data
+  _renderYrNav();
+  _renderMoNav(ctx.maxMo);
 
-  // Populate month nav pills (only on YTD pass so pills show all available months)
-  if (_activeMo === 0) _renderMoNav(_allPeriods);
-
-  function sa(lid) { return _fSumP(aF, lid, aPeriods); }
-  function sb(lid) { return _fSumP(bF, lid, aPeriods); }
+  function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
+  function sb(lid) { return _fSumP(bF, lid, ctx.cmpPeriods); }
 
   const rev_a = sa('pl_total_sales'), rev_b = sb('pl_total_sales');
   const ebd_a = sa('ebitda'),         ebd_b = sb('ebitda');
@@ -2559,9 +2620,9 @@ async function loadP1() {
       + '<div class="k-val">' + (isMoney ? '$' : '') + _fmtM(a) + '</div>'
       + '<div class="k-delta ' + (up ? 'k-up' : 'k-warn') + '">'
       + (up ? '&#9650;' : '&#9660;') + ' '
-      + (pct >= 0 ? '+' : '−') + Math.abs(pct).toFixed(1) + '% vs AOP'
+      + (pct >= 0 ? '+' : '−') + Math.abs(pct).toFixed(1) + '% vs ' + ctx.cmpLbl
       + '</div>'
-      + '<div class="k-aop">AOP YTD: ' + (isMoney ? '$' : '') + _fmtM(b) + '</div>'
+      + '<div class="k-aop">' + ctx.cmpLbl + ': ' + (isMoney ? '$' : '') + _fmtM(b) + '</div>'
       + '</div>';
   }
 
@@ -2592,22 +2653,22 @@ async function loadP1() {
       + '<td class="num ' + vCls + '">' + _fmtPct(a, b) + '</td></tr>';
   }
 
-  const noData = !aPeriods.length;
+  const noData = !ctx.actPeriods.length;
   const html = ''
     + '<div class="page-head"><h1>Overview</h1>'
-    + '<div class="ph-sub">YTD ' + ytdLbl + ' &middot; Actual vs AOP &middot; JMD $000s</div></div>'
-    + (noData ? '<div class="notice-bar">No actuals data loaded for ' + _CY + '. Contact FP&amp;A to upload.</div>' : '')
+    + '<div class="ph-sub">' + ctx.viewLbl + ' &middot; Actual vs ' + ctx.cmpLbl + ' &middot; JMD $000s</div></div>'
+    + (noData ? '<div class="notice-bar">No actuals data for ' + ctx.yr + '. Contact FP&amp;A to upload.</div>' : '')
     + '<div class="kpi-strip">'
-    + kpi('Revenue YTD', rev_a, rev_b, true, true)
-    + kpi('EBITDA YTD',  ebd_a, ebd_b, true, true)
-    + kpi('NPAT YTD',    ni_a,  ni_b,  true, true)
-    + kpi('CapEx YTD',   cpx_a, cpx_b, true, false)
-    + kpi('GWh Billed',  gwh_a, gwh_b, false, true)
+    + kpi('Revenue',  rev_a, rev_b, true, true)
+    + kpi('EBITDA',   ebd_a, ebd_b, true, true)
+    + kpi('NPAT',     ni_a,  ni_b,  true, true)
+    + kpi('CapEx',    cpx_a, cpx_b, true, false)
+    + kpi('GWh Billed', gwh_a, gwh_b, false, true)
     + '</div>'
     + '<div class="card"><div class="card-head">RAG Performance Scorecard'
-    + ' <span class="ch-sub">YTD ' + ytdLbl + '</span></div>'
+    + ' <span class="ch-sub">' + ctx.viewLbl + '</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
-    + '<th>Metric</th><th>YTD Actual</th><th>YTD AOP</th>'
+    + '<th>Metric</th><th>Actual</th><th>' + ctx.cmpLbl + '</th>'
     + '<th>Variance</th><th>Var %</th><th>RAG</th><th>Commentary</th>'
     + '</tr></thead><tbody>'
     + ragRow('Total Revenue',       rev_a,    rev_b,    true,  false)
@@ -2619,10 +2680,10 @@ async function loadP1() {
     + ragRow('Operating Cash Flow', ocf_a,    ocf_b,    true,  false)
     + '</tbody></table></div></div>'
     + '<div class="grid-2">'
-    + '<div class="card"><div class="card-head">YTD Income Summary'
+    + '<div class="card"><div class="card-head">Income Summary'
     + ' <span class="ch-sub">JMD $000s</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
-    + '<th>Line</th><th>YTD Actual</th><th>AOP YTD</th><th>Var %</th>'
+    + '<th>Line</th><th>Actual</th><th>' + ctx.cmpLbl + '</th><th>Var %</th>'
     + '</tr></thead><tbody>'
     + '<tr class="rsec"><td colspan="4">Revenue</td></tr>'
     + plRow('Non-Fuel Revenue',    nfr_a, nfr_b, 'rind', false)
@@ -2640,9 +2701,9 @@ async function loadP1() {
     + plRow('NPAT',                ni_a,  ni_b,  'rs',   false)
     + '</tbody></table></div></div>'
     + '<div class="card"><div class="card-head">Efficiency Metrics'
-    + ' <span class="ch-sub">YTD ' + ytdLbl + '</span></div>'
+    + ' <span class="ch-sub">' + ctx.viewLbl + '</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
-    + '<th>Metric</th><th>Actual</th><th>AOP</th><th>RAG</th>'
+    + '<th>Metric</th><th>Actual</th><th>' + ctx.cmpLbl + '</th><th>RAG</th>'
     + '</tr></thead><tbody>'
     + '<tr><td>EBITDA Margin %</td>'
     + '<td class="num">' + ebdMg_a.toFixed(1) + '%</td>'
@@ -2670,63 +2731,59 @@ async function loadP1() {
 /* ----- p2: CONSOLIDATED P&L ----- */
 async function loadP2() {
   _pgLoad('p2', true);
+  await _ensureMaxMo(_activeYear);
+  const ctx = _getCtx();
+  if (!ctx) { _pgLoad('p2', false); return; }
+
   const LINES = ['pl_total_sales','nr_rev','fuel_rev','fuel_cost','ipp_cost',
     'opex','ebitda','depn','ebit','nfc_int_exp','nfc_int_inc',
     'pretax','tax','net_inc'];
   const [aF, bF] = await Promise.all([
-    _fetchFacts('HIST_ACTUAL_' + _CY + '_YTD', LINES, _pStart(), _pEnd()),
-    _fetchFacts('AOP_' + _CY,                  LINES, _pStart(), _pEnd()),
+    _fetchFacts(ctx.actCode, LINES, ctx.actStart, ctx.actEnd),
+    _fetchFacts(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
   ]);
   _pgLoad('p2', false);
 
-  const _allPeriods2 = Object.keys(aF['pl_total_sales'] || aF['ebitda'] || {})
-    .map(Number).sort(function(a, b) { return a - b; });
-  const aPeriods = _activeMo > 0
-    ? _allPeriods2.filter(function(p) { return p % 100 === _activeMo; })
-    : _allPeriods2;
-  const ytdMo  = _allPeriods2.length ? _allPeriods2[_allPeriods2.length - 1] % 100 : 0;
-  const ytdLbl = _activeMo > 0
-    ? (_MONS[_activeMo - 1] + ' ' + _CY)
-    : (ytdMo ? ('Jan–' + _MONS[ytdMo - 1] + ' ' + _CY) : ('YTD ' + _CY));
-  const nCols  = aPeriods.length + 5;
+  const nCols = ctx.actPeriods.length + 5;
+  const fyHdr = _activeCmp === 'PY' ? ('FY ' + (ctx.yr - 1) + ' Act') : (ctx.cmpLbl.split(' ')[0] + ' FY');
 
-  function sa(lid) { return _fSumP(aF, lid, aPeriods); }
-  function sb(lid) { return _fSumP(bF, lid, aPeriods); }
+  function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
+  function sb(lid) { return _fSumP(bF, lid, ctx.cmpPeriods); }
   function sbFY(lid) { return _fSum(bF, lid); }
 
   function row(lbl, lid, cls, isCost) {
-    const moCells = aPeriods.map(function(p) {
+    const moCells = ctx.actPeriods.map(function(p) {
       const v = _fVal(aF, lid, p);
       return '<td class="num">' + (isCost ? _fmtCost(v) : _fmtM(v)) + '</td>';
     }).join('');
-    const ytdA = sa(lid), ytdB = sb(lid), fyB = sbFY(lid);
-    const v$   = ytdA - ytdB;
+    const actTotal = sa(lid), cmpTotal = sb(lid), fyTotal = sbFY(lid);
+    const v$   = actTotal - cmpTotal;
     const hg   = !isCost;
     const vCls = _vc(v$, hg);
     const fmt  = isCost ? _fmtCost : _fmtM;
     return '<tr class="' + (cls || 'rind') + '"><td>' + lbl + '</td>'
       + moCells
-      + '<td class="num">' + fmt(ytdA) + '</td>'
-      + '<td class="num">' + fmt(ytdB) + '</td>'
+      + '<td class="num">' + fmt(actTotal) + '</td>'
+      + '<td class="num">' + fmt(cmpTotal) + '</td>'
       + '<td class="num ' + vCls + '">' + _fmtM(v$) + '</td>'
-      + '<td class="num ' + vCls + '">' + _fmtPct(ytdA, ytdB) + '</td>'
-      + '<td class="num">' + fmt(fyB) + '</td>'
+      + '<td class="num ' + vCls + '">' + _fmtPct(actTotal, cmpTotal) + '</td>'
+      + '<td class="num">' + fmt(fyTotal) + '</td>'
       + '</tr>';
   }
   function sec(lbl) {
     return '<tr class="rsec"><td colspan="' + nCols + '">' + lbl + '</td></tr>';
   }
 
-  const moHdr = aPeriods.map(function(p) { return '<th>' + _pLabel(p) + '</th>'; }).join('');
+  const moHdr = ctx.actPeriods.map(function(p) { return '<th>' + _pLabel(p) + '</th>'; }).join('');
   const html = ''
     + '<div class="page-head"><h1>Consolidated P&amp;L</h1>'
-    + '<div class="ph-sub">Income Statement &middot; ' + ytdLbl + ' &middot; JMD $000s</div></div>'
-    + '<div class="notice-bar">' + ytdLbl + ' = Actuals. AOP FY = full-year plan. Adverse shown as (x).</div>'
+    + '<div class="ph-sub">Income Statement &middot; ' + ctx.viewLbl + ' &middot; JMD $000s</div></div>'
+    + '<div class="notice-bar">' + ctx.viewLbl + ' = Actuals vs ' + ctx.cmpLbl + '. Adverse shown as (x).</div>'
     + '<div class="card"><div class="card-head">Statement of Comprehensive Income'
-    + ' <span class="ch-sub">Monthly &middot; YTD &middot; vs AOP</span></div>'
+    + ' <span class="ch-sub">' + ctx.viewLbl + ' &middot; vs ' + ctx.cmpLbl + '</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
     + '<th>Description</th>' + moHdr
-    + '<th>YTD Actual</th><th>AOP YTD</th><th>Var $</th><th>Var %</th><th>AOP FY</th>'
+    + '<th>Actual</th><th>' + ctx.cmpLbl + '</th><th>Var $</th><th>Var %</th><th>' + fyHdr + '</th>'
     + '</tr></thead><tbody>'
     + sec('Revenue')
     + row('Non-Fuel Revenue',             'nr_rev',        'rind', false)
@@ -2757,6 +2814,10 @@ async function loadP2() {
 /* ----- p3: BALANCE SHEET ----- */
 async function loadP3() {
   _pgLoad('p3', true);
+  await _ensureMaxMo(_activeYear);
+  const ctx = _getCtx();
+  if (!ctx) { _pgLoad('p3', false); return; }
+
   const LINES = [
     'ppe','cwip','rou_asset','eqinv','finv','bs_dta',
     'recv','cash','bs_prepaid','bs_other_recv','unbill',
@@ -2767,31 +2828,22 @@ async function loadP3() {
     'bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref'
   ];
 
-  await _ensureVMap();
-  const ytdVid = (_vMap || {})['HIST_ACTUAL_' + _CY + '_YTD'];
-  let maxPer = _pStart();
-  if (ytdVid) {
-    const mr = await _sbQ(function(sb) {
-      return sb.from('fpa_facts').select('period_id')
-        .eq('version_id', ytdVid)
-        .order('period_id', { ascending: false }).limit(1);
-    });
-    if (mr && mr.data && mr.data.length) maxPer = mr.data[0].period_id;
-  }
-
-  const pyCode  = 'HIST_ACTUAL_' + _PY;
-  const pyPer   = _PY * 100 + 12;
+  // BS is point-in-time: use the last period of the actuals context
+  const curPer = ctx.actEnd;
+  // Prior reference: Dec of the year before the viewed year
+  const pyCode = 'HIST_ACTUAL_' + (ctx.yr - 1);
+  const pyPer  = (ctx.yr - 1) * 100 + 12;
 
   const [cF, pF] = await Promise.all([
-    _fetchFacts('HIST_ACTUAL_' + _CY + '_YTD', LINES, maxPer, maxPer),
-    _fetchFacts(pyCode,                         LINES, pyPer,  pyPer),
+    _fetchFacts(ctx.actCode, LINES, curPer, curPer),
+    _fetchFacts(pyCode,      LINES, pyPer,  pyPer),
   ]);
   _pgLoad('p3', false);
 
-  const curLbl = _pLabel(maxPer) + ' ' + _CY;
-  const priLbl = 'Dec ' + _PY;
+  const curLbl = _pLabel(curPer) + ' ' + ctx.yr;
+  const priLbl = 'Dec ' + (ctx.yr - 1);
 
-  function cv(lid) { return _fVal(cF, lid, maxPer); }
+  function cv(lid) { return _fVal(cF, lid, curPer); }
   function pv(lid) { return _fVal(pF, lid, pyPer); }
 
   const ppe_c  = cv('ppe'),  ppe_p  = pv('ppe');
@@ -2881,6 +2933,10 @@ async function loadP3() {
 /* ----- p4: CASH FLOW ----- */
 async function loadP4() {
   _pgLoad('p4', true);
+  await _ensureMaxMo(_activeYear);
+  const ctx = _getCtx();
+  if (!ctx) { _pgLoad('p4', false); return; }
+
   const LINES = [
     'cf_ni','cf_depn','cf_def_tax','cf_netint','cf_intpd',
     'cf_wc_recv','cf_wc_ap','cf_wc_inv','cf_wc_corptax',
@@ -2893,23 +2949,13 @@ async function loadP4() {
     'cf_open','cf_close','cf_change'
   ];
   const [aF, bF] = await Promise.all([
-    _fetchFacts('HIST_ACTUAL_' + _CY + '_YTD', LINES, _pStart(), _pEnd()),
-    _fetchFacts('AOP_' + _CY,                  LINES, _pStart(), _pEnd()),
+    _fetchFacts(ctx.actCode, LINES, ctx.actStart, ctx.actEnd),
+    _fetchFacts(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
   ]);
   _pgLoad('p4', false);
 
-  const _allPeriods4 = Object.keys(aF['cf_ops_net'] || aF['cf_close'] || {})
-    .map(Number).sort(function(a, b) { return a - b; });
-  const aPeriods = _activeMo > 0
-    ? _allPeriods4.filter(function(p) { return p % 100 === _activeMo; })
-    : _allPeriods4;
-  const ytdMo  = _allPeriods4.length ? _allPeriods4[_allPeriods4.length - 1] % 100 : 0;
-  const ytdLbl = _activeMo > 0
-    ? (_MONS[_activeMo - 1] + ' ' + _CY)
-    : (ytdMo ? ('Jan–' + _MONS[ytdMo - 1] + ' ' + _CY) : ('YTD ' + _CY));
-
-  function sa(lid) { return _fSumP(aF, lid, aPeriods); }
-  function sb(lid) { return _fSumP(bF, lid, aPeriods); }
+  function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
+  function sb(lid) { return _fSumP(bF, lid, ctx.cmpPeriods); }
 
   function cfRow(lbl, lid, cls, higherGood) {
     const a = sa(lid), b = sb(lid), v = a - b;
@@ -2924,11 +2970,11 @@ async function loadP4() {
 
   const html = ''
     + '<div class="page-head"><h1>Cash Flow</h1>'
-    + '<div class="ph-sub">Statement of Cash Flows (Indirect) &middot; YTD ' + ytdLbl + ' &middot; JMD $000s</div></div>'
+    + '<div class="ph-sub">Statement of Cash Flows (Indirect) &middot; ' + ctx.viewLbl + ' &middot; JMD $000s</div></div>'
     + '<div class="card"><div class="card-head">Statement of Cash Flows'
-    + ' <span class="ch-sub">Indirect method &middot; YTD vs AOP</span></div>'
+    + ' <span class="ch-sub">Indirect method &middot; ' + ctx.viewLbl + ' vs ' + ctx.cmpLbl + '</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
-    + '<th>Description</th><th>YTD Actual</th><th>AOP YTD</th><th>Var $</th>'
+    + '<th>Description</th><th>Actual</th><th>' + ctx.cmpLbl + '</th><th>Var $</th>'
     + '</tr></thead><tbody>'
     + sec('Operating Activities')
     + cfRow('Net Income',                    'cf_ni',       'rind', true)
@@ -2976,20 +3022,86 @@ function loadPage(id) {
   // p5–p16: static HTML retained
 }
 
-/* ---------- Version + Month selectors ---------- */
-let _activeVersion = 'Actuals';
-let _activeMo = 0; // 0 = YTD, 1-12 = single month
+/* ====================================================================
+   GLOBAL STATE — Year / Month / View / Comparison
+   ==================================================================== */
+let _activeYear = _CY;        // year being viewed
+let _activeMo   = 0;          // 0 = latest available, 1-12 = specific month
+let _activeView = 'YTD';      // 'Month' | 'YTD' | 'FY'
+let _activeCmp  = 'Budget';   // 'Budget' | 'LE1' | 'LE2' | 'PY'
 
-function setActiveVersion(code) {
-  _activeVersion = code;
-  document.querySelectorAll('.ver-btn').forEach(function(b) {
-    b.classList.toggle('active-ver', b.dataset.v === code);
+const _yearMaxMo = {};        // cache: year → max actual month available
+
+// Build query context from current state
+function _getCtx() {
+  const yr   = _activeYear;
+  const isCY = (yr === _CY);
+  const maxMo = (_yearMaxMo[yr] != null) ? _yearMaxMo[yr] : (isCY ? 0 : 12);
+  if (!maxMo) return null;   // no data loaded for this year yet
+  const mo = (_activeMo > 0 && _activeMo <= maxMo) ? _activeMo : maxMo;
+  const yrB = yr * 100;
+
+  // Actual periods
+  let actPeriods = [];
+  if (_activeView === 'Month') {
+    actPeriods = [yrB + mo];
+  } else if (_activeView === 'YTD') {
+    for (let m = 1; m <= mo; m++) actPeriods.push(yrB + m);
+  } else {
+    for (let m = 1; m <= 12; m++) actPeriods.push(yrB + m);
+  }
+
+  // Comparison periods (PY shifts back one year = -100 per period)
+  const cmpPeriods = (_activeCmp === 'PY')
+    ? actPeriods.map(function(p) { return p - 100; })
+    : actPeriods.slice();
+
+  // Version codes
+  const actCode = isCY ? ('HIST_ACTUAL_' + yr + '_YTD') : ('HIST_ACTUAL_' + yr);
+  const cmpCode = _activeCmp === 'PY'  ? ('HIST_ACTUAL_' + (yr - 1))
+                : _activeCmp === 'LE1' ? ('LE_' + yr + '_01')
+                : _activeCmp === 'LE2' ? ('LE_' + yr + '_02')
+                :                        ('AOP_' + yr);
+
+  // Display labels
+  const moLbl  = _MONS[mo - 1] + ' ' + yr;
+  const ytdLbl = (mo > 1 ? 'Jan–' + _MONS[mo - 1] : 'Jan') + ' ' + yr;
+  const fyLbl  = 'FY ' + yr;
+  const viewLbl = _activeView === 'Month' ? moLbl : (_activeView === 'YTD' ? ytdLbl : fyLbl);
+
+  const cmpYr  = (_activeCmp === 'PY') ? (yr - 1) : yr;
+  const cmpLbl = _activeCmp === 'PY'     ? (_activeView === 'Month' ? _MONS[mo-1]+' '+(yr-1) : _activeView === 'FY' ? 'FY '+(yr-1) : ytdLbl.replace(yr, yr-1))
+               : _activeCmp === 'Budget' ? 'AOP ' + yr
+               : (_activeCmp + ' ' + yr);
+
+  return {
+    yr, mo, maxMo, isCY,
+    actPeriods, cmpPeriods,
+    actCode, cmpCode,
+    actStart: actPeriods[0], actEnd: actPeriods[actPeriods.length - 1],
+    cmpStart: cmpPeriods[0], cmpEnd: cmpPeriods[cmpPeriods.length - 1],
+    viewLbl, cmpLbl, moLbl, ytdLbl, fyLbl
+  };
+}
+
+// --- State setters (each reloads active page) ---
+function _reloadActive() {
+  _loadedPages.clear();
+  const pg = document.querySelector('.page.active');
+  if (pg) loadPage(pg.id);
+}
+
+function setActiveYear(yr) {
+  _activeYear = +yr;
+  document.querySelectorAll('.yr-btn').forEach(function(b) {
+    b.classList.toggle('active-yr', +b.dataset.yr === _activeYear);
   });
-  const lbl = document.querySelector('.version-label');
-  if (lbl) lbl.textContent = code;
-  const activePage = document.querySelector('.page.active');
-  if (activePage) loadPage(activePage.id);
-  toast('Version: ' + code, 'info');
+  // Reset month to latest when year changes
+  _activeMo = 0;
+  document.querySelectorAll('.mo-btn').forEach(function(b) {
+    b.classList.toggle('active-mo', +b.dataset.mo === 0);
+  });
+  _reloadActive();
 }
 
 function setActiveMo(mo) {
@@ -2997,22 +3109,55 @@ function setActiveMo(mo) {
   document.querySelectorAll('.mo-btn').forEach(function(b) {
     b.classList.toggle('active-mo', +b.dataset.mo === _activeMo);
   });
-  const activePage = document.querySelector('.page.active');
-  if (activePage) loadPage(activePage.id);
+  _reloadActive();
 }
 
-// Called by loadP1 after data resolves — builds month pills from real periods
-function _renderMoNav(periods) {
+function setActiveView(v) {
+  _activeView = v;
+  document.querySelectorAll('.view-btn').forEach(function(b) {
+    b.classList.toggle('active-view', b.dataset.v === v);
+  });
+  // Hide month nav for FY (irrelevant)
+  const moCtrl = document.getElementById('mo-nav');
+  if (moCtrl) moCtrl.closest('.tb-ctrl-grp').style.opacity = (v === 'FY') ? '.4' : '1';
+  _reloadActive();
+}
+
+function setActiveCmp(c) {
+  _activeCmp = c;
+  document.querySelectorAll('.ver-btn').forEach(function(b) {
+    b.classList.toggle('active-ver', b.dataset.v === c);
+  });
+  _reloadActive();
+}
+
+// Render year pills from available HIST_ACTUAL_YYYY versions
+async function _renderYrNav() {
+  await _ensureVMap();
+  const years = Object.keys(_vMap || {})
+    .filter(function(k) { return /^HIST_ACTUAL_\d{4}$/.test(k); })
+    .map(function(k) { return parseInt(k.replace('HIST_ACTUAL_', '')); })
+    .sort(function(a, b) { return b - a; })
+    .slice(0, 6); // last 6 years
+  if (_vMap['HIST_ACTUAL_' + _CY + '_YTD'] && years.indexOf(_CY) < 0) years.unshift(_CY);
+  const nav = document.getElementById('yr-nav');
+  if (!nav) return;
+  nav.innerHTML = years.map(function(y) {
+    return '<button class="yr-btn' + (y === _activeYear ? ' active-yr' : '')
+      + '" data-yr="' + y + '" onclick="setActiveYear(' + y + ')">' + y + '</button>';
+  }).join('');
+}
+
+// Render month pills for the active year
+function _renderMoNav(maxMo) {
   const nav = document.getElementById('mo-nav');
   if (!nav) return;
-  const html = '<button class="mo-btn' + (_activeMo === 0 ? ' active-mo' : '')
-    + '" data-mo="0" onclick="setActiveMo(0)">YTD</button>'
-    + periods.map(function(p) {
-        const m = p % 100;
-        return '<button class="mo-btn' + (_activeMo === m ? ' active-mo' : '')
-          + '" data-mo="' + m + '" onclick="setActiveMo(' + m + ')">'
-          + _pLabel(p) + '</button>';
-      }).join('');
+  let html = '<button class="mo-btn' + (_activeMo === 0 ? ' active-mo' : '')
+    + '" data-mo="0" onclick="setActiveMo(0)">Latest</button>';
+  for (let m = 1; m <= maxMo; m++) {
+    html += '<button class="mo-btn' + (_activeMo === m ? ' active-mo' : '')
+      + '" data-mo="' + m + '" onclick="setActiveMo(' + m + ')">' + _MONS[m-1] + '</button>';
+  }
   nav.innerHTML = html;
 }
 
