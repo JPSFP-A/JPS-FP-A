@@ -663,7 +663,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
         <div class="ws-logo">
           <div style="font-size:28px">⚡</div>
           <div class="ws-divider"></div>
-          <div class="ws-product">FP&amp;A Hub<span>Demo · Jamaica Public Service</span></div>
+          <div class="ws-product">FP&amp;A Hub<span>Jamaica Public Service</span></div>
         </div>
         <div id="wsSelectedRoleTag" style="display:none">
           <div class="ws-sr-label">Entering workspace</div>
@@ -782,7 +782,6 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
     <div class="tb-logo">
       <div class="tb-bolt">&#9889;</div>
       <b>JPS <span>FP&amp;A</span> Hub</b>
-      <span class="tb-demo-badge">Demo &middot; 2026</span>
     </div>
 
     <div class="ver-group" role="group" aria-label="Version selector">
@@ -793,7 +792,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
     </div>
 
     <div class="tb-period">
-      Period: <b>April 2026</b> | <b class="version-label">Budget</b> 2026
+      Period: <b id="tb-period-lbl">Loading&hellip;</b> | <b class="version-label">Budget</b> <span id="tb-cy"></span>
     </div>
 
     <div class="tb-right">
@@ -2177,6 +2176,14 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 const _CY = new Date().getFullYear();
 const _PY = _CY - 1;
 
+// Seed topbar year immediately — period label updated by loadP1 once data arrives
+(function() {
+  const cy = document.getElementById('tb-cy');
+  if (cy) cy.textContent = _CY;
+  const pl = document.getElementById('tb-period-lbl');
+  if (pl) pl.textContent = _CY; // fallback until loadP1 resolves
+})();
+
 const _SB_URL      = 'https://bhrswnbenkvflpdjhfpa.supabase.co';
 const _SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJocnN3bmJlbmt2ZmxwZGpoZnBhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMTc0OTcsImV4cCI6MjA5MTg5MzQ5N30.JupFs0tnMn3k282PqFOSMi2ch-wtB7Ewv7O8fN16-94';
 
@@ -2502,6 +2509,10 @@ async function loadP1() {
     .map(Number).sort(function(a, b) { return a - b; });
   const ytdMo  = aPeriods.length ? aPeriods[aPeriods.length - 1] % 100 : 0;
   const ytdLbl = ytdMo ? ('Jan–' + _MONS[ytdMo - 1] + ' ' + _CY) : ('YTD ' + _CY);
+
+  // Topbar period label — driven by actual data, not hardcoded
+  const tbPer = document.getElementById('tb-period-lbl');
+  if (tbPer) tbPer.textContent = ytdMo ? (_MONS[ytdMo - 1] + ' ' + _CY) : String(_CY);
 
   function sa(lid) { return _fSumP(aF, lid, aPeriods); }
   function sb(lid) { return _fSumP(bF, lid, aPeriods); }
