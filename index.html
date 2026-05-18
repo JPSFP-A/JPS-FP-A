@@ -4067,7 +4067,7 @@ tr.der td{color:var(--teal)}
     <input id="guideSearch" type="text" placeholder="🔍 Search guide…"
       style="flex:1;min-width:200px;max-width:340px;padding:6px 10px;border:1px solid var(--b2);
              border-radius:5px;background:var(--card2);color:var(--text);font-size:12px"
-      oninput="filterGuide(this.value)">
+      oninput="_dGuide(this.value)">
     <button class="btn btn-ghost" onclick="expandAllGuide(true)" style="font-size:11px">Expand All</button>
     <button class="btn btn-ghost" onclick="expandAllGuide(false)" style="font-size:11px">Collapse All</button>
     <button class="btn btn-ghost" onclick="window.print()" style="font-size:11px">🖨 Print</button>
@@ -8857,6 +8857,7 @@ const toast=(msg,t='i')=>{const el=document.getElementById('toast');el.textConte
 // Debounce helper — prevents chart rebuild storms on rapid edits (Rule 15)
 function _debounce(fn,ms=120){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
 const refreshAllDebounced=_debounce(()=>refreshAll(),150);
+const _dGuide=_debounce(v=>filterGuide(v),300);
 // Auto-debounce search inputs with no-arg oninput calls (300ms) on DOM ready
 (function _wireDebounce(){
   const wire=()=>{
