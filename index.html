@@ -571,6 +571,16 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
   border-radius: 6px; height: 16px;
 }
 
+/* ===================== MONTH NAV ===================== */
+.mo-nav { display: flex; gap: 3px; align-items: center; }
+.mo-btn {
+  padding: 3px 9px; border: none; background: transparent;
+  color: var(--muted); font-size: 11px; font-weight: 600;
+  cursor: pointer; border-radius: 6px; transition: background .15s, color .15s;
+}
+.mo-btn.active-mo { background: var(--teal); color: #fff; }
+.mo-btn:hover:not(.active-mo) { background: var(--border); color: var(--text); }
+
 /* ===================== PAGE LOADING ===================== */
 .pg-loading { opacity: .5; pointer-events: none; transition: opacity .2s; }
 .pg-loading::after {
@@ -785,14 +795,15 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
     </div>
 
     <div class="ver-group" role="group" aria-label="Version selector">
-      <button class="ver-btn active-ver" data-v="Budget"  onclick="setActiveVersion('Budget')">Budget</button>
+      <button class="ver-btn"            data-v="Budget"  onclick="setActiveVersion('Budget')">Budget</button>
       <button class="ver-btn"            data-v="LE1"     onclick="setActiveVersion('LE1')">LE1</button>
       <button class="ver-btn"            data-v="LE2"     onclick="setActiveVersion('LE2')">LE2</button>
-      <button class="ver-btn"            data-v="Actuals" onclick="setActiveVersion('Actuals')">Actuals</button>
+      <button class="ver-btn active-ver" data-v="Actuals" onclick="setActiveVersion('Actuals')">Actuals</button>
     </div>
 
     <div class="tb-period">
-      Period: <b id="tb-period-lbl">Loading&hellip;</b> | <b class="version-label">Budget</b> <span id="tb-cy"></span>
+      <div id="mo-nav" class="mo-nav"><span class="mo-btn active-mo" data-mo="0">YTD</span></div>
+      &nbsp;|&nbsp;<b class="version-label">Actuals</b> <span id="tb-cy"></span>
     </div>
 
     <div class="tb-right">
@@ -2505,14 +2516,19 @@ async function loadP1() {
   ]);
   _pgLoad('p1', false);
 
-  const aPeriods = Object.keys(aF['pl_total_sales'] || aF['ebitda'] || {})
+  const _allPeriods = Object.keys(aF['pl_total_sales'] || aF['ebitda'] || {})
     .map(Number).sort(function(a, b) { return a - b; });
-  const ytdMo  = aPeriods.length ? aPeriods[aPeriods.length - 1] % 100 : 0;
-  const ytdLbl = ytdMo ? ('Jan–' + _MONS[ytdMo - 1] + ' ' + _CY) : ('YTD ' + _CY);
+  const aPeriods = _activeMo > 0
+    ? _allPeriods.filter(function(p) { return p % 100 === _activeMo; })
+    : _allPeriods;
+  const ytdMo  = _allPeriods.length ? _allPeriods[_allPeriods.length - 1] % 100 : 0;
+  const curMo  = _activeMo > 0 ? _activeMo : ytdMo;
+  const ytdLbl = _activeMo > 0
+    ? (_MONS[_activeMo - 1] + ' ' + _CY)
+    : (ytdMo ? ('Jan–' + _MONS[ytdMo - 1] + ' ' + _CY) : ('YTD ' + _CY));
 
-  // Topbar period label — driven by actual data, not hardcoded
-  const tbPer = document.getElementById('tb-period-lbl');
-  if (tbPer) tbPer.textContent = ytdMo ? (_MONS[ytdMo - 1] + ' ' + _CY) : String(_CY);
+  // Populate month nav pills (only on YTD pass so pills show all available months)
+  if (_activeMo === 0) _renderMoNav(_allPeriods);
 
   function sa(lid) { return _fSumP(aF, lid, aPeriods); }
   function sb(lid) { return _fSumP(bF, lid, aPeriods); }
@@ -2663,10 +2679,15 @@ async function loadP2() {
   ]);
   _pgLoad('p2', false);
 
-  const aPeriods = Object.keys(aF['pl_total_sales'] || aF['ebitda'] || {})
+  const _allPeriods2 = Object.keys(aF['pl_total_sales'] || aF['ebitda'] || {})
     .map(Number).sort(function(a, b) { return a - b; });
-  const ytdMo  = aPeriods.length ? aPeriods[aPeriods.length - 1] % 100 : 0;
-  const ytdLbl = ytdMo ? ('Jan–' + _MONS[ytdMo - 1] + ' ' + _CY) : ('YTD ' + _CY);
+  const aPeriods = _activeMo > 0
+    ? _allPeriods2.filter(function(p) { return p % 100 === _activeMo; })
+    : _allPeriods2;
+  const ytdMo  = _allPeriods2.length ? _allPeriods2[_allPeriods2.length - 1] % 100 : 0;
+  const ytdLbl = _activeMo > 0
+    ? (_MONS[_activeMo - 1] + ' ' + _CY)
+    : (ytdMo ? ('Jan–' + _MONS[ytdMo - 1] + ' ' + _CY) : ('YTD ' + _CY));
   const nCols  = aPeriods.length + 5;
 
   function sa(lid) { return _fSumP(aF, lid, aPeriods); }
@@ -2877,10 +2898,15 @@ async function loadP4() {
   ]);
   _pgLoad('p4', false);
 
-  const aPeriods = Object.keys(aF['cf_ops_net'] || aF['cf_close'] || {})
+  const _allPeriods4 = Object.keys(aF['cf_ops_net'] || aF['cf_close'] || {})
     .map(Number).sort(function(a, b) { return a - b; });
-  const ytdMo  = aPeriods.length ? aPeriods[aPeriods.length - 1] % 100 : 0;
-  const ytdLbl = ytdMo ? ('Jan–' + _MONS[ytdMo - 1] + ' ' + _CY) : ('YTD ' + _CY);
+  const aPeriods = _activeMo > 0
+    ? _allPeriods4.filter(function(p) { return p % 100 === _activeMo; })
+    : _allPeriods4;
+  const ytdMo  = _allPeriods4.length ? _allPeriods4[_allPeriods4.length - 1] % 100 : 0;
+  const ytdLbl = _activeMo > 0
+    ? (_MONS[_activeMo - 1] + ' ' + _CY)
+    : (ytdMo ? ('Jan–' + _MONS[ytdMo - 1] + ' ' + _CY) : ('YTD ' + _CY));
 
   function sa(lid) { return _fSumP(aF, lid, aPeriods); }
   function sb(lid) { return _fSumP(bF, lid, aPeriods); }
@@ -2950,19 +2976,44 @@ function loadPage(id) {
   // p5–p16: static HTML retained
 }
 
-/* ---------- Version selector ---------- */
-let _activeVersion = 'Budget';
+/* ---------- Version + Month selectors ---------- */
+let _activeVersion = 'Actuals';
+let _activeMo = 0; // 0 = YTD, 1-12 = single month
 
 function setActiveVersion(code) {
   _activeVersion = code;
-  document.querySelectorAll('.ver-btn').forEach(function (b) {
+  document.querySelectorAll('.ver-btn').forEach(function(b) {
     b.classList.toggle('active-ver', b.dataset.v === code);
   });
   const lbl = document.querySelector('.version-label');
   if (lbl) lbl.textContent = code;
   const activePage = document.querySelector('.page.active');
   if (activePage) loadPage(activePage.id);
-  toast('Version switched to ' + code, 'info');
+  toast('Version: ' + code, 'info');
+}
+
+function setActiveMo(mo) {
+  _activeMo = +mo;
+  document.querySelectorAll('.mo-btn').forEach(function(b) {
+    b.classList.toggle('active-mo', +b.dataset.mo === _activeMo);
+  });
+  const activePage = document.querySelector('.page.active');
+  if (activePage) loadPage(activePage.id);
+}
+
+// Called by loadP1 after data resolves — builds month pills from real periods
+function _renderMoNav(periods) {
+  const nav = document.getElementById('mo-nav');
+  if (!nav) return;
+  const html = '<button class="mo-btn' + (_activeMo === 0 ? ' active-mo' : '')
+    + '" data-mo="0" onclick="setActiveMo(0)">YTD</button>'
+    + periods.map(function(p) {
+        const m = p % 100;
+        return '<button class="mo-btn' + (_activeMo === m ? ' active-mo' : '')
+          + '" data-mo="' + m + '" onclick="setActiveMo(' + m + ')">'
+          + _pLabel(p) + '</button>';
+      }).join('');
+  nav.innerHTML = html;
 }
 
 /* ---------- Notifications ---------- */
