@@ -28,9 +28,9 @@ test.describe('FP&A Hub', () => {
     await page.waitForLoadState('networkidle');
 
     expect(errors).toHaveLength(0);
-    // Either login screen or dashboard should be visible
-    const hasLogin = await page.locator('[data-testid="login-form"], #login, .login-wrapper').first().isVisible().catch(() => false);
-    const hasDashboard = await page.locator('[data-testid="dashboard"], #pane-dashboard, .dashboard').first().isVisible().catch(() => false);
+    // Either welcome/login screen or main app shell should be visible
+    const hasLogin = await page.locator('#welcomeScreen, .ws-topbar, .ws-login-btn').first().isVisible().catch(() => false);
+    const hasDashboard = await page.locator('#appShell, #hubScreen, .page').first().isVisible().catch(() => false);
     expect(hasLogin || hasDashboard).toBe(true);
   });
 
