@@ -20,12 +20,24 @@ node_modules/
 2026 NonFuel Variance/
 Presentation March 2026/
 desktop.ini
+# Data exports / SQL batches / CSVs
+Exports/
+*.csv
+*.sql
+# Utility scripts (data pipeline — not app code)
+build_hist_upload.py
+extract_actuals_2026.py
+extract_historical.py
+gen_versions.py
+mockup.html
 # Development scratch files
 *.js
 !index.js
 !config.js
 !jps-monitor.js
 !fpa_check.js
+# Playwright tests — always include
+!tests/**
 !fpa_check_git.js
 # Temp/debug scripts
 _*.js
