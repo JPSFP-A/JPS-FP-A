@@ -76,104 +76,61 @@ button { font-family: inherit; cursor: pointer; }
 .toast-ok  { background: var(--green); }
 
 /* ===================== WELCOME / LOGIN ===================== */
-#welcomeScreen {
-  position: fixed; inset: 0; z-index: 100;
-  display: flex; flex-direction: column;
-  background:
-    radial-gradient(ellipse at 20% 20%, #003DA5 0%, transparent 55%),
-    radial-gradient(ellipse at 80% 80%, #003DA5 0%, transparent 55%),
-    linear-gradient(135deg, #001428 0%, #002B5C 50%, #001428 100%);
-}
-.ws-topbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 28px; border-bottom: 1px solid rgba(255,255,255,.08);
-}
-.ws-brand { display: flex; align-items: center; gap: 12px; }
-.ws-brand-bolt {
-  width: 38px; height: 38px; border-radius: 9px;
-  background: linear-gradient(135deg, var(--teal), #003DA5);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 20px; box-shadow: 0 4px 12px rgba(0,174,239,.4);
-}
-.ws-brand-txt { color: #fff; }
-.ws-brand-txt b { font-size: 17px; font-weight: 700; letter-spacing: .3px; }
-.ws-brand-txt span { display: block; font-size: 11px; color: #7FB3E8; }
-.ws-tagline { color: #6E8FB8; font-size: 12px; font-style: italic; }
-.ws-body {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  gap: 26px; padding: 30px; flex-wrap: wrap;
-}
-.ws-col-left  { width: 220px; }
-.ws-col-mid   { width: 300px; }
-.ws-col-right { width: 190px; }
-.ws-col-title {
-  color: #7FB3E8; font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px;
-}
-.ws-role-card {
-  display: flex; align-items: center; gap: 11px;
-  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09);
-  border-left: 3px solid var(--rc);
-  border-radius: 9px; padding: 11px 12px; margin-bottom: 9px;
-  cursor: pointer; transition: background .15s, transform .12s;
-}
-.ws-role-card:hover { background: rgba(255,255,255,.1); transform: translateX(3px); }
-.ws-role-card.selected {
-  background: rgba(0,174,239,.16);
-  border-color: rgba(0,174,239,.5); border-left-color: var(--rc);
-  box-shadow: 0 0 0 1px rgba(0,174,239,.3);
-}
-.ws-role-ic {
-  width: 34px; height: 34px; min-width: 34px; border-radius: 50%;
-  background: var(--rc); display: flex; align-items: center;
-  justify-content: center; font-size: 16px;
-}
-.ws-role-meta b { display: block; color: #fff; font-size: 12.5px; font-weight: 600; }
-.ws-role-meta span { display: block; color: #88A6C8; font-size: 10px; line-height: 1.3; }
-.ws-login-card {
-  background: var(--surface); border-radius: 14px;
-  padding: 30px 28px; box-shadow: 0 20px 50px rgba(0,0,0,.45);
-  text-align: center;
-}
-.ws-login-bolt {
-  width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 14px;
-  background: linear-gradient(135deg, var(--teal), #003DA5);
-  display: flex; align-items: center; justify-content: center; font-size: 28px;
-  box-shadow: 0 6px 18px rgba(0,174,239,.4);
-}
-.ws-login-card h1 { font-size: 22px; font-weight: 700; color: var(--text); }
-.ws-login-card .sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
-.ws-input {
-  width: 100%; padding: 11px 13px; margin-bottom: 11px;
-  border: 1px solid var(--border); border-radius: 8px;
-  font-family: inherit; font-size: 13.5px; background: var(--bg); color: var(--text);
-}
-.ws-input:focus { outline: 2px solid var(--teal); outline-offset: -1px; }
-.ws-login-btn {
-  width: 100%; padding: 12px; border: none; border-radius: 8px;
-  background: linear-gradient(135deg, var(--teal), #0090C8);
-  color: #fff; font-size: 14px; font-weight: 600; margin-top: 5px;
-  transition: filter .15s;
-}
-.ws-login-btn:hover { filter: brightness(1.08); }
-.ws-login-btn:disabled { opacity: .65; cursor: default; }
-.ws-error { color: var(--rose); font-size: 12px; min-height: 18px; margin-top: 9px; }
-.ws-selrole-tag {
-  display: none; margin-top: 12px; padding: 8px;
-  background: rgba(0,174,239,.1); border-radius: 7px;
-  font-size: 11.5px; color: var(--teal); font-weight: 600;
-}
-.ws-out-card {
-  display: flex; align-items: center; gap: 9px;
-  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
-  border-radius: 8px; padding: 9px 10px; margin-bottom: 8px;
-}
-.ws-out-ic {
-  width: 28px; height: 28px; min-width: 28px; border-radius: 7px;
-  background: rgba(0,174,239,.18); display: flex; align-items: center;
-  justify-content: center; font-size: 13px;
-}
-.ws-out-card span { color: #C2D4E8; font-size: 11.5px; font-weight: 500; }
+#welcomeScreen{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;background:linear-gradient(135deg,#001428 0%,#003da5 50%,#001428 100%);overflow:hidden}
+#welcomeScreen .ws-bg{position:absolute;inset:0;background-image:url('https://rvtaryvxiryfmurudjcx.supabase.co/storage/v1/object/public/Model/Welcome.jpg');background-size:cover;background-position:center;filter:brightness(.3) saturate(.7)}
+#welcomeScreen .ws-overlay{position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,8,25,.88) 0%,rgba(0,55,150,.3) 50%,rgba(0,8,25,.88) 100%)}
+.ws-topbar{position:relative;z-index:3;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:12px 28px;border-bottom:1px solid rgba(255,255,255,.07)}
+.ws-brand-row{display:flex;align-items:center;gap:12px}
+.ws-brand-icon{width:32px;height:32px;border-radius:7px;flex-shrink:0;background:linear-gradient(135deg,#003da5,#00aeef);display:flex;align-items:center;justify-content:center;font-size:17px}
+.ws-brand-name{font-size:13px;font-weight:800;color:#fff;line-height:1.2}
+.ws-brand-sub{font-size:9.5px;color:rgba(255,255,255,.4);letter-spacing:.04em}
+.ws-powering{font-size:10.5px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.03em}
+.ws-powering span{color:#00aeef}
+.ws-layout{flex:1;display:flex;align-items:center;justify-content:center;gap:18px;padding:14px 20px;position:relative;z-index:2;min-height:0}
+.ws-roles-col{flex:0 0 222px;display:flex;flex-direction:column;gap:6px}
+.ws-col-label{font-size:9px;font-weight:700;color:rgba(255,255,255,.32);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;padding-left:2px}
+.ws-col-hint{font-size:8.5px;color:rgba(255,255,255,.2);text-align:center;margin-top:6px;line-height:1.5}
+.ws-role-card{display:flex;align-items:center;gap:9px;padding:8px 10px 8px 13px;border-radius:9px;background:rgba(0,12,40,.75);border:1px solid rgba(255,255,255,.1);cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.ws-role-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--rc,#00aeef);opacity:.85}
+.ws-role-card:hover{border-color:var(--rc,#00aeef);background:rgba(0,28,80,.7);transform:translateX(3px)}
+.ws-role-card.selected{border-color:var(--rc,#00aeef);background:rgba(0,28,80,.85);box-shadow:0 0 18px rgba(0,0,0,.4),0 0 0 1px var(--rc,#00aeef) inset}
+.ws-role-icon{width:25px;height:25px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;font-family:'IBM Plex Mono',monospace;background:rgba(255,255,255,.06);border:1px solid var(--rc,#00aeef);color:var(--rc,#00aeef)}
+.ws-role-info{flex:1;min-width:0}
+.ws-role-name{font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ws-role-desc{font-size:8.5px;color:rgba(255,255,255,.38);margin-top:2px;line-height:1.3}
+.ws-role-arr{font-size:15px;color:rgba(255,255,255,.28);transition:all .2s;flex-shrink:0}
+.ws-role-card:hover .ws-role-arr,.ws-role-card.selected .ws-role-arr{color:var(--rc,#00aeef);transform:translateX(2px)}
+.ws-center-col{flex:0 0 320px;display:flex;flex-direction:column;align-items:center;position:relative}
+.ws-conn{position:absolute;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:3px;pointer-events:none;z-index:1}
+.ws-conn-l{right:calc(100% + 6px)}.ws-conn-r{left:calc(100% + 6px)}
+.ws-conn-line{height:1px;width:14px;background:rgba(0,174,239,.35)}.ws-conn-arrow{font-size:13px;color:rgba(0,174,239,.45);line-height:1}
+#welcomeScreen .ws-card{position:relative;z-index:2;width:300px;background:rgba(8,22,50,.92);backdrop-filter:blur(20px);border:1px solid rgba(0,174,239,.22);border-radius:16px;padding:24px 26px 20px;box-shadow:0 28px 70px rgba(0,0,0,.75);animation:wsSlideIn .55s cubic-bezier(.22,1,.36,1) both}
+@keyframes wsSlideIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+#welcomeScreen .ws-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px}
+#welcomeScreen .ws-divider{width:1px;height:34px;background:rgba(255,255,255,.3)}
+#welcomeScreen .ws-product{font-size:17px;font-weight:700;color:#fff;line-height:1.2}
+#welcomeScreen .ws-product span{display:block;font-size:9px;font-weight:500;color:rgba(255,255,255,.45);letter-spacing:.09em;text-transform:uppercase;margin-top:2px}
+#wsSelectedRoleTag{text-align:center;padding:8px 12px;border-radius:8px;margin-bottom:14px;background:rgba(0,174,239,.1);border:1px solid rgba(0,174,239,.25)}
+#wsSelectedRoleTag .ws-sr-label{font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+#wsSelectedRoleTag #wsRoleName{font-size:13px;font-weight:700;color:#00aeef}
+.ws-field{margin-bottom:12px}
+.ws-label{display:block;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.07em;text-transform:uppercase;margin-bottom:5px}
+.ws-input{width:100%;padding:10px 13px;border-radius:8px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);color:#fff;font-size:13px;font-family:'IBM Plex Sans',sans-serif;outline:none;transition:border-color .2s}
+.ws-input::placeholder{color:rgba(255,255,255,.28)}
+.ws-input:focus{border-color:#00aeef;background:rgba(0,174,239,.07)}
+.ws-login-btn{width:100%;padding:12px;border-radius:9px;border:none;cursor:pointer;background:linear-gradient(135deg,#003da5,#00aeef);color:#fff;font-size:13px;font-weight:700;letter-spacing:.05em;transition:opacity .2s,transform .15s;box-shadow:0 4px 18px rgba(0,174,239,.28)}
+.ws-login-btn:hover{opacity:.9;transform:translateY(-1px)}
+.ws-login-btn:disabled{opacity:.55;cursor:default}
+.ws-error{color:#ff6b6b;font-size:11px;text-align:center;margin-top:9px;min-height:15px;font-weight:600}
+.ws-footer{text-align:center;margin-top:14px;font-size:8.5px;color:rgba(255,255,255,.22);letter-spacing:.04em}
+.ws-outputs-col{flex:0 0 190px;display:flex;flex-direction:column;gap:6px}
+.ws-out-col-label{font-size:9px;font-weight:700;color:rgba(255,255,255,.32);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;text-align:right;padding-right:2px}
+.ws-output-card{display:flex;align-items:center;gap:9px;padding:8px 12px 8px 10px;border-radius:9px;background:rgba(0,30,15,.65);border:1px solid rgba(34,197,94,.15);cursor:default;transition:all .2s}
+.ws-output-card:hover{border-color:rgba(34,197,94,.38);background:rgba(0,45,22,.6)}
+.ws-out-icon{font-size:13px;flex-shrink:0}
+.ws-out-info{min-width:0}
+.ws-out-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.78)}
+.ws-out-sub{font-size:8px;color:rgba(255,255,255,.32);margin-top:1px}
 
 /* ===================== HUB SCREEN ===================== */
 #hubScreen {
@@ -657,84 +614,90 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
      1. WELCOME / LOGIN SCREEN
      ============================================================ -->
 <div id="welcomeScreen">
+  <div class="ws-bg"></div>
+  <div class="ws-overlay"></div>
   <div class="ws-topbar">
-    <div class="ws-brand">
-      <div class="ws-brand-bolt">&#9889;</div>
-      <div class="ws-brand-txt">
-        <b>JPS FP&amp;A Hub</b>
-        <span>Jamaica Public Service &middot; Financial Planning &amp; Analysis</span>
+    <div class="ws-brand-row">
+      <div class="ws-brand-icon">⚡</div>
+      <div>
+        <div class="ws-brand-name">JPS FP&amp;A Platform</div>
+        <div class="ws-brand-sub">Jamaica Public Service Co. · Financial Planning &amp; Analysis</div>
       </div>
     </div>
-    <div class="ws-tagline">Powering What Matters</div>
+    <div class="ws-powering">P<span>●</span>wering What Matters</div>
   </div>
-
-  <div class="ws-body">
-    <!-- LEFT: role selector -->
-    <div class="ws-col-left">
-      <div class="ws-col-title">Select Your Role</div>
-      <div class="ws-role-card selected" style="--rc:#3B82F6" onclick="wsSelectRole(this,'Revenue Analyst')">
-        <div class="ws-role-ic">&#128200;</div>
-        <div class="ws-role-meta">
-          <b>Revenue Analyst</b>
-          <span>Tariff rates &middot; billing volumes &middot; fuel revenue</span>
-        </div>
+  <div class="ws-layout">
+    <!-- LEFT — Role Profiles -->
+    <div class="ws-roles-col">
+      <div class="ws-col-label">Select your role to enter your workspace</div>
+      <div class="ws-role-card" onclick="wsSelectRole(this,'Revenue Analyst')" style="--rc:#3b82f6">
+        <div class="ws-role-icon">$</div>
+        <div class="ws-role-info"><div class="ws-role-name">Revenue Analyst</div><div class="ws-role-desc">Tariff rates · billing volumes · fuel revenue</div></div>
+        <div class="ws-role-arr">›</div>
       </div>
-      <div class="ws-role-card" style="--rc:#00AEEF" onclick="wsSelectRole(this,'Operations Engineer')">
-        <div class="ws-role-ic">&#9881;</div>
-        <div class="ws-role-meta">
-          <b>Operations Engineer</b>
-          <span>Net generation &middot; fuel cost &middot; heat rates</span>
-        </div>
+      <div class="ws-role-card" onclick="wsSelectRole(this,'Operations Engineer')" style="--rc:#00aeef">
+        <div class="ws-role-icon">G</div>
+        <div class="ws-role-info"><div class="ws-role-name">Operations Engineer</div><div class="ws-role-desc">Net generation · fuel cost · heat rates</div></div>
+        <div class="ws-role-arr">›</div>
       </div>
-      <div class="ws-role-card" style="--rc:#F59E0B" onclick="wsSelectRole(this,'O&amp;M Specialist')">
-        <div class="ws-role-ic">&#128295;</div>
-        <div class="ws-role-meta">
-          <b>O&amp;M Specialist</b>
-          <span>Operating costs &middot; maintenance &middot; overheads</span>
-        </div>
+      <div class="ws-role-card" onclick="wsSelectRole(this,'O&amp;M Specialist')" style="--rc:#f59e0b">
+        <div class="ws-role-icon">O</div>
+        <div class="ws-role-info"><div class="ws-role-name">O&amp;M Specialist</div><div class="ws-role-desc">Operating costs · maintenance · overheads</div></div>
+        <div class="ws-role-arr">›</div>
       </div>
-      <div class="ws-role-card" style="--rc:#A78BFA" onclick="wsSelectRole(this,'CapEx Manager')">
-        <div class="ws-role-ic">&#127959;</div>
-        <div class="ws-role-meta">
-          <b>CapEx Manager</b>
-          <span>Project spend &middot; asset register &middot; depreciation</span>
-        </div>
+      <div class="ws-role-card" onclick="wsSelectRole(this,'CapEx Manager')" style="--rc:#a78bfa">
+        <div class="ws-role-icon">C</div>
+        <div class="ws-role-info"><div class="ws-role-name">CapEx Manager</div><div class="ws-role-desc">Project spend · asset register · depreciation</div></div>
+        <div class="ws-role-arr">›</div>
       </div>
-      <div class="ws-role-card" style="--rc:#34D399" onclick="wsSelectRole(this,'Treasury Analyst')">
-        <div class="ws-role-ic">&#128176;</div>
-        <div class="ws-role-meta">
-          <b>Treasury Analyst</b>
-          <span>Loans &middot; leases &middot; interest &middot; covenants</span>
-        </div>
+      <div class="ws-role-card" onclick="wsSelectRole(this,'Treasury Analyst')" style="--rc:#34d399">
+        <div class="ws-role-icon">T</div>
+        <div class="ws-role-info"><div class="ws-role-name">Treasury Analyst</div><div class="ws-role-desc">Loans · leases · interest · covenants</div></div>
+        <div class="ws-role-arr">›</div>
       </div>
+      <div class="ws-role-card" onclick="wsSelectRole(this,'Collections Manager')" style="--rc:#f472b6">
+        <div class="ws-role-icon" style="font-size:8px">AR</div>
+        <div class="ws-role-info"><div class="ws-role-name">Collections Manager</div><div class="ws-role-desc">Cash receipts · DSO · A/R aging · recovery</div></div>
+        <div class="ws-role-arr">›</div>
+      </div>
+      <div class="ws-col-hint">Or sign in below for full platform access</div>
     </div>
-
-    <!-- CENTER: login card -->
-    <div class="ws-col-mid">
-      <div class="ws-login-card">
-        <div class="ws-login-bolt">&#9889;</div>
-        <h1>FP&amp;A Hub</h1>
-        <div class="sub">Sign in to the financial planning platform</div>
-        <input class="ws-input" id="loginEmail" type="email" placeholder="Email address" autocomplete="username" />
-        <input class="ws-input" id="loginPassword" type="password" placeholder="Password" autocomplete="current-password"
-               onkeydown="if(event.key==='Enter')doLogin()" />
-        <button class="ws-login-btn" onclick="doLogin()">Sign In &rarr;</button>
+    <!-- CENTER — Login card -->
+    <div class="ws-center-col">
+      <div class="ws-conn ws-conn-l"><div class="ws-conn-line"></div><div class="ws-conn-arrow">›</div></div>
+      <div class="ws-conn ws-conn-r"><div class="ws-conn-arrow">›</div><div class="ws-conn-line"></div></div>
+      <div class="ws-card">
+        <div class="ws-logo">
+          <div style="font-size:28px">⚡</div>
+          <div class="ws-divider"></div>
+          <div class="ws-product">FP&amp;A Hub<span>Demo · Jamaica Public Service</span></div>
+        </div>
+        <div id="wsSelectedRoleTag" style="display:none">
+          <div class="ws-sr-label">Entering workspace</div>
+          <div id="wsRoleName"></div>
+        </div>
+        <div class="ws-field">
+          <label class="ws-label">Email</label>
+          <input class="ws-input" id="loginEmail" type="email" placeholder="you@jps.com.jm" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()">
+        </div>
+        <div class="ws-field">
+          <label class="ws-label">Password</label>
+          <input class="ws-input" id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <button class="ws-login-btn" onclick="doLogin()">Sign In →</button>
         <div class="ws-error" id="loginError"></div>
-        <div class="ws-selrole-tag" id="wsSelectedRoleTag">
-          Entering as: <span id="wsRoleName">Revenue Analyst</span>
-        </div>
+        <div class="ws-footer">CONFIDENTIAL · Internal Use Only · JPS Finance &amp; Strategy</div>
       </div>
     </div>
-
-    <!-- RIGHT: platform outputs -->
-    <div class="ws-col-right">
-      <div class="ws-col-title">Platform Outputs</div>
-      <div class="ws-out-card"><div class="ws-out-ic">&#128202;</div><span>Income Statement</span></div>
-      <div class="ws-out-card"><div class="ws-out-ic">&#9889;</div><span>Flash Report</span></div>
-      <div class="ws-out-card"><div class="ws-out-ic">&#127919;</div><span>KPIs &amp; Ratios</span></div>
-      <div class="ws-out-card"><div class="ws-out-ic">&#127974;</div><span>Balance Sheet</span></div>
-      <div class="ws-out-card"><div class="ws-out-ic">&#128181;</div><span>Cash Flow</span></div>
-      <div class="ws-out-card"><div class="ws-out-ic">&#127922;</div><span>Scenario Analysis</span></div>
+    <!-- RIGHT — Platform Reports -->
+    <div class="ws-outputs-col">
+      <div class="ws-out-col-label">Platform Reports</div>
+      <div class="ws-output-card"><div class="ws-out-icon">📋</div><div class="ws-out-info"><div class="ws-out-label">Income Statement</div><div class="ws-out-sub">Monthly P&amp;L · budget variance</div></div></div>
+      <div class="ws-output-card"><div class="ws-out-icon">📰</div><div class="ws-out-info"><div class="ws-out-label">Flash Report</div><div class="ws-out-sub">Management one-pager</div></div></div>
+      <div class="ws-output-card"><div class="ws-out-icon">📐</div><div class="ws-out-info"><div class="ws-out-label">KPIs &amp; Ratios</div><div class="ws-out-sub">Leverage · liquidity · coverage</div></div></div>
+      <div class="ws-output-card"><div class="ws-out-icon">⚖</div><div class="ws-out-info"><div class="ws-out-label">Balance Sheet</div><div class="ws-out-sub">Assets · liabilities · equity</div></div></div>
+      <div class="ws-output-card"><div class="ws-out-icon">💧</div><div class="ws-out-info"><div class="ws-out-label">Cash Flow Statement</div><div class="ws-out-sub">Operating · investing · financing</div></div></div>
+      <div class="ws-output-card"><div class="ws-out-icon">🎯</div><div class="ws-out-info"><div class="ws-out-label">Scenario Analysis</div><div class="ws-out-sub">Base · upside · downside</div></div></div>
     </div>
   </div>
 </div>
