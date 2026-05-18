@@ -2503,7 +2503,9 @@ async function _ensureMaxMo(yr) {
       return;
     }
   }
-  _yearMaxMo[yr] = isCY ? 0 : 12; // fallback
+  // Historical years: full 12 months assumed if no data found
+  // CY: leave undefined so next call retries (don't cache failure)
+  if (!isCY) _yearMaxMo[yr] = 12;
 }
 
 async function _fetchFacts(vCode, lines, pStart, pEnd) {
@@ -2612,10 +2614,6 @@ function _cmSpan(note) {
   return note
     ? '<span class="cm-text" onclick="_cmEdit(this.closest(\'.cm-cell\'))">' + _escHtml(note) + '</span>'
     : '<span class="cm-text cm-empty" onclick="_cmEdit(this.closest(\'.cm-cell\'))">Add note…</span>';
-}
-
-function _escHtml(s) {
-  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function _cmEdit(cell) {
@@ -3128,8 +3126,10 @@ const _yearMaxMo = {};        // cache: year → max actual month available
 function _getCtx() {
   const yr   = _activeYear;
   const isCY = (yr === _CY);
-  const maxMo = (_yearMaxMo[yr] != null) ? _yearMaxMo[yr] : (isCY ? 0 : 12);
-  if (!maxMo) return null;   // no data loaded for this year yet
+  const rawMaxMo = (_yearMaxMo[yr] != null) ? _yearMaxMo[yr] : (isCY ? 0 : 12);
+  // When maxMo = 0 (no actuals found yet or demo mode), fall back to current calendar month
+  // so pages still render — they'll just show zeros with a "no data" notice
+  const maxMo = rawMaxMo || (new Date().getMonth() + 1);
   const mo = (_activeMo > 0 && _activeMo <= maxMo) ? _activeMo : maxMo;
   const yrB = yr * 100;
 
