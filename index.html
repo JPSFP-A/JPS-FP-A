@@ -383,6 +383,16 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 .rag-g { background: rgba(21,128,61,.14);  color: var(--green); }
 .rag-a { background: rgba(217,119,6,.16);  color: var(--amber); }
 .rag-r { background: rgba(196,30,58,.14);  color: var(--rose); }
+/* ---- Commentary inline edit ---- */
+.cm-cell { min-width: 160px; max-width: 260px; vertical-align: top; }
+.cm-text { display: block; font-size: 11.5px; line-height: 1.4; color: var(--text); cursor: pointer; padding: 2px 4px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; }
+.cm-text:hover { background: rgba(0,174,239,.08); }
+.cm-text.cm-empty { color: var(--muted); font-style: italic; }
+.cm-ta { width: 100%; min-height: 54px; font-family: inherit; font-size: 11.5px; padding: 4px 6px; border: 1.5px solid var(--teal); border-radius: 4px; background: var(--surface); color: var(--text); resize: vertical; box-sizing: border-box; }
+.cm-btns { display: flex; gap: 4px; margin-top: 4px; }
+.cm-save { font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 4px; border: none; background: var(--teal); color: #fff; cursor: pointer; }
+.cm-save:hover { opacity: .85; }
+.cm-cancel { font-size: 10.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
 .dot-g { background: var(--green); }
 .dot-a { background: var(--amber); }
@@ -2572,6 +2582,85 @@ function _pgLoad(id, on) {
   if (pg) pg.classList[on ? 'add' : 'remove']('pg-loading');
 }
 
+/* ====================================================================
+   COMMENTARY ENGINE
+   Key: line_id | period_id (YYYYMM) | view_type ('Month'|'YTD'|'FY')
+   ==================================================================== */
+const _cmCache = {};
+
+async function _loadCommentary(lineIds, periodId, viewType) {
+  const r = await _sbQ(function(sb) {
+    return sb.from('fpa_commentary')
+      .select('line_id,note')
+      .in('line_id', lineIds)
+      .eq('period_id', periodId)
+      .eq('view_type', viewType);
+  });
+  (r && r.data || []).forEach(function(row) {
+    _cmCache[row.line_id + '|' + periodId + '|' + viewType] = row.note;
+  });
+}
+
+function _cmCell(lid, periodId, viewType) {
+  const key  = lid + '|' + periodId + '|' + viewType;
+  const note = _cmCache[key] || '';
+  return '<td class="cm-cell" data-lid="' + lid + '" data-pid="' + periodId + '" data-vt="' + viewType + '">'
+    + _cmSpan(note) + '</td>';
+}
+
+function _cmSpan(note) {
+  return note
+    ? '<span class="cm-text" onclick="_cmEdit(this.closest(\'.cm-cell\'))">' + _escHtml(note) + '</span>'
+    : '<span class="cm-text cm-empty" onclick="_cmEdit(this.closest(\'.cm-cell\'))">Add note…</span>';
+}
+
+function _escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _cmEdit(cell) {
+  const lid  = cell.dataset.lid;
+  const pid  = cell.dataset.pid;
+  const vt   = cell.dataset.vt;
+  const note = _cmCache[lid + '|' + pid + '|' + vt] || '';
+  cell.innerHTML = '<textarea class="cm-ta" rows="3">' + _escHtml(note) + '</textarea>'
+    + '<div class="cm-btns">'
+    + '<button class="cm-save"   onclick="_cmSave(this.closest(\'.cm-cell\'))">Save</button>'
+    + '<button class="cm-cancel" onclick="_cmCancel(this.closest(\'.cm-cell\'))">Cancel</button>'
+    + '</div>';
+  cell.querySelector('textarea').focus();
+}
+
+async function _cmSave(cell) {
+  const lid  = cell.dataset.lid;
+  const pid  = +cell.dataset.pid;
+  const vt   = cell.dataset.vt;
+  const note = cell.querySelector('textarea').value.trim();
+  const key  = lid + '|' + pid + '|' + vt;
+  let updatedBy = null;
+  try { updatedBy = (await _supabase.auth.getUser())?.data?.user?.email; } catch(_) {}
+  const r = await _sbQ(function(sb) {
+    return sb.from('fpa_commentary').upsert({
+      line_id: lid, period_id: pid, view_type: vt,
+      note: note, updated_by: updatedBy, updated_at: new Date().toISOString()
+    }, { onConflict: 'line_id,period_id,view_type' });
+  });
+  if (r && !r.error) {
+    _cmCache[key] = note;
+    _toast('Commentary saved', 'ok');
+  } else {
+    _toast('Save failed — ' + ((r && r.error && r.error.message) || 'unknown error'), 'err');
+  }
+  _cmCancel(cell);
+}
+
+function _cmCancel(cell) {
+  const lid = cell.dataset.lid;
+  const pid = cell.dataset.pid;
+  const vt  = cell.dataset.vt;
+  cell.innerHTML = _cmSpan(_cmCache[lid + '|' + pid + '|' + vt] || '');
+}
+
 /* ----- p1: OVERVIEW ----- */
 async function loadP1() {
   _pgLoad('p1', true);
@@ -2581,9 +2670,11 @@ async function loadP1() {
 
   const LINES = ['pl_total_sales','nr_rev','fuel_rev','ebitda','net_inc','cf_capex',
     'stat_billed_gwh','opex','depn','nfc_int_exp','tax','cf_ops_net','fuel_cost','ipp_cost'];
+  const CM_LINES = ['pl_total_sales','ebitda','net_inc','ebitda_margin','cf_capex','stat_billed_gwh','cf_ops_net'];
   const [aF, bF] = await Promise.all([
     _fetchFacts(ctx.actCode, LINES, ctx.actStart, ctx.actEnd),
     _fetchFacts(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
+    _loadCommentary(CM_LINES, ctx.actEnd, _activeView),
   ]);
   _pgLoad('p1', false);
 
@@ -2626,7 +2717,7 @@ async function loadP1() {
       + '</div>';
   }
 
-  function ragRow(lbl, a, b, higherGood, isPct) {
+  function ragRow(lid, lbl, a, b, higherGood, isPct) {
     const v = a - b;
     const vStr = isPct
       ? (v >= 0 ? '+' : '') + v.toFixed(1) + 'pp'
@@ -2640,7 +2731,8 @@ async function loadP1() {
       + '<td class="num ' + vCls + '">' + vStr + '</td>'
       + '<td class="num ' + vCls + '">' + (isPct ? '—' : _fmtPct(a, b)) + '</td>'
       + '<td>' + _ragBadge(a, b, higherGood) + '</td>'
-      + '<td style="text-align:left">—</td></tr>';
+      + _cmCell(lid, ctx.actEnd, _activeView)
+      + '</tr>';
   }
 
   function plRow(lbl, a, b, cls, isCost) {
@@ -2671,13 +2763,13 @@ async function loadP1() {
     + '<th>Metric</th><th>Actual</th><th>' + ctx.cmpLbl + '</th>'
     + '<th>Variance</th><th>Var %</th><th>RAG</th><th>Commentary</th>'
     + '</tr></thead><tbody>'
-    + ragRow('Total Revenue',       rev_a,    rev_b,    true,  false)
-    + ragRow('EBITDA',              ebd_a,    ebd_b,    true,  false)
-    + ragRow('NPAT',                ni_a,     ni_b,     true,  false)
-    + ragRow('EBITDA Margin %',     ebdMg_a,  ebdMg_b,  true,  true)
-    + ragRow('CapEx Spend',         cpx_a,    cpx_b,    false, false)
-    + ragRow('GWh Billed',          gwh_a,    gwh_b,    true,  false)
-    + ragRow('Operating Cash Flow', ocf_a,    ocf_b,    true,  false)
+    + ragRow('pl_total_sales', 'Total Revenue',       rev_a,    rev_b,    true,  false)
+    + ragRow('ebitda',         'EBITDA',              ebd_a,    ebd_b,    true,  false)
+    + ragRow('net_inc',        'NPAT',                ni_a,     ni_b,     true,  false)
+    + ragRow('ebitda_margin',  'EBITDA Margin %',     ebdMg_a,  ebdMg_b,  true,  true)
+    + ragRow('cf_capex',       'CapEx Spend',         cpx_a,    cpx_b,    false, false)
+    + ragRow('stat_billed_gwh','GWh Billed',          gwh_a,    gwh_b,    true,  false)
+    + ragRow('cf_ops_net',     'Operating Cash Flow', ocf_a,    ocf_b,    true,  false)
     + '</tbody></table></div></div>'
     + '<div class="grid-2">'
     + '<div class="card"><div class="card-head">Income Summary'
