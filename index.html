@@ -59,6 +59,78 @@ button { font-family: inherit; cursor: pointer; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
+/* ===================== FLASH REPORT ===================== */
+#p17{background:#eef1f6;padding:0;overflow:hidden;}
+.page.active#p17{display:flex;flex-direction:column;}
+.flash-ctrl-bar{background:var(--surface);border-bottom:2px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex-shrink:0}
+.flash-view-btn{padding:6px 13px;border:none;background:transparent;cursor:pointer;font-size:10px;font-weight:700;font-family:inherit;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;transition:all .15s;border-radius:5px}
+.flash-view-btn:hover{color:var(--text);background:rgba(0,61,165,.08)}
+.flash-view-btn.on{background:#003da5;color:#fff}
+.flash-sel{padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:11px;font-family:inherit;cursor:pointer;outline:none}
+#flashDocument{flex:1;overflow-y:auto;padding:20px 24px 32px;display:flex;flex-direction:column;align-items:center}
+.flash-page{width:100%;max-width:960px;background:#fff;box-shadow:0 2px 16px rgba(0,0,0,.12);border-radius:4px;overflow:hidden;font-family:'IBM Plex Sans',sans-serif;color:#0d1e3a}
+.flash-page-header{background:linear-gradient(135deg,#002d80 0%,#003da5 60%,#0055c8 100%);padding:22px 28px 18px;display:flex;justify-content:space-between;align-items:flex-end}
+.flash-page-header-left .flash-report-title{font-size:20px;font-weight:800;color:#fff;letter-spacing:.01em;line-height:1.2}
+.flash-page-header-left .flash-report-sub{font-size:11px;color:rgba(255,255,255,.65);margin-top:4px;letter-spacing:.04em}
+.flash-page-header-right{text-align:right}
+.flash-page-header-right .flash-brand{font-size:26px;font-weight:900;color:#fff;letter-spacing:-.01em;font-family:'IBM Plex Mono',monospace}
+.flash-page-header-right .flash-brand span{color:#00aeef}
+.flash-page-header-right .flash-date{font-size:10px;color:rgba(255,255,255,.6);margin-top:3px}
+.flash-compare-banner{background:#f0f4f8;border-bottom:1px solid #d8e2ef;padding:10px 28px;display:flex;align-items:center;gap:0;font-size:11px;font-weight:700}
+.flash-ver-pill{padding:5px 14px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.flash-ver-a{background:#003da5;color:#fff}
+.flash-ver-b{background:#e8eef6;color:#003da5;border:1px solid #b0c4de}
+.flash-compare-vs{padding:0 12px;color:#8099b8;font-weight:700}
+.flash-compare-period{margin-left:auto;color:#4a6080;font-size:10px;font-weight:600}
+.flash-kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid #d8e2ef}
+.flash-kpi-cell{padding:14px 18px;border-right:1px solid #d8e2ef}
+.flash-kpi-cell:last-child{border-right:none}
+.flash-kpi-label{font-size:9px;font-weight:700;color:#6b82a0;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+.flash-kpi-val{font-size:19px;font-weight:800;color:#0d1e3a;font-family:'IBM Plex Mono',monospace}
+.flash-kpi-var{font-size:10px;margin-top:3px}
+.flash-section-header{padding:8px 28px;background:#f5f7fa;border-top:2px solid #003da5;border-bottom:1px solid #d8e2ef;font-size:10px;font-weight:800;color:#003da5;text-transform:uppercase;letter-spacing:.08em}
+.flash-table{width:100%;border-collapse:collapse;font-size:11.5px}
+.flash-table th{padding:8px 14px;text-align:right;font-size:9px;font-weight:800;color:#fff;background:#1e3a5f;text-transform:uppercase;letter-spacing:.07em;border-right:1px solid rgba(255,255,255,.1)}
+.flash-table th:first-child{text-align:left;min-width:190px}
+.flash-table th:last-child{border-right:none}
+.flash-table td{padding:7px 14px;text-align:right;color:#0d1e3a;border-bottom:1px solid #e8eef5;border-right:1px solid #e8eef5}
+.flash-table td:first-child{text-align:left;color:#1a2f4a}
+.flash-table td:last-child{border-right:none}
+.flash-table tr:hover td{background:#f8fafc}
+.flash-row-section td{background:#f0f4f8!important;font-weight:800;font-size:10px;color:#5a7090;text-transform:uppercase;letter-spacing:.06em;padding:5px 14px;border-top:1px solid #d8e2ef}
+.flash-row-subtotal td{background:#eef4fb!important;font-weight:800;color:#003da5;border-top:2px solid #003da5!important}
+.flash-row-total td{background:#003da5!important;color:#fff!important;font-weight:800;border-top:2px solid #002880!important}
+.flash-two-col{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #d8e2ef}
+.flash-two-col>div{border-right:1px solid #d8e2ef}
+.flash-two-col>div:last-child{border-right:none}
+.fv-pos{color:#059669;font-weight:700}
+.fv-neg{color:#dc2626;font-weight:700}
+.fv-neu{color:#6b82a0}
+.flash-notes-area{padding:18px 28px;border-top:1px solid #d8e2ef}
+.flash-notes-area h3{font-size:11px;font-weight:800;color:#003da5;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
+.flash-note-entry{display:flex;gap:10px;margin-bottom:10px}
+.flash-note-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#003da5,#00aeef);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0}
+.flash-note-body{flex:1;background:#f8fafc;border:1px solid #dde5f0;border-radius:8px;padding:10px 14px}
+.flash-note-meta{font-size:9px;color:#6b82a0;display:flex;gap:10px;flex-wrap:wrap;margin-bottom:5px}
+.flash-note-author{font-weight:700;color:#1a2f4a}
+.flash-note-tag{padding:1px 8px;border-radius:10px;background:#e8f0fc;color:#003da5;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.flash-note-text{font-size:12px;color:#1a2f4a;line-height:1.55}
+.flash-note-input-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px}
+.flash-note-input-row select,.flash-note-input-row textarea{font-family:inherit;font-size:12px;color:#0d1e3a;border:1px solid #c8d8ec;border-radius:7px;background:#fff;outline:none;transition:border-color .2s}
+.flash-note-input-row select{padding:8px 10px}
+.flash-note-input-row textarea{flex:1;min-width:220px;padding:9px 12px;resize:vertical}
+.flash-note-input-row select:focus,.flash-note-input-row textarea:focus{border-color:#003da5}
+.flash-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:#6b82a0;gap:12px}
+.flash-loading .fl-spinner{width:36px;height:36px;border:3px solid #d8e2ef;border-top-color:#003da5;border-radius:50%;animation:fl-spin .7s linear infinite}
+@keyframes fl-spin{to{transform:rotate(360deg)}}
+.flash-page-footer{background:#f5f7fa;border-top:1px solid #d8e2ef;padding:10px 28px;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#8099b8}
+@media print{
+  .sidebar,.topbar-bar,.tb-bar,nav,#p17 .flash-ctrl-bar{display:none!important}
+  #p17{height:auto!important;overflow:visible!important;background:#fff!important}
+  #flashDocument{overflow:visible!important;padding:0!important}
+  .flash-page{box-shadow:none!important}
+}
+
 /* ===================== TOAST ===================== */
 .toast {
   position: fixed; right: 22px; bottom: 22px;
@@ -393,10 +465,34 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 .cm-save { font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 4px; border: none; background: var(--teal); color: #fff; cursor: pointer; }
 .cm-save:hover { opacity: .85; }
 .cm-cancel { font-size: 10.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; }
-.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
-.dot-g { background: var(--green); }
-.dot-a { background: var(--amber); }
-.dot-r { background: var(--rose); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink:0; }
+.dot-g,.dot.g { background: var(--green); }
+.dot-a,.dot.a { background: var(--amber); }
+.dot-r,.dot.r { background: var(--rose); }
+/* RAG pill badges — matches mockup .rb.g/.a/.r */
+.rb { display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600; }
+.rb.g { background:#dcfce7; color:#15803d; }
+.rb.a { background:#fef3c7; color:#92400e; }
+.rb.r { background:#fee2e2; color:var(--rose); }
+/* Table wrapper */
+.tw { overflow-x:auto; }
+/* KPI scorecard table — matches mockup exactly */
+.kpi-sc-tbl { width:100%;border-collapse:collapse;font-size:12px; }
+.kpi-sc-tbl th { background:var(--dark);color:#fff;padding:8px 10px;text-align:right;font-weight:600;font-size:11px;white-space:nowrap; }
+.kpi-sc-tbl th:first-child { text-align:left;min-width:190px; }
+.kpi-sc-tbl td { padding:6px 10px;border-bottom:1px solid #f0f2f7;text-align:right;white-space:nowrap; }
+.kpi-sc-tbl td:first-child { text-align:left;color:var(--text); }
+.kpi-sc-tbl tr:hover td { background:rgba(0,61,165,.03); }
+.kpi-sc-tbl .rsec td { font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--gold);padding-top:14px;padding-bottom:3px;font-weight:700;background:var(--bg);border-bottom:none; }
+.kpi-sc-tbl .rind td:first-child { padding-left:24px;color:var(--muted); }
+.kpi-sc-tbl .rt td { background:var(--dark);color:#fff;font-weight:700; }
+[data-theme="slate"] .kpi-sc-tbl td { border-bottom-color:#1e293b; }
+[data-theme="slate"] .kpi-sc-tbl th { background:#0a0f1e; }
+[data-theme="slate"] .kpi-sc-tbl .rsec td { background:#1e293b; }
+[data-theme="slate"] .kpi-sc-tbl tr:hover td { background:#1e293b; }
+[data-theme="slate"] .rb.g { background:rgba(21,128,61,.2);color:#4ade80; }
+[data-theme="slate"] .rb.a { background:rgba(217,119,6,.2);color:#fbbf24; }
+[data-theme="slate"] .rb.r { background:rgba(196,30,58,.2);color:#fca5a5; }
 .sb {
   display: inline-block; padding: 2px 9px; border-radius: 11px;
   font-size: 9.5px; font-weight: 700;
@@ -727,7 +823,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
     <div class="ws-outputs-col">
       <div class="ws-out-col-label">Platform Reports</div>
       <div class="ws-output-card"><div class="ws-out-icon">📋</div><div class="ws-out-info"><div class="ws-out-label">Income Statement</div><div class="ws-out-sub">Monthly P&amp;L · budget variance</div></div></div>
-      <div class="ws-output-card"><div class="ws-out-icon">📰</div><div class="ws-out-info"><div class="ws-out-label">Flash Report</div><div class="ws-out-sub">Management one-pager</div></div></div>
+      <div class="ws-output-card" onclick="doLogin();navTo('p17')" style="cursor:pointer"><div class="ws-out-icon">📰</div><div class="ws-out-info"><div class="ws-out-label">Flash Report</div><div class="ws-out-sub">Management one-pager</div></div></div>
       <div class="ws-output-card"><div class="ws-out-icon">📐</div><div class="ws-out-info"><div class="ws-out-label">KPIs &amp; Ratios</div><div class="ws-out-sub">Leverage · liquidity · coverage</div></div></div>
       <div class="ws-output-card"><div class="ws-out-icon">⚖</div><div class="ws-out-info"><div class="ws-out-label">Balance Sheet</div><div class="ws-out-sub">Assets · liabilities · equity</div></div></div>
       <div class="ws-output-card"><div class="ws-out-icon">💧</div><div class="ws-out-info"><div class="ws-out-label">Cash Flow Statement</div><div class="ws-out-sub">Operating · investing · financing</div></div></div>
@@ -804,6 +900,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
     <div class="hub-quick-bar">
       <span class="hub-quick-label">Quick Access:</span>
       <button class="hub-quick-btn" onclick="hubNav('p1')">⚡ Overview</button>
+      <button class="hub-quick-btn" onclick="hubNav('p17')">📰 Flash Report</button>
       <button class="hub-quick-btn" onclick="hubNav('p2')">📊 Income Statement</button>
       <button class="hub-quick-btn" onclick="hubNav('p9')">📐 KPIs &amp; Ratios</button>
       <button class="hub-quick-btn" onclick="hubNav('p13')">🎲 Scenario Manager</button>
@@ -921,6 +1018,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 
       <div class="nav-sec">Reporting</div>
       <div class="ni active" data-p="p1" onclick="nav(this)"><span class="ni-ic">&#9889;</span> Overview</div>
+      <div class="ni" data-p="p17" onclick="nav(this)"><span class="ni-ic">&#128240;</span> Flash Report</div>
       <div class="ni" data-p="p2" onclick="nav(this)"><span class="ni-ic">&#128202;</span> Consolidated P&amp;L</div>
       <div class="ni" data-p="p3" onclick="nav(this)"><span class="ni-ic">&#127974;</span> Balance Sheet</div>
       <div class="ni" data-p="p4" onclick="nav(this)"><span class="ni-ic">&#128181;</span> Cash Flow</div>
@@ -1740,81 +1838,16 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
       <section class="page" id="p10">
         <div class="page-head">
           <h1>KPI Scorecard</h1>
-          <div class="ph-sub">Financial &amp; operational key performance indicators &middot; YTD Apr 2026</div>
+          <div class="ph-sub" id="p10Sub">Operational &amp; Financial KPIs &middot; RAG vs Annual Target</div>
+          <button class="btn" onclick="loadP10(true)">&#8635; Refresh</button>
         </div>
-
-        <div class="score-grid">
-          <div class="score-card">
-            <div class="sc-lbl">Revenue YTD</div>
-            <div class="sc-val">$275.1M</div>
-            <div class="sc-trend k-up">&#9650; +0.6%</div>
-            <div class="sc-foot">YTD Apr &middot; Target $273.5M</div>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">KPI Performance vs Target</span>
+            <span class="meta">Green = Met &nbsp;&middot;&nbsp; Amber = Within 5% &nbsp;&middot;&nbsp; Red = Missed &gt;5%</span>
           </div>
-          <div class="score-card">
-            <div class="sc-lbl">EBITDA YTD</div>
-            <div class="sc-val">$71.9M</div>
-            <div class="sc-trend k-warn">&#9660; &minus;1.1%</div>
-            <div class="sc-foot">YTD Apr &middot; Target $72.7M</div>
-          </div>
-          <div class="score-card">
-            <div class="sc-lbl">NPAT YTD</div>
-            <div class="sc-val">$19.9M</div>
-            <div class="sc-trend k-warn">&#9660; &minus;3.4%</div>
-            <div class="sc-foot">YTD Apr &middot; Target $20.6M</div>
-          </div>
-          <div class="score-card">
-            <div class="sc-lbl">EBITDA Margin</div>
-            <div class="sc-val">26.1%</div>
-            <div class="sc-trend k-warn">&#9660; &minus;0.5pp</div>
-            <div class="sc-foot">YTD Apr &middot; Target 26.6%</div>
-          </div>
-          <div class="score-card">
-            <div class="sc-lbl">CapEx Spend</div>
-            <div class="sc-val">$65.2M</div>
-            <div class="sc-trend k-up">&#9650; +4.2%</div>
-            <div class="sc-foot">YTD Apr &middot; Budget $62.6M</div>
-          </div>
-          <div class="score-card">
-            <div class="sc-lbl">GWh Billed</div>
-            <div class="sc-val">1,082</div>
-            <div class="sc-trend k-up">&#9650; +1.8%</div>
-            <div class="sc-foot">YTD Apr &middot; Target 1,063</div>
-          </div>
-          <div class="score-card">
-            <div class="sc-lbl">T&amp;D Loss</div>
-            <div class="sc-val">18.4%</div>
-            <div class="sc-trend k-down">&#9660; +0.5pp</div>
-            <div class="sc-foot">YTD Apr &middot; Target 17.9%</div>
-          </div>
-          <div class="score-card">
-            <div class="sc-lbl">Collections Rate</div>
-            <div class="sc-val">96.8%</div>
-            <div class="sc-trend k-warn">&#9660; &minus;0.7pp</div>
-            <div class="sc-foot">YTD Apr &middot; Target 97.5%</div>
-          </div>
-          <div class="score-card">
-            <div class="sc-lbl">Operating Cash Flow</div>
-            <div class="sc-val">$58.4M</div>
-            <div class="sc-trend k-warn">&#9660; &minus;4.6%</div>
-            <div class="sc-foot">YTD Apr &middot; Target $61.2M</div>
-          </div>
-          <div class="score-card">
-            <div class="sc-lbl">Net Debt / EBITDA</div>
-            <div class="sc-val">2.6x</div>
-            <div class="sc-trend k-warn">&#9660; +0.2x</div>
-            <div class="sc-foot">YTD Apr &middot; Covenant &le;3.5x</div>
-          </div>
-          <div class="score-card">
-            <div class="sc-lbl">Renewable Share</div>
-            <div class="sc-val">10.2%</div>
-            <div class="sc-trend k-up">&#9650; +0.7pp</div>
-            <div class="sc-foot">YTD Apr &middot; Target 9.5%</div>
-          </div>
-          <div class="score-card">
-            <div class="sc-lbl">SAIDI</div>
-            <div class="sc-val">412</div>
-            <div class="sc-trend k-down">&#9660; +27 min</div>
-            <div class="sc-foot">YTD Apr &middot; Target 385 min</div>
+          <div id="p10Body" style="overflow-x:auto">
+            <div style="padding:40px;text-align:center;color:var(--muted);font-size:13px">Loading KPI data…</div>
           </div>
         </div>
       </section>
@@ -2230,6 +2263,115 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
         </div>
       </section>
 
+      <!-- ============ PAGE 17: FLASH REPORT ============ -->
+      <section class="page" id="p17">
+
+        <!-- Control bar -->
+        <div class="flash-ctrl-bar">
+          <div style="font-size:13px;font-weight:800;color:var(--text);margin-right:4px;white-space:nowrap">📰 Flash Report</div>
+          <div style="display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;flex-shrink:0">
+            <button class="flash-view-btn on" data-view="month"  onclick="flashSetView('month',this)">Month</button>
+            <button class="flash-view-btn"    data-view="qtd"    onclick="flashSetView('qtd',this)">QTD</button>
+            <button class="flash-view-btn"    data-view="ytd"    onclick="flashSetView('ytd',this)">YTD</button>
+            <button class="flash-view-btn"    data-view="annual" onclick="flashSetView('annual',this)">Full Year</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+            <span style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Period</span>
+            <select id="flashMoA" class="flash-sel" onchange="flashRefresh()"></select>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+            <span style="font-size:9px;font-weight:800;color:#fff;background:#003da5;padding:2px 8px;border-radius:10px;letter-spacing:.04em">A</span>
+            <select id="flashVerA" class="flash-sel" onchange="flashRefresh()"><option value="">— loading —</option></select>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:var(--muted)">vs</span>
+          <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+            <span style="font-size:9px;font-weight:800;color:#003da5;background:#e8f0fc;border:1px solid #b0c4de;padding:2px 8px;border-radius:10px;letter-spacing:.04em">B</span>
+            <select id="flashVerB" class="flash-sel" onchange="flashRefresh()"><option value="">— loading —</option></select>
+          </div>
+          <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0">
+            <button class="btn-outline" style="font-size:10px;padding:6px 12px" onclick="flashExportPDF()">🖨 PDF</button>
+            <button class="btn-outline" style="font-size:10px;padding:6px 12px" onclick="flashExportXLSX()">⬇ Excel</button>
+          </div>
+        </div>
+
+        <!-- Document area -->
+        <div id="flashDocument">
+          <div class="flash-page" id="flashPage">
+
+            <div id="flashLoadingState" class="flash-loading">
+              <div class="fl-spinner"></div>
+              <div style="font-size:12px;font-weight:600">Loading report data…</div>
+              <div style="font-size:10px">Select Version A and Version B above to compare</div>
+            </div>
+
+            <div id="flashReportBody" style="display:none">
+
+              <div class="flash-page-header">
+                <div class="flash-page-header-left">
+                  <div class="flash-report-title">Management Flash Report</div>
+                  <div class="flash-report-sub" id="flashReportSubtitle">Jamaica Public Service Co. · FP&amp;A · Confidential</div>
+                </div>
+                <div class="flash-page-header-right">
+                  <div class="flash-brand">JPS<span>co</span></div>
+                  <div class="flash-date" id="flashHeaderDate"></div>
+                </div>
+              </div>
+
+              <div class="flash-compare-banner">
+                <span class="flash-ver-pill flash-ver-a" id="flashLabelA">Version A</span>
+                <span class="flash-compare-vs">vs</span>
+                <span class="flash-ver-pill flash-ver-b" id="flashLabelB">Version B</span>
+                <span class="flash-compare-period" id="flashLabelPeriod"></span>
+              </div>
+
+              <div class="flash-kpi-strip" id="flashKpiStrip"></div>
+
+              <div class="flash-section-header">Income Statement &nbsp;<span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;color:#7090b0">JMD $'000</span></div>
+              <div style="overflow-x:auto"><table class="flash-table" id="flashPLTable"></table></div>
+
+              <div class="flash-two-col">
+                <div>
+                  <div class="flash-section-header" style="border-top:none">Balance Sheet Highlights</div>
+                  <table class="flash-table" id="flashBSTable"></table>
+                </div>
+                <div>
+                  <div class="flash-section-header" style="border-top:none">Key Metrics</div>
+                  <table class="flash-table" id="flashMetricsTable"></table>
+                </div>
+              </div>
+
+              <div class="flash-notes-area">
+                <h3>📝 Management Commentary</h3>
+                <div class="flash-note-input-row">
+                  <select id="flashNoteSection">
+                    <option value="general">General</option>
+                    <option value="revenue">Revenue</option>
+                    <option value="opex">O&amp;M / OPEX</option>
+                    <option value="ebitda">EBITDA</option>
+                    <option value="financing">Financing</option>
+                    <option value="balance_sheet">Balance Sheet</option>
+                    <option value="capex">CapEx</option>
+                    <option value="outlook">Outlook</option>
+                  </select>
+                  <textarea id="flashNoteInput" rows="2"
+                    placeholder="Add commentary for this period… (Ctrl+Enter to save)"
+                    onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){flashSaveNote();event.preventDefault();}"></textarea>
+                  <button class="btn-teal" style="align-self:flex-start;font-size:11px;padding:8px 14px" onclick="flashSaveNote()">Save</button>
+                </div>
+                <div id="flashNotesFeed"></div>
+              </div>
+
+              <div class="flash-page-footer">
+                <span>CONFIDENTIAL · Internal Use Only · Jamaica Public Service Co.</span>
+                <span id="flashGenTime"></span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </section>
+
     </main>
   </div>
 </div>
@@ -2506,27 +2648,25 @@ async function _ensureVMap() {
   return _vMapP;
 }
 
-// Discover & cache max available month for a year (needed before _getCtx can work)
+// Discover & cache max available month for a year
 async function _ensureMaxMo(yr) {
   if (_yearMaxMo[yr] != null) return;
   await _ensureVMap();
   const isCY = (yr === _CY);
-  const vCode = isCY ? ('HIST_ACTUAL_' + yr + '_YTD') : ('HIST_ACTUAL_' + yr);
-  const vid = (_vMap || {})[vCode];
-  if (vid) {
-    const mr = await _sbQ(function(sb) {
-      return sb.from('fpa_facts').select('period_id')
-        .eq('version_id', vid)
-        .order('period_id', { ascending: false }).limit(1);
-    });
-    if (mr && mr.data && mr.data.length) {
-      _yearMaxMo[yr] = mr.data[0].period_id % 100;
-      return;
+  if (isCY) {
+    // For CY: scan vMap for ACTUALS_YYYY_MM keys (reliable; YTD aggregate is incomplete)
+    let maxM = 0;
+    for (let m = 12; m >= 1; m--) {
+      const key = 'ACTUALS_' + yr + '_' + (m < 10 ? '0' + m : m);
+      if ((_vMap || {})[key]) { maxM = m; break; }
     }
+    if (maxM > 0) { _yearMaxMo[yr] = maxM; return; }
+    // Leave undefined for retry if vMap isn't loaded yet
+    return;
   }
-  // Historical years: full 12 months assumed if no data found
-  // CY: leave undefined so next call retries (don't cache failure)
-  if (!isCY) _yearMaxMo[yr] = 12;
+  // Historical: use HIST_ACTUAL_YYYY — full year
+  if ((_vMap || {})['HIST_ACTUAL_' + yr]) { _yearMaxMo[yr] = 12; return; }
+  _yearMaxMo[yr] = 12; // fallback
 }
 
 async function _fetchFacts(vCode, lines, pStart, pEnd) {
@@ -2548,6 +2688,87 @@ async function _fetchFacts(vCode, lines, pStart, pEnd) {
     o[row.line_id][row.period_id] = Number(row.value) || 0;
   });
   return o;
+}
+
+// ── Alias helpers ────────────────────────────────────────────────────────────
+// Monthly actuals use 'nonfuel' instead of 'nr_rev'; AOP lacks 'pl_total_sales'
+function _expandAliasLines(lines) {
+  const extra = ['nonfuel', 'ipp_fr', 'other_r'];
+  return lines.concat(extra.filter(function(l) { return lines.indexOf(l) < 0; }));
+}
+function _hasFactData(f, lid) {
+  const m = f[lid]; if (!m) return false;
+  return Object.values(m).some(function(v) { return v !== 0; });
+}
+function _normalizeAlias(f) {
+  // nr_rev alias: monthly actuals store as 'nonfuel'
+  if (!_hasFactData(f, 'nr_rev') && _hasFactData(f, 'nonfuel')) {
+    f['nr_rev'] = f['nonfuel'];
+  }
+  // pl_total_sales: derive from components when absent (AOP, some monthly versions)
+  if (!_hasFactData(f, 'pl_total_sales')) {
+    const srcs = ['nr_rev', 'nonfuel', 'fuel_rev', 'ipp_fr', 'other_r'];
+    const merged = {};
+    srcs.forEach(function(lid) {
+      const src = f[lid] || {};
+      Object.keys(src).forEach(function(p) {
+        // avoid double-counting nr_rev and nonfuel (they're the same thing)
+        if (lid === 'nonfuel' && _hasFactData(f, 'nr_rev')) return;
+        merged[p] = (merged[p] || 0) + (src[p] || 0);
+      });
+    });
+    if (Object.keys(merged).length) f['pl_total_sales'] = merged;
+  }
+  return f;
+}
+
+// _fetchFactsN — drop-in for _fetchFacts with alias normalization
+async function _fetchFactsN(vCode, lines, pStart, pEnd) {
+  const f = await _fetchFacts(vCode, _expandAliasLines(lines), pStart, pEnd);
+  return _normalizeAlias(f);
+}
+
+// _fetchFactsMulti — CY: fetch each month from its own ACTUALS_YYYY_MM version
+async function _fetchFactsMulti(yr, lines, periods) {
+  await _ensureVMap();
+  const fetches = periods.map(function(p) {
+    const mo = p % 100;
+    const vCode = 'ACTUALS_' + yr + '_' + (mo < 10 ? '0' + mo : mo);
+    const vid = (_vMap || {})[vCode];
+    if (!vid) return Promise.resolve({});
+    return _sbQ(function(sb) {
+      return sb.from('fpa_facts').select('line_id,value')
+        .eq('version_id', vid).eq('period_id', p).in('line_id', lines);
+    }).then(function(r) {
+      if (!r || !r.data) return {};
+      const o = {};
+      r.data.forEach(function(row) {
+        if (!o[row.line_id]) o[row.line_id] = {};
+        o[row.line_id][p] = Number(row.value) || 0;
+      });
+      return o;
+    });
+  });
+  const results = await Promise.all(fetches);
+  const merged = {};
+  results.forEach(function(o) {
+    Object.keys(o).forEach(function(lid) {
+      if (!merged[lid]) merged[lid] = {};
+      Object.assign(merged[lid], o[lid]);
+    });
+  });
+  return _normalizeAlias(merged);
+}
+
+// _fetchFactsAct — dispatcher: CY uses monthly versions, historical uses aggregate
+async function _fetchFactsAct(ctx, lines) {
+  if (ctx.isCY) return _fetchFactsMulti(ctx.yr, _expandAliasLines(lines), ctx.actPeriods);
+  return _fetchFactsN(ctx.actCode, lines, ctx.actStart, ctx.actEnd);
+}
+// Point-in-time variant for BS (single period)
+async function _fetchFactsActPt(ctx, period, lines) {
+  if (ctx.isCY) return _fetchFactsMulti(ctx.yr, _expandAliasLines(lines), [period]);
+  return _fetchFactsN(ctx.actCode, lines, period, period);
 }
 
 function _fSum(f, lid) {
@@ -2688,12 +2909,12 @@ async function loadP1() {
   const ctx = _getCtx();
   if (!ctx) { _pgLoad('p1', false); return; }
 
-  const LINES = ['pl_total_sales','nr_rev','fuel_rev','ebitda','net_inc','cf_capex',
+  const LINES = ['pl_total_sales','nr_rev','fuel_rev','ipp_fr','other_r','ebitda','net_inc','cf_capex',
     'stat_billed_gwh','opex','depn','nfc_int_exp','tax','cf_ops_net','fuel_cost','ipp_cost'];
   const CM_LINES = ['pl_total_sales','ebitda','net_inc','ebitda_margin','cf_capex','stat_billed_gwh','cf_ops_net'];
   const [aF, bF] = await Promise.all([
-    _fetchFacts(ctx.actCode, LINES, ctx.actStart, ctx.actEnd),
-    _fetchFacts(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
+    _fetchFactsAct(ctx, LINES),
+    _fetchFactsN(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
     _loadCommentary(CM_LINES, ctx.actEnd, _activeView),
   ]);
   _pgLoad('p1', false);
@@ -2851,28 +3072,142 @@ async function loadP1() {
   if (pg) pg.innerHTML = html;
 }
 
-/* ----- p2: CONSOLIDATED P&L ----- */
+/* ----- p2: CONSOLIDATED P&L — dual view ----- */
+let _p2Tab = 'detailed';   // 'exec' | 'detailed'
+let _p2Standalone = false; // suppress Other income/(expenses) row
+
+function p2SetTab(t) { _p2Tab = t; _loadedPages.delete('p2'); loadP2(); }
+function p2ToggleStandalone() { _p2Standalone = !_p2Standalone; _loadedPages.delete('p2'); loadP2(); }
+
 async function loadP2() {
   _pgLoad('p2', true);
   await _ensureMaxMo(_activeYear);
   const ctx = _getCtx();
   if (!ctx) { _pgLoad('p2', false); return; }
 
-  const LINES = ['pl_total_sales','nr_rev','fuel_rev','fuel_cost','ipp_cost',
-    'opex','ebitda','depn','ebit','nfc_int_exp','nfc_int_inc',
+  const LINES = ['pl_total_sales','nr_rev','nonfuel','fuel_rev','ipp_fr','other_r',
+    'fuel_cost','ipp_cost','opex','ebitda','depn','ebit',
+    'nfc_int_exp','nfc_int_inc','nfc_afudc','pl_pref_div','other_inc',
     'pretax','tax','net_inc'];
   const [aF, bF] = await Promise.all([
-    _fetchFacts(ctx.actCode, LINES, ctx.actStart, ctx.actEnd),
-    _fetchFacts(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
+    _fetchFactsAct(ctx, LINES),
+    _fetchFactsN(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
   ]);
   _pgLoad('p2', false);
-
-  const nCols = ctx.actPeriods.length + 5;
-  const fyHdr = _activeCmp === 'PY' ? ('FY ' + (ctx.yr - 1) + ' Act') : (ctx.cmpLbl.split(' ')[0] + ' FY');
 
   function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
   function sb(lid) { return _fSumP(bF, lid, ctx.cmpPeriods); }
   function sbFY(lid) { return _fSum(bF, lid); }
+
+  // Tab control + standalone toggle HTML
+  const tabHdr = ''
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
+    + '<button class="tab-btn' + (_p2Tab === 'exec'     ? ' active' : '') + '" onclick="p2SetTab(\'exec\')">Exec Summary</button>'
+    + '<button class="tab-btn' + (_p2Tab === 'detailed' ? ' active' : '') + '" onclick="p2SetTab(\'detailed\')">Detailed P&amp;L</button>'
+    + '<div style="flex:1"></div>'
+    + '<button class="btn-outline' + (_p2Standalone ? ' active' : '') + '" onclick="p2ToggleStandalone()" style="font-size:11px;padding:5px 12px">'
+    + (_p2Standalone ? '✓ Standalone (no div. income)' : 'Standalone view') + '</button>'
+    + '</div>';
+
+  const pageHead = '<div class="page-head"><h1>Consolidated P&amp;L</h1>'
+    + '<div class="ph-sub">Income Statement &middot; ' + ctx.viewLbl + ' &middot; JMD $000s'
+    + (_p2Standalone ? ' &middot; <strong>STANDALONE</strong>' : '') + '</div></div>';
+
+  let html = pageHead + tabHdr;
+
+  if (_p2Tab === 'exec') {
+    html += _buildP2Exec(ctx, aF, bF, sa, sb);
+  } else {
+    html += _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY);
+  }
+
+  const pg = document.getElementById('p2');
+  if (pg) pg.innerHTML = html;
+}
+
+function _buildP2Exec(ctx, aF, bF, sa, sb) {
+  // Segmented executive summary view
+  const fuel_rev_a  = sa('fuel_rev'),   fuel_rev_b  = sb('fuel_rev');
+  const fuel_cost_a = sa('fuel_cost'),  fuel_cost_b = sb('fuel_cost');
+  const nfr_a       = sa('nr_rev'),     nfr_b       = sb('nr_rev');
+  const oth_a       = sa('other_r'),    oth_b       = sb('other_r');
+  const opx_a       = sa('opex'),       opx_b       = sb('opex');
+  const ipp_fr_a    = sa('ipp_fr'),     ipp_fr_b    = sb('ipp_fr');
+  const ipp_cost_a  = sa('ipp_cost'),   ipp_cost_b  = sb('ipp_cost');
+  const ebd_a       = sa('ebitda'),     ebd_b       = sb('ebitda');
+  const dep_a       = sa('depn'),       dep_b       = sb('depn');
+  const ebit_a      = sa('ebit'),       ebit_b      = sb('ebit');
+  const int_exp_a   = sa('nfc_int_exp'),int_exp_b   = sb('nfc_int_exp');
+  const int_inc_a   = sa('nfc_int_inc'),int_inc_b   = sb('nfc_int_inc');
+  const nfc_a       = int_exp_a - int_inc_a, nfc_b = int_exp_b - int_inc_b;
+  const oth_inc_a   = sa('other_inc'),  oth_inc_b   = sb('other_inc');
+  const pretax_a    = sa('pretax'),     pretax_b    = sb('pretax');
+  const tax_a       = sa('tax'),        tax_b       = sb('tax');
+  const ni_a        = sa('net_inc'),    ni_b        = sb('net_inc');
+
+  // Derived segments
+  const fuel_sur_a  = fuel_rev_a - fuel_cost_a, fuel_sur_b = fuel_rev_b - fuel_cost_b;
+  const reg_ebd_a   = fuel_sur_a + nfr_a + oth_a - opx_a;
+  const reg_ebd_b   = fuel_sur_b + nfr_b + oth_b - opx_b;
+  const pp_sur_a    = ipp_fr_a - ipp_cost_a, pp_sur_b = ipp_fr_b - ipp_cost_b;
+
+  function er(lbl, a, b, cls, isCost, higherGood) {
+    const v = a - b;
+    const hg = higherGood !== undefined ? higherGood : !isCost;
+    const vCls = _vc(v, hg);
+    const fmt = isCost ? _fmtCost : _fmtM;
+    return '<tr class="' + (cls || 'rind') + '"><td>' + lbl + '</td>'
+      + '<td class="num">' + fmt(a) + '</td>'
+      + '<td class="num">' + fmt(b) + '</td>'
+      + '<td class="num ' + vCls + '">' + _fmtM(v) + '</td>'
+      + '<td class="num ' + vCls + '">' + _fmtPct(a, b) + '</td>'
+      + '<td>' + _ragBadge(a, b, hg) + '</td></tr>';
+  }
+  function esec(lbl) { return '<tr class="rsec"><td colspan="6">' + lbl + '</td></tr>'; }
+  function eblank() { return '<tr><td colspan="6" style="height:4px"></td></tr>'; }
+
+  return '<div class="notice-bar">Executive summary view. Cost of sales (adverse) shown as (x). Adverse variances in red.</div>'
+    + '<div class="card"><div class="card-head">Executive Summary — Segmented P&amp;L'
+    + ' <span class="ch-sub">' + ctx.viewLbl + ' vs ' + ctx.cmpLbl + '</span></div>'
+    + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+    + '<th>Description</th><th>Actual</th><th>' + ctx.cmpLbl + '</th>'
+    + '<th>Var $</th><th>Var %</th><th>RAG</th>'
+    + '</tr></thead><tbody>'
+    + esec('Regulated Business')
+    + er('Fuel Revenues',          fuel_rev_a,  fuel_rev_b,  'rind', false)
+    + er('(−) Fuel Costs',         fuel_cost_a, fuel_cost_b, 'rind', true)
+    + er('Fuel Surplus / (Penalty)',fuel_sur_a,  fuel_sur_b,  'rs',   false)
+    + eblank()
+    + er('Non-Fuel Revenues',      nfr_a,       nfr_b,       'rind', false)
+    + er('Other Operating Revenue',oth_a,       oth_b,       'rind', false)
+    + er('(−) Operating Expenses', opx_a,       opx_b,       'rind', true)
+    + er('Regulated Business EBITDA', reg_ebd_a, reg_ebd_b,  'rs',   false)
+    + eblank()
+    + esec('Purchased Power')
+    + er('IPP Surcharge Revenue',  ipp_fr_a,    ipp_fr_b,    'rind', false)
+    + er('(−) IPP &amp; Purchased Power Costs', ipp_cost_a, ipp_cost_b, 'rind', true)
+    + er('Purchased Power Surplus / (Deficit)', pp_sur_a, pp_sur_b, 'rs', false)
+    + eblank()
+    + esec('Non-Regulated Business')
+    + '<tr class="rind"><td colspan="6" style="color:var(--muted);font-style:italic;font-size:12px">Business Development &amp; Virtual PP — segment detail not yet loaded</td></tr>'
+    + eblank()
+    + er('TOTAL EBITDA',           ebd_a,       ebd_b,       'rs',   false, true)
+    + er('(−) Depreciation',       dep_a,       dep_b,       'rind', true)
+    + er('Operating Income (EBIT)',ebit_a,      ebit_b,      'rs',   false)
+    + esec('Financing')
+    + er('Net Financing Costs',    nfc_a,       nfc_b,       'rind', true)
+    + er('Operating Profit after NFC', ebit_a - nfc_a, ebit_b - nfc_b, 'rs', false)
+    + (!_p2Standalone ? er('Other Income / (Expenses)', oth_inc_a, oth_inc_b, 'rind', false) : '')
+    + esec('Taxation')
+    + er('Net Profit Before Tax',  pretax_a,    pretax_b,    'rs',   false)
+    + er('Income Tax (Expense) / Income', tax_a, tax_b,     'rind', true)
+    + er('Net Profit After Tax',   ni_a,        ni_b,        'rs',   false, true)
+    + '</tbody></table></div></div>';
+}
+
+function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
+  const nCols = ctx.actPeriods.length + 5;
+  const fyHdr = _activeCmp === 'PY' ? ('FY ' + (ctx.yr - 1) + ' Act') : (ctx.cmpLbl.split(' ')[0] + ' FY');
 
   function row(lbl, lid, cls, isCost) {
     const moCells = ctx.actPeriods.map(function(p) {
@@ -2893,45 +3228,71 @@ async function loadP2() {
       + '<td class="num">' + fmt(fyTotal) + '</td>'
       + '</tr>';
   }
-  function sec(lbl) {
-    return '<tr class="rsec"><td colspan="' + nCols + '">' + lbl + '</td></tr>';
+  // Derived total row (computed value, not a DB lid)
+  function rowDerived(lbl, a_val, b_val, fy_val, cls, isCost) {
+    const moCells = ctx.actPeriods.map(function() { return '<td class="num">—</td>'; }).join('');
+    const v$   = a_val - b_val;
+    const hg   = !isCost;
+    const vCls = _vc(v$, hg);
+    const fmt  = isCost ? _fmtCost : _fmtM;
+    return '<tr class="' + (cls || 'rs') + '"><td>' + lbl + '</td>'
+      + moCells
+      + '<td class="num">' + fmt(a_val) + '</td>'
+      + '<td class="num">' + fmt(b_val) + '</td>'
+      + '<td class="num ' + vCls + '">' + _fmtM(v$) + '</td>'
+      + '<td class="num ' + vCls + '">' + _fmtPct(a_val, b_val) + '</td>'
+      + '<td class="num">' + fmt(fy_val) + '</td>'
+      + '</tr>';
   }
+  function sec(lbl) { return '<tr class="rsec"><td colspan="' + nCols + '">' + lbl + '</td></tr>'; }
 
   const moHdr = ctx.actPeriods.map(function(p) { return '<th>' + _pLabel(p) + '</th>'; }).join('');
-  const html = ''
-    + '<div class="page-head"><h1>Consolidated P&amp;L</h1>'
-    + '<div class="ph-sub">Income Statement &middot; ' + ctx.viewLbl + ' &middot; JMD $000s</div></div>'
-    + '<div class="notice-bar">' + ctx.viewLbl + ' = Actuals vs ' + ctx.cmpLbl + '. Adverse shown as (x).</div>'
-    + '<div class="card"><div class="card-head">Statement of Comprehensive Income'
+
+  // Gross profit derived
+  const gp_a  = sa('pl_total_sales') - sa('fuel_cost') - sa('ipp_cost');
+  const gp_b  = sb('pl_total_sales') - sb('fuel_cost') - sb('ipp_cost');
+  const gpFY  = sbFY('pl_total_sales') - sbFY('fuel_cost') - sbFY('ipp_cost');
+  const nfc_a = sa('nfc_int_exp') - sa('nfc_int_inc');
+  const nfc_b = sb('nfc_int_exp') - sb('nfc_int_inc');
+  const nfcFY = sbFY('nfc_int_exp') - sbFY('nfc_int_inc');
+
+  return '<div class="notice-bar">' + ctx.viewLbl + ' = Actuals vs ' + ctx.cmpLbl + '. Adverse shown as (x).</div>'
+    + '<div class="card"><div class="card-head">Income Statement (Detailed)'
     + ' <span class="ch-sub">' + ctx.viewLbl + ' &middot; vs ' + ctx.cmpLbl + '</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
     + '<th>Description</th>' + moHdr
     + '<th>Actual</th><th>' + ctx.cmpLbl + '</th><th>Var $</th><th>Var %</th><th>' + fyHdr + '</th>'
     + '</tr></thead><tbody>'
     + sec('Revenue')
-    + row('Non-Fuel Revenue',             'nr_rev',        'rind', false)
-    + row('Fuel Cost Recovery',           'fuel_rev',      'rind', false)
-    + row('Total Revenue',                'pl_total_sales','rs',   false)
-    + sec('Cost of Generation')
-    + row('Fuel Cost',                    'fuel_cost',     'rind', true)
-    + row('IPP Purchased Energy',         'ipp_cost',      'rind', true)
+    + row('Fuel Clause (FCR)',              'fuel_rev',      'rind', false)
+    + row('IPP Surcharge',                  'ipp_fr',        'rind', false)
+    + row('Non-Fuel Revenue',               'nr_rev',        'rind', false)
+    + row('Other Operating Revenue',        'other_r',       'rind', false)
+    + row('Operating Revenue',              'pl_total_sales','rs',   false)
+    + sec('Cost of Sales')
+    + row('Fuel',                           'fuel_cost',     'rind', true)
+    + row('Purchased Power (excl. fuel)',   'ipp_cost',      'rind', true)
+    + rowDerived('Gross Profit',            gp_a, gp_b, gpFY, 'rs', false)
     + sec('Operating Expenses')
-    + row('Operating Expenses',           'opex',          'rind', true)
-    + row('EBITDA',                       'ebitda',        'rs',   false)
-    + sec('Depreciation')
-    + row('Depreciation &amp; Amortization','depn',        'rind', true)
-    + row('EBIT',                         'ebit',          'rs',   false)
-    + sec('Finance Costs')
-    + row('Interest Expense',             'nfc_int_exp',   'rind', true)
-    + row('Interest Income',              'nfc_int_inc',   'rind', false)
-    + row('Net Profit Before Tax',        'pretax',        'rs',   false)
+    + row('Operating Expenses',             'opex',          'rind', true)
+    + row('EBITDA',                         'ebitda',        'rs',   false)
+    + sec('Depreciation &amp; Amortization')
+    + row('Depreciation',                   'depn',          'rind', true)
+    + row('Operating Profit (EBIT)',        'ebit',          'rs',   false)
+    + sec('Net Financing Costs')
+    + row('Interest Income',                'nfc_int_inc',   'rind', false)
+    + row('Allowance for Funds Used (AFUDC)','nfc_afudc',   'rind', false)
+    + row('Interest Expense',               'nfc_int_exp',   'rind', true)
+    + row('Preference Dividend',            'pl_pref_div',   'rind', true)
+    + rowDerived('Net Financing Costs',     nfc_a, nfc_b, nfcFY, 'rs', true)
+    + row('Operating Profit after NFC',     'pretax',        'rs',   false)
+    + (!_p2Standalone ? sec('Other Income / (Expenses)') : '')
+    + (!_p2Standalone ? row('Other Income &amp; Dividends Received', 'other_inc', 'rind', false) : '')
     + sec('Taxation')
-    + row('Income Tax Expense',           'tax',           'rind', true)
-    + row('Net Profit After Tax',         'net_inc',       'rs',   false)
+    + row('Net Profit Before Tax',          'pretax',        'rs',   false)
+    + row('Income Tax Expense',             'tax',           'rind', true)
+    + row('Net Profit After Tax',           'net_inc',       'rs',   false)
     + '</tbody></table></div></div>';
-
-  const pg = document.getElementById('p2');
-  if (pg) pg.innerHTML = html;
 }
 
 /* ----- p3: BALANCE SHEET ----- */
@@ -2958,8 +3319,8 @@ async function loadP3() {
   const pyPer  = (ctx.yr - 1) * 100 + 12;
 
   const [cF, pF] = await Promise.all([
-    _fetchFacts(ctx.actCode, LINES, curPer, curPer),
-    _fetchFacts(pyCode,      LINES, pyPer,  pyPer),
+    _fetchFactsActPt(ctx, curPer, LINES),
+    _fetchFactsN(pyCode, LINES, pyPer, pyPer),
   ]);
   _pgLoad('p3', false);
 
@@ -3072,8 +3433,8 @@ async function loadP4() {
     'cf_open','cf_close','cf_change'
   ];
   const [aF, bF] = await Promise.all([
-    _fetchFacts(ctx.actCode, LINES, ctx.actStart, ctx.actEnd),
-    _fetchFacts(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
+    _fetchFactsAct(ctx, LINES),
+    _fetchFactsN(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
   ]);
   _pgLoad('p4', false);
 
@@ -3134,6 +3495,774 @@ async function loadP4() {
   if (pg) pg.innerHTML = html;
 }
 
+/* ====================================================================
+   FLASH REPORT ENGINE (p17)
+   ==================================================================== */
+
+// Build period label maps dynamically from _CY
+function _flashPeriodMaps() {
+  const short = {}, full = {};
+  const mFull = ['January','February','March','April','May','June',
+                 'July','August','September','October','November','December'];
+  const mShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  [_CY - 1, _CY, _CY + 1].forEach(function(yr) {
+    for (var m = 1; m <= 12; m++) {
+      var p = yr * 100 + m;
+      short[p] = mShort[m-1] + ' ' + yr;
+      full[p]  = mFull[m-1]  + ' ' + yr;
+    }
+  });
+  return { short: short, full: full };
+}
+
+let _flashView      = 'month';
+let _flashNotesData = [];
+let _flashInited    = false;
+
+function loadP17() {
+  // First time: init selectors then render
+  if (!_flashInited) {
+    _flashInit();
+  } else {
+    flashRefresh();
+  }
+}
+
+// ── Populate version dropdowns from _vMap ────────────────────────────────────
+function _flashVCodeLabel(code) {
+  if (!code) return code;
+  var m;
+  m = code.match(/^ACTUALS_(\d{4})_(\d{2})$/);
+  if (m) { var mo=parseInt(m[2]); return _MONS[mo-1]+' '+m[1]+' Actuals'; }
+  m = code.match(/^HIST_ACTUAL_(\d{4})_YTD$/);
+  if (m) return m[1]+' YTD Actuals (agg)';
+  m = code.match(/^HIST_ACTUAL_(\d{4})$/);
+  if (m) return 'FY'+m[1]+' Actuals';
+  m = code.match(/^AOP_(\d{4})$/);
+  if (m) return m[1]+' AOP (Budget)';
+  m = code.match(/^LE_(\d{4})_(\d{2})$/);
+  if (m) return m[1]+' LE '+_MONS[parseInt(m[2])-1];
+  return code;
+}
+
+async function _flashPopulateVersions() {
+  await _ensureVMap();
+  var selA = document.getElementById('flashVerA');
+  var selB = document.getElementById('flashVerB');
+  if (!selA || !selB) return;
+  var codes = Object.keys(_vMap || {});
+  // Sort: HIST_ACTUAL full-year first (most complete), then AOP, then LE, then monthly ACTUALS, then other
+  var priority = function(c) {
+    if (/^HIST_ACTUAL_\d{4}$/.test(c))  return '0_'+c;  // full-year hist — complete P&L
+    if (/^AOP_/.test(c))                return '1_'+c;
+    if (/^LE_/.test(c))                 return '2_'+c;
+    if (/^ACTUALS_/.test(c))            return '3_'+c;  // monthly — may be sparse
+    if (/^HIST_ACTUAL_/.test(c))        return '4_'+c;  // YTD / other hist
+    return '9_'+c;
+  };
+  codes.sort(function(a,b){ return priority(a).localeCompare(priority(b)); });
+  var opts = codes.map(function(c) {
+    return '<option value="'+_vMap[c]+'">'+_flashVCodeLabel(c)+'</option>';
+  }).join('');
+  var savedA = selA.value, savedB = selB.value;
+  selA.innerHTML = '<option value="">— Select A (Actuals) —</option>' + opts;
+  selB.innerHTML = '<option value="">— Select B (Budget/LE) —</option>' + opts;
+  // Default: A = latest full-year HIST_ACTUAL, B = prior HIST_ACTUAL (YoY comparison)
+  // Falls back to AOP if only one hist year available
+  if (!savedA) {
+    var histCodes = codes.filter(function(c){ return /^HIST_ACTUAL_\d{4}$/.test(c); }).sort();
+    var latestHist = histCodes.length ? histCodes[histCodes.length - 1] : null;
+    var priorHist  = histCodes.length > 1 ? histCodes[histCodes.length - 2] : null;
+    var aopCodes   = codes.filter(function(c){ return /^AOP_/.test(c); });
+    var latestAop  = aopCodes.length ? aopCodes[aopCodes.length - 1] : null;
+    if (latestHist) selA.value = _vMap[latestHist];
+    var defaultB = priorHist || latestAop;
+    if (defaultB) selB.value = _vMap[defaultB];
+  } else {
+    selA.value = savedA;
+    selB.value = savedB;
+  }
+}
+
+// ── Period dropdown — months from HIST_ACTUAL full-year versions (complete data) ──
+async function _flashPopulatePeriods() {
+  await _ensureVMap();
+  var moSel = document.getElementById('flashMoA');
+  if (!moSel) return;
+  var periodsSet = {};
+  Object.keys(_vMap || {}).forEach(function(c) {
+    // Full-year historical: generate all 12 months
+    var hy = c.match(/^HIST_ACTUAL_(\d{4})$/);
+    if (hy) {
+      var yr = parseInt(hy[1]);
+      for (var mo = 1; mo <= 12; mo++) periodsSet[yr*100+mo] = true;
+    }
+    // Monthly ACTUALS also included
+    var am = c.match(/^ACTUALS_(\d{4})_(\d{2})$/);
+    if (am) periodsSet[parseInt(am[1])*100+parseInt(am[2])] = true;
+    // AOP: generate all 12 months for its year
+    var ap = c.match(/^AOP_(\d{4})$/);
+    if (ap) {
+      var ay = parseInt(ap[1]);
+      for (var m2 = 1; m2 <= 12; m2++) periodsSet[ay*100+m2] = true;
+    }
+  });
+  var periods = Object.keys(periodsSet).map(Number).sort(function(a,b){return b-a;});
+  if (!periods.length) {
+    moSel.innerHTML = '<option value="'+(_CY*100+12)+'">'+_MONS[11]+' '+(_CY-1)+'</option>';
+    return;
+  }
+  var maps = _flashPeriodMaps();
+  moSel.innerHTML = periods.map(function(p) {
+    return '<option value="'+p+'">'+(maps.short[p]||String(p))+'</option>';
+  }).join('');
+  // Default to December of the latest HIST_ACTUAL year
+  var latestHist = Object.keys(_vMap||{}).filter(function(c){return /^HIST_ACTUAL_\d{4}$/.test(c);});
+  if (latestHist.length) {
+    var yr = parseInt(latestHist.sort().pop().match(/\d{4}/)[0]);
+    moSel.value = yr * 100 + 12;
+  }
+}
+
+// ── Fetch facts for a version + period list (simple aggregation) ──────────────
+async function flashFetchFacts(versionId, periodIds) {
+  if (!versionId || !periodIds.length) return {};
+  var r = await _sbQ(function(sb) {
+    return sb.from('fpa_facts').select('line_id,period_id,value')
+      .eq('version_id', versionId).in('period_id', periodIds);
+  });
+  if (!r || !r.data) return {};
+  var agg = {};
+  r.data.forEach(function(row) {
+    agg[row.line_id] = (agg[row.line_id] || 0) + (parseFloat(row.value) || 0);
+  });
+  // ── Alias + derived line normalization (flat scalar format) ──────────────────
+  if (!agg['nr_rev'] && agg['nonfuel']) agg['nr_rev'] = agg['nonfuel'];
+  // pl_total_sales
+  if (!agg['pl_total_sales']) {
+    var tot = (agg['nr_rev']||0) + (agg['fuel_rev']||0) + (agg['ipp_fr']||0) + (agg['other_r']||0);
+    if (tot) agg['pl_total_sales'] = tot;
+  }
+  // gross_profit: revenue - fuel - ipp
+  if (!agg['pl_gross_profit'] && agg['pl_total_sales']) {
+    agg['pl_gross_profit'] = (agg['pl_total_sales']||0) - (agg['fuel_cost']||0) - (agg['ipp_cost']||0);
+  }
+  // ebitda: gross_profit - opex + other income
+  if (!agg['ebitda'] && agg['pl_gross_profit'] != null) {
+    agg['ebitda'] = (agg['pl_gross_profit']||0) - (agg['opex']||0) + (agg['oth_inc']||0);
+  }
+  // ebit: ebitda - depreciation
+  if (!agg['ebit'] && agg['ebitda'] != null) {
+    agg['ebit'] = (agg['ebitda']||0) - (agg['depn']||0);
+  }
+  // pretax: ebit + net finance
+  if (!agg['pretax'] && agg['ebit'] != null) {
+    agg['pretax'] = (agg['ebit']||0)
+      + (agg['pl_afudc']||0)
+      - (agg['nfc_int_exp']||0)
+      + (agg['nfc_int_inc']||0)
+      - (agg['nfc_pref']||0)
+      + (agg['pl_fx']||0);
+  }
+  // net_inc: pretax - tax
+  if (!agg['net_inc'] && agg['pretax'] != null) {
+    agg['net_inc'] = (agg['pretax']||0) - (agg['tax']||0) - (agg['oth_tax']||0);
+  }
+  return agg;
+}
+
+function flashPeriodIds(view, anchorPeriodId) {
+  var y = Math.floor(anchorPeriodId / 100);
+  var m = anchorPeriodId % 100;
+  if (view === 'month')  return [anchorPeriodId];
+  if (view === 'annual') { var a=[]; for(var i=1;i<=12;i++) a.push(y*100+i); return a; }
+  if (view === 'ytd')    { var b=[]; for(var i=1;i<=m;i++) b.push(y*100+i); return b; }
+  if (view === 'qtd') {
+    var qStart = m<=3?1:m<=6?4:m<=9?7:10;
+    var c=[]; for(var i=qStart;i<=m;i++) c.push(y*100+i); return c;
+  }
+  return [anchorPeriodId];
+}
+
+function flashFmt(v) {
+  if (v==null||isNaN(v)) return '—';
+  var abs = Math.abs(Math.round(v));
+  return v<0?'('+abs.toLocaleString()+')':abs.toLocaleString();
+}
+
+function flashVar(a, b, fav) {
+  if (a==null||b==null||isNaN(a)||isNaN(b)) return { html:'—', cls:'' };
+  var diff=a-b, pct=b!==0?((diff/Math.abs(b))*100).toFixed(1):'—';
+  var good=fav?diff>=0:diff<=0;
+  var cls=diff===0?'fv-neu':good?'fv-pos':'fv-neg';
+  var sign=diff>0?'+':'';
+  return { html:sign+flashFmt(diff)+'<br><span style="font-size:9px">'+sign+pct+'%</span>', cls:cls };
+}
+
+// ── KPI strip ─────────────────────────────────────────────────────────────────
+function flashBuildKpisV2(fA, fB, lA, lB) {
+  var el = document.getElementById('flashKpiStrip'); if(!el) return;
+  var kpis = [
+    {key:'ebitda',        label:'EBITDA',        fav:true},
+    {key:'net_inc',       label:'Net Income',     fav:true},
+    {key:'pl_total_sales',label:'Revenue',        fav:true},
+    {key:'opex',          label:'O&M Expense',    fav:false},
+    {key:'cash',          label:'Cash Balance',   fav:true},
+  ];
+  el.innerHTML = kpis.map(function(k) {
+    var vA=fA[k.key]??null, vB=fB[k.key]??null;
+    var diff=(vA!=null&&vB!=null)?vA-vB:null;
+    var good=diff==null?true:k.fav?diff>=0:diff<=0;
+    var cls=diff==null||diff===0?'fv-neu':good?'fv-pos':'fv-neg';
+    var arrow=diff==null?'':diff>0?'▲ ':'▼ ';
+    var varPct=(diff!=null&&vB&&vB!==0)?Math.abs(diff/vB*100).toFixed(1)+'%':'';
+    return '<div class="flash-kpi-cell">'
+      +'<div class="flash-kpi-label">'+k.label+'</div>'
+      +'<div class="flash-kpi-val">'+(vA!=null?'$'+flashFmt(vA):'—')+'</div>'
+      +'<div class="flash-kpi-var '+cls+'">'+(diff!=null?arrow+flashFmt(Math.abs(diff))+(varPct?' ('+varPct+')':''):'—')+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+// ── P&L table ─────────────────────────────────────────────────────────────────
+function flashBuildPLV2(fA, fB, lA, lB) {
+  var tbl=document.getElementById('flashPLTable'); if(!tbl) return;
+  var defs=[
+    {section:'Revenue'},
+    {id:'fuel_rev',  name:'Fuel Clause Revenue',     fav:true,  indent:true},
+    {id:'ipp_fr',    name:'IPP Surcharge',            fav:true,  indent:true},
+    {id:'nr_rev',    name:'Non-Fuel Revenue',         fav:true,  indent:true},
+    {id:'other_r',   name:'Other Operating Revenue',  fav:true,  indent:true},
+    {id:'pl_total_sales',name:'Total Revenue',        fav:true,  subtotal:true},
+    {section:'Cost of Sales'},
+    {id:'fuel_cost', name:'Fuel Cost',                fav:false, indent:true},
+    {id:'ipp_cost',  name:'IPP &amp; Purchased Power',fav:false, indent:true},
+    {section:'Operating Expenses'},
+    {id:'opex',      name:'O&amp;M Expense',          fav:false, indent:true},
+    {id:'ebitda',    name:'EBITDA',                   fav:true,  subtotal:true},
+    {section:'Non-Operating'},
+    {id:'depn',      name:'Depreciation &amp; Amort.',fav:false, indent:true},
+    {id:'ebit',      name:'EBIT',                     fav:true,  subtotal:true},
+    {id:'nfc_int_exp',name:'Interest Expense',        fav:false, indent:true},
+    {id:'nfc_int_inc',name:'Interest Income',         fav:true,  indent:true},
+    {id:'pretax',    name:'Net Profit Before Tax',    fav:true,  subtotal:true},
+    {section:'Taxation'},
+    {id:'tax',       name:'Income Tax',               fav:false, indent:true},
+    {id:'net_inc',   name:'Net Profit After Tax',     fav:true,  total:true},
+  ];
+  var abbr=function(s){return s.length>22?s.slice(0,20)+'…':s;};
+  var hd='<tr><th style="min-width:200px">Line Item</th><th>'+abbr(lA)+'</th><th>'+abbr(lB)+'</th><th>Variance</th><th>Var %</th></tr>';
+  var body='';
+  defs.forEach(function(r) {
+    if(r.section){body+='<tr class="flash-row-section"><td colspan="5">'+r.section+'</td></tr>';return;}
+    var vA=fA[r.id]??null, vB=fB[r.id]??null;
+    var diff=(vA!=null&&vB!=null)?vA-vB:null;
+    var pct=(diff!=null&&vB&&vB!==0)?((diff/Math.abs(vB))*100).toFixed(1):null;
+    var good=r.fav?(diff==null||diff>=0):(diff==null||diff<=0);
+    var cls=diff==null||diff===0?'fv-neu':good?'fv-pos':'fv-neg';
+    var sign=diff>0?'+':'';
+    var rowCls=r.total?'flash-row-total':r.subtotal?'flash-row-subtotal':'';
+    var pad=r.indent?'padding-left:26px':'';
+    body+='<tr class="'+rowCls+'">'
+      +'<td style="'+pad+'">'+r.name+'</td>'
+      +'<td>'+(vA!=null?flashFmt(vA):'—')+'</td>'
+      +'<td>'+(vB!=null?flashFmt(vB):'—')+'</td>'
+      +'<td class="'+(rowCls?'':cls)+'">'+(diff!=null?sign+flashFmt(diff):'—')+'</td>'
+      +'<td class="'+(rowCls?'':cls)+'" style="font-size:10px">'+(pct!=null?sign+pct+'%':'—')+'</td>'
+      +'</tr>';
+  });
+  tbl.innerHTML='<thead>'+hd+'</thead><tbody>'+body+'</tbody>';
+}
+
+// ── Balance Sheet highlights ──────────────────────────────────────────────────
+function flashBuildBSV2(fA, fB, lA, lB) {
+  var tbl=document.getElementById('flashBSTable'); if(!tbl) return;
+  var rows=[
+    {id:'cash',  name:'Cash &amp; Equivalents', fav:true},
+    {id:'recv',  name:'Trade Receivables',       fav:false},
+    {id:'tot_a', name:'Total Assets',            fav:true},
+    {id:'ltd',   name:'Long-Term Debt',          fav:false},
+    {id:'leases',name:'Lease Liabilities',       fav:false},
+  ];
+  var abbr=function(s){return s.length>18?s.slice(0,16)+'…':s;};
+  var hd='<tr><th style="min-width:160px">Item</th><th>'+abbr(lA)+'</th><th>'+abbr(lB)+'</th><th>Var</th></tr>';
+  var body=rows.map(function(r) {
+    var vA=fA[r.id]??null, vB=fB[r.id]??null;
+    var diff=(vA!=null&&vB!=null)?vA-vB:null;
+    var good=r.fav?(diff==null||diff>=0):(diff==null||diff<=0);
+    var cls=diff==null||diff===0?'fv-neu':good?'fv-pos':'fv-neg';
+    var sign=diff>0?'+':'';
+    return '<tr><td>'+r.name+'</td>'
+      +'<td>'+(vA!=null?flashFmt(vA):'—')+'</td>'
+      +'<td>'+(vB!=null?flashFmt(vB):'—')+'</td>'
+      +'<td class="'+cls+'" style="font-size:10px">'+(diff!=null?sign+flashFmt(diff):'—')+'</td></tr>';
+  }).join('');
+  tbl.innerHTML='<thead>'+hd+'</thead><tbody>'+body+'</tbody>';
+}
+
+// ── Key Metrics ───────────────────────────────────────────────────────────────
+function flashBuildMetricsV2(fA, fB, lA, lB) {
+  var tbl=document.getElementById('flashMetricsTable'); if(!tbl) return;
+  var ebA=fA['ebitda']||0, ebB=fB['ebitda']||0;
+  var revA=fA['pl_total_sales']||0, revB=fB['pl_total_sales']||0;
+  var niA=fA['net_inc']||0, niB=fB['net_inc']||0;
+  var gwA=fA['stat_billed_gwh']||0, gwB=fB['stat_billed_gwh']||0;
+  var f1=function(n,d){return n!=null&&!isNaN(n)?n.toFixed(d):'—';};
+  var metrics=[
+    {name:'EBITDA Margin %',  vA:revA?f1(ebA/revA*100,1)+'%':'—', vB:revB?f1(ebB/revB*100,1)+'%':'—', ra:revA?ebA/revA:null, rb:revB?ebB/revB:null, fav:true},
+    {name:'Net Margin %',     vA:revA?f1(niA/revA*100,1)+'%':'—', vB:revB?f1(niB/revB*100,1)+'%':'—', ra:revA?niA/revA:null, rb:revB?niB/revB:null, fav:true},
+    {name:'Debt / EBITDA',    vA:ebA?f1((fA['ltd']||0)/ebA,2)+'x':'—', vB:ebB?f1((fB['ltd']||0)/ebB,2)+'x':'—', ra:ebA?(fA['ltd']||0)/ebA:null, rb:ebB?(fB['ltd']||0)/ebB:null, fav:false},
+    {name:'Revenue / MWh',    vA:gwA?'$'+f1(revA/gwA,0):'—', vB:gwB?'$'+f1(revB/gwB,0):'—', ra:gwA?revA/gwA:null, rb:gwB?revB/gwB:null, fav:true},
+    {name:'Fuel Cost / Rev %',vA:revA?f1((fA['fuel_cost']||0)/revA*100,1)+'%':'—', vB:revB?f1((fB['fuel_cost']||0)/revB*100,1)+'%':'—', ra:revA?(fA['fuel_cost']||0)/revA:null, rb:revB?(fB['fuel_cost']||0)/revB:null, fav:false},
+  ];
+  var abbr=function(s){return s.length>16?s.slice(0,14)+'…':s;};
+  var hd='<tr><th style="min-width:140px">Metric</th><th>'+abbr(lA)+'</th><th>'+abbr(lB)+'</th><th>Δ</th></tr>';
+  var body=metrics.map(function(m) {
+    var diff=(m.ra!=null&&m.rb!=null)?m.ra-m.rb:null;
+    var good=diff==null?true:m.fav?diff>=0:diff<=0;
+    var cls=diff==null||diff===0?'fv-neu':good?'fv-pos':'fv-neg';
+    return '<tr><td>'+m.name+'</td><td>'+m.vA+'</td><td>'+m.vB+'</td>'
+      +'<td class="'+cls+'">'+(diff!=null?(diff>0?'▲':'▼'):'—')+'</td></tr>';
+  }).join('');
+  tbl.innerHTML='<thead>'+hd+'</thead><tbody>'+body+'</tbody>';
+}
+
+// ── Main refresh ──────────────────────────────────────────────────────────────
+async function flashRefresh() {
+  var periodId = parseInt(document.getElementById('flashMoA')?.value || (_CY*100+3));
+  var verAId   = document.getElementById('flashVerA')?.value || '';
+  var verBId   = document.getElementById('flashVerB')?.value || '';
+  if (!verAId || !verBId) { flashShowEmpty(); return; }
+
+  flashShowLoading('Loading report data…');
+  var periodIds = flashPeriodIds(_flashView, periodId);
+  var maps = _flashPeriodMaps();
+
+  // Find labels from select options
+  var selA=document.getElementById('flashVerA'), selB=document.getElementById('flashVerB');
+  var labelA=selA?selA.options[selA.selectedIndex]?.text:'Version A';
+  var labelB=selB?selB.options[selB.selectedIndex]?.text:'Version B';
+
+  // Cross-year period offset: if B version's code year ≠ A's period year, shift B periods
+  // E.g. A=HIST_ACTUAL_2025 (periods 2025xx), B=AOP_2026 (periods 2026xx) → offset B by +100
+  var _vMapRev = {};
+  Object.keys(_vMap||{}).forEach(function(c){ _vMapRev[_vMap[c]] = c; });
+  var codeA = _vMapRev[verAId] || '';
+  var codeB = _vMapRev[verBId] || '';
+  var yearA = periodId ? Math.floor(periodId/100) : 0;
+  var mB = codeB.match(/(\d{4})/);
+  var yearB = mB ? parseInt(mB[1]) : yearA;
+  var periodOffset = (yearB - yearA) * 100;  // 0 if same year
+  var periodIdsB = periodOffset ? periodIds.map(function(p){ return p + periodOffset; }) : periodIds;
+
+  var results = await Promise.all([
+    flashFetchFacts(verAId, periodIds),
+    flashFetchFacts(verBId, periodIdsB),
+  ]);
+  var factsA=results[0], factsB=results[1];
+
+  var periodY=Math.floor(periodId/100);
+  var viewLabel = {
+    month:  maps.full[periodId] || String(periodId),
+    qtd:    'Q'+Math.ceil((periodId%100)/3)+' '+periodY+' — QTD',
+    ytd:    'YTD '+(maps.short[periodId]||periodId),
+    annual: 'Full Year '+periodY
+  }[_flashView];
+
+  var setEl=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
+  setEl('flashLabelA',labelA);
+  setEl('flashLabelB',labelB);
+  setEl('flashLabelPeriod',viewLabel);
+  setEl('flashReportSubtitle','Jamaica Public Service Co. · FP&A · '+viewLabel+' · Confidential');
+  setEl('flashHeaderDate',new Date().toLocaleDateString('en-JM',{dateStyle:'long'}));
+
+  flashBuildKpisV2(factsA, factsB, labelA, labelB);
+  flashBuildPLV2(factsA, factsB, labelA, labelB);
+  flashBuildBSV2(factsA, factsB, labelA, labelB);
+  flashBuildMetricsV2(factsA, factsB, labelA, labelB);
+  await flashLoadNotes();
+  setEl('flashGenTime','Generated '+new Date().toLocaleString('en-JM',{dateStyle:'medium',timeStyle:'short'}));
+  flashShowReport();
+}
+
+function flashSetView(view, btn) {
+  _flashView = view;
+  document.querySelectorAll('.flash-view-btn').forEach(function(b){b.classList.remove('on');});
+  btn.classList.add('on');
+  flashRefresh();
+}
+
+function flashShowLoading(msg) {
+  var ls=document.getElementById('flashLoadingState'), rb=document.getElementById('flashReportBody');
+  if(ls){ls.style.display='flex';ls.innerHTML='<div class="fl-spinner"></div><div style="font-size:12px;font-weight:600">'+(msg||'Loading…')+'</div>';}
+  if(rb)rb.style.display='none';
+}
+function flashShowReport() {
+  var ls=document.getElementById('flashLoadingState'), rb=document.getElementById('flashReportBody');
+  if(ls)ls.style.display='none';
+  if(rb)rb.style.display='block';
+}
+function flashShowEmpty(msg) {
+  var ls=document.getElementById('flashLoadingState'), rb=document.getElementById('flashReportBody');
+  if(ls){ls.style.display='flex';ls.innerHTML='<div style="font-size:32px">📰</div><div style="font-size:13px;font-weight:700;color:#1e3a5f">'+(msg||'Select versions above')+'</div><div style="font-size:11px;color:#8099b8">Choose Version A and Version B in the control bar to compare</div>';}
+  if(rb)rb.style.display='none';
+}
+
+async function _flashInit() {
+  await _flashPopulatePeriods();
+  await _flashPopulateVersions();
+  var verA=document.getElementById('flashVerA')?.value;
+  var verB=document.getElementById('flashVerB')?.value;
+  if(!verA||!verB){flashShowEmpty();}
+  else{flashRefresh();}
+  _flashInited=true;
+}
+
+// ── Notes ─────────────────────────────────────────────────────────────────────
+async function flashLoadNotes() {
+  var periodId=document.getElementById('flashMoA')?.value||(_CY*100+3);
+  var y=Math.floor(parseInt(periodId)/100), m=parseInt(periodId)%100;
+  var rptPeriod=y+'-'+String(m).padStart(2,'0');
+  var r=await _sbQ(function(sb){
+    return sb.from('fpa_flash_notes').select('*')
+      .eq('report_period',rptPeriod).eq('is_deleted',false)
+      .order('entered_at',{ascending:false});
+  },{silent:true});
+  _flashNotesData=(r&&r.data)||[];
+  flashRenderNotes();
+}
+function flashRenderNotes() {
+  var feed=document.getElementById('flashNotesFeed'); if(!feed)return;
+  if(!_flashNotesData.length){
+    feed.innerHTML='<div style="font-size:11px;color:#8099b8;text-align:center;padding:18px 0">No commentary for this period yet.</div>';
+    return;
+  }
+  feed.innerHTML=_flashNotesData.map(function(n){
+    var dt=new Date(n.entered_at).toLocaleString('en-JM',{dateStyle:'medium',timeStyle:'short'});
+    var initials=((n.entered_by||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2)).toUpperCase();
+    return '<div class="flash-note-entry">'
+      +'<div class="flash-note-avatar">'+initials+'</div>'
+      +'<div class="flash-note-body">'
+      +'<div class="flash-note-meta"><span class="flash-note-author">'+_escHtml(n.entered_by||'?')+'</span>'
+      +'<span>'+dt+'</span><span class="flash-note-tag">'+((n.section||'general').replace(/_/g,' '))+'</span></div>'
+      +'<div class="flash-note-text">'+_escHtml(n.note_text||'').replace(/\n/g,'<br>')+'</div>'
+      +'</div></div>';
+  }).join('');
+}
+async function flashSaveNote() {
+  var noteText=(document.getElementById('flashNoteInput')?.value||'').trim();
+  if(!noteText){toast('Enter a note first','w');return;}
+  var section=document.getElementById('flashNoteSection')?.value||'general';
+  var periodId=document.getElementById('flashMoA')?.value||(_CY*100+3);
+  var y=Math.floor(parseInt(periodId)/100), m=parseInt(periodId)%100;
+  var rptPeriod=y+'-'+String(m).padStart(2,'0');
+  var r=await _sbQ(function(sb){
+    return sb.from('fpa_flash_notes').insert({
+      report_period:rptPeriod, section:section,
+      note_text:noteText,
+      entered_by:(_user&&(_user.user_metadata?.name||_user.email))||'User',
+    });
+  });
+  if(!r){return;}
+  document.getElementById('flashNoteInput').value='';
+  toast('Note saved','ok');
+  await flashLoadNotes();
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+function flashExportPDF() {
+  var orig=document.title;
+  var maps=_flashPeriodMaps();
+  var periodId=parseInt(document.getElementById('flashMoA')?.value||(_CY*100+3));
+  document.title='JPS Flash Report '+(maps.short[periodId]||periodId);
+  window.print();
+  document.title=orig;
+  toast('Print dialog opened — save as PDF','ok');
+}
+function flashExportXLSX() {
+  toast('Excel export: install SheetJS library to enable','w');
+}
+
+/* ====================================================================
+   PAGE 10 — KPI SCORECARD
+   ==================================================================== */
+
+// KPI section display labels
+var _KPI_SECTIONS = {
+  reliability: 'Reliability &amp; Quality',
+  generation:  'Generation &amp; Capacity',
+  fuel_mix:    'Fuel Mix',
+  customer:    'Customer &amp; Revenue',
+  financial:   'Financial'
+};
+
+// Financial KPI codes derived from fpa_facts (not stored in jps_kpi_actuals)
+var _KPI_FINANCIAL = ['ebitda_margin', 'npat_margin', 'net_debt_ebitda'];
+
+// fpa_facts line IDs needed for financial KPI derivation
+var _KPI_FIN_LINES = ['pl_total_sales', 'nonfuel', 'fuel_rev', 'ipp_fr', 'other_r',
+                      'ebitda', 'net_inc', 'total_debt', 'cash', 'nr_rev'];
+
+async function loadP10(force) {
+  if (!force && _loadedPages.has('p10')) return;
+  _loadedPages.add('p10');
+
+  var ctx = await _getCtx();
+  if (!ctx) return;
+
+  var body = document.getElementById('p10Body');
+  if (body) body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px">Loading KPI data…</div>';
+
+  // Update subtitle
+  var sub = document.getElementById('p10Sub');
+  if (sub) sub.textContent = 'Operational & Financial KPIs · YTD ' + _MONS[ctx.maxMo - 1] + ' ' + ctx.yr + ' · RAG vs Annual Target';
+
+  var months = ctx.actPeriods; // e.g. [202601, 202602, ..., 202604]
+
+  try {
+    // Parallel: targets, operational actuals, financial facts
+    var results = await Promise.all([
+      _sbQ(function(sb) {
+        return sb.from('jps_kpi_targets').select('*').eq('year', ctx.yr).order('sort_order');
+      }),
+      _sbQ(function(sb) {
+        return sb.from('jps_kpi_actuals').select('period_id,kpi_code,value,adjusted_value')
+          .in('period_id', months).order('period_id');
+      }),
+      _fetchFactsAct(ctx, _KPI_FIN_LINES)
+    ]);
+
+    var targets   = (results[0] && results[0].data) || [];
+    var kpiRows   = (results[1] && results[1].data) || [];
+    var finFacts  = results[2] || {};
+
+    // Index: kpiActuals[kpi_code][period_id] = value
+    var kpiActuals = {};
+    kpiRows.forEach(function(r) {
+      if (!kpiActuals[r.kpi_code]) kpiActuals[r.kpi_code] = {};
+      kpiActuals[r.kpi_code][r.period_id] = { val: r.value, adj: r.adjusted_value };
+    });
+
+    // Derive financial KPIs from fpa_facts
+    var finDerived = _p10DeriveFinancial(finFacts, months, ctx);
+
+    // Build table
+    if (body) body.innerHTML = _p10BuildTable(targets, kpiActuals, finDerived, months, ctx);
+
+  } catch(e) {
+    console.error('[p10]', e);
+    if (body) body.innerHTML = '<div style="padding:24px;color:var(--rose)">Failed to load KPI data: ' + _escHtml(String(e.message || e)) + '</div>';
+    _loadedPages.delete('p10');
+  }
+}
+
+function _p10DeriveFinancial(f, months, ctx) {
+  // For each month compute revenue + ebitda + net_inc; sum for YTD
+  var rev = 0, ebitdaSum = 0, netIncSum = 0, totalDebt = 0, cash = 0;
+
+  months.forEach(function(p) {
+    var r = (f['pl_total_sales'] && f['pl_total_sales'][p]) ||
+            ((f['nr_rev']&&f['nr_rev'][p]||0) + (f['nonfuel']&&!f['nr_rev']?f['nonfuel'][p]||0:0) +
+             (f['fuel_rev']&&f['fuel_rev'][p]||0) + (f['ipp_fr']&&f['ipp_fr'][p]||0) + (f['other_r']&&f['other_r'][p]||0));
+    rev += (r || 0);
+
+    var e = (f['ebitda'] && f['ebitda'][p]) || 0;
+    ebitdaSum += e;
+
+    var n = (f['net_inc'] && f['net_inc'][p]) || 0;
+    netIncSum += n;
+  });
+
+  // Use latest month for balance sheet items
+  var latestP = months[months.length - 1];
+  totalDebt = (f['total_debt'] && f['total_debt'][latestP]) || 0;
+  cash      = (f['cash']       && f['cash'][latestP])       || 0;
+  var netDebt = totalDebt - cash;
+
+  // Annualise EBITDA for Net Debt / EBITDA (YTD × 12/n)
+  var n = months.length;
+  var ebitdaAnn = n > 0 ? ebitdaSum * (12 / n) : 0;
+
+  return {
+    ebitda_margin:  rev > 0 ? (ebitdaSum / rev) * 100 : null,
+    npat_margin:    rev > 0 ? (netIncSum  / rev) * 100 : null,
+    net_debt_ebitda: ebitdaAnn > 0 ? netDebt / ebitdaAnn : null,
+    _rev: rev, _ebitda: ebitdaSum, _net_inc: netIncSum
+  };
+}
+
+function _p10YtdValue(kpiCode, kpiActuals, months, method) {
+  var vals = months.map(function(p) {
+    var r = kpiActuals[kpiCode] && kpiActuals[kpiCode][p];
+    return r ? r.val : null;
+  }).filter(function(v) { return v !== null; });
+
+  if (!vals.length) return null;
+
+  if (method === 'cumulative') return vals.reduce(function(a,b){return a+b;}, 0);
+  if (method === 'point_in_time') return vals[vals.length - 1];
+  if (method === 'average') return vals.reduce(function(a,b){return a+b;}, 0) / vals.length;
+  // pro_rata default
+  return vals.reduce(function(a,b){return a+b;}, 0);
+}
+
+function _p10YtdTarget(annualTarget, months, method) {
+  if (method === 'cumulative' || method === 'pro_rata') {
+    return annualTarget * (months.length / 12);
+  }
+  if (method === 'point_in_time' || method === 'average' || method === 'ytd_derived') {
+    return annualTarget; // point-in-time target = annual target
+  }
+  return annualTarget * (months.length / 12);
+}
+
+function _p10Rag(actual, target, favorableDir, amberThreshold) {
+  if (actual === null || actual === undefined || !target) return 'rag-n';
+  var pct = Math.abs((actual - target) / target);
+  var better = favorableDir === 'above' ? actual >= target : actual <= target;
+  if (better) return 'rag-g';
+  if (pct <= amberThreshold) return 'rag-a';
+  return 'rag-r';
+}
+
+function _p10RagLabel(rag) {
+  if (rag === 'rag-g') return '<span class="rb g"><span class="dot g"></span>GREEN</span>';
+  if (rag === 'rag-a') return '<span class="rb a"><span class="dot a"></span>AMBER</span>';
+  if (rag === 'rag-r') return '<span class="rb r"><span class="dot r"></span>RED</span>';
+  return '<span style="color:var(--muted);font-size:10px">—</span>';
+}
+
+function _p10Fmt(val, unit, kpiCode) {
+  if (val === null || val === undefined) return '<span style="color:var(--muted)">—</span>';
+  if (unit === '%')    return (Math.round(val * 10) / 10).toFixed(1) + '%';
+  if (unit === 'x')    return (Math.round(val * 100) / 100).toFixed(2) + 'x';
+  if (unit === 'mins') return Math.round(val).toLocaleString();
+  if (unit === 'GWh')  return Math.round(val).toLocaleString();
+  if (unit === 'MW')   return Math.round(val).toLocaleString();
+  if (unit === 'days') return Math.round(val);
+  if (unit === "'000s") return (Math.round(val * 10) / 10).toFixed(1);
+  if (unit === 'events') return (Math.round(val * 100) / 100).toFixed(2);
+  return (Math.round(val * 10) / 10).toFixed(1);
+}
+
+function _p10VarFmt(actual, target, unit, favorableDir) {
+  if (actual === null || target === null || actual === undefined) return '<span style="color:var(--muted)">—</span>';
+  var diff = actual - target;
+  var isBetter = favorableDir === 'above' ? diff >= 0 : diff <= 0;
+  var cls = isBetter ? 'fav' : 'adv';
+  var sign = diff >= 0 ? '+' : '';
+  var formatted;
+  if (unit === '%')    formatted = sign + (Math.round(diff * 10) / 10).toFixed(1) + '%';
+  else if (unit === 'x') formatted = sign + (Math.round(diff * 100) / 100).toFixed(2) + 'x';
+  else if (unit === 'days') formatted = sign + Math.round(diff);
+  else if (unit === 'mins') { var d = Math.round(diff); formatted = (d >= 0 ? '+' : '') + d.toLocaleString(); }
+  else if (unit === "'000s") formatted = sign + (Math.round(diff * 10) / 10).toFixed(1);
+  else formatted = sign + (Math.round(diff * 10) / 10).toFixed(1);
+  if (!isBetter) formatted = '(' + Math.abs(parseFloat(formatted.replace(/,/g,''))).toLocaleString() + (unit === '%' ? '%' : unit === 'x' ? 'x' : '') + ')';
+  return '<span class="' + cls + '">' + formatted + '</span>';
+}
+
+function _p10BuildTable(targets, kpiActuals, finDerived, months, ctx) {
+  var moLabels = months.map(function(p) { return _MONS[(p % 100) - 1]; });
+  var numMos = months.length;
+
+  // thead
+  var thead = '<thead><tr>'
+    + '<th style="min-width:180px;text-align:left">KPI</th>'
+    + '<th>Unit</th>'
+    + moLabels.map(function(m){ return '<th>' + m + '</th>'; }).join('')
+    + '<th>YTD Actual</th><th>Annual Target</th><th>YTD Target</th><th>Var</th><th>RAG</th>'
+    + '</tr></thead>';
+
+  // Group targets by section
+  var sections = ['reliability', 'generation', 'fuel_mix', 'customer', 'financial'];
+  var bySection = {};
+  targets.forEach(function(t) { (bySection[t.section] = bySection[t.section] || []).push(t); });
+
+  var rows = '';
+  sections.forEach(function(sec) {
+    var items = bySection[sec] || [];
+    if (!items.length) return;
+
+    rows += '<tr class="rsec"><td colspan="' + (5 + numMos) + '" style="padding-top:14px">' + (_KPI_SECTIONS[sec] || sec) + '</td></tr>';
+
+    items.forEach(function(t) {
+      var isFinancial = _KPI_FINANCIAL.indexOf(t.kpi_code) >= 0;
+      var monthVals = months.map(function(p) {
+        if (isFinancial) return null; // financial = YTD only
+        var r = kpiActuals[t.kpi_code] && kpiActuals[t.kpi_code][p];
+        return r ? r.val : null;
+      });
+
+      var ytdActual, ytdTarget;
+      if (isFinancial) {
+        ytdActual = finDerived[t.kpi_code] !== undefined ? finDerived[t.kpi_code] : null;
+        ytdTarget = t.annual_target; // margin/ratio = same target year-round
+      } else {
+        ytdActual = _p10YtdValue(t.kpi_code, kpiActuals, months, t.ytd_method);
+        ytdTarget = _p10YtdTarget(t.annual_target, months, t.ytd_method);
+      }
+
+      var rag = _p10Rag(ytdActual, ytdTarget, t.favorable_direction, t.amber_threshold || 0.05);
+
+      var moCells = isFinancial
+        ? '<td colspan="' + numMos + '" style="color:var(--muted);font-size:10.5px;text-align:center;font-style:italic">derived from P&amp;L</td>'
+        : monthVals.map(function(v){ return '<td>' + _p10Fmt(v, t.unit, t.kpi_code) + '</td>'; }).join('');
+
+      rows += '<tr>'
+        + '<td>' + (t.display_name || t.kpi_code) + '</td>'
+        + '<td style="color:var(--muted);font-size:11px">' + (t.unit || '') + '</td>'
+        + moCells
+        + '<td style="font-weight:700">' + _p10Fmt(ytdActual, t.unit, t.kpi_code) + '</td>'
+        + '<td style="color:var(--muted)">' + _p10Fmt(t.annual_target, t.unit, t.kpi_code) + '</td>'
+        + '<td style="color:var(--muted)">' + _p10Fmt(ytdTarget, t.unit, t.kpi_code) + '</td>'
+        + '<td>' + _p10VarFmt(ytdActual, ytdTarget, t.unit, t.favorable_direction) + '</td>'
+        + '<td>' + _p10RagLabel(rag) + '</td>'
+        + '</tr>';
+
+      // SAIDI: also show storm-adjusted row if adjusted_value exists
+      if (t.kpi_code === 'saidi') {
+        var hasAdj = months.some(function(p){
+          var r = kpiActuals['saidi'] && kpiActuals['saidi'][p];
+          return r && r.adj !== null && r.adj !== undefined;
+        });
+        if (hasAdj) {
+          var adjVals = months.map(function(p){
+            var r = kpiActuals['saidi'] && kpiActuals['saidi'][p];
+            return r && r.adj !== null ? r.adj : (r ? r.val : null);
+          });
+          var adjYtd = adjVals.filter(function(v){return v!==null;}).reduce(function(a,b){return a+b;},0);
+          var adjRag = _p10Rag(adjYtd, ytdTarget, t.favorable_direction, t.amber_threshold || 0.05);
+          rows += '<tr class="rind" style="font-size:11px;color:var(--muted)">'
+            + '<td style="padding-left:24px">excl. major storm event</td>'
+            + '<td>mins</td>'
+            + adjVals.map(function(v){return '<td>' + _p10Fmt(v,'mins','saidi') + '</td>';}).join('')
+            + '<td style="font-weight:700">' + _p10Fmt(adjYtd,'mins','saidi') + '</td>'
+            + '<td>' + _p10Fmt(t.annual_target,'mins','saidi') + '</td>'
+            + '<td>—</td>'
+            + '<td class="fav" style="font-size:10.5px">+' + Math.round(ytdTarget - adjYtd) + '</td>'
+            + '<td>' + _p10RagLabel(adjRag) + ' <span style="font-size:9px">(adj)</span></td>'
+            + '</tr>';
+        }
+      }
+    });
+  });
+
+  var noDataNote = '';
+  if (!targets.length) {
+    noDataNote = '<tr><td colspan="' + (5 + numMos) + '" style="text-align:center;color:var(--muted);padding:24px">No KPI targets configured for ' + ctx.yr + '. Add targets in <code>jps_kpi_targets</code>.</td></tr>';
+  }
+  var noActualsNote = kpiActuals && Object.keys(kpiActuals).length === 0
+    ? '<div style="margin:8px 16px;padding:8px 12px;background:rgba(217,119,6,.1);border-radius:6px;font-size:11.5px;color:var(--amber)">&#9888; No operational KPI actuals loaded. Upload data via DataManager &rarr; KPI Actuals tab.</div>'
+    : '';
+
+  return noActualsNote
+    + '<div class="tw"><table class="kpi-sc-tbl">'
+    + thead
+    + '<tbody>' + (noDataNote || rows) + '</tbody>'
+    + '</table></div>';
+}
+
 /* ----- DISPATCHER ----- */
 function loadPage(id) {
   console.log('[FPA] load:', id);
@@ -3141,8 +4270,10 @@ function loadPage(id) {
   else if (id === 'p2')  loadP2();
   else if (id === 'p3')  loadP3();
   else if (id === 'p4')  loadP4();
+  else if (id === 'p10') loadP10();
+  else if (id === 'p17') loadP17();
   else if (id === 'p15') loadAuditFromDB();
-  // p5–p16: static HTML retained
+  // p5–p9, p11–p16: static HTML retained
 }
 
 /* ====================================================================
@@ -3266,7 +4397,12 @@ async function _renderYrNav() {
     .map(function(k) { return parseInt(k.replace('HIST_ACTUAL_', '')); })
     .sort(function(a, b) { return b - a; })
     .slice(0, 6); // last 6 years
-  if (_vMap['HIST_ACTUAL_' + _CY + '_YTD'] && years.indexOf(_CY) < 0) years.unshift(_CY);
+  // Also include CY if monthly actuals exist (even when YTD aggregate absent/incomplete)
+  if (years.indexOf(_CY) < 0) {
+    for (let m = 1; m <= 12; m++) {
+      if (_vMap['ACTUALS_' + _CY + '_' + (m < 10 ? '0' + m : m)]) { years.unshift(_CY); break; }
+    }
+  }
   const nav = document.getElementById('yr-nav');
   if (!nav) return;
   nav.innerHTML = years.map(function(y) {
