@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>JPS FP&amp;A Hub — v2</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23111827'/><text x='16' y='22' font-family='Georgia,serif' font-size='16' font-weight='700' fill='%23EAB308' text-anchor='middle'>JF</text></svg>"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -274,6 +275,22 @@ button { font-family: inherit; cursor: pointer; }
 }
 .yr-btn.active-yr { background: rgba(0,174,239,.18); color: var(--teal); }
 .yr-btn:hover:not(.active-yr) { background: var(--border); color: var(--text); }
+.yr-btn.plan-yr { border: 1px dashed var(--teal); color: var(--teal); opacity: .7; }
+.yr-btn.plan-yr.active-yr { opacity: 1; background: rgba(0,174,239,.14); }
+.yr-add-btn { padding: 3px 7px; border: 1px dashed var(--border); background: transparent; color: var(--muted); font-size: 14px; font-weight: 400; cursor: pointer; border-radius: 6px; transition: all .15s; line-height: 1; }
+.yr-add-btn:hover { border-color: var(--teal); color: var(--teal); }
+/* Year Management Popover */
+#yrMgmtPop { position: fixed; top: 58px; left: 180px; z-index: 999; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow-lg); width: 280px; display: none; }
+#yrMgmtPop.open { display: block; }
+#yrMgmtPop h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+.yr-mgmt-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.yr-mgmt-row:last-child { border-bottom: none; }
+.yr-mgmt-lbl { font-size: 13px; font-weight: 600; color: var(--text); }
+.yr-mgmt-sublbl { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.yr-mgmt-toggle { display: flex; gap: 6px; align-items: center; }
+.yr-toggle-btn { padding: 4px 12px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); transition: all .15s; }
+.yr-toggle-btn.open { background: var(--teal); color: #fff; border-color: var(--teal); }
+.yr-toggle-btn:hover:not(.open) { border-color: var(--teal); color: var(--teal); }
 /* view toggle (Mo / YTD / FY) */
 .view-grp { display: flex; gap: 2px; background: var(--bg); padding: 2px; border-radius: 7px; }
 .view-btn {
@@ -509,6 +526,12 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 }
 
 /* ===================== SCENARIO CARDS ===================== */
+/* Modal */
+.modal-box { background: var(--surface); border-radius: 12px; padding: 28px; box-shadow: 0 16px 48px rgba(0,0,0,.28); }
+.mf { margin-bottom: 13px; }
+.mf label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+.mf input, .mf select, .mf textarea { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 12.5px; font-family: inherit; background: var(--bg); color: var(--text); box-sizing: border-box; }
+.mf input:focus, .mf select:focus { outline: none; border-color: var(--teal); }
 .scn-card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 11px; padding: 18px; box-shadow: var(--shadow);
@@ -675,6 +698,9 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
   background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 600;
 }
 .btn-outline:hover { background: var(--bg); }
+.p2-cv-btn,.p3-cv-btn,.p4-cv-btn { padding:4px 12px; border:none; background:none; font-size:11px; font-weight:600; color:var(--muted); cursor:pointer; transition:all .15s; border-radius:5px; }
+.p2-cv-btn.active,.p3-cv-btn.active,.p4-cv-btn.active { background:var(--teal); color:#fff; }
+.p2-cv-btn:hover:not(.active),.p3-cv-btn:hover:not(.active),.p4-cv-btn:hover:not(.active) { background:var(--bg); color:var(--text); }
 
 /* ===================== GEN MIX BAR ===================== */
 .genmix-row {
@@ -823,7 +849,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
     <div class="ws-outputs-col">
       <div class="ws-out-col-label">Platform Reports</div>
       <div class="ws-output-card"><div class="ws-out-icon">📋</div><div class="ws-out-info"><div class="ws-out-label">Income Statement</div><div class="ws-out-sub">Monthly P&amp;L · budget variance</div></div></div>
-      <div class="ws-output-card" onclick="doLogin();navTo('p17')" style="cursor:pointer"><div class="ws-out-icon">📰</div><div class="ws-out-info"><div class="ws-out-label">Flash Report</div><div class="ws-out-sub">Management one-pager</div></div></div>
+      <div class="ws-output-card" onclick="doLogin();navTo('p17')" style="cursor:pointer"><div class="ws-out-icon">📰</div><div class="ws-out-info"><div class="ws-out-label">Management Report</div><div class="ws-out-sub">Management one-pager</div></div></div>
       <div class="ws-output-card"><div class="ws-out-icon">📐</div><div class="ws-out-info"><div class="ws-out-label">KPIs &amp; Ratios</div><div class="ws-out-sub">Leverage · liquidity · coverage</div></div></div>
       <div class="ws-output-card"><div class="ws-out-icon">⚖</div><div class="ws-out-info"><div class="ws-out-label">Balance Sheet</div><div class="ws-out-sub">Assets · liabilities · equity</div></div></div>
       <div class="ws-output-card"><div class="ws-out-icon">💧</div><div class="ws-out-info"><div class="ws-out-label">Cash Flow Statement</div><div class="ws-out-sub">Operating · investing · financing</div></div></div>
@@ -900,7 +926,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
     <div class="hub-quick-bar">
       <span class="hub-quick-label">Quick Access:</span>
       <button class="hub-quick-btn" onclick="hubNav('p1')">⚡ Overview</button>
-      <button class="hub-quick-btn" onclick="hubNav('p17')">📰 Flash Report</button>
+      <button class="hub-quick-btn" onclick="hubNav('p17')">📰 Management Report</button>
       <button class="hub-quick-btn" onclick="hubNav('p2')">📊 Income Statement</button>
       <button class="hub-quick-btn" onclick="hubNav('p9')">📐 KPIs &amp; Ratios</button>
       <button class="hub-quick-btn" onclick="hubNav('p13')">🎲 Scenario Manager</button>
@@ -928,6 +954,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
       <div id="yr-nav" class="yr-nav">
         <!-- Populated dynamically by _renderYrNav() — placeholder seeded at DOMContentLoaded -->
       </div>
+      <button class="yr-add-btn" onclick="toggleYrMgmt(event)" title="Open / close planning years">&#43;</button>
     </div>
 
     <!-- Month selector -->
@@ -1008,6 +1035,13 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
     </div>
   </div>
 
+  <!-- ===================== YEAR MANAGEMENT POPOVER ===================== -->
+  <div id="yrMgmtPop">
+    <h4>&#128197; Planning Years</h4>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Open a future year to enable planning. Opening balances flow from prior Dec actuals.</p>
+    <div id="yrMgmtRows"><!-- populated by _renderYrMgmt() --></div>
+  </div>
+
   <!-- ===================== SHELL BODY ===================== -->
   <div class="shell-body">
 
@@ -1018,7 +1052,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 
       <div class="nav-sec">Reporting</div>
       <div class="ni active" data-p="p1" onclick="nav(this)"><span class="ni-ic">&#9889;</span> Overview</div>
-      <div class="ni" data-p="p17" onclick="nav(this)"><span class="ni-ic">&#128240;</span> Flash Report</div>
+      <div class="ni" data-p="p17" onclick="nav(this)"><span class="ni-ic">&#128240;</span> Management Report</div>
       <div class="ni" data-p="p2" onclick="nav(this)"><span class="ni-ic">&#128202;</span> Consolidated P&amp;L</div>
       <div class="ni" data-p="p3" onclick="nav(this)"><span class="ni-ic">&#127974;</span> Balance Sheet</div>
       <div class="ni" data-p="p4" onclick="nav(this)"><span class="ni-ic">&#128181;</span> Cash Flow</div>
@@ -1855,55 +1889,18 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
       <!-- ============ PAGE 11: O&M PLATFORM ============ -->
       <section class="page" id="p11">
         <div class="page-head">
-          <h1>O&amp;M Platform</h1>
-          <div class="ph-sub">Operating &amp; maintenance cost planning &middot; FY2026</div>
-        </div>
-
-        <div class="notice-bar info">
-          O&amp;M detailed budgeting is managed in the dedicated O&amp;M Platform.
-          The summary below is read-only &mdash; open the platform to edit line items.
-        </div>
-        <div style="margin-bottom:18px">
-          <button class="btn-primary" onclick="toast('O&amp;M Platform opens in a separate workspace','info')">
-            Open O&amp;M Platform &rarr;
-          </button>
+          <h1>O&amp;M Cost Summary</h1>
+          <div class="ph-sub" id="p11Sub">Cost Item Group &amp; Cost Item &middot; USD $000s</div>
+          <a href="https://om.jmfinancelab.com" target="_blank" class="btn">Open O&amp;M Platform ↗</a>
         </div>
 
         <div class="card">
-          <div class="card-head">O&amp;M Spend by Category
-            <span class="ch-sub">Read-only summary &middot; YTD Apr 2026 &middot; USD $000s</span></div>
-          <div class="tbl-wrap">
-            <table class="dt">
-              <thead><tr>
-                <th>Category</th><th>YTD Actual</th><th>AOP YTD</th><th>Var $</th><th>Var %</th><th>FY Budget</th>
-              </tr></thead>
-              <tbody>
-                <tr><td>Salaries &amp; Wages</td>
-                  <td class="num">22,600</td><td class="num">22,400</td>
-                  <td class="num adv">(200)</td><td class="num adv">(0.9%)</td><td class="num">67,800</td></tr>
-                <tr><td>Maintenance &amp; Repairs</td>
-                  <td class="num">14,800</td><td class="num">14,200</td>
-                  <td class="num adv">(600)</td><td class="num adv">(4.2%)</td><td class="num">43,500</td></tr>
-                <tr><td>Contractor Services</td>
-                  <td class="num">8,900</td><td class="num">8,400</td>
-                  <td class="num adv">(500)</td><td class="num adv">(6.0%)</td><td class="num">25,600</td></tr>
-                <tr><td>Insurance</td>
-                  <td class="num">4,200</td><td class="num">4,300</td>
-                  <td class="num fav">100</td><td class="num fav">2.3%</td><td class="num">12,800</td></tr>
-                <tr><td>IT &amp; Telecoms</td>
-                  <td class="num">3,800</td><td class="num">3,900</td>
-                  <td class="num fav">100</td><td class="num fav">2.6%</td><td class="num">11,700</td></tr>
-                <tr><td>Vehicles &amp; Fuel (fleet)</td>
-                  <td class="num">2,600</td><td class="num">2,500</td>
-                  <td class="num adv">(100)</td><td class="num adv">(4.0%)</td><td class="num">7,800</td></tr>
-                <tr><td>Other Overheads</td>
-                  <td class="num">3,500</td><td class="num">3,500</td>
-                  <td class="num neut">0</td><td class="num neut">0.0%</td><td class="num">10,800</td></tr>
-                <tr class="rs"><td>Total O&amp;M</td>
-                  <td class="num">60,400</td><td class="num">59,200</td>
-                  <td class="num adv">(1,200)</td><td class="num adv">(2.0%)</td><td class="num">180,000</td></tr>
-              </tbody>
-            </table>
+          <div class="card-head">
+            <span class="card-title" id="p11CardTitle">O&amp;M Expenditure — Cost Item Summary</span>
+            <span class="meta">Actual vs Budget &middot; USD $000s &middot; sourced from O&amp;M Platform</span>
+          </div>
+          <div id="p11Body">
+            <div style="padding:40px;text-align:center;color:var(--muted);font-size:13px">Loading O&amp;M data…</div>
           </div>
         </div>
       </section>
@@ -1984,68 +1981,42 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
       <section class="page" id="p13">
         <div class="page-head">
           <h1>Scenario Manager</h1>
-          <div class="ph-sub">Model scenarios &amp; sensitivity analysis &middot; FY2026</div>
-        </div>
-        <div class="notice-bar info">Scenarios use fpa_versions with kind=SCENARIO. Activating a scenario reprices downstream reports.</div>
-
-        <div class="grid-3">
-          <div class="scn-card active-scn" id="scnBase">
-            <h3>Base Case</h3>
-            <div class="scn-desc">FY2026 AOP assumptions as approved by the Board. No adjustments.</div>
-            <div class="scn-tags">
-              <span class="scn-tag">HFO $81/bbl</span>
-              <span class="scn-tag">Demand +1.5%</span>
-              <span class="scn-tag">FX J$157</span>
-            </div>
-            <div class="scn-impact">EBITDA $221.5M</div>
-            <button class="scn-btn" onclick="activateScenario('Base Case','scnBase')">Active</button>
-          </div>
-
-          <div class="scn-card" id="scnUp">
-            <h3>Upside</h3>
-            <div class="scn-desc">Stronger commercial demand recovery, +10% revenue uplift across rate classes.</div>
-            <div class="scn-tags">
-              <span class="scn-tag">Revenue +10%</span>
-              <span class="scn-tag">Demand +4.2%</span>
-              <span class="scn-tag">Losses 17.0%</span>
-            </div>
-            <div class="scn-impact fav">EBITDA $254.7M</div>
-            <button class="scn-btn" onclick="activateScenario('Upside','scnUp')">Activate</button>
-          </div>
-
-          <div class="scn-card" id="scnDown">
-            <h3>Downside</h3>
-            <div class="scn-desc">Fuel price shock &mdash; HFO +US$18/bbl, partial pass-through lag, FX depreciation.</div>
-            <div class="scn-tags">
-              <span class="scn-tag">HFO $99/bbl</span>
-              <span class="scn-tag">FX J$168</span>
-              <span class="scn-tag">Pass-through lag</span>
-            </div>
-            <div class="scn-impact adv">EBITDA $189.3M</div>
-            <button class="scn-btn" onclick="activateScenario('Downside','scnDown')">Activate</button>
-          </div>
+          <div class="ph-sub">Create, compare and activate financial scenarios &middot; FY<span id="scnYear">2026</span></div>
+          <button class="btn-primary" onclick="scnOpenNew()">+ New Scenario</button>
         </div>
 
-        <div class="card">
-          <div class="card-head">Scenario Comparison &mdash; FY2026 Outcomes
-            <span class="ch-sub">USD $000s</span></div>
-          <div class="tbl-wrap">
-            <table class="dt">
-              <thead><tr>
-                <th>Metric</th><th>Base Case</th><th>Upside</th><th>Downside</th>
-              </tr></thead>
-              <tbody>
-                <tr><td>Total Revenue</td><td class="num">830,600</td><td class="num">913,700</td><td class="num">842,100</td></tr>
-                <tr><td>Fuel &amp; IPP Energy</td><td class="num">(425,300)</td><td class="num">(441,200)</td><td class="num">(498,600)</td></tr>
-                <tr class="rs"><td>EBITDA</td><td class="num">221,500</td><td class="num fav">254,700</td><td class="num adv">189,300</td></tr>
-                <tr><td>NPAT</td><td class="num">64,000</td><td class="num fav">87,400</td><td class="num adv">38,200</td></tr>
-                <tr><td>Net Debt / EBITDA</td><td class="num">2.5x</td><td class="num">2.1x</td><td class="num">3.1x</td></tr>
-                <tr><td>Operating Cash Flow</td><td class="num">183,400</td><td class="num">214,800</td><td class="num">148,600</td></tr>
-              </tbody>
-            </table>
-          </div>
+        <div class="grid-3" id="scnGrid">
+          <div style="padding:32px;text-align:center;color:var(--muted);font-size:13px;grid-column:1/-1">Loading scenarios…</div>
+        </div>
+
+        <div class="card" id="scnCmpCard" style="display:none">
+          <div class="card-head">Scenario Comparison &mdash; Key Metrics
+            <span class="ch-sub">USD $M</span></div>
+          <div class="tw"><table class="kpi-sc-tbl" id="scnCmpTable"></table></div>
         </div>
       </section>
+
+      <!-- Scenario create/edit modal -->
+      <div id="scnModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;align-items:center;justify-content:center">
+        <div class="modal-box" style="width:500px;max-width:96vw">
+          <h2 id="scnModalTitle" style="margin:0 0 18px;font-size:16px;font-weight:800">New Scenario</h2>
+          <input type="hidden" id="scnEditId" value="">
+          <div class="mf"><label>Scenario Name *</label><input type="text" id="scnInpName" placeholder="e.g. High Fuel Price Stress" maxlength="80"></div>
+          <div class="mf"><label>Description</label><input type="text" id="scnInpDesc" placeholder="Brief summary of key assumptions" maxlength="200"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="mf"><label>HFO Price ($/bbl)</label><input type="number" id="scnInpHfo" placeholder="82" step="0.5"></div>
+            <div class="mf"><label>JMD/USD Rate</label><input type="number" id="scnInpFx" placeholder="157.40" step="0.1"></div>
+            <div class="mf"><label>GWh Billed</label><input type="number" id="scnInpGwh" placeholder="3268" step="1"></div>
+            <div class="mf"><label>CapEx ($M)</label><input type="number" id="scnInpCapex" placeholder="215" step="0.5"></div>
+            <div class="mf"><label>EBITDA ($M)</label><input type="number" id="scnInpEbitda" placeholder="221.5" step="0.1"></div>
+            <div class="mf"><label>NPAT ($M)</label><input type="number" id="scnInpNpat" placeholder="64.0" step="0.1"></div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+            <button class="btn" onclick="scnCloseModal()">Cancel</button>
+            <button class="btn-primary" onclick="scnSave()">Save Scenario</button>
+          </div>
+        </div>
+      </div>
 
       <!-- ============ PAGE 14: AI COMMENTARY ============ -->
       <section class="page" id="p14">
@@ -2268,7 +2239,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 
         <!-- Control bar -->
         <div class="flash-ctrl-bar">
-          <div style="font-size:13px;font-weight:800;color:var(--text);margin-right:4px;white-space:nowrap">📰 Flash Report</div>
+          <div style="font-size:13px;font-weight:800;color:var(--text);margin-right:4px;white-space:nowrap">📰 Management Report</div>
           <div style="display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;flex-shrink:0">
             <button class="flash-view-btn on" data-view="month"  onclick="flashSetView('month',this)">Month</button>
             <button class="flash-view-btn"    data-view="qtd"    onclick="flashSetView('qtd',this)">QTD</button>
@@ -2308,7 +2279,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 
               <div class="flash-page-header">
                 <div class="flash-page-header-left">
-                  <div class="flash-report-title">Management Flash Report</div>
+                  <div class="flash-report-title">Management Report</div>
                   <div class="flash-report-sub" id="flashReportSubtitle">Jamaica Public Service Co. · FP&amp;A · Confidential</div>
                 </div>
                 <div class="flash-page-header-right">
@@ -2463,6 +2434,7 @@ async function _sbQ(fn, opts) {
 }
 
 /* ---------- Toast ---------- */
+function _toast(msg, type) { toast(msg, type); }  // alias used internally
 function toast(msg, type) {
   type = type || 'info';
   const t = document.createElement('div');
@@ -2559,6 +2531,10 @@ function enterPlatform() {
   document.getElementById('hubScreen').classList.remove('visible');
   document.getElementById('appShell').style.display = 'flex';
   initPlatform();
+  navTo('p1');
+  document.querySelectorAll('.ni').forEach(function(n){ n.classList.remove('active'); });
+  const ni = document.querySelector('.ni[data-p="p1"]');
+  if (ni) ni.classList.add('active');
 }
 
 function hubNav(pageId) {
@@ -2649,24 +2625,27 @@ async function _ensureVMap() {
 }
 
 // Discover & cache max available month for a year
+// Returns true if per-month ACTUALS_YYYY_MM versions exist for this year
+function _hasMonthly(yr) {
+  const vm = _vMap || {};
+  for (let m = 1; m <= 12; m++) {
+    if (vm['ACTUALS_' + yr + '_' + (m < 10 ? '0' + m : m)]) return true;
+  }
+  return false;
+}
+
 async function _ensureMaxMo(yr) {
   if (_yearMaxMo[yr] != null) return;
   await _ensureVMap();
-  const isCY = (yr === _CY);
-  if (isCY) {
-    // For CY: scan vMap for ACTUALS_YYYY_MM keys (reliable; YTD aggregate is incomplete)
-    let maxM = 0;
-    for (let m = 12; m >= 1; m--) {
-      const key = 'ACTUALS_' + yr + '_' + (m < 10 ? '0' + m : m);
-      if ((_vMap || {})[key]) { maxM = m; break; }
-    }
-    if (maxM > 0) { _yearMaxMo[yr] = maxM; return; }
-    // Leave undefined for retry if vMap isn't loaded yet
-    return;
+  // For ANY year: scan ACTUALS_YYYY_MM first (most reliable, covers 2014–present)
+  let maxM = 0;
+  for (let m = 12; m >= 1; m--) {
+    const key = 'ACTUALS_' + yr + '_' + (m < 10 ? '0' + m : m);
+    if ((_vMap || {})[key]) { maxM = m; break; }
   }
-  // Historical: use HIST_ACTUAL_YYYY — full year
-  if ((_vMap || {})['HIST_ACTUAL_' + yr]) { _yearMaxMo[yr] = 12; return; }
-  _yearMaxMo[yr] = 12; // fallback
+  if (maxM > 0) { _yearMaxMo[yr] = maxM; return; }
+  // Fallback: HIST_ACTUAL_YYYY or assume full year
+  _yearMaxMo[yr] = 12;
 }
 
 async function _fetchFacts(vCode, lines, pStart, pEnd) {
@@ -2760,14 +2739,14 @@ async function _fetchFactsMulti(yr, lines, periods) {
   return _normalizeAlias(merged);
 }
 
-// _fetchFactsAct — dispatcher: CY uses monthly versions, historical uses aggregate
+// _fetchFactsAct — use per-month ACTUALS_YYYY_MM for any year that has them (2014–present)
 async function _fetchFactsAct(ctx, lines) {
-  if (ctx.isCY) return _fetchFactsMulti(ctx.yr, _expandAliasLines(lines), ctx.actPeriods);
+  if (ctx.hasMonthly) return _fetchFactsMulti(ctx.yr, _expandAliasLines(lines), ctx.actPeriods);
   return _fetchFactsN(ctx.actCode, lines, ctx.actStart, ctx.actEnd);
 }
 // Point-in-time variant for BS (single period)
 async function _fetchFactsActPt(ctx, period, lines) {
-  if (ctx.isCY) return _fetchFactsMulti(ctx.yr, _expandAliasLines(lines), [period]);
+  if (ctx.hasMonthly) return _fetchFactsMulti(ctx.yr, _expandAliasLines(lines), [period]);
   return _fetchFactsN(ctx.actCode, lines, period, period);
 }
 
@@ -2787,6 +2766,28 @@ function _fmtM(v, dp) {
   const n = Number.isFinite(+v) ? +v : 0;
   const abs = Math.abs(n).toFixed(dp).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return n < 0 ? '(' + abs + ')' : (n === 0 ? '—' : abs);
+}
+// Planning year banner — shown on all data pages when plan year has no actuals
+function _planYrBanner(yr, title, sub) {
+  return '<div class="page-head"><h1>' + title + ' — FY ' + yr + '</h1>'
+    + '<div class="ph-sub" style="color:var(--teal)">&#128197; Planning Year — No actuals loaded yet.</div></div>'
+    + '<div style="background:rgba(0,174,239,.06);border:1px solid rgba(0,174,239,.25);border-radius:10px;padding:24px 28px;max-width:560px;margin-top:20px">'
+    + '<div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px">FY ' + yr + ' Planning Year</div>'
+    + '<p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px">'
+    + 'This year is open for planning but no data has been uploaded yet.<br>'
+    + 'Upload AOP ' + yr + ' data via DataManager to activate all reports.</p>'
+    + '<div style="display:flex;gap:10px;align-items:center">'
+    + '<a href="https://datamanager.jmfinancelab.com" target="_blank" style="padding:8px 16px;background:var(--teal);color:#fff;border-radius:7px;font-size:12px;font-weight:700;text-decoration:none">Open DataManager &rarr;</a>'
+    + '<button onclick="toggleOpenYear(' + yr + ')" style="padding:8px 16px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Close This Year</button>'
+    + '</div></div>';
+}
+// Planning year KPI card helper
+function _planKpi(lbl, v) {
+  return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px">'
+    + '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">' + lbl + '</div>'
+    + '<div style="font-size:18px;font-weight:700;color:var(--text);font-family:\'IBM Plex Mono\',monospace">' + _fmtM(v) + '</div>'
+    + '<div style="font-size:9px;color:var(--muted);margin-top:2px">JMD $000s</div>'
+    + '</div>';
 }
 // Cost stored positive → display as (x)
 function _fmtCost(v, dp) {
@@ -2908,6 +2909,29 @@ async function loadP1() {
   await _ensureMaxMo(_activeYear);
   const ctx = _getCtx();
   if (!ctx) { _pgLoad('p1', false); return; }
+
+  // Planning year: no actuals — show opening balance reference from prior Dec
+  if (_isPlanYear(ctx.yr)) {
+    _pgLoad('p1', false);
+    _renderYrNav(); _renderMoNav(0);
+    const priYr = ctx.yr - 1, priPer = priYr * 100 + 12;
+    const priCode = _hasMonthly(priYr) ? ('ACTUALS_' + priYr + '_12') : ('HIST_ACTUAL_' + priYr);
+    const priF = await _fetchFactsN(priCode, ['pl_total_sales','ebitda','net_inc','cash','recv','ppe'], priPer, priPer);
+    function pv(l) { return _fVal(priF, l, priPer); }
+    const pg = document.getElementById('p1');
+    if (pg) pg.innerHTML = '<div class="page-head"><h1>Overview — FY ' + ctx.yr + '</h1>'
+      + '<div class="ph-sub" style="color:var(--teal)">&#128197; Planning Year — No actuals loaded. Opening balances from Dec ' + priYr + '.</div></div>'
+      + '<div style="background:rgba(0,174,239,.06);border:1px solid rgba(0,174,239,.25);border-radius:10px;padding:20px 24px;max-width:760px;margin-top:16px">'
+      + '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px">Dec ' + priYr + ' Closing Position (Opening Balances for FY ' + ctx.yr + ')</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">'
+      + _planKpi('Revenue',    pv('pl_total_sales')) + _planKpi('EBITDA', pv('ebitda'))
+      + _planKpi('Net Income', pv('net_inc')) + _planKpi('Cash', pv('cash'))
+      + _planKpi('Receivables', pv('recv'))   + _planKpi('PPE (Net)', pv('ppe'))
+      + '</div>'
+      + '<div style="margin-top:16px;font-size:11px;color:var(--muted)">Upload AOP data via <a href="https://datamanager.jmfinancelab.com" target="_blank">DataManager</a> to activate this year.</div>'
+      + '</div>';
+    return;
+  }
 
   const LINES = ['pl_total_sales','nr_rev','fuel_rev','ipp_fr','other_r','ebitda','net_inc','cf_capex',
     'stat_billed_gwh','opex','depn','nfc_int_exp','tax','cf_ops_net','fuel_cost','ipp_cost'];
@@ -3066,18 +3090,69 @@ async function loadP1() {
     + '<td class="num">' + (ebd_b ? (ocf_b / ebd_b * 100).toFixed(1) : '—') + '%</td>'
     + '<td>' + _ragBadge(ebd_a ? ocf_a / ebd_a : 0, ebd_b ? ocf_b / ebd_b : 0) + '</td></tr>'
     + '</tbody></table></div></div>'
-    + '</div>';
+    + '</div>'
+    + _buildP1Commentary(ctx);
 
   const pg = document.getElementById('p1');
   if (pg) pg.innerHTML = html;
 }
 
-/* ----- p2: CONSOLIDATED P&L — dual view ----- */
-let _p2Tab = 'detailed';   // 'exec' | 'detailed'
-let _p2Standalone = false; // suppress Other income/(expenses) row
+/* ----- p1 commentary feed ----- */
+const _CM_LABELS = {
+  pl_total_sales: 'Revenue', ebitda: 'EBITDA', net_inc: 'NPAT',
+  ebitda_margin: 'EBITDA Margin', cf_capex: 'CapEx', stat_billed_gwh: 'GWh Billed',
+  cf_ops_net: 'Operating Cash Flow'
+};
+function _buildP1Commentary(ctx) {
+  const notes = [];
+  Object.keys(_cmCache).forEach(function(k) {
+    const parts = k.split('|');
+    if (parts.length === 3 && +parts[1] === ctx.actEnd && parts[2] === _activeView && _cmCache[k]) {
+      notes.push({ lid: parts[0], note: _cmCache[k] });
+    }
+  });
+  if (!notes.length) return '';
+  var rows = notes.map(function(n) {
+    return '<tr><td style="white-space:nowrap;font-weight:600;color:var(--teal);min-width:140px">'
+      + (_CM_LABELS[n.lid] || n.lid) + '</td>'
+      + '<td style="padding:8px 10px;font-size:12.5px;color:var(--text);line-height:1.5">'
+      + _escHtml(n.note) + '</td></tr>';
+  }).join('');
+  return '<div class="card" style="margin-top:16px"><div class="card-head">Management Commentary'
+    + ' <span class="ch-sub">' + ctx.viewLbl + '</span></div>'
+    + '<table style="width:100%;border-collapse:collapse">'
+    + '<thead><tr><th style="text-align:left;padding:8px 10px;font-size:11px;background:var(--dark);color:#fff;border-radius:4px 0 0 0">Line</th>'
+    + '<th style="text-align:left;padding:8px 10px;font-size:11px;background:var(--dark);color:#fff">Commentary</th></tr></thead>'
+    + '<tbody>' + rows + '</tbody></table></div>';
+}
 
-function p2SetTab(t) { _p2Tab = t; _loadedPages.delete('p2'); loadP2(); }
-function p2ToggleStandalone() { _p2Standalone = !_p2Standalone; _loadedPages.delete('p2'); loadP2(); }
+/* ----- p2: CONSOLIDATED P&L — dual view ----- */
+let _p2Tab        = 'detailed'; // 'exec' | 'detailed'
+let _p2Standalone = false;      // suppress Other income/(expenses) row
+let _p2ColView    = 'ytd';      // 'ytd' | 'monthly' | 'quarterly' | 'ytg'
+let _p3ColView    = 'ytd';
+let _p4ColView    = 'ytd';      // 'ytd' | 'monthly' | 'quarterly' | 'ytg'
+
+function p2SetTab(t)        { _p2Tab = t;        _loadedPages.delete('p2'); loadP2(); }
+function p2ToggleStandalone(){ _p2Standalone = !_p2Standalone; _loadedPages.delete('p2'); loadP2(); }
+function p2SetColView(v, el) {
+  _p2ColView = v;
+  document.querySelectorAll('.p2-cv-btn').forEach(function(b){ b.classList.remove('active'); });
+  if(el) el.classList.add('active');
+  _loadedPages.delete('p2'); loadP2();
+}
+function p3SetColView(v, el) {
+  _p3ColView = v;
+  document.querySelectorAll('.p3-cv-btn').forEach(function(b){ b.classList.remove('active'); });
+  if(el) el.classList.add('active');
+  _loadedPages.delete('p3'); loadP3();
+}
+function p4SetColView(v, el) {
+  _p4ColView = v;
+  document.querySelectorAll('.p4-cv-btn').forEach(function(b){ b.classList.remove('active'); });
+  if(el) el.classList.add('active');
+  _loadedPages.delete('p4'); loadP4();
+}
 
 async function loadP2() {
   _pgLoad('p2', true);
@@ -3085,37 +3160,89 @@ async function loadP2() {
   const ctx = _getCtx();
   if (!ctx) { _pgLoad('p2', false); return; }
 
+  // Planning year guard
+  if (_isPlanYear(ctx.yr)) {
+    _pgLoad('p2', false); _renderMoNav(0);
+    const pg = document.getElementById('p2');
+    if (pg) pg.innerHTML = _planYrBanner(ctx.yr, 'Consolidated P&amp;L', 'Income Statement');
+    return;
+  }
+
   const LINES = ['pl_total_sales','nr_rev','nonfuel','fuel_rev','ipp_fr','other_r',
     'fuel_cost','ipp_cost','opex','ebitda','depn','ebit',
     'nfc_int_exp','nfc_int_inc','nfc_afudc','pl_pref_div','other_inc',
     'pretax','tax','net_inc'];
-  const [aF, bF] = await Promise.all([
-    _fetchFactsAct(ctx, LINES),
-    _fetchFactsN(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
-  ]);
+
+  let aF, bF, allActF, aopF, leF;
+  if (_p2ColView === 'ytg') {
+    const leCode = 'LE_' + ctx.yr + '_02';
+    const remStart = ctx.yr * 100 + ctx.maxMo + 1, remEnd = ctx.yr * 100 + 12;
+    [aF, leF, bF] = await Promise.all([
+      _fetchFactsAct(ctx, LINES),
+      ctx.maxMo < 12 ? _fetchFactsN(leCode, LINES, remStart, remEnd) : Promise.resolve({}),
+      _fetchFactsN('AOP_' + ctx.yr, LINES, ctx.yr * 100 + 1, ctx.yr * 100 + 12),
+    ]);
+  } else if (_p2ColView !== 'ytd') {
+    const yr = ctx.yr, ps = ctx.yr * 100, allPids = [];
+    for (let m = 1; m <= 12; m++) allPids.push(ps + m);
+    [allActF, aopF] = await Promise.all([
+      ctx.hasMonthly
+        ? _fetchFactsMulti(yr, _expandAliasLines(LINES), allPids)
+        : _fetchFactsN('HIST_ACTUAL_' + yr, LINES, ps + 1, ps + 12),
+      _fetchFactsN('AOP_' + yr, LINES, ps + 1, ps + 12),
+    ]);
+  } else {
+    [aF, bF] = await Promise.all([
+      _fetchFactsAct(ctx, LINES),
+      _fetchFactsN(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
+    ]);
+  }
   _pgLoad('p2', false);
+  _renderMoNav(ctx.maxMo); // keep month nav in sync regardless of active page
 
   function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
   function sb(lid) { return _fSumP(bF, lid, ctx.cmpPeriods); }
   function sbFY(lid) { return _fSum(bF, lid); }
 
-  // Tab control + standalone toggle HTML
+  // Tab + view toggle controls
   const tabHdr = ''
     + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
     + '<button class="tab-btn' + (_p2Tab === 'exec'     ? ' active' : '') + '" onclick="p2SetTab(\'exec\')">Exec Summary</button>'
     + '<button class="tab-btn' + (_p2Tab === 'detailed' ? ' active' : '') + '" onclick="p2SetTab(\'detailed\')">Detailed P&amp;L</button>'
     + '<div style="flex:1"></div>'
+    + '<div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:6px;padding:2px;gap:1px;margin-right:8px">'
+    + '<button class="p2-cv-btn' + (_p2ColView==='monthly'   ? ' active' : '') + '" onclick="p2SetColView(\'monthly\',this)">Monthly</button>'
+    + '<button class="p2-cv-btn' + (_p2ColView==='quarterly' ? ' active' : '') + '" onclick="p2SetColView(\'quarterly\',this)">Quarterly</button>'
+    + '<button class="p2-cv-btn' + (_p2ColView==='ytd'       ? ' active' : '') + '" onclick="p2SetColView(\'ytd\',this)">YTD</button>'
+    + '<button class="p2-cv-btn' + (_p2ColView==='ytg'       ? ' active' : '') + '" onclick="p2SetColView(\'ytg\',this)">Year to Go</button>'
+    + '</div>'
     + '<button class="btn-outline' + (_p2Standalone ? ' active' : '') + '" onclick="p2ToggleStandalone()" style="font-size:11px;padding:5px 12px">'
-    + (_p2Standalone ? '✓ Standalone (no div. income)' : 'Standalone view') + '</button>'
+    + (_p2Standalone ? '&#10003; Standalone' : 'Standalone') + '</button>'
     + '</div>';
 
+  const viewLabel = _p2ColView === 'ytg' ? ('YTD + LE to Go ' + ctx.yr)
+    : _p2ColView !== 'ytd' ? (_p2ColView === 'quarterly' ? 'Quarterly ' : 'Monthly ') + ctx.yr
+    : ctx.viewLbl;
+
   const pageHead = '<div class="page-head"><h1>Consolidated P&amp;L</h1>'
-    + '<div class="ph-sub">Income Statement &middot; ' + ctx.viewLbl + ' &middot; JMD $000s'
+    + '<div class="ph-sub">Income Statement &middot; ' + viewLabel + ' &middot; JMD $000s'
     + (_p2Standalone ? ' &middot; <strong>STANDALONE</strong>' : '') + '</div></div>';
 
   let html = pageHead + tabHdr;
 
-  if (_p2Tab === 'exec') {
+  if (_p2ColView === 'ytg' && _p2Tab === 'exec') {
+    // Exec summary for Year to Go: FY Projection (YTD actuals + LE remaining) vs AOP
+    const _ytgPids = []; for (let _m = ctx.maxMo + 1; _m <= 12; _m++) _ytgPids.push(ctx.yr * 100 + _m);
+    const _fyPids  = []; for (let _m = 1; _m <= 12; _m++) _fyPids.push(ctx.yr * 100 + _m);
+    const saYtG = function(lid) { return _fSumP(aF, lid, ctx.actPeriods) + _fSumP(leF, lid, _ytgPids); };
+    const sbYtG = function(lid) { return _fSumP(bF, lid, _fyPids); };
+    const ytgCtx = Object.assign({}, ctx, { viewLbl: 'FY Proj ' + ctx.yr, cmpLbl: 'AOP ' + ctx.yr });
+    html += _buildP2Exec(ytgCtx, aF, bF, saYtG, sbYtG);
+  } else if (_p2ColView === 'ytg') {
+    html += _buildP2YearToGo(ctx, aF, leF);
+  } else if (_p2ColView !== 'ytd') {
+    html += _buildP2MultiCol(ctx, allActF, aopF, _p2ColView);
+  } else if (_p2Tab === 'exec') {
     html += _buildP2Exec(ctx, aF, bF, sa, sb);
   } else {
     html += _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY);
@@ -3295,12 +3422,257 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
     + '</tbody></table></div></div>';
 }
 
+/* ----- p2 MULTI-COL (Monthly / Quarterly) ----- */
+function _buildP2MultiCol(ctx, actF, aopF, view) {
+  const yr = ctx.yr;
+  const maxMo = ctx.maxMo; // correct for all years via _ensureMaxMo + _hasMonthly
+  const allPids = [];
+  for (let m = 1; m <= 12; m++) allPids.push(yr * 100 + m);
+
+  // Build columns
+  let cols;
+  if (view === 'quarterly') {
+    cols = [
+      { label: 'Q1', pids: allPids.slice(0, 3) },
+      { label: 'Q2', pids: allPids.slice(3, 6) },
+      { label: 'Q3', pids: allPids.slice(6, 9) },
+      { label: 'Q4', pids: allPids.slice(9, 12) },
+    ];
+    cols.forEach(function(c) {
+      const lastMo = c.pids[c.pids.length - 1] % 100;
+      const firstMo = c.pids[0] % 100;
+      c.isAct = lastMo <= maxMo;
+      c.isMix = !c.isAct && firstMo <= maxMo;
+    });
+  } else {
+    cols = allPids.map(function(p) {
+      const mo = p % 100;
+      return { label: _MONS[mo - 1], pids: [p], isAct: mo <= maxMo, isMix: false };
+    });
+  }
+  const fyCol = { label: 'FY ' + yr, pids: allPids, isFY: true };
+  const allCols = cols.concat([fyCol]);
+  const nCols = allCols.length + 1;
+
+  // Value for a line over a set of period IDs (mixes actual + AOP by month)
+  function cv(lid, pids) {
+    var sum = 0;
+    pids.forEach(function(p) {
+      const useAct = mo(p) <= maxMo;
+      const f = useAct ? actF : aopF;
+      sum += (f[lid] && f[lid][p] != null) ? f[lid][p] : 0;
+    });
+    return sum;
+  }
+  function mo(p) { return p % 100; }
+
+  // Derived P&L helpers
+  function rev(ps)    { return cv('nr_rev',ps)+cv('fuel_rev',ps)+cv('ipp_fr',ps)+cv('other_r',ps); }
+  function cos(ps)    { return cv('fuel_cost',ps)+cv('ipp_cost',ps); }
+  function gp(ps)     { return rev(ps)-cos(ps); }
+  function ebitda(ps) { return gp(ps)-cv('opex',ps); }
+  function ebit(ps)   { return ebitda(ps)-cv('depn',ps); }
+  function pretax(ps) {
+    return ebit(ps) - cv('nfc_int_exp',ps) + cv('nfc_int_inc',ps) + cv('nfc_afudc',ps)
+      - cv('pl_pref_div',ps) + (!_p2Standalone ? cv('other_inc',ps) : 0);
+  }
+  function npat(ps)   { return pretax(ps) - cv('tax',ps); }
+
+  // Header
+  var thead = '<thead><tr><th style="text-align:left;min-width:200px">Line Item</th>';
+  allCols.forEach(function(c) {
+    var sub = c.isFY ? '' : (c.isAct ? '<br><span style="font-size:9px;font-weight:400;opacity:.8">Actual</span>'
+      : c.isMix ? '<br><span style="font-size:9px;font-weight:400;opacity:.8">Part-AOP</span>'
+      : '<br><span style="font-size:9px;font-weight:400;opacity:.8">AOP</span>');
+    var clr = c.isFY ? '' : (c.isAct ? 'color:#22d3ee' : 'color:var(--muted)');
+    thead += '<th style="' + clr + '">' + c.label + sub + '</th>';
+  });
+  thead += '</tr></thead>';
+
+  // Row builders
+  function rline(lbl, fn, cls, isCost) {
+    var r = '<tr class="' + (cls||'rind') + '"><td>' + lbl + '</td>';
+    allCols.forEach(function(c) {
+      var v = fn(c.pids);
+      r += '<td style="text-align:right;white-space:nowrap">' + (isCost ? _fmtCost(v) : _fmtM(v)) + '</td>';
+    });
+    return r + '</tr>';
+  }
+  function rsub(lbl, fn, cls) {
+    var r = '<tr class="' + (cls||'rs') + '"><td><strong>' + lbl + '</strong></td>';
+    allCols.forEach(function(c) {
+      r += '<td style="text-align:right;white-space:nowrap;font-weight:700">' + _fmtM(fn(c.pids)) + '</td>';
+    });
+    return r + '</tr>';
+  }
+  function rsec(lbl) {
+    return '<tr class="rsec"><td colspan="' + nCols + '">' + lbl + '</td></tr>';
+  }
+
+  var tbody = ''
+    + rsec('Revenue')
+    + rline('Fuel Clause (FCR)',           function(ps){ return cv('fuel_rev',ps); })
+    + rline('IPP Surcharge',               function(ps){ return cv('ipp_fr',ps); })
+    + rline('Non-Fuel Revenue',            function(ps){ return cv('nr_rev',ps); })
+    + rline('Other Operating Revenue',     function(ps){ return cv('other_r',ps); })
+    + rsub('Total Revenue',                rev, 'rs')
+    + rsec('Cost of Sales')
+    + rline('Fuel Cost',                   function(ps){ return cv('fuel_cost',ps); }, 'rind', true)
+    + rline('Purchased Power (excl. fuel)',function(ps){ return cv('ipp_cost',ps); }, 'rind', true)
+    + rsub('Gross Profit',                 gp,  'rs')
+    + rsec('Operating Expenses')
+    + rline('Operating Expenses',          function(ps){ return cv('opex',ps); }, 'rind', true)
+    + rsub('EBITDA',                       ebitda, 'rt')
+    + rsec('Below EBITDA')
+    + rline('Depreciation',               function(ps){ return cv('depn',ps); }, 'rind', true)
+    + rsub('EBIT',                         ebit, 'rs')
+    + rsec('Net Financing Costs')
+    + rline('Interest Income',            function(ps){ return cv('nfc_int_inc',ps); })
+    + rline('AFUDC',                      function(ps){ return cv('nfc_afudc',ps); })
+    + rline('Interest Expense',           function(ps){ return cv('nfc_int_exp',ps); }, 'rind', true)
+    + rline('Preference Dividends',       function(ps){ return cv('pl_pref_div',ps); }, 'rind', true)
+    + (!_p2Standalone ? rsec('Other Income / (Expenses)') : '')
+    + (!_p2Standalone ? rline('Other Income &amp; Dividends',function(ps){ return cv('other_inc',ps); }) : '')
+    + rsec('Taxation')
+    + rsub('Net Profit Before Tax',        pretax, 'rs')
+    + rline('Income Tax Expense',         function(ps){ return cv('tax',ps); }, 'rind', true)
+    + rsub('Net Profit After Tax (NPAT)', npat, 'rt');
+
+  const note = ctx.isCY && maxMo < 12
+    ? '<div style="font-size:11px;color:var(--muted);padding:6px 0">* ' + _MONS[maxMo-1] + ' ' + yr + ' YTD = Actuals &nbsp;|&nbsp; Remaining months = AOP ' + yr + '</div>'
+    : '';
+
+  return '<div class="card"><div class="card-head"><span class="card-title">Income Statement — '
+    + (view === 'quarterly' ? 'Quarterly' : 'Monthly') + ' View</span>'
+    + '<span class="ch-sub"> ' + yr + ' &middot; JMD $000s</span></div>'
+    + '<div class="tw"><table class="kpi-sc-tbl">' + thead + '<tbody>' + tbody + '</tbody></table></div>'
+    + note
+    + '</div>';
+}
+
+/* ----- p2 YEAR TO GO (YTD actual + LE monthly remaining) ----- */
+function _buildP2YearToGo(ctx, ytdF, leF) {
+  const yr = ctx.yr;
+  const maxMo = ctx.maxMo;
+
+  // Column definitions
+  const ytdCol  = { label: 'YTD ' + (maxMo > 1 ? 'Jan–' + _MONS[maxMo-1] : 'Jan'), isYTD: true };
+  const leCols  = [];
+  for (let m = maxMo + 1; m <= 12; m++) leCols.push({ label: _MONS[m-1], period: yr * 100 + m, isLE: true });
+  const fyCol   = { label: 'FY Proj', isFY: true };
+  const allCols = [ytdCol].concat(leCols).concat([fyCol]);
+  const nCols   = allCols.length + 1;
+
+  function ytdVal(lid)     { return _fSumP(ytdF, lid, ctx.actPeriods); }
+  function leVal(lid, p)   { return (leF[lid] && leF[lid][p] != null) ? leF[lid][p] : 0; }
+  function leSum(lid)      { return leCols.reduce(function(s,c){ return s + leVal(lid, c.period); }, 0); }
+  function fyProj(lid)     { return ytdVal(lid) + leSum(lid); }
+
+  // Derived helpers
+  function ytdDerived(fn)  { return fn(ctx.actPeriods); }
+  function leSumDerived(fn){ return leCols.reduce(function(s,c){ return s + fn([c.period], leF); }, 0); }
+
+  function cvYTD(lid)  { return ytdVal(lid); }
+  function cvLE(lid,p) { return leVal(lid,p); }
+  function cvFY(lid)   { return fyProj(lid); }
+
+  // P&L derivations using leF for LE months
+  function rev_ytd()  { return cvYTD('nr_rev')+cvYTD('fuel_rev')+cvYTD('ipp_fr')+cvYTD('other_r'); }
+  function rev_le(p)  { return cvLE('nr_rev',p)+cvLE('fuel_rev',p)+cvLE('ipp_fr',p)+cvLE('other_r',p); }
+  function rev_fy()   { return rev_ytd()+leCols.reduce(function(s,c){return s+rev_le(c.period);},0); }
+
+  // Table header
+  var thead = '<thead><tr><th style="text-align:left;min-width:200px">Line Item</th>';
+  allCols.forEach(function(c) {
+    if (c.isYTD) thead += '<th style="color:#22d3ee">'+c.label+'<br><span style="font-size:9px;font-weight:400;opacity:.8">Actual</span></th>';
+    else if (c.isLE) thead += '<th style="color:var(--amber)">'+c.label+'<br><span style="font-size:9px;font-weight:400;opacity:.8">LE</span></th>';
+    else thead += '<th style="font-weight:800">'+c.label+'</th>';
+  });
+  thead += '</tr></thead>';
+
+  // Row builders
+  function getColVal(lid, c) {
+    if (c.isYTD) return cvYTD(lid);
+    if (c.isLE)  return cvLE(lid, c.period);
+    return cvFY(lid);  // isFY
+  }
+  function rline(lbl, lid, cls, isCost) {
+    var r = '<tr class="'+(cls||'rind')+'"><td>'+lbl+'</td>';
+    allCols.forEach(function(c){ var v=getColVal(lid,c); r+='<td style="text-align:right;white-space:nowrap">'+(isCost?_fmtCost(v):_fmtM(v))+'</td>'; });
+    return r+'</tr>';
+  }
+  function rsub(lbl, fn, cls) {
+    var r = '<tr class="'+(cls||'rs')+'"><td><strong>'+lbl+'</strong></td>';
+    allCols.forEach(function(c){ r+='<td style="text-align:right;white-space:nowrap;font-weight:700">'+_fmtM(fn(c))+'</td>'; });
+    return r+'</tr>';
+  }
+  function rsec(lbl) { return '<tr class="rsec"><td colspan="'+nCols+'">'+lbl+'</td></tr>'; }
+
+  function sumFn(lids) {
+    return function(c) { return lids.reduce(function(s,lid){ return s+getColVal(lid,c); }, 0); };
+  }
+  function deriveFn(fn) { return fn; }
+
+  var tbody = ''
+    + rsec('Revenue')
+    + rline('Fuel Clause (FCR)',           'fuel_rev')
+    + rline('IPP Surcharge',               'ipp_fr')
+    + rline('Non-Fuel Revenue',            'nr_rev')
+    + rline('Other Operating Revenue',     'other_r')
+    + rsub('Total Revenue',                sumFn(['nr_rev','fuel_rev','ipp_fr','other_r']), 'rs')
+    + rsec('Cost of Sales')
+    + rline('Fuel Cost',                   'fuel_cost', 'rind', true)
+    + rline('Purchased Power (excl. fuel)','ipp_cost',  'rind', true)
+    + rsub('Gross Profit', deriveFn(function(c){ return getColVal('nr_rev',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c); }), 'rs')
+    + rsec('Operating Expenses')
+    + rline('Operating Expenses',          'opex',      'rind', true)
+    + rsub('EBITDA', deriveFn(function(c){ return getColVal('nr_rev',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c); }), 'rt')
+    + rsec('Below EBITDA')
+    + rline('Depreciation',               'depn',      'rind', true)
+    + rsub('EBIT', deriveFn(function(c){ var ebd=getColVal('nr_rev',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c); return ebd-getColVal('depn',c); }), 'rs')
+    + rline('Interest Expense',           'nfc_int_exp','rind', true)
+    + rline('Interest Income',            'nfc_int_inc')
+    + rline('AFUDC',                      'nfc_afudc')
+    + rline('Preference Dividends',       'pl_pref_div','rind', true)
+    + (!_p2Standalone ? rline('Other Income &amp; Dividends','other_inc') : '')
+    + rsec('Taxation')
+    + rsub('Net Profit Before Tax', deriveFn(function(c){
+        var ebd=getColVal('nr_rev',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c);
+        var ebit=ebd-getColVal('depn',c);
+        return ebit-getColVal('nfc_int_exp',c)+getColVal('nfc_int_inc',c)+getColVal('nfc_afudc',c)-getColVal('pl_pref_div',c)+(!_p2Standalone?getColVal('other_inc',c):0);
+      }), 'rs')
+    + rline('Income Tax Expense',         'tax',        'rind', true)
+    + rsub('Net Profit After Tax (NPAT)', deriveFn(function(c){
+        var ebd=getColVal('nr_rev',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c);
+        var ebit=ebd-getColVal('depn',c);
+        var pretax=ebit-getColVal('nfc_int_exp',c)+getColVal('nfc_int_inc',c)+getColVal('nfc_afudc',c)-getColVal('pl_pref_div',c)+(!_p2Standalone?getColVal('other_inc',c):0);
+        return pretax-getColVal('tax',c);
+      }), 'rt');
+
+  const leLabel = leCols.length > 0
+    ? _MONS[maxMo] + '–Dec ' + yr + ' from LE_' + yr + '_02'
+    : 'All months actual (Dec closed)';
+
+  return '<div class="notice-bar" style="background:rgba(251,191,36,.12);color:var(--text);border-color:var(--amber)">'
+    + '&#9888; YTD = Actuals Jan–' + _MONS[maxMo-1] + ' &nbsp;|&nbsp; Remaining = ' + leLabel + '</div>'
+    + '<div class="card"><div class="card-head"><span class="card-title">Income Statement — Year to Go</span>'
+    + '<span class="ch-sub"> ' + yr + ' &middot; JMD $000s</span></div>'
+    + '<div class="tw"><table class="kpi-sc-tbl">'+thead+'<tbody>'+tbody+'</tbody></table></div></div>';
+}
+
 /* ----- p3: BALANCE SHEET ----- */
 async function loadP3() {
   _pgLoad('p3', true);
   await _ensureMaxMo(_activeYear);
   const ctx = _getCtx();
   if (!ctx) { _pgLoad('p3', false); return; }
+
+  if (_isPlanYear(ctx.yr)) {
+    _pgLoad('p3', false); _renderMoNav(0);
+    const pg = document.getElementById('p3');
+    if (pg) pg.innerHTML = _planYrBanner(ctx.yr, 'Balance Sheet', 'Statement of Financial Position');
+    return;
+  }
 
   const LINES = [
     'ppe','cwip','rou_asset','eqinv','finv','bs_dta',
@@ -3312,18 +3684,52 @@ async function loadP3() {
     'bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref'
   ];
 
-  // BS is point-in-time: use the last period of the actuals context
-  const curPer = ctx.actEnd;
-  // Prior reference: Dec of the year before the viewed year
-  const pyCode = 'HIST_ACTUAL_' + (ctx.yr - 1);
-  const pyPer  = (ctx.yr - 1) * 100 + 12;
+  const pyYr   = ctx.yr - 1;
+  const pyPer  = pyYr * 100 + 12;
+  // Use per-month ACTUALS_YYYY_12 for prior Dec when available (has full BS data)
+  const pyCode = _hasMonthly(pyYr) ? ('ACTUALS_' + pyYr + '_12') : ('HIST_ACTUAL_' + pyYr);
 
-  const [cF, pF] = await Promise.all([
-    _fetchFactsActPt(ctx, curPer, LINES),
-    _fetchFactsN(pyCode, LINES, pyPer, pyPer),
-  ]);
+  let cF, pF, allActF, aopF;
+  if (_p3ColView !== 'ytd') {
+    const yr = ctx.yr, ps = yr * 100, allPids = [];
+    for (let m = 1; m <= 12; m++) allPids.push(ps + m);
+    [allActF, aopF, pF] = await Promise.all([
+      ctx.hasMonthly
+        ? _fetchFactsMulti(yr, _expandAliasLines(LINES), allPids)
+        : _fetchFactsN('HIST_ACTUAL_' + yr, LINES, ps + 1, ps + 12),
+      _fetchFactsN('AOP_' + yr, LINES, ps + 1, ps + 12),
+      _fetchFactsN(pyCode, LINES, pyPer, pyPer),
+    ]);
+  } else {
+    const curPer = ctx.actEnd;
+    [cF, pF] = await Promise.all([
+      _fetchFactsActPt(ctx, curPer, LINES),
+      _fetchFactsN(pyCode, LINES, pyPer, pyPer),
+    ]);
+  }
   _pgLoad('p3', false);
+  _renderMoNav(ctx.maxMo); // keep month nav in sync regardless of active page
 
+  // View toggle pills
+  const cvToggle = '<div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:6px;padding:2px;gap:1px">'
+    + '<button class="p3-cv-btn' + (_p3ColView==='monthly'   ? ' active' : '') + '" onclick="p3SetColView(\'monthly\',this)">Monthly</button>'
+    + '<button class="p3-cv-btn' + (_p3ColView==='quarterly' ? ' active' : '') + '" onclick="p3SetColView(\'quarterly\',this)">Quarterly</button>'
+    + '<button class="p3-cv-btn' + (_p3ColView==='ytd'       ? ' active' : '') + '" onclick="p3SetColView(\'ytd\',this)">As At</button>'
+    + '</div>';
+
+  if (_p3ColView !== 'ytd') {
+    const html = '<div class="page-head"><h1>Balance Sheet</h1>'
+      + '<div class="ph-sub">Statement of Financial Position &middot; '
+      + (_p3ColView === 'quarterly' ? 'Quarterly' : 'Monthly') + ' ' + ctx.yr
+      + ' &middot; JMD $000s</div>'
+      + '<div style="margin-top:8px">' + cvToggle + '</div></div>'
+      + _buildBSMultiCol(ctx, allActF, aopF, pF, pyPer, _p3ColView);
+    const pg = document.getElementById('p3');
+    if (pg) pg.innerHTML = html;
+    return;
+  }
+
+  const curPer = ctx.actEnd;
   const curLbl = _pLabel(curPer) + ' ' + ctx.yr;
   const priLbl = 'Dec ' + (ctx.yr - 1);
 
@@ -3365,7 +3771,8 @@ async function loadP3() {
 
   const html = ''
     + '<div class="page-head"><h1>Balance Sheet</h1>'
-    + '<div class="ph-sub">Statement of Financial Position &middot; As at ' + curLbl + ' &middot; JMD $000s</div></div>'
+    + '<div class="ph-sub">Statement of Financial Position &middot; As at ' + curLbl + ' &middot; JMD $000s</div>'
+    + '<div style="margin-top:8px">' + cvToggle + '</div></div>'
     + '<div class="card"><div class="card-head">Statement of Financial Position'
     + ' <span class="ch-sub">' + curLbl + ' vs ' + priLbl + '</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
@@ -3414,12 +3821,144 @@ async function loadP3() {
   if (pg) pg.innerHTML = html;
 }
 
+/* ----- BS MULTI-COL (Monthly / Quarterly) ----- */
+function _buildBSMultiCol(ctx, actF, aopF, priF, priPer, view) {
+  const yr = ctx.yr;
+  const maxMo = ctx.maxMo; // correct for all years via _ensureMaxMo + _hasMonthly
+
+  // Columns: each has a single point-in-time period
+  let cols;
+  if (view === 'quarterly') {
+    cols = [
+      { label: 'Q1 Mar', period: yr * 100 + 3  },
+      { label: 'Q2 Jun', period: yr * 100 + 6  },
+      { label: 'Q3 Sep', period: yr * 100 + 9  },
+      { label: 'Q4 Dec', period: yr * 100 + 12 },
+    ];
+  } else {
+    cols = [];
+    for (let m = 1; m <= 12; m++) cols.push({ label: _MONS[m-1], period: yr * 100 + m });
+  }
+  cols.forEach(function(c) { c.isAct = (c.period % 100) <= maxMo; });
+
+  // Prior Dec reference column
+  const priCol = { label: 'Dec ' + (yr-1), period: priPer, isPri: true };
+  const allCols = cols.concat([priCol]);
+  const nCols = allCols.length + 1;
+
+  function bv(lid, p, isAct) {
+    // Prefer actual data; fall back to AOP (e.g. when monthly ACTUALS_YYYY_MM lack BS lines)
+    const av = actF[lid] && actF[lid][p] != null ? actF[lid][p] : null;
+    if (isAct && av !== null) return av;  // return actual (even if 0) for actual periods
+    return (aopF[lid] && aopF[lid][p] != null) ? aopF[lid][p] : 0;
+  }
+  function pv(lid) { return (priF[lid] && priF[lid][priPer] != null) ? priF[lid][priPer] : 0; }
+
+  // Header
+  var thead = '<thead><tr><th style="text-align:left;min-width:200px">Description</th>';
+  allCols.forEach(function(c) {
+    if (c.isPri) { thead += '<th style="color:var(--muted)">' + c.label + '</th>'; return; }
+    var sub = c.isAct ? '<br><span style="font-size:9px;font-weight:400;opacity:.8">Actual</span>'
+                      : '<br><span style="font-size:9px;font-weight:400;opacity:.8">AOP</span>';
+    thead += '<th style="' + (c.isAct ? 'color:#22d3ee' : 'color:var(--muted)') + '">' + c.label + sub + '</th>';
+  });
+  thead += '</tr></thead>';
+
+  // Row builders
+  function rline(lbl, fn, cls) {
+    var r = '<tr class="' + (cls||'rind') + '"><td>' + lbl + '</td>';
+    allCols.forEach(function(c) {
+      var v = c.isPri ? fn(priPer, true, true) : fn(c.period, c.isAct, false);
+      r += '<td style="text-align:right;white-space:nowrap">' + _fmtM(v) + '</td>';
+    });
+    return r + '</tr>';
+  }
+  function rsub(lbl, fn, cls) {
+    var r = '<tr class="' + (cls||'rs') + '"><td><strong>' + lbl + '</strong></td>';
+    allCols.forEach(function(c) {
+      var v = c.isPri ? fn(priPer, true, true) : fn(c.period, c.isAct, false);
+      r += '<td style="text-align:right;white-space:nowrap;font-weight:700">' + _fmtM(v) + '</td>';
+    });
+    return r + '</tr>';
+  }
+  function rsec(lbl) { return '<tr class="rsec"><td colspan="' + nCols + '">' + lbl + '</td></tr>'; }
+
+  // Helpers: fn(period, isAct, isPri)
+  function get(lid) {
+    return function(p, isAct, isPri) {
+      if (isPri) return pv(lid);
+      return bv(lid, p, isAct);
+    };
+  }
+  function sum(lids) {
+    return function(p, isAct, isPri) {
+      return lids.reduce(function(s, lid) { return s + (isPri ? pv(lid) : bv(lid, p, isAct)); }, 0);
+    };
+  }
+
+  var tbody = ''
+    + rsec('Non-Current Assets')
+    + rline('Property, Plant &amp; Equipment (Net)', get('ppe'))
+    + rline('Capital Work in Progress',              get('cwip'))
+    + rline('Right-of-Use Assets (IFRS 16)',         get('rou_asset'))
+    + rline('Equity Investments',                    get('eqinv'))
+    + rline('Financial Investments',                 get('finv'))
+    + rline('Deferred Tax Asset',                    get('bs_dta'))
+    + rsub('Total Non-Current Assets', sum(['ppe','cwip','rou_asset','eqinv','finv','bs_dta']), 'rs')
+    + rsec('Current Assets')
+    + rline('Trade Receivables',     get('recv'))
+    + rline('Cash &amp; Equivalents', get('cash'))
+    + rline('Prepayments &amp; Other', sum(['bs_prepaid','bs_other_recv','unbill']))
+    + rsub('Total Current Assets',   sum(['recv','cash','bs_prepaid','bs_other_recv','unbill']), 'rs')
+    + rsub('TOTAL ASSETS',           sum(['ppe','cwip','rou_asset','eqinv','finv','bs_dta','recv','cash','bs_prepaid','bs_other_recv','unbill']), 'rs')
+    + rsec('Equity')
+    + rline('Share Capital',   get('bs_share_cap'))
+    + rline('Retained Earnings', get('bs_retained'))
+    + rline('Capital Reserves', get('bs_cap_res'))
+    + rline('Preference Shares', get('bs_pref'))
+    + rsub('Total Equity', sum(['bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref']), 'rs')
+    + rsec('Non-Current Liabilities')
+    + rline('Long-Term Borrowings',        get('ltd'))
+    + rline('Lease Liabilities (IFRS 16)', get('leases'))
+    + rline('Customer Deposits (LT)',      get('bs_cust_dep_lt'))
+    + rline('Deferred Tax Liability',      get('bs_dtl'))
+    + rline('Pension Obligations',         get('pension'))
+    + rsub('Total Non-Current Liabilities', sum(['ltd','leases','bs_cust_dep_lt','bs_due_to','pension','bs_dtl']), 'rs')
+    + rsec('Current Liabilities')
+    + rline('Accounts Payable',            get('ap'))
+    + rline('Accrued Interest',            get('bs_int_acc'))
+    + rline('Corporate Tax Payable',       get('bs_corp_tax'))
+    + rline('Bank Overdraft',              get('bs_bank_od'))
+    + rline('Current Lease Liabilities',   get('lease_cl'))
+    + rline('Current Portion LTD',         get('bs_curr_ltd'))
+    + rline('Customer Deposits (Current)', get('bs_cust_dep'))
+    + rsub('Total Current Liabilities', sum(['ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd','bs_cust_dep','bs_payroll_tax']), 'rs')
+    + rsub('TOTAL EQUITY &amp; LIABILITIES', sum(['bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref','ltd','leases','bs_cust_dep_lt','bs_due_to','pension','bs_dtl','ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd','bs_cust_dep','bs_payroll_tax']), 'rs');
+
+  const note = ctx.isCY && maxMo < 12
+    ? '<div style="font-size:11px;color:var(--muted);padding:6px 0">* Up to ' + _MONS[maxMo-1] + ' ' + yr + ' = Actuals &nbsp;|&nbsp; Remaining = AOP ' + yr + '</div>'
+    : '';
+
+  return '<div class="card"><div class="card-head"><span class="card-title">Balance Sheet — '
+    + (view === 'quarterly' ? 'Quarterly' : 'Monthly') + ' View</span>'
+    + '<span class="ch-sub"> ' + yr + ' &middot; JMD $000s</span></div>'
+    + '<div class="tw"><table class="kpi-sc-tbl">' + thead + '<tbody>' + tbody + '</tbody></table></div>'
+    + note + '</div>';
+}
+
 /* ----- p4: CASH FLOW ----- */
 async function loadP4() {
   _pgLoad('p4', true);
   await _ensureMaxMo(_activeYear);
   const ctx = _getCtx();
   if (!ctx) { _pgLoad('p4', false); return; }
+
+  if (_isPlanYear(ctx.yr)) {
+    _pgLoad('p4', false); _renderMoNav(0);
+    const pg = document.getElementById('p4');
+    if (pg) pg.innerHTML = _planYrBanner(ctx.yr, 'Cash Flow', 'Statement of Cash Flows');
+    return;
+  }
 
   const LINES = [
     'cf_ni','cf_depn','cf_def_tax','cf_netint','cf_intpd',
@@ -3432,11 +3971,61 @@ async function loadP4() {
     'cf_fx','cf_rcash','cf_fin_net',
     'cf_open','cf_close','cf_change'
   ];
-  const [aF, bF] = await Promise.all([
-    _fetchFactsAct(ctx, LINES),
-    _fetchFactsN(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
-  ]);
+
+  let aF, bF, allActF, aopF, leF4;
+  if (_p4ColView === 'ytg') {
+    const leCode = 'LE_' + ctx.yr + '_02';
+    const remStart = ctx.yr * 100 + ctx.maxMo + 1, remEnd = ctx.yr * 100 + 12;
+    [aF, leF4] = await Promise.all([
+      _fetchFactsAct(ctx, LINES),
+      ctx.maxMo < 12 ? _fetchFactsN(leCode, LINES, remStart, remEnd) : Promise.resolve({}),
+    ]);
+  } else if (_p4ColView !== 'ytd') {
+    const yr = ctx.yr, ps = yr * 100, allPids = [];
+    for (let m = 1; m <= 12; m++) allPids.push(ps + m);
+    [allActF, aopF] = await Promise.all([
+      ctx.hasMonthly
+        ? _fetchFactsMulti(yr, _expandAliasLines(LINES), allPids)
+        : _fetchFactsN('HIST_ACTUAL_' + yr, LINES, ps + 1, ps + 12),
+      _fetchFactsN('AOP_' + yr, LINES, ps + 1, ps + 12),
+    ]);
+  } else {
+    [aF, bF] = await Promise.all([
+      _fetchFactsAct(ctx, LINES),
+      _fetchFactsN(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
+    ]);
+  }
   _pgLoad('p4', false);
+  _renderMoNav(ctx.maxMo); // keep month nav in sync regardless of active page
+
+  // View toggle pills
+  const cvToggle = '<div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:6px;padding:2px;gap:1px">'
+    + '<button class="p4-cv-btn' + (_p4ColView==='monthly'   ? ' active' : '') + '" onclick="p4SetColView(\'monthly\',this)">Monthly</button>'
+    + '<button class="p4-cv-btn' + (_p4ColView==='quarterly' ? ' active' : '') + '" onclick="p4SetColView(\'quarterly\',this)">Quarterly</button>'
+    + '<button class="p4-cv-btn' + (_p4ColView==='ytd'       ? ' active' : '') + '" onclick="p4SetColView(\'ytd\',this)">YTD</button>'
+    + '<button class="p4-cv-btn' + (_p4ColView==='ytg'       ? ' active' : '') + '" onclick="p4SetColView(\'ytg\',this)">Year to Go</button>'
+    + '</div>';
+
+  if (_p4ColView === 'ytg') {
+    const html = '<div class="page-head"><h1>Cash Flow</h1>'
+      + '<div class="ph-sub">Statement of Cash Flows &middot; YTD + LE to Go ' + ctx.yr + ' &middot; JMD $000s</div>'
+      + '<div style="margin-top:8px">' + cvToggle + '</div></div>'
+      + _buildCFYearToGo(ctx, aF, leF4);
+    const pg = document.getElementById('p4');
+    if (pg) pg.innerHTML = html;
+    return;
+  }
+  if (_p4ColView !== 'ytd') {
+    const html = '<div class="page-head"><h1>Cash Flow</h1>'
+      + '<div class="ph-sub">Statement of Cash Flows &middot; '
+      + (_p4ColView === 'quarterly' ? 'Quarterly' : 'Monthly') + ' ' + ctx.yr
+      + ' &middot; JMD $000s</div>'
+      + '<div style="margin-top:8px">' + cvToggle + '</div></div>'
+      + _buildCFMultiCol(ctx, allActF, aopF, _p4ColView);
+    const pg = document.getElementById('p4');
+    if (pg) pg.innerHTML = html;
+    return;
+  }
 
   function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
   function sb(lid) { return _fSumP(bF, lid, ctx.cmpPeriods); }
@@ -3454,7 +4043,8 @@ async function loadP4() {
 
   const html = ''
     + '<div class="page-head"><h1>Cash Flow</h1>'
-    + '<div class="ph-sub">Statement of Cash Flows (Indirect) &middot; ' + ctx.viewLbl + ' &middot; JMD $000s</div></div>'
+    + '<div class="ph-sub">Statement of Cash Flows (Indirect) &middot; ' + ctx.viewLbl + ' &middot; JMD $000s</div>'
+    + '<div style="margin-top:8px">' + cvToggle + '</div></div>'
     + '<div class="card"><div class="card-head">Statement of Cash Flows'
     + ' <span class="ch-sub">Indirect method &middot; ' + ctx.viewLbl + ' vs ' + ctx.cmpLbl + '</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
@@ -3493,6 +4083,189 @@ async function loadP4() {
 
   const pg = document.getElementById('p4');
   if (pg) pg.innerHTML = html;
+}
+
+/* ----- CF MULTI-COL (Monthly / Quarterly) ----- */
+function _buildCFMultiCol(ctx, actF, aopF, view) {
+  const yr = ctx.yr;
+  const maxMo = ctx.maxMo; // correct for all years via _ensureMaxMo + _hasMonthly
+  const allPids = [];
+  for (let m = 1; m <= 12; m++) allPids.push(yr * 100 + m);
+
+  // Columns
+  let cols;
+  if (view === 'quarterly') {
+    cols = [
+      { label: 'Q1', pids: allPids.slice(0, 3) },
+      { label: 'Q2', pids: allPids.slice(3, 6) },
+      { label: 'Q3', pids: allPids.slice(6, 9) },
+      { label: 'Q4', pids: allPids.slice(9, 12) },
+    ];
+    cols.forEach(function(c) {
+      const lastMo = c.pids[c.pids.length-1] % 100;
+      const firstMo = c.pids[0] % 100;
+      c.isAct = lastMo <= maxMo;
+      c.isMix = !c.isAct && firstMo <= maxMo;
+    });
+  } else {
+    cols = allPids.map(function(p) {
+      const m = p % 100;
+      return { label: _MONS[m-1], pids: [p], isAct: m <= maxMo, isMix: false };
+    });
+  }
+  const fyCol = { label: 'FY ' + yr, pids: allPids, isFY: true };
+  const allCols = cols.concat([fyCol]);
+  const nCols = allCols.length + 1;
+
+  // Value helper (sum over pids, mixing actual/AOP by month)
+  function cv(lid, pids) {
+    var sum = 0;
+    pids.forEach(function(p) {
+      const useAct = (p % 100) <= maxMo;
+      const f = useAct ? actF : aopF;
+      sum += (f[lid] && f[lid][p] != null) ? f[lid][p] : 0;
+    });
+    return sum;
+  }
+
+  // Header
+  var thead = '<thead><tr><th style="text-align:left;min-width:200px">Description</th>';
+  allCols.forEach(function(c) {
+    var sub = c.isFY ? '' : (c.isAct ? '<br><span style="font-size:9px;font-weight:400;opacity:.8">Actual</span>'
+      : c.isMix ? '<br><span style="font-size:9px;font-weight:400;opacity:.8">Part-AOP</span>'
+      : '<br><span style="font-size:9px;font-weight:400;opacity:.8">AOP</span>');
+    var clr = c.isFY ? '' : (c.isAct ? 'color:#22d3ee' : 'color:var(--muted)');
+    thead += '<th style="' + clr + '">' + c.label + sub + '</th>';
+  });
+  thead += '</tr></thead>';
+
+  // Row builders
+  function rline(lbl, lid, cls) {
+    var r = '<tr class="' + (cls||'rind') + '"><td>' + lbl + '</td>';
+    allCols.forEach(function(c) { r += '<td style="text-align:right;white-space:nowrap">' + _fmtM(cv(lid, c.pids)) + '</td>'; });
+    return r + '</tr>';
+  }
+  function rsub(lbl, lid, cls) {
+    var r = '<tr class="' + (cls||'rs') + '"><td><strong>' + lbl + '</strong></td>';
+    allCols.forEach(function(c) { r += '<td style="text-align:right;white-space:nowrap;font-weight:700">' + _fmtM(cv(lid, c.pids)) + '</td>'; });
+    return r + '</tr>';
+  }
+  function rsec(lbl) { return '<tr class="rsec"><td colspan="' + nCols + '">' + lbl + '</td></tr>'; }
+
+  var tbody = ''
+    + rsec('Operating Activities')
+    + rline('Net Income',                 'cf_ni')
+    + rline('Add: Depreciation',          'cf_depn')
+    + rline('Add: Deferred Tax',          'cf_def_tax')
+    + rline('Net Interest Adjustment',    'cf_netint')
+    + rline('WC: Trade Receivables',      'cf_wc_recv')
+    + rline('WC: Accounts Payable',       'cf_wc_ap')
+    + rline('WC: Inventories',            'cf_wc_inv')
+    + rline('WC: Corp Tax &amp; Payroll', 'cf_wc_corptax')
+    + rline('WC: Employee Costs',         'cf_wc_emp')
+    + rline('WC: Due From / Other',       'cf_wc_due_fr')
+    + rline('Tax Paid',                   'cf_tax_exp')
+    + rline('Interest Paid',              'cf_intpd')
+    + rsub('Net Cash from Operating',     'cf_ops_net', 'rs')
+    + rsec('Investing Activities')
+    + rline('Capital Expenditure',        'cf_capex')
+    + rline('Asset Disposals',            'cf_disp')
+    + rsub('Net Cash from Investing',     'cf_inv_net', 'rs')
+    + rsec('Financing Activities')
+    + rline('Loan Repayments',            'cf_loanrep')
+    + rline('Debt Amortization',          'cf_amort_debt')
+    + rline('Lease Payments (IFRS 16)',   'cf_lease_p')
+    + rline('Dividends Paid',             'cf_orddiv')
+    + rline('FX &amp; Other',             'cf_fx')
+    + rsub('Net Cash from Financing',     'cf_fin_net', 'rs')
+    + rsec('Net Movement')
+    + rsub('Net Change in Cash',          'cf_change', 'rt');
+
+  const note = ctx.isCY && maxMo < 12
+    ? '<div style="font-size:11px;color:var(--muted);padding:6px 0">* Up to ' + _MONS[maxMo-1] + ' ' + yr + ' = Actuals &nbsp;|&nbsp; Remaining = AOP ' + yr + '</div>'
+    : '';
+
+  return '<div class="card"><div class="card-head"><span class="card-title">Cash Flow — '
+    + (view === 'quarterly' ? 'Quarterly' : 'Monthly') + ' View</span>'
+    + '<span class="ch-sub"> ' + yr + ' &middot; JMD $000s</span></div>'
+    + '<div class="tw"><table class="kpi-sc-tbl">' + thead + '<tbody>' + tbody + '</tbody></table></div>'
+    + note + '</div>';
+}
+
+/* ----- CF YEAR TO GO (YTD actual + LE monthly remaining) ----- */
+function _buildCFYearToGo(ctx, ytdF, leF) {
+  const yr = ctx.yr, maxMo = ctx.maxMo;
+  const ytdCol  = { label: 'YTD Jan–' + _MONS[maxMo-1], isYTD: true };
+  const leCols  = [];
+  for (let m = maxMo + 1; m <= 12; m++) leCols.push({ label: _MONS[m-1], period: yr * 100 + m, isLE: true });
+  const fyCol   = { label: 'FY Proj', isFY: true };
+  const allCols = [ytdCol].concat(leCols).concat([fyCol]);
+  const nCols   = allCols.length + 1;
+
+  function ytdV(lid)  { return _fSumP(ytdF, lid, ctx.actPeriods); }
+  function leV(lid,p) { return (leF[lid] && leF[lid][p] != null) ? leF[lid][p] : 0; }
+  function fyV(lid)   { return ytdV(lid) + leCols.reduce(function(s,c){ return s + leV(lid, c.period); }, 0); }
+
+  function getV(lid, c) {
+    if (c.isYTD) return ytdV(lid);
+    if (c.isLE)  return leV(lid, c.period);
+    return fyV(lid);
+  }
+
+  var thead = '<thead><tr><th style="text-align:left;min-width:200px">Description</th>';
+  allCols.forEach(function(c) {
+    if (c.isYTD) thead += '<th style="color:#22d3ee">'+c.label+'<br><span style="font-size:9px;font-weight:400;opacity:.8">Actual</span></th>';
+    else if (c.isLE) thead += '<th style="color:var(--amber)">'+c.label+'<br><span style="font-size:9px;font-weight:400;opacity:.8">LE</span></th>';
+    else thead += '<th style="font-weight:800">'+c.label+'</th>';
+  });
+  thead += '</tr></thead>';
+
+  function rline(lbl, lid, cls) {
+    var r = '<tr class="'+(cls||'rind')+'"><td>'+lbl+'</td>';
+    allCols.forEach(function(c){ r+='<td style="text-align:right;white-space:nowrap">'+_fmtM(getV(lid,c))+'</td>'; });
+    return r+'</tr>';
+  }
+  function rsub(lbl, lid, cls) {
+    var r = '<tr class="'+(cls||'rs')+'"><td><strong>'+lbl+'</strong></td>';
+    allCols.forEach(function(c){ r+='<td style="text-align:right;white-space:nowrap;font-weight:700">'+_fmtM(getV(lid,c))+'</td>'; });
+    return r+'</tr>';
+  }
+  function rsec(lbl) { return '<tr class="rsec"><td colspan="'+nCols+'">'+lbl+'</td></tr>'; }
+
+  var tbody = ''
+    + rsec('Operating Activities')
+    + rline('Net Income',                 'cf_ni')
+    + rline('Add: Depreciation',          'cf_depn')
+    + rline('Add: Deferred Tax',          'cf_def_tax')
+    + rline('Net Interest Adjustment',    'cf_netint')
+    + rline('WC: Trade Receivables',      'cf_wc_recv')
+    + rline('WC: Accounts Payable',       'cf_wc_ap')
+    + rline('WC: Inventories',            'cf_wc_inv')
+    + rline('WC: Corp Tax &amp; Payroll', 'cf_wc_corptax')
+    + rline('WC: Employee Costs',         'cf_wc_emp')
+    + rline('WC: Due From / Other',       'cf_wc_due_fr')
+    + rline('Tax Paid',                   'cf_tax_exp')
+    + rline('Interest Paid',              'cf_intpd')
+    + rsub('Net Cash from Operating',     'cf_ops_net', 'rs')
+    + rsec('Investing Activities')
+    + rline('Capital Expenditure',        'cf_capex')
+    + rline('Asset Disposals',            'cf_disp')
+    + rsub('Net Cash from Investing',     'cf_inv_net', 'rs')
+    + rsec('Financing Activities')
+    + rline('Loan Repayments',            'cf_loanrep')
+    + rline('Debt Amortization',          'cf_amort_debt')
+    + rline('Lease Payments (IFRS 16)',   'cf_lease_p')
+    + rline('Dividends Paid',             'cf_orddiv')
+    + rline('FX &amp; Other',             'cf_fx')
+    + rsub('Net Cash from Financing',     'cf_fin_net', 'rs')
+    + rsec('Net Movement')
+    + rsub('Net Change in Cash',          'cf_change', 'rt');
+
+  return '<div class="notice-bar" style="background:rgba(251,191,36,.12);color:var(--text);border-color:var(--amber)">'
+    + '&#9888; YTD = Actuals Jan–' + _MONS[maxMo-1] + ' &nbsp;|&nbsp; Remaining = LE_' + yr + '_02</div>'
+    + '<div class="card"><div class="card-head"><span class="card-title">Cash Flow — Year to Go</span>'
+    + '<span class="ch-sub"> ' + yr + ' &middot; JMD $000s</span></div>'
+    + '<div class="tw"><table class="kpi-sc-tbl">'+thead+'<tbody>'+tbody+'</tbody></table></div></div>';
 }
 
 /* ====================================================================
@@ -3974,7 +4747,7 @@ function flashExportPDF() {
   var orig=document.title;
   var maps=_flashPeriodMaps();
   var periodId=parseInt(document.getElementById('flashMoA')?.value||(_CY*100+3));
-  document.title='JPS Flash Report '+(maps.short[periodId]||periodId);
+  document.title='JPS Management Report '+(maps.short[periodId]||periodId);
   window.print();
   document.title=orig;
   toast('Print dialog opened — save as PDF','ok');
@@ -3997,7 +4770,7 @@ var _KPI_SECTIONS = {
 };
 
 // Financial KPI codes derived from fpa_facts (not stored in jps_kpi_actuals)
-var _KPI_FINANCIAL = ['ebitda_margin', 'npat_margin', 'net_debt_ebitda'];
+var _KPI_FINANCIAL = ['ebitda_margin', 'npat_margin', 'net_debt_ebitda', 'rev_per_kwh'];
 
 // fpa_facts line IDs needed for financial KPI derivation
 var _KPI_FIN_LINES = ['pl_total_sales', 'nonfuel', 'fuel_rev', 'ipp_fr', 'other_r',
@@ -4043,8 +4816,8 @@ async function loadP10(force) {
       kpiActuals[r.kpi_code][r.period_id] = { val: r.value, adj: r.adjusted_value };
     });
 
-    // Derive financial KPIs from fpa_facts
-    var finDerived = _p10DeriveFinancial(finFacts, months, ctx);
+    // Derive financial KPIs from fpa_facts (pass kpiActuals for rev_per_kwh)
+    var finDerived = _p10DeriveFinancial(finFacts, months, kpiActuals);
 
     // Build table
     if (body) body.innerHTML = _p10BuildTable(targets, kpiActuals, finDerived, months, ctx);
@@ -4056,39 +4829,57 @@ async function loadP10(force) {
   }
 }
 
-function _p10DeriveFinancial(f, months, ctx) {
-  // For each month compute revenue + ebitda + net_inc; sum for YTD
-  var rev = 0, ebitdaSum = 0, netIncSum = 0, totalDebt = 0, cash = 0;
+function _p10GetRevForPeriod(f, p) {
+  return (f['pl_total_sales'] && f['pl_total_sales'][p]) ||
+    ((f['nr_rev'] && f['nr_rev'][p] || 0) +
+     (f['fuel_rev'] && f['fuel_rev'][p] || 0) +
+     (f['ipp_fr'] && f['ipp_fr'][p] || 0) +
+     (f['other_r'] && f['other_r'][p] || 0)) || 0;
+}
 
-  months.forEach(function(p) {
-    var r = (f['pl_total_sales'] && f['pl_total_sales'][p]) ||
-            ((f['nr_rev']&&f['nr_rev'][p]||0) + (f['nonfuel']&&!f['nr_rev']?f['nonfuel'][p]||0:0) +
-             (f['fuel_rev']&&f['fuel_rev'][p]||0) + (f['ipp_fr']&&f['ipp_fr'][p]||0) + (f['other_r']&&f['other_r'][p]||0));
-    rev += (r || 0);
+function _p10DeriveFinancial(f, months, kpiActuals) {
+  // Returns { ytd: {kpi_code: value}, monthly: {kpi_code: {period_id: value}} }
+  var ytd = {}, mo = {};
+  ['ebitda_margin','npat_margin','net_debt_ebitda','rev_per_kwh'].forEach(function(k){ mo[k]={}; });
 
-    var e = (f['ebitda'] && f['ebitda'][p]) || 0;
-    ebitdaSum += e;
+  var revSum=0, ebitdaSum=0, netIncSum=0, gwhSum=0;
 
-    var n = (f['net_inc'] && f['net_inc'][p]) || 0;
-    netIncSum += n;
+  months.forEach(function(p, idx) {
+    var rev    = _p10GetRevForPeriod(f, p);
+    var ebitda = (f['ebitda']  && f['ebitda'][p])  || 0;
+    var netInc = (f['net_inc'] && f['net_inc'][p]) || 0;
+    var gwh    = (kpiActuals['gwh_billed'] && kpiActuals['gwh_billed'][p] && kpiActuals['gwh_billed'][p].val) || 0;
+
+    revSum    += rev;
+    ebitdaSum += ebitda;
+    netIncSum += netInc;
+    gwhSum    += gwh;
+
+    mo['ebitda_margin'][p] = rev > 0 ? (ebitda / rev * 100)  : null;
+    mo['npat_margin'][p]   = rev > 0 ? (netInc / rev * 100)  : null;
+    mo['rev_per_kwh'][p]   = (rev > 0 && gwh > 0) ? (rev * 0.1 / gwh) : null;
+
+    // Net Debt/EBITDA: annualise YTD EBITDA through this period
+    var nMo = idx + 1;
+    var annEbitda = nMo > 0 ? (ebitdaSum / nMo * 12) : 0;
+    var totalDebt = (f['total_debt'] && f['total_debt'][p]) || 0;
+    var cash      = (f['cash']       && f['cash'][p])       || 0;
+    mo['net_debt_ebitda'][p] = annEbitda > 0 ? ((totalDebt - cash) / annEbitda) : null;
   });
 
-  // Use latest month for balance sheet items
+  // YTD
   var latestP = months[months.length - 1];
-  totalDebt = (f['total_debt'] && f['total_debt'][latestP]) || 0;
-  cash      = (f['cash']       && f['cash'][latestP])       || 0;
-  var netDebt = totalDebt - cash;
+  var finalDebt = (f['total_debt'] && f['total_debt'][latestP]) || 0;
+  var finalCash = (f['cash']       && f['cash'][latestP])       || 0;
+  var annEbitdaYtd = months.length > 0 ? (ebitdaSum / months.length * 12) : 0;
 
-  // Annualise EBITDA for Net Debt / EBITDA (YTD × 12/n)
-  var n = months.length;
-  var ebitdaAnn = n > 0 ? ebitdaSum * (12 / n) : 0;
+  ytd['ebitda_margin']   = revSum    > 0 ? (ebitdaSum / revSum * 100)  : null;
+  ytd['npat_margin']     = revSum    > 0 ? (netIncSum / revSum * 100)  : null;
+  ytd['net_debt_ebitda'] = annEbitdaYtd > 0 ? ((finalDebt - finalCash) / annEbitdaYtd) : null;
+  ytd['rev_per_kwh']     = (revSum > 0 && gwhSum > 0) ? (revSum * 0.1 / gwhSum) : null;
+  ytd['_rev'] = revSum; ytd['_ebitda'] = ebitdaSum; ytd['_net_inc'] = netIncSum;
 
-  return {
-    ebitda_margin:  rev > 0 ? (ebitdaSum / rev) * 100 : null,
-    npat_margin:    rev > 0 ? (netIncSum  / rev) * 100 : null,
-    net_debt_ebitda: ebitdaAnn > 0 ? netDebt / ebitdaAnn : null,
-    _rev: rev, _ebitda: ebitdaSum, _net_inc: netIncSum
-  };
+  return { ytd: ytd, monthly: mo };
 }
 
 function _p10YtdValue(kpiCode, kpiActuals, months, method) {
@@ -4196,8 +4987,8 @@ function _p10BuildTable(targets, kpiActuals, finDerived, months, ctx) {
 
       var ytdActual, ytdTarget;
       if (isFinancial) {
-        ytdActual = finDerived[t.kpi_code] !== undefined ? finDerived[t.kpi_code] : null;
-        ytdTarget = t.annual_target; // margin/ratio = same target year-round
+        ytdActual = finDerived.ytd[t.kpi_code] !== undefined ? finDerived.ytd[t.kpi_code] : null;
+        ytdTarget = parseFloat(t.annual_target); // margin/ratio — same target year-round
       } else {
         ytdActual = _p10YtdValue(t.kpi_code, kpiActuals, months, t.ytd_method);
         ytdTarget = _p10YtdTarget(t.annual_target, months, t.ytd_method);
@@ -4205,13 +4996,20 @@ function _p10BuildTable(targets, kpiActuals, finDerived, months, ctx) {
 
       var rag = _p10Rag(ytdActual, ytdTarget, t.favorable_direction, t.amber_threshold || 0.05);
 
-      var moCells = isFinancial
-        ? '<td colspan="' + numMos + '" style="color:var(--muted);font-size:10.5px;text-align:center;font-style:italic">derived from P&amp;L</td>'
-        : monthVals.map(function(v){ return '<td>' + _p10Fmt(v, t.unit, t.kpi_code) + '</td>'; }).join('');
+      var moCells = months.map(function(p) {
+        var v;
+        if (isFinancial) {
+          v = finDerived.monthly[t.kpi_code] ? finDerived.monthly[t.kpi_code][p] : null;
+        } else {
+          var r = kpiActuals[t.kpi_code] && kpiActuals[t.kpi_code][p];
+          v = r ? r.val : null;
+        }
+        return '<td>' + _p10Fmt(v, t.unit, t.kpi_code) + '</td>';
+      }).join('');
 
       rows += '<tr>'
-        + '<td>' + (t.display_name || t.kpi_code) + '</td>'
-        + '<td style="color:var(--muted);font-size:11px">' + (t.unit || '') + '</td>'
+        + '<td>' + _escHtml(t.display_name || t.kpi_code) + '</td>'
+        + '<td style="color:var(--muted);font-size:11px">' + _escHtml(t.unit || '') + '</td>'
         + moCells
         + '<td style="font-weight:700">' + _p10Fmt(ytdActual, t.unit, t.kpi_code) + '</td>'
         + '<td style="color:var(--muted)">' + _p10Fmt(t.annual_target, t.unit, t.kpi_code) + '</td>'
@@ -4252,12 +5050,7 @@ function _p10BuildTable(targets, kpiActuals, finDerived, months, ctx) {
   if (!targets.length) {
     noDataNote = '<tr><td colspan="' + (5 + numMos) + '" style="text-align:center;color:var(--muted);padding:24px">No KPI targets configured for ' + ctx.yr + '. Add targets in <code>jps_kpi_targets</code>.</td></tr>';
   }
-  var noActualsNote = kpiActuals && Object.keys(kpiActuals).length === 0
-    ? '<div style="margin:8px 16px;padding:8px 12px;background:rgba(217,119,6,.1);border-radius:6px;font-size:11.5px;color:var(--amber)">&#9888; No operational KPI actuals loaded. Upload data via DataManager &rarr; KPI Actuals tab.</div>'
-    : '';
-
-  return noActualsNote
-    + '<div class="tw"><table class="kpi-sc-tbl">'
+  return '<div class="tw"><table class="kpi-sc-tbl">'
     + thead
     + '<tbody>' + (noDataNote || rows) + '</tbody>'
     + '</table></div>';
@@ -4271,9 +5064,11 @@ function loadPage(id) {
   else if (id === 'p3')  loadP3();
   else if (id === 'p4')  loadP4();
   else if (id === 'p10') loadP10();
+  else if (id === 'p13') loadP13();
   else if (id === 'p17') loadP17();
+  else if (id === 'p11') loadP11();
   else if (id === 'p15') loadAuditFromDB();
-  // p5–p9, p11–p16: static HTML retained
+  // p5–p9, p12, p14, p16: static HTML retained
 }
 
 /* ====================================================================
@@ -4290,6 +5085,7 @@ const _yearMaxMo = {};        // cache: year → max actual month available
 function _getCtx() {
   const yr   = _activeYear;
   const isCY = (yr === _CY);
+  const hasMonthly = _hasMonthly(yr); // true for any year with ACTUALS_YYYY_MM (2014–present)
   const rawMaxMo = (_yearMaxMo[yr] != null) ? _yearMaxMo[yr] : (isCY ? 0 : 12);
   // When maxMo = 0 (no actuals found yet or demo mode), fall back to current calendar month
   // so pages still render — they'll just show zeros with a "no data" notice
@@ -4314,10 +5110,13 @@ function _getCtx() {
 
   // Version codes
   const actCode = isCY ? ('HIST_ACTUAL_' + yr + '_YTD') : ('HIST_ACTUAL_' + yr);
-  const cmpCode = _activeCmp === 'PY'  ? ('HIST_ACTUAL_' + (yr - 1))
-                : _activeCmp === 'LE1' ? ('LE_' + yr + '_01')
-                : _activeCmp === 'LE2' ? ('LE_' + yr + '_02')
-                :                        ('AOP_' + yr);
+  let cmpCode = _activeCmp === 'PY'  ? ('HIST_ACTUAL_' + (yr - 1))
+              : _activeCmp === 'LE1' ? ('LE_' + yr + '_01')
+              : _activeCmp === 'LE2' ? ('LE_' + yr + '_02')
+              :                        ('AOP_' + yr);
+  // Auto-fallback: if AOP requested but doesn't exist for this year, fall back to PY actuals
+  const _aopMissing = (_activeCmp === 'Budget') && !(_vMap || {})[cmpCode];
+  if (_aopMissing) cmpCode = _hasMonthly(yr - 1) ? ('ACTUALS_' + (yr-1) + '_12') : ('HIST_ACTUAL_' + (yr - 1));
 
   // Display labels
   const moLbl  = _MONS[mo - 1] + ' ' + yr;
@@ -4325,13 +5124,13 @@ function _getCtx() {
   const fyLbl  = 'FY ' + yr;
   const viewLbl = _activeView === 'Month' ? moLbl : (_activeView === 'YTD' ? ytdLbl : fyLbl);
 
-  const cmpYr  = (_activeCmp === 'PY') ? (yr - 1) : yr;
+  const cmpYr  = (_activeCmp === 'PY' || _aopMissing) ? (yr - 1) : yr;
   const cmpLbl = _activeCmp === 'PY'     ? (_activeView === 'Month' ? _MONS[mo-1]+' '+(yr-1) : _activeView === 'FY' ? 'FY '+(yr-1) : ytdLbl.replace(yr, yr-1))
-               : _activeCmp === 'Budget' ? 'AOP ' + yr
+               : _activeCmp === 'Budget' ? (_aopMissing ? 'PY ' + (yr-1) : 'AOP ' + yr)
                : (_activeCmp + ' ' + yr);
 
   return {
-    yr, mo, maxMo, isCY,
+    yr, mo, maxMo, isCY, hasMonthly,
     actPeriods, cmpPeriods,
     actCode, cmpCode,
     actStart: actPeriods[0], actEnd: actPeriods[actPeriods.length - 1],
@@ -4392,22 +5191,27 @@ function setActiveCmp(c) {
 // Render year pills from available HIST_ACTUAL_YYYY versions
 async function _renderYrNav() {
   await _ensureVMap();
-  const years = Object.keys(_vMap || {})
-    .filter(function(k) { return /^HIST_ACTUAL_\d{4}$/.test(k); })
-    .map(function(k) { return parseInt(k.replace('HIST_ACTUAL_', '')); })
-    .sort(function(a, b) { return b - a; })
-    .slice(0, 6); // last 6 years
-  // Also include CY if monthly actuals exist (even when YTD aggregate absent/incomplete)
-  if (years.indexOf(_CY) < 0) {
-    for (let m = 1; m <= 12; m++) {
-      if (_vMap['ACTUALS_' + _CY + '_' + (m < 10 ? '0' + m : m)]) { years.unshift(_CY); break; }
-    }
-  }
+  // Build year list from ACTUALS_YYYY_MM per-month versions (most complete data source, 2014–present)
+  const yearSet = new Set();
+  Object.keys(_vMap || {}).forEach(function(k) {
+    const m = k.match(/^ACTUALS_(\d{4})_\d{2}$/);
+    if (m) yearSet.add(parseInt(m[1]));
+  });
+  // Also include any HIST_ACTUAL_YYYY years not covered above
+  Object.keys(_vMap || {}).forEach(function(k) {
+    const m = k.match(/^HIST_ACTUAL_(\d{4})$/);
+    if (m) yearSet.add(parseInt(m[1]));
+  });
+  // Add any user-opened planning years (future years without actuals)
+  _openYears.forEach(function(y) { yearSet.add(y); });
+  const years = Array.from(yearSet).sort(function(a, b) { return b - a; }).slice(0, 10); // up to 10 years
   const nav = document.getElementById('yr-nav');
   if (!nav) return;
   nav.innerHTML = years.map(function(y) {
-    return '<button class="yr-btn' + (y === _activeYear ? ' active-yr' : '')
-      + '" data-yr="' + y + '" onclick="setActiveYear(' + y + ')">' + y + '</button>';
+    const isPlan = _openYears.indexOf(y) >= 0 && !_hasMonthly(y);
+    const cls = 'yr-btn' + (y === _activeYear ? ' active-yr' : '') + (isPlan ? ' plan-yr' : '');
+    return '<button class="' + cls + '" data-yr="' + y + '" onclick="setActiveYear(' + y + ')" title="' + (isPlan ? 'Planning year' : '') + '">'
+      + y + (isPlan ? ' <span style="font-size:9px;opacity:.8">&#9679;</span>' : '') + '</button>';
   }).join('');
 }
 
@@ -4423,6 +5227,78 @@ function _renderMoNav(maxMo) {
   }
   nav.innerHTML = html;
 }
+
+/* ---------- Year Management (DB-backed via fpa_planning_years) ---------- */
+let _openYears = []; // populated from Supabase on init — do NOT use localStorage
+
+async function _loadOpenYears() {
+  try {
+    const { data } = await _sbQ(function(sb) {
+      return sb.from('fpa_planning_years').select('year').eq('status', 'open');
+    });
+    _openYears = (data || []).map(function(r) { return r.year; });
+  } catch(e) {
+    console.warn('[FPA] fpa_planning_years load failed:', e.message);
+    _openYears = [];
+  }
+}
+
+function _isPlanYear(yr) {
+  // A year is a "plan year" only if it's in the open list AND has no actual data loaded
+  return _openYears.indexOf(yr) >= 0 && !_hasMonthly(yr);
+}
+
+// toggleOpenYear — read-only in FP&A Hub; direct users to DataManager for changes
+function toggleOpenYear(yr) {
+  // Remove locally (optimistic close) and prompt user to manage via DataManager
+  const i = _openYears.indexOf(yr);
+  if (i >= 0) {
+    _openYears.splice(i, 1);
+    if (_activeYear === yr) setActiveYear(_CY);
+    _renderYrNav();
+    toast('Year hidden locally. To permanently close, use DataManager → Year Management.', 'info', 5000);
+  }
+}
+
+function _renderYrMgmt() {
+  const el = document.getElementById('yrMgmtRows');
+  if (!el) return;
+  const dbYears = _openYears.filter(function(y) { return !_hasMonthly(y); });
+  let html = '';
+  if (dbYears.length) {
+    dbYears.sort(function(a, b) { return b - a; }).forEach(function(y) {
+      html += '<div class="yr-mgmt-row">'
+        + '<div><div class="yr-mgmt-lbl">FY ' + y + '</div>'
+        + '<div class="yr-mgmt-sublbl">Planning year — open</div></div>'
+        + '<div class="yr-mgmt-toggle">'
+        + '<button class="yr-toggle-btn open" onclick="toggleOpenYear(' + y + ')">Hide</button>'
+        + '</div></div>';
+    });
+  } else {
+    html = '<div style="color:var(--muted);font-size:12px;padding:4px 0">No planning years open.<br>Add them in DataManager → Year Management.</div>';
+  }
+  html += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">'
+    + '<a href="https://datamanager.jmfinancelab.com" target="_blank" style="font-size:11px;color:var(--teal);font-weight:600">Manage years in DataManager &rarr;</a>'
+    + '</div>';
+  el.innerHTML = html;
+}
+
+function toggleYrMgmt(e) {
+  if (e) e.stopPropagation();
+  const pop = document.getElementById('yrMgmtPop');
+  if (!pop) return;
+  const isOpen = pop.classList.contains('open');
+  pop.classList.toggle('open', !isOpen);
+  if (!isOpen) _renderYrMgmt();
+}
+
+document.addEventListener('click', function(e) {
+  const pop = document.getElementById('yrMgmtPop');
+  if (!pop || !pop.classList.contains('open')) return;
+  if (pop.contains(e.target)) return;
+  if (e.target.closest && e.target.closest('.yr-add-btn')) return;
+  pop.classList.remove('open');
+});
 
 /* ---------- Notifications ---------- */
 function toggleNotif() {
@@ -4463,21 +5339,294 @@ function onBvlChange() {
 }
 
 /* ---------- Scenario manager ---------- */
-function activateScenario(name, cardId) {
-  document.querySelectorAll('.scn-card').forEach(function (c) {
-    c.classList.remove('active-scn');
-    const btn = c.querySelector('.scn-btn');
-    if (btn) btn.textContent = 'Activate';
-  });
-  const card = document.getElementById(cardId);
-  if (card) {
-    card.classList.add('active-scn');
-    const btn = card.querySelector('.scn-btn');
-    if (btn) btn.textContent = 'Active';
+/* ── O&M Summary (p11) ────────────────────────────────────────────────── */
+var _OM_CAT_LABELS = { payroll: 'Payroll & Benefits', non_payroll: 'Non-Payroll', ifrs16: 'IFRS 16 (Leases)' };
+
+async function loadP11(force) {
+  if (!force && _loadedPages.has('p11')) return;
+  _loadedPages.add('p11');
+  var body = document.getElementById('p11Body');
+  var sub  = document.getElementById('p11Sub');
+  var title = document.getElementById('p11CardTitle');
+  if (body) body.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:13px">Loading O&amp;M data…</div>';
+
+  try {
+    // Get current year periods from om_dim_period
+    var yr = _activeYear || _CY;
+    var [dimLinesR, periodsR] = await Promise.all([
+      _sbQ(function(sb){ return sb.from('om_dim_line').select('*').order('sort_order'); }),
+      _sbQ(function(sb){ return sb.from('om_dim_period').select('id,period_key,year,month').eq('year', yr).order('month'); })
+    ]);
+    var lines   = (dimLinesR && dimLinesR.data) || [];
+    var periods = (periodsR  && periodsR.data)  || [];
+    if (!periods.length) { if(body) body.innerHTML = '<div style="padding:24px;color:var(--muted);text-align:center">No O&amp;M period data for ' + yr + '</div>'; return; }
+
+    var periodIds = periods.map(function(p){ return p.id; });
+    var lineIds   = lines.map(function(l){ return l.id; });
+    var moLabels  = periods.map(function(p){ return _MONS[p.month - 1]; });
+
+    // Fetch actuals + budget for the year
+    var [actR, budR] = await Promise.all([
+      _sbQ(function(sb){ return sb.from('om_facts').select('line_id,period_id,amount_usd').eq('version','ACTUAL').in('period_id', periodIds).in('line_id', lineIds); }),
+      _sbQ(function(sb){ return sb.from('om_facts').select('line_id,period_id,amount_usd').eq('version','BUDGET').in('period_id', periodIds).in('line_id', lineIds); })
+    ]);
+    var actRows = (actR && actR.data) || [];
+    var budRows = (budR && budR.data) || [];
+
+    // Index: facts[line_id][period_id] = amount_usd
+    function indexFacts(rows) {
+      var idx = {};
+      rows.forEach(function(r){ if(!idx[r.line_id])idx[r.line_id]={}; idx[r.line_id][r.period_id]=(idx[r.line_id][r.period_id]||0)+Number(r.amount_usd||0); });
+      return idx;
+    }
+    var actIdx = indexFacts(actRows), budIdx = indexFacts(budRows);
+
+    // Determine how many months have actuals
+    var actMos = periodIds.filter(function(pid){ return actRows.some(function(r){ return r.period_id===pid; }); });
+    var ytdPids = actMos; // periods with actual data
+
+    // Format $000s
+    function f000(v) {
+      if (v == null || isNaN(v)) return '—';
+      var n = v / 1000;
+      if (Math.abs(n) < 0.05) return '—';
+      return n < 0 ? '(' + Math.abs(n).toLocaleString('en',{maximumFractionDigits:0}) + ')' : n.toLocaleString('en',{maximumFractionDigits:0});
+    }
+    function varFmt(act, bud) {
+      if (act == null || bud == null) return '<td>—</td><td>—</td>';
+      var v = act - bud, pct = bud ? v / Math.abs(bud) * 100 : null;
+      var cls = v < -500 ? 'adv' : v > 500 ? 'fav' : 'neut';
+      return '<td class="' + cls + '">' + f000(v) + '</td>'
+           + '<td class="' + cls + '">' + (pct != null ? (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%' : '—') + '</td>';
+    }
+
+    // Build header
+    var numMo = ytdPids.length;
+    var ytdLabel = numMo > 0 ? 'YTD ' + _MONS[periods[numMo-1].month - 1] : 'YTD';
+    if(sub) sub.textContent = 'Cost Item Group & Cost Item · ' + ytdLabel + ' ' + yr + ' · USD $000s';
+    if(title) title.textContent = 'O&M Expenditure — ' + ytdLabel + ' ' + yr;
+
+    var thead = '<thead><tr>'
+      + '<th style="text-align:left;min-width:210px">Cost Item</th>'
+      + moLabels.slice(0, numMo).map(function(m){ return '<th>' + m + '</th>'; }).join('')
+      + '<th>' + ytdLabel + '</th><th>Budget YTD</th><th>Var $</th><th>Var %</th><th>Budget FY</th>'
+      + '</tr></thead>';
+
+    // Build rows grouped by category > line
+    var categories = ['payroll', 'non_payroll', 'ifrs16'];
+    var tbody = '';
+    var grandActYtd = 0, grandBudYtd = 0, grandBudFy = 0;
+
+    categories.forEach(function(cat) {
+      var catLines = lines.filter(function(l){ return l.category === cat; });
+      if (!catLines.length) return;
+
+      var catActYtd = 0, catBudYtd = 0, catBudFy = 0;
+      var lineRows = '';
+
+      catLines.forEach(function(l) {
+        var moVals = ytdPids.map(function(pid){ return actIdx[l.id] && actIdx[l.id][pid] != null ? actIdx[l.id][pid] : null; });
+        var actYtd = moVals.reduce(function(s,v){ return s + (v||0); }, 0);
+        var budYtd = ytdPids.reduce(function(s,pid){ return s + (budIdx[l.id]&&budIdx[l.id][pid]!=null?budIdx[l.id][pid]:0); }, 0);
+        var budFy  = periodIds.reduce(function(s,pid){ return s + (budIdx[l.id]&&budIdx[l.id][pid]!=null?budIdx[l.id][pid]:0); }, 0);
+        catActYtd += actYtd; catBudYtd += budYtd; catBudFy += budFy;
+
+        lineRows += '<tr class="rind">'
+          + '<td>' + _escHtml(l.name) + '</td>'
+          + moVals.map(function(v){ return '<td>' + f000(v) + '</td>'; }).join('')
+          + '<td style="font-weight:600">' + f000(actYtd) + '</td>'
+          + '<td style="color:var(--muted)">' + f000(budYtd) + '</td>'
+          + varFmt(actYtd, budYtd)
+          + '<td style="color:var(--muted)">' + f000(budFy) + '</td>'
+          + '</tr>';
+      });
+
+      grandActYtd += catActYtd; grandBudYtd += catBudYtd; grandBudFy += catBudFy;
+
+      tbody += '<tr class="rsec"><td colspan="' + (numMo + 6) + '">' + (_OM_CAT_LABELS[cat] || cat) + '</td></tr>';
+      tbody += lineRows;
+      tbody += '<tr class="rs">'
+        + '<td>Subtotal — ' + (_OM_CAT_LABELS[cat] || cat) + '</td>'
+        + ytdPids.map(function(pid){
+            var v = catLines.reduce(function(s,l){ return s+(actIdx[l.id]&&actIdx[l.id][pid]!=null?actIdx[l.id][pid]:0);},0);
+            return '<td style="font-weight:700">' + f000(v) + '</td>';
+          }).join('')
+        + '<td style="font-weight:700">' + f000(catActYtd) + '</td>'
+        + '<td>' + f000(catBudYtd) + '</td>'
+        + varFmt(catActYtd, catBudYtd)
+        + '<td>' + f000(catBudFy) + '</td>'
+        + '</tr>';
+    });
+
+    // Grand total
+    tbody += '<tr class="rt">'
+      + '<td>TOTAL O&amp;M</td>'
+      + ytdPids.map(function(pid){
+          var v = lines.reduce(function(s,l){ return s+(actIdx[l.id]&&actIdx[l.id][pid]!=null?actIdx[l.id][pid]:0);},0);
+          return '<td>' + f000(v) + '</td>';
+        }).join('')
+      + '<td>' + f000(grandActYtd) + '</td>'
+      + '<td>' + f000(grandBudYtd) + '</td>'
+      + varFmt(grandActYtd, grandBudYtd)
+      + '<td>' + f000(grandBudFy) + '</td>'
+      + '</tr>';
+
+    if (body) body.innerHTML = '<div class="tw"><table class="kpi-sc-tbl"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
+
+  } catch(e) {
+    console.error('[p11]', e);
+    if(body) body.innerHTML = '<div style="padding:24px;color:var(--rose)">Failed to load O&amp;M data: ' + _escHtml(String(e.message||e)) + '</div>';
+    _loadedPages.delete('p11');
   }
-  toast('Scenario activated: ' + name, 'ok');
-  if (window.JpsMonitor && JpsMonitor.info) JpsMonitor.info('scenario:activate', name, {});
 }
+
+/* ── Scenario Manager ─────────────────────────────────────────────────── */
+var _scnData = [];
+
+async function loadP13(force) {
+  if (!force && _loadedPages.has('p13')) return;
+  _loadedPages.add('p13');
+  var ctx = await _getCtx();
+  var yr = ctx ? ctx.yr : _CY;
+  var el = document.getElementById('scnYear'); if(el) el.textContent = yr;
+  var r = await _sbQ(function(sb){
+    return sb.from('fpa_scenarios').select('*').eq('year', yr).order('created_at');
+  });
+  _scnData = (r && r.data) || [];
+  _scnRender();
+}
+
+function _scnRender() {
+  var grid = document.getElementById('scnGrid');
+  var cmpCard = document.getElementById('scnCmpCard');
+  if (!grid) return;
+  if (!_scnData.length) {
+    grid.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:13px;grid-column:1/-1">No scenarios yet. Click <strong>+ New Scenario</strong> to create one.</div>';
+    if(cmpCard) cmpCard.style.display = 'none';
+    return;
+  }
+  grid.innerHTML = _scnData.map(function(s) {
+    var isActive = s.is_active;
+    var impactCls = s.ebitda_m ? (s.ebitda_m >= 218 ? 'fav' : 'adv') : '';
+    return '<div class="scn-card' + (isActive ? ' active-scn' : '') + '">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+      + '<h3 style="margin:0;font-size:14px;font-weight:800">' + _escHtml(s.name) + '</h3>'
+      + '<button class="btn" style="font-size:10px;padding:3px 8px;flex-shrink:0" onclick="scnOpenEdit(\'' + s.id + '\')">Edit</button>'
+      + '</div>'
+      + '<div class="scn-desc">' + _escHtml(s.description || '') + '</div>'
+      + '<div class="scn-tags">'
+      + (s.hfo_price  ? '<span class="scn-tag">HFO $' + s.hfo_price + '/bbl</span>' : '')
+      + (s.fx_rate    ? '<span class="scn-tag">FX J$' + s.fx_rate + '</span>' : '')
+      + (s.gwh_billed ? '<span class="scn-tag">' + Number(s.gwh_billed).toLocaleString() + ' GWh</span>' : '')
+      + (s.capex_m    ? '<span class="scn-tag">CapEx $' + s.capex_m + 'M</span>' : '')
+      + '</div>'
+      + (s.ebitda_m ? '<div class="scn-impact ' + impactCls + '">EBITDA $' + s.ebitda_m + 'M</div>' : '')
+      + '<button class="scn-btn" onclick="scnActivate(\'' + s.id + '\')">' + (isActive ? 'Active ✓' : 'Activate') + '</button>'
+      + '</div>';
+  }).join('');
+
+  // Comparison table
+  if (cmpCard && _scnData.length > 1) {
+    cmpCard.style.display = '';
+    var hdrs = '<tr><th style="text-align:left">Metric</th>' + _scnData.map(function(s){ return '<th>' + _escHtml(s.name) + '</th>'; }).join('') + '</tr>';
+    var rows = [
+      ['HFO Price ($/bbl)', function(s){ return s.hfo_price ? '$' + s.hfo_price : '—'; }],
+      ['JMD/USD Rate',      function(s){ return s.fx_rate   ? s.fx_rate        : '—'; }],
+      ['GWh Billed',        function(s){ return s.gwh_billed ? Number(s.gwh_billed).toLocaleString() : '—'; }],
+      ['CapEx ($M)',         function(s){ return s.capex_m   ? '$' + s.capex_m + 'M' : '—'; }],
+      ['EBITDA ($M)',        function(s){ return s.ebitda_m  ? '$' + s.ebitda_m + 'M' : '—'; }],
+      ['NPAT ($M)',          function(s){ return s.npat_m    ? '$' + s.npat_m + 'M'  : '—'; }],
+    ].map(function(def) {
+      return '<tr><td style="text-align:left">' + def[0] + '</td>' + _scnData.map(function(s){ return '<td>' + def[1](s) + '</td>'; }).join('') + '</tr>';
+    }).join('');
+    var tbl = document.getElementById('scnCmpTable');
+    if(tbl) tbl.innerHTML = '<thead>' + hdrs + '</thead><tbody>' + rows + '</tbody>';
+  } else if(cmpCard) {
+    cmpCard.style.display = 'none';
+  }
+}
+
+async function scnActivate(id) {
+  // Set is_active=true for this id, false for all others (same year)
+  var scn = _scnData.find(function(s){ return s.id === id; });
+  if (!scn) return;
+  // Deactivate all
+  var yr = scn.year;
+  var r1 = await _sbQ(function(sb){ return sb.from('fpa_scenarios').update({is_active:false}).eq('year', yr); });
+  if (!r1) return;
+  var r2 = await _sbQ(function(sb){ return sb.from('fpa_scenarios').update({is_active:true}).eq('id', id); });
+  if (!r2) return;
+  _scnData.forEach(function(s){ s.is_active = (s.id === id); });
+  _scnRender();
+  toast('Scenario activated: ' + _escHtml(scn.name), 'ok');
+  if (window.JpsMonitor) JpsMonitor.info && JpsMonitor.info('scenario:activate', scn.name, {});
+}
+
+function scnOpenNew() {
+  document.getElementById('scnModalTitle').textContent = 'New Scenario';
+  document.getElementById('scnEditId').value = '';
+  ['scnInpName','scnInpDesc','scnInpHfo','scnInpFx','scnInpGwh','scnInpCapex','scnInpEbitda','scnInpNpat'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.value = '';
+  });
+  document.getElementById('scnModal').style.display = 'flex';
+  setTimeout(function(){ document.getElementById('scnInpName').focus(); }, 50);
+}
+
+function scnOpenEdit(id) {
+  var s = _scnData.find(function(x){ return x.id === id; });
+  if (!s) return;
+  document.getElementById('scnModalTitle').textContent = 'Edit Scenario';
+  document.getElementById('scnEditId').value = id;
+  document.getElementById('scnInpName').value  = s.name || '';
+  document.getElementById('scnInpDesc').value  = s.description || '';
+  document.getElementById('scnInpHfo').value   = s.hfo_price  != null ? s.hfo_price  : '';
+  document.getElementById('scnInpFx').value    = s.fx_rate    != null ? s.fx_rate    : '';
+  document.getElementById('scnInpGwh').value   = s.gwh_billed != null ? s.gwh_billed : '';
+  document.getElementById('scnInpCapex').value = s.capex_m    != null ? s.capex_m    : '';
+  document.getElementById('scnInpEbitda').value= s.ebitda_m   != null ? s.ebitda_m   : '';
+  document.getElementById('scnInpNpat').value  = s.npat_m     != null ? s.npat_m     : '';
+  document.getElementById('scnModal').style.display = 'flex';
+}
+
+function scnCloseModal() {
+  document.getElementById('scnModal').style.display = 'none';
+}
+
+async function scnSave() {
+  var name = (document.getElementById('scnInpName').value || '').trim();
+  if (!name) { toast('Scenario name required', 'w'); return; }
+  var editId = document.getElementById('scnEditId').value;
+  var ctx = await _getCtx();
+  var yr = ctx ? ctx.yr : _CY;
+  var payload = {
+    name:        name,
+    description: document.getElementById('scnInpDesc').value.trim() || null,
+    hfo_price:   parseFloat(document.getElementById('scnInpHfo').value)   || null,
+    fx_rate:     parseFloat(document.getElementById('scnInpFx').value)    || null,
+    gwh_billed:  parseFloat(document.getElementById('scnInpGwh').value)   || null,
+    capex_m:     parseFloat(document.getElementById('scnInpCapex').value) || null,
+    ebitda_m:    parseFloat(document.getElementById('scnInpEbitda').value)|| null,
+    npat_m:      parseFloat(document.getElementById('scnInpNpat').value)  || null,
+    updated_at:  new Date().toISOString(),
+    created_by:  (_user && (_user.user_metadata && _user.user_metadata.name || _user.email)) || 'User',
+  };
+  var r;
+  if (editId) {
+    r = await _sbQ(function(sb){ return sb.from('fpa_scenarios').update(payload).eq('id', editId); });
+    if (r) { var idx = _scnData.findIndex(function(s){ return s.id === editId; }); if(idx>=0) Object.assign(_scnData[idx], payload); }
+  } else {
+    payload.year = yr; payload.is_active = false;
+    r = await _sbQ(function(sb){ return sb.from('fpa_scenarios').insert(payload).select(); });
+    if (r && r.data && r.data[0]) _scnData.push(r.data[0]);
+  }
+  if (!r) return;
+  scnCloseModal();
+  _scnRender();
+  toast(editId ? 'Scenario updated' : 'Scenario created', 'ok');
+}
+
+// Legacy stub for hub screen button compatibility
+function activateScenario(name, cardId) { toast('Use Scenario Manager to activate scenarios', 'info'); }
 
 /* ---------- Audit trail ---------- */
 let _auditFilter = 'all';
@@ -4644,10 +5793,18 @@ function _aiGetContext() {
 function initPlatform() {
   const sb = _getSB();
   if (!sb) return;
-  // Warm up vMap cache; reuse _ensureVMap rather than separate full-table query
-  _ensureVMap().then(function() {
-    console.log('[FPA v2] vMap ready, versions:', Object.keys(_vMap || {}).length);
-  }).catch(function(e) { console.error('[FPA] vMap warmup failed:', e); });
+  // Warm up vMap + load DB-backed planning years in parallel
+  Promise.all([
+    _ensureVMap().then(function() {
+      console.log('[FPA v2] vMap ready, versions:', Object.keys(_vMap || {}).length);
+    }),
+    _loadOpenYears().then(function() {
+      if (_openYears.length) {
+        console.log('[FPA v2] Open planning years from DB:', _openYears);
+        _renderYrNav(); // re-render now that open years are known
+      }
+    })
+  ]).catch(function(e) { console.error('[FPA] init warmup failed:', e); });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
