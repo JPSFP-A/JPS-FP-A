@@ -4328,6 +4328,19 @@ function _buildCFMultiCol(ctx, actF, aopF, view) {
     });
     return sum;
   }
+  // Derived subtotals — use stored value when present, else sum components
+  // (per-month actuals often omit cf_fin_net / cf_change)
+  function cvFinNet(pids) {
+    var stored = cv('cf_fin_net', pids);
+    if (stored !== 0) return stored;
+    return cv('cf_loanrep', pids) + cv('cf_amort_debt', pids) + cv('cf_orddiv', pids)
+         + cv('cf_lease_p', pids) + cv('cf_fx', pids) + cv('cf_rcash', pids);
+  }
+  function cvChange(pids) {
+    var stored = cv('cf_change', pids);
+    if (stored !== 0) return stored;
+    return cv('cf_ops_net', pids) + cv('cf_inv_net', pids) + cvFinNet(pids);
+  }
 
   // Header
   var thead = '<thead><tr><th style="text-align:left;min-width:200px">Description</th>';
@@ -4378,9 +4391,9 @@ function _buildCFMultiCol(ctx, actF, aopF, view) {
     + rline('Lease Payments (IFRS 16)',   'cf_lease_p')
     + rline('Dividends Paid',             'cf_orddiv')
     + rline('FX &amp; Other',             'cf_fx')
-    + rsub('Net Cash from Financing',     'cf_fin_net', 'rs')
+    + (function(){ var r='<tr class="rs"><td><strong>Net Cash from Financing</strong></td>'; allCols.forEach(function(c){r+='<td style="text-align:right;white-space:nowrap;font-weight:700">'+_fmtM(cvFinNet(c.pids))+'</td>';}); return r+'</tr>'; })()
     + rsec('Net Movement')
-    + rsub('Net Change in Cash',          'cf_change', 'rt');
+    + (function(){ var r='<tr class="rt"><td><strong>Net Change in Cash</strong></td>'; allCols.forEach(function(c){r+='<td style="text-align:right;white-space:nowrap;font-weight:700">'+_fmtM(cvChange(c.pids))+'</td>';}); return r+'</tr>'; })();
 
   const note = ctx.isCY && maxMo < 12
     ? '<div style="font-size:11px;color:var(--muted);padding:6px 0">* Up to ' + _MONS[maxMo-1] + ' ' + yr + ' = Actuals &nbsp;|&nbsp; Remaining = AOP ' + yr + '</div>'
