@@ -3385,6 +3385,13 @@ function p4SetMethod(v, el) {
   _cfMethod = v;
   document.querySelectorAll('.p4-method-btn').forEach(function(b){ b.classList.remove('active'); });
   if(el) el.classList.add('active');
+  // Direct method only implemented in Monthly/Quarterly views — auto-switch if on YTD
+  if (v === 'direct' && (_p4ColView === 'ytd' || _p4ColView === 'ytg')) {
+    _p4ColView = 'monthly';
+    document.querySelectorAll('.p4-cv-btn').forEach(function(b){ b.classList.remove('active'); });
+    var mb = document.querySelector('.p4-cv-btn[onclick*="monthly"]');
+    if (mb) mb.classList.add('active');
+  }
   _loadedPages.delete('p4'); loadP4();
 }
 
