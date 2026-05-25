@@ -63,9 +63,6 @@ button { font-family: inherit; cursor: pointer; }
 /* ===================== CASH WORKBENCH ======================== */
 .page.active#p18{display:flex;flex-direction:column;padding:0;overflow:hidden}
 .wb-ctrl{background:var(--surface);border-bottom:2px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex-shrink:0}
-.wb-yr-btn{padding:5px 14px;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;background:none;color:var(--muted);transition:all .15s}
-.wb-yr-btn.active{background:var(--teal);color:#fff}
-.wb-yr-btn:hover:not(.active){background:var(--bg);color:var(--text)}
 .wb-scroll{flex:1;overflow:auto;padding:16px 20px 32px}
 .wb-tbl-wrap{min-width:1100px}
 .wb-tbl{width:100%;border-collapse:collapse;font-size:11.5px}
@@ -2365,10 +2362,6 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
       <section class="page" id="p18">
         <div class="wb-ctrl">
           <div style="font-size:13px;font-weight:800;color:var(--text);margin-right:8px;white-space:nowrap">&#128167; Cash Workbench</div>
-          <div style="display:flex;gap:4px">
-            <button class="wb-yr-btn active" id="wb-yr-2025" onclick="wbSetYear(2025,this)">2025 Actuals</button>
-            <button class="wb-yr-btn" id="wb-yr-2026" onclick="wbSetYear(2026,this)">2026 Live</button>
-          </div>
           <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
             <span id="wb-status" style="font-size:10px;color:var(--muted)"></span>
             <span style="font-size:9px;color:var(--muted)">US$&#39;000</span>
@@ -5361,7 +5354,7 @@ const _WB_VER_CODES_2026 = {
   202605:'ACTUALS_2026_05',202606:'ACTUALS_2026_06',202607:'ACTUALS_2026_07',202608:'ACTUALS_2026_08',
   202609:'ACTUALS_2026_09',202610:'ACTUALS_2026_10',202611:'ACTUALS_2026_11',202612:'ACTUALS_2026_12',
 };
-let _wbYear=2025, _wbData={}, _wbEdits={}, _wbSummData={}, _wbTargets={};
+let _wbData={}, _wbEdits={}, _wbSummData={}, _wbTargets={};
 const _WB_LINES=[
   ['_sec_recv','RECEIPTS','s'],
   ['cf_d_coll','Collections','r'],['cf_d_debt_fin','Long-term Debt Financing','r'],
@@ -5384,14 +5377,6 @@ const _WB_LINES=[
 ];
 const _WB_DERIVED=new Set(['cf_d_total_recv','cf_d_total_disb','cf_d_net']);
 
-function wbSetYear(yr,btn){
-  _wbYear=yr;
-  document.querySelectorAll('.wb-yr-btn').forEach(function(b){b.classList.remove('active');});
-  if(btn)btn.classList.add('active');
-  _loadedPages.delete('p18');
-  loadP18();
-}
-
 async function loadP18(){
   var body=document.getElementById('wb-body');
   var status=document.getElementById('wb-status');
@@ -5400,7 +5385,7 @@ async function loadP18(){
   if(status)status.textContent='';
   try{
     await _ensureVMap();
-    var yr=_wbYear;
+    var yr=_activeYear;
     var periods=[];
     for(var m=1;m<=12;m++)periods.push(yr*100+m);
     var verIds=[];
