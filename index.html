@@ -3791,11 +3791,14 @@ function _buildP2MultiCol(ctx, actF, aopF, view) {
 function _buildP2YearToGo(ctx, ytdF, leF) {
   const yr = ctx.yr;
   const maxMo = ctx.maxMo;
+  // Use selected month (ctx.mo) as cutoff — respects month picker.
+  // Clamp to maxMo so we never try to show actuals beyond what's available.
+  const cutoffMo = Math.min(ctx.mo, maxMo);
 
   // Column definitions
-  const ytdCol  = { label: 'YTD ' + (maxMo > 1 ? 'Jan–' + _MONS[maxMo-1] : 'Jan'), isYTD: true };
+  const ytdCol  = { label: 'YTD ' + (cutoffMo > 1 ? 'Jan–' + _MONS[cutoffMo-1] : 'Jan'), isYTD: true };
   const leCols  = [];
-  for (let m = maxMo + 1; m <= 12; m++) leCols.push({ label: _MONS[m-1], period: yr * 100 + m, isLE: true });
+  for (let m = cutoffMo + 1; m <= 12; m++) leCols.push({ label: _MONS[m-1], period: yr * 100 + m, isLE: true });
   const fyCol   = { label: 'FY Proj', isFY: true };
   const allCols = [ytdCol].concat(leCols).concat([fyCol]);
   const nCols   = allCols.length + 1;
@@ -3887,11 +3890,12 @@ function _buildP2YearToGo(ctx, ytdF, leF) {
       }), 'rt');
 
   const leLabel = leCols.length > 0
-    ? _MONS[maxMo] + '–Dec ' + yr + ' from LE_' + yr + '_02'
+    ? _MONS[cutoffMo] + '–Dec ' + yr + ' from LE_' + yr + '_02'
     : 'All months actual (Dec closed)';
+  const ytdLabel = cutoffMo > 1 ? 'Jan–' + _MONS[cutoffMo-1] : 'Jan';
 
   return '<div class="notice-bar" style="background:rgba(251,191,36,.12);color:var(--text);border-color:var(--amber)">'
-    + '&#9888; YTD = Actuals Jan–' + _MONS[maxMo-1] + ' &nbsp;|&nbsp; Remaining = ' + leLabel + '</div>'
+    + '&#9888; YTD = Actuals ' + ytdLabel + ' &nbsp;|&nbsp; Remaining = ' + leLabel + '</div>'
     + '<div class="card"><div class="card-head"><span class="card-title">Income Statement — Year to Go</span>'
     + '<span class="ch-sub"> ' + yr + ' &middot; JMD $000s</span></div>'
     + '<div class="tw"><table class="kpi-sc-tbl">'+thead+'<tbody>'+tbody+'</tbody></table></div></div>';
