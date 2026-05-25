@@ -2879,6 +2879,17 @@ function _fSumP(f, lid, periods) {
   const m = f[lid] || {};
   return periods.reduce(function(a, p) { return a + (m[p] || 0); }, 0);
 }
+// Last / first period value — for balance-sheet stock items (cash, opening/closing balance)
+function _fLastP(f, lid, periods) {
+  const m = f[lid] || {};
+  for (let i = periods.length - 1; i >= 0; i--) { if (m[periods[i]] != null) return m[periods[i]]; }
+  return 0;
+}
+function _fFirstP(f, lid, periods) {
+  const m = f[lid] || {};
+  for (let i = 0; i < periods.length; i++) { if (m[periods[i]] != null) return m[periods[i]]; }
+  return 0;
+}
 
 // Format $000s — parens for negatives
 function _fmtM(v, dp) {
@@ -4153,10 +4164,15 @@ async function loadP4() {
       _fetchFactsN('AOP_' + yr, LINES, ps + 1, ps + 12),
     ]);
   } else {
-    [aF, bF] = await Promise.all([
+    let rawAF;
+    [rawAF, bF] = await Promise.all([
       _fetchFactsAct(ctx, LINES),
       _fetchFactsN(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
     ]);
+    // Fallback to budget when no actuals (e.g. 2026 before monthly versions exist)
+    const aEmpty = !rawAF || Object.keys(rawAF).length === 0;
+    aF = aEmpty ? bF : rawAF;
+    if (aEmpty) console.warn('[FPA] p4: no actuals for', ctx.yr, '— showing budget as actual');
   }
   _pgLoad('p4', false);
   _renderMoNav(ctx.maxMo); // keep month nav in sync regardless of active page
@@ -4192,12 +4208,29 @@ async function loadP4() {
 
   function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
   function sb(lid) { return _fSumP(bF, lid, ctx.cmpPeriods); }
+  // Balance (stock) helpers — use last period for close, first for open
+  function sl(lid)  { return _fLastP(aF,  lid, ctx.actPeriods); }
+  function slb(lid) { return _fLastP(bF,  lid, ctx.cmpPeriods); }
+  function sf(lid)  { return _fFirstP(aF, lid, ctx.actPeriods); }
+  function sfb(lid) { return _fFirstP(bF, lid, ctx.cmpPeriods); }
 
   function cfRow(lbl, lid, cls, higherGood) {
     const a = sa(lid), b = sb(lid), v = a - b;
     const hg = (higherGood !== undefined) ? higherGood : true;
     const vCls = _vc(v, hg);
     return '<tr class="' + (cls || 'rind') + '"><td>' + _tl(lid, lbl) + '</td>'
+      + '<td class="num">' + _fmtM(a) + '</td>'
+      + '<td class="num">' + _fmtM(b) + '</td>'
+      + '<td class="num ' + vCls + '">' + _fmtM(v) + '</td></tr>';
+  }
+  // cfBalRow: stock values (opening/closing cash) — uses last/first period, not sum
+  function cfBalRow(lbl, lid, cls, higherGood, useFirst) {
+    const a = useFirst ? sf(lid) : sl(lid);
+    const b = useFirst ? sfb(lid) : slb(lid);
+    const v = a - b;
+    const hg = (higherGood !== undefined) ? higherGood : true;
+    const vCls = _vc(v, hg);
+    return '<tr class="' + (cls || 'rind') + '"><td>' + lbl + '</td>'
       + '<td class="num">' + _fmtM(a) + '</td>'
       + '<td class="num">' + _fmtM(b) + '</td>'
       + '<td class="num ' + vCls + '">' + _fmtM(v) + '</td></tr>';
@@ -4240,8 +4273,8 @@ async function loadP4() {
     + cfRow('Net Cash from Financing',       'cf_fin_net',  'rs',   false)
     + sec('Net Movement')
     + cfRow('Net Change in Cash',            'cf_change',   'rs',   true)
-    + cfRow('Opening Cash Balance',          'cf_open',     'rind', false)
-    + cfRow('Closing Cash Balance',          'cf_close',    'rs',   true)
+    + cfBalRow('Opening Cash Balance',       'cf_open',      'rind', false, true)
+    + cfBalRow('Closing Cash Balance',       'cf_close',     'rs',   true,  false)
     + '</tbody></table></div></div>';
 
   const pg = document.getElementById('p4');
