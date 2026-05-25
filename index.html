@@ -2498,7 +2498,16 @@ async function _platformAudit(action, target, oldVal, newVal) {
     if (!_sb || !_cu?.id) return;
     if (action === 'login') {
       var _lk = _cu.id + '|' + _app;
-      if (_lk === _lastLoginAuditKey && Date.now() - _lastLoginAuditTs < 10000) return;
+      // sessionStorage survives page reloads within same browser session (60s window)
+      var _ssKey = 'jps_login_ts_' + _lk;
+      try {
+        var _lastTs = Number(sessionStorage.getItem(_ssKey) || 0);
+        if (Date.now() - _lastTs < 60000) return;
+        sessionStorage.setItem(_ssKey, String(Date.now()));
+      } catch (_) {
+        // sessionStorage unavailable (private mode etc.) — fall back to in-memory check
+        if (_lk === _lastLoginAuditKey && Date.now() - _lastLoginAuditTs < 10000) return;
+      }
       _lastLoginAuditKey = _lk; _lastLoginAuditTs = Date.now();
     }
 
