@@ -2464,8 +2464,8 @@ async function _platformAudit(action, target, oldVal, newVal) {
     // Resolve display name from user_profiles — one source of truth, cached per session
     if (!_auditProfileCache || _auditProfileCache.id !== _cu.id) {
       try {
-        var { data: _prof } = await _sb.from('user_profiles').select('full_name').eq('id', _cu.id).maybeSingle();
-        _auditProfileCache = { id: _cu.id, name: _prof?.full_name || null };
+        var { data: _prof } = await _sb.from('profiles').select('name').eq('id', _cu.id).maybeSingle();
+        _auditProfileCache = { id: _cu.id, name: _prof?.name || null };
       } catch { _auditProfileCache = { id: _cu.id, name: null }; }
     }
     var displayName = _auditProfileCache.name || _cu.name || _cu.email || 'system';
