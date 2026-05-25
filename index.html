@@ -701,9 +701,10 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
   background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 600;
 }
 .btn-outline:hover { background: var(--bg); }
-.p2-cv-btn,.p3-cv-btn,.p4-cv-btn { padding:4px 12px; border:none; background:none; font-size:11px; font-weight:600; color:var(--muted); cursor:pointer; transition:all .15s; border-radius:5px; }
+.p2-cv-btn,.p3-cv-btn,.p4-cv-btn,.p4-method-btn { padding:4px 12px; border:none; background:none; font-size:11px; font-weight:600; color:var(--muted); cursor:pointer; transition:all .15s; border-radius:5px; }
 .p2-cv-btn.active,.p3-cv-btn.active,.p4-cv-btn.active { background:var(--teal); color:#fff; }
-.p2-cv-btn:hover:not(.active),.p3-cv-btn:hover:not(.active),.p4-cv-btn:hover:not(.active) { background:var(--bg); color:var(--text); }
+.p4-method-btn.active { background:var(--accent,#6366f1); color:#fff; }
+.p2-cv-btn:hover:not(.active),.p3-cv-btn:hover:not(.active),.p4-cv-btn:hover:not(.active),.p4-method-btn:hover:not(.active) { background:var(--bg); color:var(--text); }
 
 /* ===================== GEN MIX BAR ===================== */
 .genmix-row {
@@ -3301,6 +3302,7 @@ let _p2Standalone = false;      // suppress Other income/(expenses) row
 let _p2ColView    = 'ytd';      // 'ytd' | 'monthly' | 'quarterly' | 'ytg'
 let _p3ColView    = 'ytd';
 let _p4ColView    = 'ytd';      // 'ytd' | 'monthly' | 'quarterly' | 'ytg'
+let _cfMethod     = 'indirect'; // 'indirect' | 'direct'
 
 function p2SetTab(t)        { _p2Tab = t;        _loadedPages.delete('p2'); loadP2(); }
 function p2ToggleStandalone(){ _p2Standalone = !_p2Standalone; _loadedPages.delete('p2'); loadP2(); }
@@ -3319,6 +3321,12 @@ function p3SetColView(v, el) {
 function p4SetColView(v, el) {
   _p4ColView = v;
   document.querySelectorAll('.p4-cv-btn').forEach(function(b){ b.classList.remove('active'); });
+  if(el) el.classList.add('active');
+  _loadedPages.delete('p4'); loadP4();
+}
+function p4SetMethod(v, el) {
+  _cfMethod = v;
+  document.querySelectorAll('.p4-method-btn').forEach(function(b){ b.classList.remove('active'); });
   if(el) el.classList.add('active');
   _loadedPages.delete('p4'); loadP4();
 }
@@ -4140,6 +4148,8 @@ async function loadP4() {
     'cf_wc_emp','cf_wc_due_fr','cf_wc_due_to','cf_wc_matls',
     'cf_wc_payrtax','cf_wc_decomm',
     'cf_tax_exp','cf_ops_net',
+    // Direct method operating lines (fetched if present, else show upload prompt)
+    'cf_d_recv','cf_d_supp','cf_d_empl',
     'cf_capex','cf_disp','cf_inv_net',
     'cf_loanrep','cf_amort_debt','cf_orddiv','cf_lease_p',
     'cf_fx','cf_rcash','cf_fin_net',
@@ -4188,6 +4198,10 @@ async function loadP4() {
     + '<button class="p4-cv-btn' + (_p4ColView==='quarterly' ? ' active' : '') + '" onclick="p4SetColView(\'quarterly\',this)">Quarterly</button>'
     + '<button class="p4-cv-btn' + (_p4ColView==='ytd'       ? ' active' : '') + '" onclick="p4SetColView(\'ytd\',this)">YTD</button>'
     + '<button class="p4-cv-btn' + (_p4ColView==='ytg'       ? ' active' : '') + '" onclick="p4SetColView(\'ytg\',this)">Year to Go</button>'
+    + '</div>'
+    + '<div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:6px;padding:2px;gap:1px;margin-left:8px">'
+    + '<button class="p4-method-btn' + (_cfMethod==='indirect' ? ' active' : '') + '" onclick="p4SetMethod(\'indirect\',this)" title="IAS 7 Indirect Method">📊 Indirect</button>'
+    + '<button class="p4-method-btn' + (_cfMethod==='direct'   ? ' active' : '') + '" onclick="p4SetMethod(\'direct\',this)"   title="IAS 7 Direct Method">💧 Direct</button>'
     + '</div>';
 
   if (_p4ColView === 'ytg') {
@@ -4366,21 +4380,65 @@ function _buildCFMultiCol(ctx, actF, aopF, view) {
   }
   function rsec(lbl) { return '<tr class="rsec"><td colspan="' + nCols + '">' + lbl + '</td></tr>'; }
 
+  // Direct method: check if a line has any data loaded
+  var _UPLOAD_BADGE = '<span style="background:#f59e0b;color:#000;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:5px;vertical-align:middle">UPLOAD REQD</span>';
+  var _DERIVED_BADGE = '<span style="background:rgba(99,102,241,.18);color:#a5b4fc;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:5px;vertical-align:middle">DERIVED</span>';
+  function hasDirectData(lid) {
+    // true if actF or aopF contains any non-zero value for this lid
+    var fa = actF[lid], fb = aopF ? aopF[lid] : null;
+    if (fa && Object.values(fa).some(function(v){ return v !== 0; })) return true;
+    if (fb && Object.values(fb).some(function(v){ return v !== 0; })) return true;
+    return false;
+  }
+  function rlineDirect(lbl, lid) {
+    var hasDat = hasDirectData(lid);
+    var lblHtml = lbl + (hasDat ? '' : _UPLOAD_BADGE);
+    var r = '<tr class="rind"><td>' + lblHtml + '</td>';
+    allCols.forEach(function(c) {
+      var val = cv(lid, c.pids);
+      r += '<td style="text-align:right;white-space:nowrap">' + (hasDat ? _fmtM(val) : '—') + '</td>';
+    });
+    return r + '</tr>';
+  }
+  function rsubDerived(lbl) {
+    // Net Cash from Operating — always derived as sum of direct components + tax + interest
+    var lblHtml = '<strong>' + lbl + '</strong>' + _DERIVED_BADGE;
+    var r = '<tr class="rs"><td>' + lblHtml + '</td>';
+    allCols.forEach(function(c) {
+      var val = cv('cf_d_recv', c.pids) + cv('cf_d_supp', c.pids) + cv('cf_d_empl', c.pids)
+              + cv('cf_tax_exp', c.pids) + cv('cf_intpd', c.pids);
+      // If no direct data at all, fall back to stored cf_ops_net
+      if (val === 0) val = cv('cf_ops_net', c.pids);
+      r += '<td style="text-align:right;white-space:nowrap;font-weight:700">' + _fmtM(val) + '</td>';
+    });
+    return r + '</tr>';
+  }
+
+  var opsSection = (_cfMethod === 'direct')
+    ? rsec('Operating Activities — Direct Method (IAS 7 §18a)')
+      + rlineDirect('Cash Received from Customers',  'cf_d_recv')
+      + rlineDirect('Cash Paid to Suppliers',        'cf_d_supp')
+      + rlineDirect('Cash Paid to Employees',        'cf_d_empl')
+      + rline('Income Tax Paid',                     'cf_tax_exp')
+      + rline('Interest Paid',                       'cf_intpd')
+      + rsubDerived('Net Cash from Operating')
+    : rsec('Operating Activities — Indirect Method (IAS 7 §18b)')
+      + rline('Net Income',                 'cf_ni')
+      + rline('Add: Depreciation',          'cf_depn')
+      + rline('Add: Deferred Tax',          'cf_def_tax')
+      + rline('Net Interest Adjustment',    'cf_netint')
+      + rline('WC: Trade Receivables',      'cf_wc_recv')
+      + rline('WC: Accounts Payable',       'cf_wc_ap')
+      + rline('WC: Inventories',            'cf_wc_inv')
+      + rline('WC: Corp Tax &amp; Payroll', 'cf_wc_corptax')
+      + rline('WC: Employee Costs',         'cf_wc_emp')
+      + rline('WC: Due From / Other',       'cf_wc_due_fr')
+      + rline('Tax Paid',                   'cf_tax_exp')
+      + rline('Interest Paid',              'cf_intpd')
+      + rsub('Net Cash from Operating',     'cf_ops_net', 'rs');
+
   var tbody = ''
-    + rsec('Operating Activities')
-    + rline('Net Income',                 'cf_ni')
-    + rline('Add: Depreciation',          'cf_depn')
-    + rline('Add: Deferred Tax',          'cf_def_tax')
-    + rline('Net Interest Adjustment',    'cf_netint')
-    + rline('WC: Trade Receivables',      'cf_wc_recv')
-    + rline('WC: Accounts Payable',       'cf_wc_ap')
-    + rline('WC: Inventories',            'cf_wc_inv')
-    + rline('WC: Corp Tax &amp; Payroll', 'cf_wc_corptax')
-    + rline('WC: Employee Costs',         'cf_wc_emp')
-    + rline('WC: Due From / Other',       'cf_wc_due_fr')
-    + rline('Tax Paid',                   'cf_tax_exp')
-    + rline('Interest Paid',              'cf_intpd')
-    + rsub('Net Cash from Operating',     'cf_ops_net', 'rs')
+    + opsSection
     + rsec('Investing Activities')
     + rline('Capital Expenditure',        'cf_capex')
     + rline('Asset Disposals',            'cf_disp')
@@ -4399,8 +4457,18 @@ function _buildCFMultiCol(ctx, actF, aopF, view) {
     ? '<div style="font-size:11px;color:var(--muted);padding:6px 0">* Up to ' + _MONS[maxMo-1] + ' ' + yr + ' = Actuals &nbsp;|&nbsp; Remaining = AOP ' + yr + '</div>'
     : '';
 
-  return '<div class="card"><div class="card-head"><span class="card-title">Cash Flow — '
-    + (view === 'quarterly' ? 'Quarterly' : 'Monthly') + ' View</span>'
+  var directNote = (_cfMethod === 'direct')
+    ? '<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);border-radius:6px;padding:8px 12px;margin-bottom:8px;font-size:11px;color:var(--text)">'
+      + '⚠ <strong>Direct CF data not yet uploaded.</strong> '
+      + 'Upload <code>cf_d_recv</code>, <code>cf_d_supp</code>, <code>cf_d_empl</code> via DataManager → GL Actuals to populate this view. '
+      + 'Rows marked <span style="background:#f59e0b;color:#000;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px">UPLOAD REQD</span> have no data. '
+      + 'Rows marked <span style="background:rgba(99,102,241,.18);color:#a5b4fc;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px">DERIVED</span> use indirect method data as a proxy.</div>'
+    : '';
+
+  return directNote
+    + '<div class="card"><div class="card-head"><span class="card-title">Cash Flow — '
+    + (view === 'quarterly' ? 'Quarterly' : 'Monthly') + ' View &nbsp;·&nbsp; '
+    + (_cfMethod === 'direct' ? '💧 Direct Method' : '📊 Indirect Method') + '</span>'
     + '<span class="ch-sub"> ' + yr + ' &middot; JMD $000s</span></div>'
     + '<div class="tw"><table class="kpi-sc-tbl">' + thead + '<tbody>' + tbody + '</tbody></table></div>'
     + note + '</div>';
