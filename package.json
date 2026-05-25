@@ -1,0 +1,12 @@
+{
+  "name": "jps-platform-audit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JPS Platform Audit — runs via GitHub Actions",
+  "scripts": {
+    "audit": "node scripts/platform-audit.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4"
+  }
+}
