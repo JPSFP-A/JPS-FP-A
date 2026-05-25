@@ -2838,7 +2838,7 @@ async function _fetchFacts(vCode, lines, pStart, pEnd) {
 // ── Alias helpers ────────────────────────────────────────────────────────────
 // Monthly actuals use 'nonfuel' instead of 'nr_rev'; AOP lacks 'pl_total_sales'
 function _expandAliasLines(lines) {
-  const extra = ['nonfuel', 'ipp_fr', 'other_r'];
+  const extra = ['nonfuel', 'ipp_fr', 'other_r', 'nr_cust_charge'];
   return lines.concat(extra.filter(function(l) { return lines.indexOf(l) < 0; }));
 }
 function _hasFactData(f, lid) {
@@ -2852,7 +2852,7 @@ function _normalizeAlias(f) {
   }
   // pl_total_sales: derive from components when absent (AOP, some monthly versions)
   if (!_hasFactData(f, 'pl_total_sales')) {
-    const srcs = ['nr_rev', 'nonfuel', 'fuel_rev', 'ipp_fr', 'other_r'];
+    const srcs = ['nr_rev', 'nonfuel', 'fuel_rev', 'ipp_fr', 'other_r', 'nr_cust_charge'];
     const merged = {};
     srcs.forEach(function(lid) {
       const src = f[lid] || {};
@@ -3152,7 +3152,7 @@ async function loadP1() {
     return;
   }
 
-  const LINES = ['pl_total_sales','nr_rev','fuel_rev','ipp_fr','other_r','ebitda','net_inc','cf_capex',
+  const LINES = ['pl_total_sales','nr_rev','nr_cust_charge','fuel_rev','ipp_fr','other_r','ebitda','net_inc','cf_capex',
     'stat_billed_gwh','opex','depn','nfc_int_exp','tax','cf_ops_net','fuel_cost','ipp_cost'];
   const CM_LINES = ['pl_total_sales','ebitda','net_inc','ebitda_margin','cf_capex','stat_billed_gwh','cf_ops_net'];
   const [aF, bF] = await Promise.all([
@@ -3404,10 +3404,10 @@ async function loadP2() {
     return;
   }
 
-  const LINES = ['pl_total_sales','nr_rev','nonfuel','fuel_rev','ipp_fr','other_r',
-    'fuel_cost','ipp_cost','opex','ebitda','depn','ebit',
+  const LINES = ['pl_total_sales','nr_rev','nonfuel','nr_cust_charge','fuel_rev','ipp_fr','other_r',
+    'fuel_cost','ipp_cost','opex','depn',
     'nfc_int_exp','nfc_int_inc','nfc_afudc','pl_pref_div','other_inc',
-    'pretax','tax','net_inc'];
+    'tax'];
 
   let aF, bF, allActF, aopF, leF;
   if (_p2ColView === 'ytg') {
@@ -3489,30 +3489,35 @@ async function loadP2() {
 }
 
 function _buildP2Exec(ctx, aF, bF, sa, sb) {
-  // Segmented executive summary view
-  const fuel_rev_a  = sa('fuel_rev'),   fuel_rev_b  = sb('fuel_rev');
-  const fuel_cost_a = sa('fuel_cost'),  fuel_cost_b = sb('fuel_cost');
-  const nfr_a       = sa('nr_rev'),     nfr_b       = sb('nr_rev');
-  const oth_a       = sa('other_r'),    oth_b       = sb('other_r');
-  const opx_a       = sa('opex'),       opx_b       = sb('opex');
-  const ipp_fr_a    = sa('ipp_fr'),     ipp_fr_b    = sb('ipp_fr');
-  const ipp_cost_a  = sa('ipp_cost'),   ipp_cost_b  = sb('ipp_cost');
-  const ebd_a       = sa('ebitda'),     ebd_b       = sb('ebitda');
-  const dep_a       = sa('depn'),       dep_b       = sb('depn');
-  const ebit_a      = sa('ebit'),       ebit_b      = sb('ebit');
-  const int_exp_a   = sa('nfc_int_exp'),int_exp_b   = sb('nfc_int_exp');
-  const int_inc_a   = sa('nfc_int_inc'),int_inc_b   = sb('nfc_int_inc');
-  const nfc_a       = int_exp_a - int_inc_a, nfc_b = int_exp_b - int_inc_b;
-  const oth_inc_a   = sa('other_inc'),  oth_inc_b   = sb('other_inc');
-  const pretax_a    = sa('pretax'),     pretax_b    = sb('pretax');
-  const tax_a       = sa('tax'),        tax_b       = sb('tax');
-  const ni_a        = sa('net_inc'),    ni_b        = sb('net_inc');
+  // Segmented executive summary view — all subtotals derived, never read from DB
+  const fuel_rev_a  = sa('fuel_rev'),        fuel_rev_b  = sb('fuel_rev');
+  const fuel_cost_a = sa('fuel_cost'),       fuel_cost_b = sb('fuel_cost');
+  const nfr_a       = sa('nr_rev'),          nfr_b       = sb('nr_rev');
+  const cust_chg_a  = sa('nr_cust_charge'),  cust_chg_b  = sb('nr_cust_charge');
+  const oth_a       = sa('other_r'),         oth_b       = sb('other_r');
+  const opx_a       = sa('opex'),            opx_b       = sb('opex');
+  const ipp_fr_a    = sa('ipp_fr'),          ipp_fr_b    = sb('ipp_fr');
+  const ipp_cost_a  = sa('ipp_cost'),        ipp_cost_b  = sb('ipp_cost');
+  const dep_a       = sa('depn'),            dep_b       = sb('depn');
+  const int_exp_a   = sa('nfc_int_exp'),     int_exp_b   = sb('nfc_int_exp');
+  const int_inc_a   = sa('nfc_int_inc'),     int_inc_b   = sb('nfc_int_inc');
+  const afudc_a     = sa('nfc_afudc'),       afudc_b     = sb('nfc_afudc');
+  const pref_a      = sa('pl_pref_div'),     pref_b      = sb('pl_pref_div');
+  const oth_inc_a   = sa('other_inc'),       oth_inc_b   = sb('other_inc');
+  const tax_a       = sa('tax'),             tax_b       = sb('tax');
 
-  // Derived segments
+  // Derived segments (never read ebitda/ebit/pretax/net_inc from DB)
   const fuel_sur_a  = fuel_rev_a - fuel_cost_a, fuel_sur_b = fuel_rev_b - fuel_cost_b;
-  const reg_ebd_a   = fuel_sur_a + nfr_a + oth_a - opx_a;
-  const reg_ebd_b   = fuel_sur_b + nfr_b + oth_b - opx_b;
+  const reg_ebd_a   = fuel_sur_a + nfr_a + cust_chg_a + oth_a - opx_a;
+  const reg_ebd_b   = fuel_sur_b + nfr_b + cust_chg_b + oth_b - opx_b;
   const pp_sur_a    = ipp_fr_a - ipp_cost_a, pp_sur_b = ipp_fr_b - ipp_cost_b;
+  const ebd_a       = reg_ebd_a + pp_sur_a,  ebd_b    = reg_ebd_b + pp_sur_b;
+  const ebit_a      = ebd_a - dep_a,         ebit_b   = ebd_b - dep_b;
+  const nfc_a       = int_exp_a - int_inc_a - afudc_a + pref_a;
+  const nfc_b       = int_exp_b - int_inc_b - afudc_b + pref_b;
+  const pretax_a    = ebit_a - nfc_a + (!_p2Standalone ? oth_inc_a : 0);
+  const pretax_b    = ebit_b - nfc_b + (!_p2Standalone ? oth_inc_b : 0);
+  const ni_a        = pretax_a - tax_a,      ni_b     = pretax_b - tax_b;
 
   function er(lbl, a, b, cls, isCost, higherGood) {
     const v = a - b;
@@ -3542,6 +3547,7 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
     + er('Fuel Surplus / (Penalty)',fuel_sur_a,  fuel_sur_b,  'rs',   false)
     + eblank()
     + er('Non-Fuel Revenues',      nfr_a,       nfr_b,       'rind', false)
+    + er('Customer Charge',        cust_chg_a,  cust_chg_b,  'rind', false)
     + er('Other Operating Revenue',oth_a,       oth_b,       'rind', false)
     + er('(−) Operating Expenses', opx_a,       opx_b,       'rind', true)
     + er('Regulated Business EBITDA', reg_ebd_a, reg_ebd_b,  'rs',   false)
@@ -3611,13 +3617,25 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
 
   const moHdr = ctx.actPeriods.map(function(p) { return '<th>' + _pLabel(p) + '</th>'; }).join('');
 
-  // Gross profit derived
-  const gp_a  = sa('pl_total_sales') - sa('fuel_cost') - sa('ipp_cost');
-  const gp_b  = sb('pl_total_sales') - sb('fuel_cost') - sb('ipp_cost');
-  const gpFY  = sbFY('pl_total_sales') - sbFY('fuel_cost') - sbFY('ipp_cost');
-  const nfc_a = sa('nfc_int_exp') - sa('nfc_int_inc');
-  const nfc_b = sb('nfc_int_exp') - sb('nfc_int_inc');
-  const nfcFY = sbFY('nfc_int_exp') - sbFY('nfc_int_inc');
+  // Derived subtotals — never read ebitda/ebit from DB
+  const gp_a     = sa('pl_total_sales') - sa('fuel_cost') - sa('ipp_cost');
+  const gp_b     = sb('pl_total_sales') - sb('fuel_cost') - sb('ipp_cost');
+  const gpFY     = sbFY('pl_total_sales') - sbFY('fuel_cost') - sbFY('ipp_cost');
+  const ebitda_a = gp_a - sa('opex');
+  const ebitda_b = gp_b - sb('opex');
+  const ebitdaFY = gpFY - sbFY('opex');
+  const ebit_a   = ebitda_a - sa('depn');
+  const ebit_b   = ebitda_b - sb('depn');
+  const ebitFY   = ebitdaFY - sbFY('depn');
+  const nfc_a    = sa('nfc_int_exp') - sa('nfc_int_inc');
+  const nfc_b    = sb('nfc_int_exp') - sb('nfc_int_inc');
+  const nfcFY    = sbFY('nfc_int_exp') - sbFY('nfc_int_inc');
+  const pretax_a = ebit_a - nfc_a + (!_p2Standalone ? sa('other_inc') : 0);
+  const pretax_b = ebit_b - nfc_b + (!_p2Standalone ? sb('other_inc') : 0);
+  const pretaxFY = ebitFY - nfcFY + (!_p2Standalone ? sbFY('other_inc') : 0);
+  const ni_a     = pretax_a - sa('tax');
+  const ni_b     = pretax_b - sb('tax');
+  const niFY     = pretaxFY - sbFY('tax');
 
   return '<div class="notice-bar">' + ctx.viewLbl + ' = Actuals vs ' + ctx.cmpLbl + '. Adverse shown as (x).</div>'
     + '<div class="card"><div class="card-head">Income Statement (Detailed)'
@@ -3630,6 +3648,7 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
     + row('Fuel Clause (FCR)',              'fuel_rev',      'rind', false)
     + row('IPP Surcharge',                  'ipp_fr',        'rind', false)
     + row('Non-Fuel Revenue',               'nr_rev',        'rind', false)
+    + row('Customer Charge',                'nr_cust_charge','rind', false)
     + row('Other Operating Revenue',        'other_r',       'rind', false)
     + row('Operating Revenue',              'pl_total_sales','rs',   false)
     + sec('Cost of Sales')
@@ -3638,23 +3657,22 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
     + rowDerived('Gross Profit',            gp_a, gp_b, gpFY, 'rs', false)
     + sec('Operating Expenses')
     + row('Operating Expenses',             'opex',          'rind', true)
-    + row('EBITDA',                         'ebitda',        'rs',   false)
+    + rowDerived('EBITDA',                  ebitda_a, ebitda_b, ebitdaFY, 'rs', false)
     + sec('Depreciation &amp; Amortization')
     + row('Depreciation',                   'depn',          'rind', true)
-    + row('Operating Profit (EBIT)',        'ebit',          'rs',   false)
+    + rowDerived('Operating Profit (EBIT)', ebit_a, ebit_b, ebitFY, 'rs', false)
     + sec('Net Financing Costs')
     + row('Interest Income',                'nfc_int_inc',   'rind', false)
     + row('Allowance for Funds Used (AFUDC)','nfc_afudc',   'rind', false)
     + row('Interest Expense',               'nfc_int_exp',   'rind', true)
     + row('Preference Dividend',            'pl_pref_div',   'rind', true)
     + rowDerived('Net Financing Costs',     nfc_a, nfc_b, nfcFY, 'rs', true)
-    + row('Operating Profit after NFC',     'pretax',        'rs',   false)
     + (!_p2Standalone ? sec('Other Income / (Expenses)') : '')
     + (!_p2Standalone ? row('Other Income &amp; Dividends Received', 'other_inc', 'rind', false) : '')
     + sec('Taxation')
-    + row('Net Profit Before Tax',          'pretax',        'rs',   false)
+    + rowDerived('Net Profit Before Tax',   pretax_a, pretax_b, pretaxFY, 'rs', false)
     + row('Income Tax Expense',             'tax',           'rind', true)
-    + row('Net Profit After Tax',           'net_inc',       'rs',   false)
+    + rowDerived('Net Profit After Tax',    ni_a, ni_b, niFY, 'rs', false)
     + '</tbody></table></div></div>';
 }
 
@@ -3703,7 +3721,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
   function mo(p) { return p % 100; }
 
   // Derived P&L helpers
-  function rev(ps)    { return cv('nr_rev',ps)+cv('fuel_rev',ps)+cv('ipp_fr',ps)+cv('other_r',ps); }
+  function rev(ps)    { return cv('nr_rev',ps)+cv('nr_cust_charge',ps)+cv('fuel_rev',ps)+cv('ipp_fr',ps)+cv('other_r',ps); }
   function cos(ps)    { return cv('fuel_cost',ps)+cv('ipp_cost',ps); }
   function gp(ps)     { return rev(ps)-cos(ps); }
   function ebitda(ps) { return gp(ps)-cv('opex',ps); }
@@ -3747,7 +3765,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
 
   // Exec-specific derived helpers (same logic as _buildP2Exec)
   function fuel_surplus(ps) { return cv('fuel_rev',ps) - cv('fuel_cost',ps); }
-  function reg_ebitda(ps)   { return fuel_surplus(ps) + cv('nr_rev',ps) + cv('other_r',ps) - cv('opex',ps); }
+  function reg_ebitda(ps)   { return fuel_surplus(ps) + cv('nr_rev',ps) + cv('nr_cust_charge',ps) + cv('other_r',ps) - cv('opex',ps); }
   function pp_surplus(ps)   { return cv('ipp_fr',ps) - cv('ipp_cost',ps); }
   function nfc_net(ps)      { return cv('nfc_int_exp',ps) - cv('nfc_int_inc',ps) - cv('nfc_afudc',ps) + cv('pl_pref_div',ps); }
   function after_nfc(ps)    { return ebit(ps) - nfc_net(ps); }
@@ -3761,6 +3779,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
       + rline('(&#8722;) Fuel Costs',             function(ps){ return cv('fuel_cost',ps); }, 'rind', true)
       + rsub('Fuel Surplus / (Penalty)',           fuel_surplus, 'rs')
       + rline('Non-Fuel Revenues',                function(ps){ return cv('nr_rev',ps); })
+      + rline('Customer Charge',                  function(ps){ return cv('nr_cust_charge',ps); })
       + rline('Other Operating Revenue',          function(ps){ return cv('other_r',ps); })
       + rline('(&#8722;) Operating Expenses',     function(ps){ return cv('opex',ps); }, 'rind', true)
       + rsub('Regulated Business EBITDA',         reg_ebitda, 'rs')
@@ -3786,6 +3805,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
       + rline('Fuel Clause (FCR)',           function(ps){ return cv('fuel_rev',ps); })
       + rline('IPP Surcharge',               function(ps){ return cv('ipp_fr',ps); })
       + rline('Non-Fuel Revenue',            function(ps){ return cv('nr_rev',ps); })
+      + rline('Customer Charge',             function(ps){ return cv('nr_cust_charge',ps); })
       + rline('Other Operating Revenue',     function(ps){ return cv('other_r',ps); })
       + rsub('Total Revenue',                rev, 'rs')
       + rsec('Cost of Sales')
