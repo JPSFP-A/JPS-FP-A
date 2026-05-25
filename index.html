@@ -5832,7 +5832,7 @@ async function _renderYrNav() {
   });
   // Add any user-opened planning years (future years without actuals)
   _openYears.forEach(function(y) { yearSet.add(y); });
-  const years = Array.from(yearSet).sort(function(a, b) { return b - a; }).slice(0, 10); // up to 10 years
+  const years = Array.from(yearSet).sort(function(a, b) { return b - a; }).slice(0, 15); // up to 15 years
   const nav = document.getElementById('yr-nav');
   if (!nav) return;
   nav.innerHTML = years.map(function(y) {
