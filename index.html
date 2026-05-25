@@ -3468,7 +3468,7 @@ async function loadP2() {
   } else if (_p2ColView === 'ytg') {
     html += _buildP2YearToGo(ctx, aF, leF);
   } else if (_p2ColView !== 'ytd') {
-    html += _buildP2MultiCol(ctx, allActF, aopF, _p2ColView);
+    html += _buildP2MultiCol(ctx, allActF, aopF, _p2ColView, _p2Tab);
   } else if (_p2Tab === 'exec') {
     html += _buildP2Exec(ctx, aF, bF, sa, sb);
   } else {
@@ -3650,7 +3650,7 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
 }
 
 /* ----- p2 MULTI-COL (Monthly / Quarterly) ----- */
-function _buildP2MultiCol(ctx, actF, aopF, view) {
+function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
   const yr = ctx.yr;
   const maxMo = ctx.maxMo; // correct for all years via _ensureMaxMo + _hasMonthly
   const allPids = [];
@@ -3736,41 +3736,52 @@ function _buildP2MultiCol(ctx, actF, aopF, view) {
     return '<tr class="rsec"><td colspan="' + nCols + '">' + lbl + '</td></tr>';
   }
 
-  var tbody = ''
-    + rsec('Revenue')
-    + rline('Fuel Clause (FCR)',           function(ps){ return cv('fuel_rev',ps); })
-    + rline('IPP Surcharge',               function(ps){ return cv('ipp_fr',ps); })
-    + rline('Non-Fuel Revenue',            function(ps){ return cv('nr_rev',ps); })
-    + rline('Other Operating Revenue',     function(ps){ return cv('other_r',ps); })
-    + rsub('Total Revenue',                rev, 'rs')
-    + rsec('Cost of Sales')
-    + rline('Fuel Cost',                   function(ps){ return cv('fuel_cost',ps); }, 'rind', true)
-    + rline('Purchased Power (excl. fuel)',function(ps){ return cv('ipp_cost',ps); }, 'rind', true)
-    + rsub('Gross Profit',                 gp,  'rs')
-    + rsec('Operating Expenses')
-    + rline('Operating Expenses',          function(ps){ return cv('opex',ps); }, 'rind', true)
-    + rsub('EBITDA',                       ebitda, 'rt')
-    + rsec('Below EBITDA')
-    + rline('Depreciation',               function(ps){ return cv('depn',ps); }, 'rind', true)
-    + rsub('EBIT',                         ebit, 'rs')
-    + rsec('Net Financing Costs')
-    + rline('Interest Income',            function(ps){ return cv('nfc_int_inc',ps); })
-    + rline('AFUDC',                      function(ps){ return cv('nfc_afudc',ps); })
-    + rline('Interest Expense',           function(ps){ return cv('nfc_int_exp',ps); }, 'rind', true)
-    + rline('Preference Dividends',       function(ps){ return cv('pl_pref_div',ps); }, 'rind', true)
-    + (!_p2Standalone ? rsec('Other Income / (Expenses)') : '')
-    + (!_p2Standalone ? rline('Other Income &amp; Dividends',function(ps){ return cv('other_inc',ps); }) : '')
-    + rsec('Taxation')
-    + rsub('Net Profit Before Tax',        pretax, 'rs')
-    + rline('Income Tax Expense',         function(ps){ return cv('tax',ps); }, 'rind', true)
-    + rsub('Net Profit After Tax (NPAT)', npat, 'rt');
+  var tbody;
+  if (tab === 'exec') {
+    tbody = ''
+      + rsub('Total Revenue',              rev,    'rs')
+      + rsub('Gross Profit',               gp,     'rs')
+      + rsub('EBITDA',                     ebitda, 'rt')
+      + rsub('EBIT',                       ebit,   'rs')
+      + rsub('Net Profit Before Tax',      pretax, 'rs')
+      + rsub('Net Profit After Tax (NPAT)',npat,   'rt');
+  } else {
+    tbody = ''
+      + rsec('Revenue')
+      + rline('Fuel Clause (FCR)',           function(ps){ return cv('fuel_rev',ps); })
+      + rline('IPP Surcharge',               function(ps){ return cv('ipp_fr',ps); })
+      + rline('Non-Fuel Revenue',            function(ps){ return cv('nr_rev',ps); })
+      + rline('Other Operating Revenue',     function(ps){ return cv('other_r',ps); })
+      + rsub('Total Revenue',                rev, 'rs')
+      + rsec('Cost of Sales')
+      + rline('Fuel Cost',                   function(ps){ return cv('fuel_cost',ps); }, 'rind', true)
+      + rline('Purchased Power (excl. fuel)',function(ps){ return cv('ipp_cost',ps); }, 'rind', true)
+      + rsub('Gross Profit',                 gp,  'rs')
+      + rsec('Operating Expenses')
+      + rline('Operating Expenses',          function(ps){ return cv('opex',ps); }, 'rind', true)
+      + rsub('EBITDA',                       ebitda, 'rt')
+      + rsec('Below EBITDA')
+      + rline('Depreciation',               function(ps){ return cv('depn',ps); }, 'rind', true)
+      + rsub('EBIT',                         ebit, 'rs')
+      + rsec('Net Financing Costs')
+      + rline('Interest Income',            function(ps){ return cv('nfc_int_inc',ps); })
+      + rline('AFUDC',                      function(ps){ return cv('nfc_afudc',ps); })
+      + rline('Interest Expense',           function(ps){ return cv('nfc_int_exp',ps); }, 'rind', true)
+      + rline('Preference Dividends',       function(ps){ return cv('pl_pref_div',ps); }, 'rind', true)
+      + (!_p2Standalone ? rsec('Other Income / (Expenses)') : '')
+      + (!_p2Standalone ? rline('Other Income &amp; Dividends',function(ps){ return cv('other_inc',ps); }) : '')
+      + rsec('Taxation')
+      + rsub('Net Profit Before Tax',        pretax, 'rs')
+      + rline('Income Tax Expense',         function(ps){ return cv('tax',ps); }, 'rind', true)
+      + rsub('Net Profit After Tax (NPAT)', npat, 'rt');
+  }
 
   const note = ctx.isCY && maxMo < 12
     ? '<div style="font-size:11px;color:var(--muted);padding:6px 0">* ' + _MONS[maxMo-1] + ' ' + yr + ' YTD = Actuals &nbsp;|&nbsp; Remaining months = AOP ' + yr + '</div>'
     : '';
 
   return '<div class="card"><div class="card-head"><span class="card-title">Income Statement — '
-    + (view === 'quarterly' ? 'Quarterly' : 'Monthly') + ' View</span>'
+    + (tab === 'exec' ? 'Exec Summary' : (view === 'quarterly' ? 'Quarterly' : 'Monthly') + ' Detail') + '</span>'
     + '<span class="ch-sub"> ' + yr + ' &middot; JMD $000s</span></div>'
     + '<div class="tw"><table class="kpi-sc-tbl">' + thead + '<tbody>' + tbody + '</tbody></table></div>'
     + note
