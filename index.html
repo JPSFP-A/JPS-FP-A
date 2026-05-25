@@ -60,6 +60,42 @@ button { font-family: inherit; cursor: pointer; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
+/* ===================== CASH WORKBENCH ======================== */
+#p18{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.wb-ctrl{background:var(--surface);border-bottom:2px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex-shrink:0}
+.wb-yr-btn{padding:5px 14px;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;background:none;color:var(--muted);transition:all .15s}
+.wb-yr-btn.active{background:var(--teal);color:#fff}
+.wb-yr-btn:hover:not(.active){background:var(--bg);color:var(--text)}
+.wb-scroll{flex:1;overflow:auto;padding:16px 20px 32px}
+.wb-tbl-wrap{min-width:1100px}
+.wb-tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.wb-tbl th{background:var(--thead);color:#fff;padding:7px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;border-right:1px solid rgba(255,255,255,.1)}
+.wb-tbl th:first-child{text-align:left;min-width:210px;border-right:1px solid rgba(255,255,255,.1)}
+.wb-tbl td{padding:5px 10px;text-align:right;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:nowrap}
+.wb-tbl td:first-child{text-align:left;font-family:'IBM Plex Sans',sans-serif;font-weight:500;color:var(--text);padding-left:12px;border-right:1px solid var(--border)}
+.wb-tbl tr:hover td{background:rgba(0,174,239,.04)}
+.wb-sec-row td{background:var(--dark)!important;color:#fff!important;font-weight:800;font-size:9px;text-transform:uppercase;letter-spacing:.07em;padding:4px 10px!important;border-bottom:none!important}
+.wb-sub-row td{background:rgba(0,174,239,.06)!important;font-weight:800;color:var(--teal)!important;border-top:2px solid var(--teal)!important}
+.wb-total-row td{background:var(--dark)!important;color:#fff!important;font-weight:800;border-top:2px solid var(--gold)!important}
+.wb-memo-row td{background:rgba(184,134,11,.05)!important;color:var(--gold)!important;font-style:italic;font-size:10.5px}
+.wb-bal-row td{background:rgba(21,128,61,.06)!important;font-weight:700;color:var(--green)!important;border-top:1px solid var(--green)!important}
+.wb-commit-btn{padding:3px 8px;border:none;border-radius:4px;font-size:9px;font-weight:700;cursor:pointer;background:#15803d;color:#fff;letter-spacing:.03em;transition:all .15s}
+.wb-commit-btn:hover{background:#166534}
+.wb-commit-btn.loading{background:var(--muted);cursor:default}
+.wb-commit-btn.done{background:var(--teal)}
+.wb-input{width:90px;border:none;border-bottom:2px solid var(--border);background:transparent;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text);padding:2px 4px;outline:none;transition:border-color .15s}
+.wb-input:focus{border-color:var(--teal);background:rgba(0,174,239,.06)}
+.wb-derived{color:var(--muted);font-style:italic}
+.wb-badge{display:inline-block;font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:.04em;vertical-align:middle;margin-left:4px}
+.wb-badge-up{background:#fef3c7;color:#92400e}
+.wb-badge-d{background:#eff6ff;color:#1d4ed8}
+.wb-ratio-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:16px}
+.wb-ratio-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+.wb-ratio-lbl{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.wb-ratio-bench{font-size:9px;color:var(--muted);margin-bottom:6px}
+.wb-ratio-vals{display:flex;gap:6px;flex-wrap:wrap}
+.wb-ratio-val{font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.wb-no-data{color:var(--muted);font-style:italic;font-size:11px}
 /* ===================== MANAGEMENT REPORT ===================== */
 #p17{background:#eef1f6;padding:0;overflow:hidden;}
 .page.active#p17{display:flex;flex-direction:column;}
@@ -1076,6 +1112,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
       <div class="ni" data-p="p2" onclick="nav(this)"><span class="ni-ic">&#128202;</span> Consolidated P&amp;L</div>
       <div class="ni" data-p="p3" onclick="nav(this)"><span class="ni-ic">&#127974;</span> Balance Sheet</div>
       <div class="ni" data-p="p4" onclick="nav(this)"><span class="ni-ic">&#128181;</span> Cash Flow</div>
+      <div class="ni" data-p="p18" onclick="nav(this)"><span class="ni-ic">&#128167;</span> Cash Workbench</div>
 
       <div class="nav-sec">Investment</div>
       <div class="ni" data-p="p5" onclick="nav(this)"><span class="ni-ic">&#128295;</span> CapEx &amp; CWIP</div>
@@ -2322,6 +2359,26 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
           </div>
         </div>
 
+      </section>
+
+      <!-- ============ PAGE 18: CASH WORKBENCH ============ -->
+      <section class="page" id="p18">
+        <div class="wb-ctrl">
+          <div style="font-size:13px;font-weight:800;color:var(--text);margin-right:8px;white-space:nowrap">&#128167; Cash Workbench</div>
+          <div style="display:flex;gap:4px">
+            <button class="wb-yr-btn active" id="wb-yr-2025" onclick="wbSetYear(2025,this)">2025 Actuals</button>
+            <button class="wb-yr-btn" id="wb-yr-2026" onclick="wbSetYear(2026,this)">2026 Live</button>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+            <span id="wb-status" style="font-size:10px;color:var(--muted)"></span>
+            <span style="font-size:9px;color:var(--muted)">US$&#39;000</span>
+          </div>
+        </div>
+        <div class="wb-scroll">
+          <div id="wb-body">
+            <div style="padding:40px;text-align:center;color:var(--muted);font-size:12px">Loading&hellip;</div>
+          </div>
+        </div>
       </section>
 
     </main>
@@ -5277,6 +5334,223 @@ function _p10BuildTable(targets, kpiActuals, finDerived, months, ctx) {
 }
 
 /* ----- DISPATCHER ----- */
+/* ================================================================
+   CASH WORKBENCH (p18) — JPS Liquidity Analysis
+   ================================================================ */
+const _WB_VER_2025 = {
+  202501:'9382fd8f-2f41-44bb-8eb5-abe9f1badce5',202502:'be840c35-77c0-45d5-8d94-bcfe993b3fad',
+  202503:'e59b4563-73ad-469a-b790-14cde227f8e2',202504:'a0c990c7-ba65-40b2-a67f-45659443a980',
+  202505:'e1faed6d-65c7-4606-ae54-dfa106e71e40',202506:'62698d1a-b189-430b-87a2-e5b52149a2c8',
+  202507:'4944e0e7-e36c-4379-9a6b-fcc9f51a45bb',202508:'e3649ef0-c997-4198-a441-663c8a91343f',
+  202509:'95d4e74f-2577-4be8-a186-a32dce060785',202510:'875270b2-a378-44e8-ac08-f1fd00046099',
+  202511:'0216e14d-7679-4af5-9e95-31733032ca4d',202512:'891f845b-cc98-49fe-a008-bad228e76b6e',
+};
+const _WB_VER_CODES_2026 = {
+  202601:'ACTUALS_2026_01',202602:'ACTUALS_2026_02',202603:'ACTUALS_2026_03',202604:'ACTUALS_2026_04',
+  202605:'ACTUALS_2026_05',202606:'ACTUALS_2026_06',202607:'ACTUALS_2026_07',202608:'ACTUALS_2026_08',
+  202609:'ACTUALS_2026_09',202610:'ACTUALS_2026_10',202611:'ACTUALS_2026_11',202612:'ACTUALS_2026_12',
+};
+let _wbYear=2025, _wbData={}, _wbEdits={};
+const _WB_LINES=[
+  ['_sec_recv','RECEIPTS','s'],
+  ['cf_d_coll','Collections','r'],['cf_d_debt_fin','Long-term Debt Financing','r'],
+  ['cf_d_ins_recv','Insurance Proceeds','r'],['cf_d_other_recv','Other Receipts (GCT)','r'],
+  ['cf_d_div_recv','Dividend Received','r'],['cf_d_total_recv','Total Receipts','t'],
+  ['_sec_disb','DISBURSEMENTS','s'],
+  ['cf_d_fuel','Fuel','d'],['cf_d_ipp','IPP','d'],['cf_d_payroll','Payroll & Related','d'],
+  ['cf_d_supp','Supplier / Contractor','d'],['cf_d_mvt','Motor Vehicle Transport','d'],
+  ['cf_d_customs','Customs','d'],['cf_d_taxes','Taxes','d'],['cf_d_inv','Inventory','d'],
+  ['cf_d_ins_paid','Insurance Paid','d'],['cf_d_equity','Equity Investment','d'],
+  ['cf_d_loan_prin','Loan Principal','d'],['cf_d_loan_int','Loan Interest & Fees','d'],
+  ['cf_d_melissa','Hurricane Melissa Restoration','d'],['cf_d_phase2','Phase 2 Restoration','d'],
+  ['cf_d_tnd','T&D Rebuild','d'],['cf_d_div_paid','Dividends Paid','d'],
+  ['cf_d_total_disb','Total Disbursements','t'],
+  ['_sec_summ','SUMMARY','s'],
+  ['cf_d_edf','EDF Contribution/(Transfers)','m'],
+  ['cf_d_net','Net Inflow / (Outflow)','total'],
+  ['cf_d_open','Opening Balance','b'],['cf_d_close','Closing Balance','b'],
+  ['cf_d_restricted','Restricted Cash','m'],['cf_d_cce','Cash & Cash Equivalents','m'],
+];
+const _WB_DERIVED=new Set(['cf_d_total_recv','cf_d_total_disb','cf_d_net']);
+
+function wbSetYear(yr,btn){
+  _wbYear=yr;
+  document.querySelectorAll('.wb-yr-btn').forEach(function(b){b.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  _loadedPages.delete('p18');
+  loadP18();
+}
+
+async function loadP18(){
+  var body=document.getElementById('wb-body');
+  var status=document.getElementById('wb-status');
+  if(!body)return;
+  body.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted);font-size:12px">Loading…</div>';
+  if(status)status.textContent='';
+  try{
+    await _ensureVMap();
+    var yr=_wbYear;
+    var periods=[];
+    for(var m=1;m<=12;m++)periods.push(yr*100+m);
+    var verIds=[];
+    if(yr===2025){
+      periods.forEach(function(p){if(_WB_VER_2025[p])verIds.push(_WB_VER_2025[p]);});
+    }else{
+      periods.forEach(function(p){var code=_WB_VER_CODES_2026[p];var vid=(_vMap||{})[code];if(vid)verIds.push(vid);});
+    }
+    _wbData={};
+    if(verIds.length>0){
+      var r=await _sbQ(function(sb){
+        return sb.from('fpa_facts').select('version_id,line_id,period_id,value')
+          .in('version_id',verIds).like('line_id','cf_d_%');
+      });
+      if(r&&r.data){
+        r.data.forEach(function(row){
+          var p=row.period_id;
+          if(!_wbData[p])_wbData[p]={};
+          _wbData[p][row.line_id]=parseFloat(row.value)||0;
+        });
+      }
+    }
+    body.innerHTML=_wbBuildTable(yr,periods);
+    if(status){var loaded=Object.keys(_wbData).length;status.textContent=loaded+' of 12 months loaded';}
+  }catch(e){
+    console.error('[WB] load error',e);
+    body.innerHTML='<div style="padding:40px;text-align:center;color:var(--rose);font-size:12px">Error: '+_escHtml(e.message||String(e))+'</div>';
+  }
+}
+
+function _wbV(period,lid){
+  return(_wbData[period]&&_wbData[period][lid]!=null)?_wbData[period][lid]:null;
+}
+
+function _wbFmt(v,type){
+  if(v===null||v===undefined)return '<span class="wb-no-data">—</span>';
+  var n=+v;if(!isFinite(n))return '<span class="wb-no-data">—</span>';
+  var abs=Math.abs(n);
+  var s=abs>=1000?abs.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}):abs.toFixed(0);
+  if(type==='d'){return n>0?'('+s+')':(n<0?s:'—');}
+  return n<0?'('+s+')':s;
+}
+
+function _wbCalcDerived(period){
+  var recvLines=['cf_d_coll','cf_d_debt_fin','cf_d_ins_recv','cf_d_other_recv','cf_d_div_recv'];
+  var disbLines=['cf_d_fuel','cf_d_ipp','cf_d_payroll','cf_d_supp','cf_d_mvt','cf_d_customs',
+    'cf_d_taxes','cf_d_inv','cf_d_ins_paid','cf_d_equity','cf_d_loan_prin','cf_d_loan_int',
+    'cf_d_melissa','cf_d_phase2','cf_d_tnd','cf_d_div_paid'];
+  var totalRecv=0,anyRecv=false;
+  recvLines.forEach(function(lid){var v=_wbV(period,lid);if(v!==null){totalRecv+=v;anyRecv=true;}});
+  var dbRecv=_wbV(period,'cf_d_total_recv');
+  var finalRecv=dbRecv!==null?dbRecv:(anyRecv?totalRecv:null);
+  var totalDisb=0,anyDisb=false;
+  disbLines.forEach(function(lid){var v=_wbV(period,lid);if(v!==null){totalDisb+=v;anyDisb=true;}});
+  var dbDisb=_wbV(period,'cf_d_total_disb');
+  var finalDisb=dbDisb!==null?dbDisb:(anyDisb?totalDisb:null);
+  var dbNet=_wbV(period,'cf_d_net');
+  var edf=_wbV(period,'cf_d_edf')||0;
+  var finalNet=dbNet!==null?dbNet:((finalRecv!==null&&finalDisb!==null)?finalRecv-finalDisb+edf:null);
+  return{totalRecv:finalRecv,totalDisb:finalDisb,net:finalNet};
+}
+
+function _wbBuildTable(yr,periods){
+  var isEditable=(yr===2026);
+  var mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var html='<div class="wb-tbl-wrap"><table class="wb-tbl"><thead><tr><th>Cash Flow (US\'000)</th>';
+  periods.forEach(function(p,i){html+='<th>'+mons[i]+' '+yr+'</th>';});
+  html+='</tr>';
+  if(isEditable){
+    html+='<tr><td style="background:var(--surface);font-size:9px;color:var(--muted);font-weight:600;font-family:\'IBM Plex Sans\',sans-serif;text-align:left;padding:4px 12px">Commit month</td>';
+    periods.forEach(function(p){
+      var code=_WB_VER_CODES_2026[p];
+      var hasVer=!!(_vMap||{})[code];
+      html+='<td style="background:var(--surface);padding:3px 4px;text-align:center">';
+      if(hasVer)html+='<button class="wb-commit-btn" id="wb-btn-'+p+'" onclick="wbCommit('+p+',this)">&#128190; Save</button>';
+      else html+='<span style="font-size:9px;color:var(--muted)">—</span>';
+      html+='</td>';
+    });
+    html+='</tr>';
+  }
+  html+='</thead><tbody>';
+  _WB_LINES.forEach(function(lineDef){
+    var lid=lineDef[0],lbl=lineDef[1],type=lineDef[2];
+    if(type==='s'){
+      html+='<tr class="wb-sec-row"><td colspan="'+(periods.length+1)+'">'+lbl+'</td></tr>';
+      return;
+    }
+    var rowClass='';
+    if(type==='t'||type==='total')rowClass=' class="wb-sub-row"';
+    else if(type==='b')rowClass=' class="wb-bal-row"';
+    else if(type==='m')rowClass=' class="wb-memo-row"';
+    var badge='';
+    if(isEditable&&!_WB_DERIVED.has(lid))badge=' <span class="wb-badge wb-badge-up">ENTER</span>';
+    else if(_WB_DERIVED.has(lid))badge=' <span class="wb-badge wb-badge-d">DERIVED</span>';
+    html+='<tr'+rowClass+'><td>'+_escHtml(lbl)+badge+'</td>';
+    periods.forEach(function(p){
+      var derived=_wbCalcDerived(p);
+      var v;
+      if(lid==='cf_d_total_recv')v=derived.totalRecv;
+      else if(lid==='cf_d_total_disb')v=derived.totalDisb;
+      else if(lid==='cf_d_net')v=derived.net;
+      else v=_wbV(p,lid);
+      var isDerived=_WB_DERIVED.has(lid);
+      if(isEditable&&!isDerived){
+        var curVal=(_wbEdits[p]&&_wbEdits[p][lid]!=null)?_wbEdits[p][lid]:(v!=null?v:'');
+        html+='<td style="padding:2px 4px"><input class="wb-input" type="number" step="any" data-p="'+p+'" data-lid="'+lid+'" value="'+curVal+'" oninput="wbEdit(this)"></td>';
+      }else{
+        html+='<td'+(isDerived?' class="wb-derived"':'')+'>'+ _wbFmt(v,(type==='d'?'d':'n'))+'</td>';
+      }
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<div style="margin-top:20px"><div style="font-size:10px;font-weight:800;color:var(--teal);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Financial Ratios</div>';
+  html+='<div class="wb-ratio-grid">';
+  [['Debt : EBITDA','Benchmark: ≤ 3.5\xd7'],['Debt : Equity','Benchmark: ≤ 1.5\xd7'],['DSCR','Benchmark: ≥ 1.2\xd7'],['Current Ratio','Benchmark: ≥ 1.1\xd7']].forEach(function(r){
+    html+='<div class="wb-ratio-card"><div class="wb-ratio-lbl">'+r[0]+'</div><div class="wb-ratio-bench">'+r[1]+'</div><div class="wb-ratio-vals"><span class="wb-ratio-val wb-no-data">—</span></div></div>';
+  });
+  html+='</div></div>';
+  return html;
+}
+
+function wbEdit(el){
+  var p=+el.dataset.p,lid=el.dataset.lid,v=parseFloat(el.value);
+  if(!_wbEdits[p])_wbEdits[p]={};
+  _wbEdits[p][lid]=isNaN(v)?null:v;
+}
+
+async function wbCommit(period,btn){
+  if(!btn)return;
+  var origText=btn.innerHTML;
+  btn.innerHTML='Saving…';btn.classList.add('loading');btn.disabled=true;
+  try{
+    await _ensureVMap();
+    var code=_WB_VER_CODES_2026[period];
+    if(!code)throw new Error('No version code for period '+period);
+    var vid=(_vMap||{})[code];
+    if(!vid)throw new Error('Version '+code+' not in DB');
+    var rows=document.querySelectorAll('input[data-p="'+period+'"]');
+    var upsertRows=[];
+    rows.forEach(function(inp){
+      var lid=inp.dataset.lid,v=parseFloat(inp.value);
+      if(!isNaN(v))upsertRows.push({version_id:vid,line_id:lid,period_id:period,value:v,source:'manual',version:1,updated_at:new Date().toISOString()});
+    });
+    if(upsertRows.length===0){toast('No data to commit','warn');btn.innerHTML=origText;btn.classList.remove('loading');btn.disabled=false;return;}
+    var sb=_getSB();
+    var{error}=await sb.from('fpa_facts').upsert(upsertRows,{onConflict:'version_id,line_id,period_id',ignoreDuplicates:false});
+    if(error)throw error;
+    if(!_wbData[period])_wbData[period]={};
+    upsertRows.forEach(function(r){_wbData[period][r.line_id]=r.value;});
+    btn.innerHTML='✓ Saved';btn.classList.remove('loading');btn.classList.add('done');btn.disabled=false;
+    toast('Saved '+upsertRows.length+' rows for '+period,'ok');
+    setTimeout(function(){btn.innerHTML='&#128190; Save';btn.classList.remove('done');},3000);
+  }catch(e){
+    console.error('[WB] commit',e);toast('Commit failed: '+(e.message||e),'error');
+    btn.innerHTML=origText;btn.classList.remove('loading');btn.disabled=false;
+  }
+}
+
+/* ================================================================ */
+
 function loadPage(id) {
   console.log('[FPA] load:', id);
   if      (id === 'p1')  loadP1();
@@ -5288,6 +5562,7 @@ function loadPage(id) {
   else if (id === 'p17') loadP17();
   else if (id === 'p11') loadP11();
   else if (id === 'p15') loadAuditFromDB();
+  else if (id === 'p18') loadP18();
   // p5–p9, p12, p14, p16: static HTML retained
 }
 
