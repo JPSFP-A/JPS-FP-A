@@ -1,0 +1,38 @@
+name: JPS Platform Audit
+
+on:
+  schedule:
+    # 11:00 UTC = 6:00 AM Jamaica Standard Time (UTC-5, no DST)
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+    inputs:
+      triggered_by:
+        description: 'Who triggered this run'
+        required: false
+        default: 'manual'
+
+jobs:
+  audit:
+    name: Run platform audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run audit
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TRIGGERED_BY: ${{ github.event.inputs.triggered_by || 'schedule' }}
+        run: node scripts/platform-audit.js
