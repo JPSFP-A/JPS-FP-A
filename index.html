@@ -4173,6 +4173,12 @@ async function loadP4() {
     const aEmpty = !rawAF || Object.keys(rawAF).length === 0;
     aF = aEmpty ? bF : rawAF;
     if (aEmpty) console.warn('[FPA] p4: no actuals for', ctx.yr, '— showing budget as actual');
+    // DEBUG — remove after diagnosis
+    console.log('[FPA-CF-DBG] yr=%s mo=%s actPeriods=%o hasMonthly=%s aEmpty=%s',
+      ctx.yr, ctx.mo, ctx.actPeriods, ctx.hasMonthly, aEmpty);
+    console.log('[FPA-CF-DBG] aF keys:', Object.keys(aF||{}));
+    console.log('[FPA-CF-DBG] aF.cf_close:', (aF||{})['cf_close']);
+    console.log('[FPA-CF-DBG] aF.cf_open:', (aF||{})['cf_open']);
   }
   _pgLoad('p4', false);
   _renderMoNav(ctx.maxMo); // keep month nav in sync regardless of active page
