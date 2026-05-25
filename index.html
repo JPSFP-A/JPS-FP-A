@@ -5361,7 +5361,7 @@ const _WB_VER_CODES_2026 = {
   202605:'ACTUALS_2026_05',202606:'ACTUALS_2026_06',202607:'ACTUALS_2026_07',202608:'ACTUALS_2026_08',
   202609:'ACTUALS_2026_09',202610:'ACTUALS_2026_10',202611:'ACTUALS_2026_11',202612:'ACTUALS_2026_12',
 };
-let _wbYear=2025, _wbData={}, _wbEdits={};
+let _wbYear=2025, _wbData={}, _wbEdits={}, _wbSummData={};
 const _WB_LINES=[
   ['_sec_recv','RECEIPTS','s'],
   ['cf_d_coll','Collections','r'],['cf_d_debt_fin','Long-term Debt Financing','r'],
@@ -5409,7 +5409,7 @@ async function loadP18(){
     }else{
       periods.forEach(function(p){var code=_WB_VER_CODES_2026[p];var vid=(_vMap||{})[code];if(vid)verIds.push(vid);});
     }
-    _wbData={};
+    _wbData={}; _wbSummData={};
     if(verIds.length>0){
       var r=await _sbQ(function(sb){
         return sb.from('fpa_facts').select('version_id,line_id,period_id,value')
@@ -5423,6 +5423,23 @@ async function loadP18(){
         });
       }
     }
+    // Load P&L + Indirect CF from HIST ACTUALS for reconciliation
+    var _histVerMap={2025:'6526d68d-6bb7-4d61-8179-5b9e7eefa4a6'};
+    var histVerId=_histVerMap[yr]||null;
+    if(histVerId){
+      var r2=await _sbQ(function(sb){
+        return sb.from('fpa_facts').select('line_id,period_id,value')
+          .eq('version_id',histVerId)
+          .in('line_id',['cf_ops_net','cf_inv_net','cf_fin_net','cf_change','cf_ni',
+                         'net_inc','ebitda','ebit','pretax','pl_gross_profit','depn'])
+          .gte('period_id',yr*100+1).lte('period_id',yr*100+12);
+      });
+      if(r2&&r2.data){r2.data.forEach(function(row){
+        var p=row.period_id;
+        if(!_wbSummData[p])_wbSummData[p]={};
+        _wbSummData[p][row.line_id]=parseFloat(row.value)||0;
+      });}
+    }
     body.innerHTML=_wbBuildTable(yr,periods);
     if(status){var loaded=Object.keys(_wbData).length;status.textContent=loaded+' of 12 months loaded';}
   }catch(e){
@@ -5433,6 +5450,9 @@ async function loadP18(){
 
 function _wbV(period,lid){
   return(_wbData[period]&&_wbData[period][lid]!=null)?_wbData[period][lid]:null;
+}
+function _wbSV(period,lid){
+  return(_wbSummData[period]&&_wbSummData[period][lid]!=null)?_wbSummData[period][lid]:null;
 }
 
 function _wbFmt(v,type){
@@ -5514,6 +5534,62 @@ function _wbBuildTable(yr,periods){
     html+='</tr>';
   });
   html+='</tbody></table></div>';
+
+  // ── B: P&L SUMMARY ──────────────────────────────────────────────────────
+  var hasSumm=Object.keys(_wbSummData).length>0;
+  html+='<div style="margin-top:28px">';
+  html+='<div style="font-size:10px;font-weight:800;color:var(--teal);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">P&amp;L Summary (Actuals)'+(hasSumm?'':'&nbsp;<span style="color:var(--muted);font-weight:400;text-transform:none">— data not available for this year</span>')+'</div>';
+  if(hasSumm){
+    html+='<div class="wb-tbl-wrap"><table class="wb-tbl"><thead><tr><th>Income Statement (US\'000)</th>';
+    periods.forEach(function(p,i){html+='<th>'+mons[i]+' '+yr+'</th>';});
+    html+='</tr></thead><tbody>';
+    [['pl_gross_profit','Gross Profit',''],['ebitda','EBITDA','sub'],['ebit','EBIT',''],['pretax','Pre-Tax Income',''],['net_inc','Net Income','sub']].forEach(function(row){
+      var lid=row[0],lbl=row[1],cls=row[2];
+      html+='<tr'+(cls==='sub'?' class="wb-sub-row"':'')+'><td>'+_escHtml(lbl)+'</td>';
+      periods.forEach(function(p){html+='<td>'+_wbFmt(_wbSV(p,lid),'n')+'</td>';});
+      html+='</tr>';
+    });
+    html+='</tbody></table></div>';
+  }
+  html+='</div>';
+
+  // ── A: RECONCILIATION CHECK ──────────────────────────────────────────────
+  html+='<div style="margin-top:28px">';
+  html+='<div style="font-size:10px;font-weight:800;color:var(--teal);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Reconciliation — Direct vs Indirect</div>';
+  html+='<div class="wb-tbl-wrap"><table class="wb-tbl"><thead><tr><th>Cash Flow (US\'000)</th>';
+  periods.forEach(function(p,i){html+='<th>'+mons[i]+' '+yr+'</th>';});
+  html+='</tr></thead><tbody>';
+  // Direct Net row
+  html+='<tr><td>Direct — Net Inflow / (Outflow) <span class="wb-badge wb-badge-up">DIRECT</span></td>';
+  periods.forEach(function(p){var d=_wbCalcDerived(p);html+='<td>'+_wbFmt(d.net,'n')+'</td>';});
+  html+='</tr>';
+  // Indirect component rows
+  [['cf_ops_net','Indirect — Operating CF'],['cf_inv_net','Indirect — Investing CF'],['cf_fin_net','Indirect — Financing CF']].forEach(function(row){
+    html+='<tr><td>'+_escHtml(row[1])+'</td>';
+    periods.forEach(function(p){html+='<td>'+_wbFmt(_wbSV(p,row[0]),'n')+'</td>';});
+    html+='</tr>';
+  });
+  // Indirect total
+  html+='<tr class="wb-sub-row"><td>Indirect — Total Net Change</td>';
+  periods.forEach(function(p){html+='<td>'+_wbFmt(_wbSV(p,'cf_change'),'n')+'</td>';});
+  html+='</tr>';
+  // Variance row
+  html+='<tr><td>Variance (Direct − Indirect) <span class="wb-badge wb-badge-d">CHECK</span></td>';
+  periods.forEach(function(p){
+    var d=_wbCalcDerived(p);
+    var dNet=d.net, iNet=_wbSV(p,'cf_change');
+    if(dNet===null||iNet===null){html+='<td><span class="wb-no-data">—</span></td>';return;}
+    var diff=dNet-iNet, ok=Math.abs(diff)<1;
+    html+='<td style="color:'+(ok?'var(--green)':'var(--rose)')+';font-weight:700">'+(ok?'✓ —':(diff>0?'+':'')+Math.round(diff).toLocaleString())+'</td>';
+  });
+  html+='</tr>';
+  // Net Income link row
+  html+='<tr class="wb-memo-row"><td>Net Income (indirect start) <span class="wb-badge wb-badge-d">P&amp;L LINK</span></td>';
+  periods.forEach(function(p){html+='<td>'+_wbFmt(_wbSV(p,'cf_ni'),'n')+'</td>';});
+  html+='</tr>';
+  html+='</tbody></table></div></div>';
+
+  // ── Financial Ratios ─────────────────────────────────────────────────────
   html+='<div style="margin-top:20px"><div style="font-size:10px;font-weight:800;color:var(--teal);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Financial Ratios</div>';
   html+='<div class="wb-ratio-grid">';
   [['Debt : EBITDA','Benchmark: ≤ 3.5\xd7'],['Debt : Equity','Benchmark: ≤ 1.5\xd7'],['DSCR','Benchmark: ≥ 1.2\xd7'],['Current Ratio','Benchmark: ≥ 1.1\xd7']].forEach(function(r){
