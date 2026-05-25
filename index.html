@@ -3736,15 +3736,41 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
     return '<tr class="rsec"><td colspan="' + nCols + '">' + lbl + '</td></tr>';
   }
 
+  // Exec-specific derived helpers (same logic as _buildP2Exec)
+  function fuel_surplus(ps) { return cv('fuel_rev',ps) - cv('fuel_cost',ps); }
+  function reg_ebitda(ps)   { return fuel_surplus(ps) + cv('nr_rev',ps) + cv('other_r',ps) - cv('opex',ps); }
+  function pp_surplus(ps)   { return cv('ipp_fr',ps) - cv('ipp_cost',ps); }
+  function nfc_net(ps)      { return cv('nfc_int_exp',ps) - cv('nfc_int_inc',ps) - cv('nfc_afudc',ps) + cv('pl_pref_div',ps); }
+  function after_nfc(ps)    { return ebit(ps) - nfc_net(ps); }
+
   var tbody;
   if (tab === 'exec') {
+    // Mirror _buildP2Exec row structure exactly — only columns differ
     tbody = ''
-      + rsub('Total Revenue',              rev,    'rs')
-      + rsub('Gross Profit',               gp,     'rs')
-      + rsub('EBITDA',                     ebitda, 'rt')
-      + rsub('EBIT',                       ebit,   'rs')
-      + rsub('Net Profit Before Tax',      pretax, 'rs')
-      + rsub('Net Profit After Tax (NPAT)',npat,   'rt');
+      + rsec('Regulated Business')
+      + rline('Fuel Revenues',                    function(ps){ return cv('fuel_rev',ps); })
+      + rline('(&#8722;) Fuel Costs',             function(ps){ return cv('fuel_cost',ps); }, 'rind', true)
+      + rsub('Fuel Surplus / (Penalty)',           fuel_surplus, 'rs')
+      + rline('Non-Fuel Revenues',                function(ps){ return cv('nr_rev',ps); })
+      + rline('Other Operating Revenue',          function(ps){ return cv('other_r',ps); })
+      + rline('(&#8722;) Operating Expenses',     function(ps){ return cv('opex',ps); }, 'rind', true)
+      + rsub('Regulated Business EBITDA',         reg_ebitda, 'rs')
+      + rsec('Purchased Power')
+      + rline('IPP Surcharge Revenue',            function(ps){ return cv('ipp_fr',ps); })
+      + rline('(&#8722;) IPP &amp; Purchased Power Costs', function(ps){ return cv('ipp_cost',ps); }, 'rind', true)
+      + rsub('Purchased Power Surplus / (Deficit)', pp_surplus, 'rs')
+      + rsec('Total')
+      + rsub('EBITDA',                            ebitda, 'rt')
+      + rline('(&#8722;) Depreciation',           function(ps){ return cv('depn',ps); }, 'rind', true)
+      + rsub('Operating Income (EBIT)',            ebit, 'rs')
+      + rsec('Financing')
+      + rline('Net Financing Costs',              nfc_net, 'rind', true)
+      + rsub('Operating Profit after NFC',         after_nfc, 'rs')
+      + (!_p2Standalone ? rline('Other Income / (Expenses)', function(ps){ return cv('other_inc',ps); }) : '')
+      + rsec('Taxation')
+      + rsub('Net Profit Before Tax',              pretax, 'rs')
+      + rline('Income Tax Expense',               function(ps){ return cv('tax',ps); }, 'rind', true)
+      + rsub('Net Profit After Tax (NPAT)',        npat, 'rt');
   } else {
     tbody = ''
       + rsec('Revenue')
