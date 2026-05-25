@@ -908,7 +908,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
       <div class="ws-conn ws-conn-r"><div class="ws-conn-arrow">›</div><div class="ws-conn-line"></div></div>
       <div class="ws-card">
         <div class="ws-logo">
-          <div style="font-size:28px">⚡</div>
+          <img src="/JPS-Logo-2022-Outline-No-Tag-2.png" alt="JPS" style="height:38px;width:auto;object-fit:contain;filter:brightness(0) invert(1)">
           <div class="ws-divider"></div>
           <div class="ws-product">FP&amp;A Hub<span>Jamaica Public Service</span></div>
         </div>
@@ -5392,7 +5392,12 @@ async function loadP18(){
     if(yr===2025){
       periods.forEach(function(p){if(_WB_VER_2025[p])verIds.push(_WB_VER_2025[p]);});
     }else{
-      periods.forEach(function(p){var code=_WB_VER_CODES_2026[p];var vid=(_vMap||{})[code];if(vid)verIds.push(vid);});
+      periods.forEach(function(p){
+        var y=Math.floor(p/100),m=p%100;
+        var code='ACTUALS_'+y+'_'+(m<10?'0'+m:''+m);
+        var vid=(_vMap||{})[code];
+        if(vid)verIds.push(vid);
+      });
     }
     _wbData={}; _wbSummData={};
     if(verIds.length>0){
@@ -5409,7 +5414,12 @@ async function loadP18(){
       }
     }
     // Load P&L + Indirect CF from HIST ACTUALS for reconciliation
-    var _histVerMap={2025:'6526d68d-6bb7-4d61-8179-5b9e7eefa4a6'};
+    var _histVerMap={
+      2022:'a779254f-2940-49e9-86e3-37453cce89c0',
+      2023:'0b204181-217d-4445-bd9a-4ade9365ad79',
+      2024:'d7aa218d-9844-4b9c-9f19-7fe3aca8579b',
+      2025:'6526d68d-6bb7-4d61-8179-5b9e7eefa4a6'
+    };
     var histVerId=_histVerMap[yr]||null;
     if(histVerId){
       var r2=await _sbQ(function(sb){
@@ -5513,8 +5523,10 @@ function _wbBuildTable(yr,periods){
   if(isEditable){
     html+='<tr><td style="background:var(--surface);font-size:9px;color:var(--muted);font-weight:600;font-family:\'IBM Plex Sans\',sans-serif;text-align:left;padding:4px 12px">Commit month</td>';
     periods.forEach(function(p){
-      var code=_WB_VER_CODES_2026[p];
-      var hasVer=!!(_vMap||{})[code];
+      var _py=Math.floor(p/100),_pm=p%100;
+      var code='ACTUALS_'+_py+'_'+(_pm<10?'0'+_pm:''+_pm);
+      if(yr===2025&&_WB_VER_2025[p])code=null; // 2025 uses hardcoded UUIDs
+      var hasVer=yr===2025?!!_WB_VER_2025[p]:!!(code&&(_vMap||{})[code]);
       html+='<td style="background:var(--surface);padding:3px 4px;text-align:center">';
       if(hasVer)html+='<button class="wb-commit-btn" id="wb-btn-'+p+'" onclick="wbCommit('+p+',this)">&#128190; Save</button>';
       else html+='<span style="font-size:9px;color:var(--muted)">—</span>';
@@ -5657,7 +5669,8 @@ async function wbCommit(period,btn){
   btn.innerHTML='Saving…';btn.classList.add('loading');btn.disabled=true;
   try{
     await _ensureVMap();
-    var code=_WB_VER_CODES_2026[period];
+    var _cy=Math.floor(period/100),_cm=period%100;
+    var code='ACTUALS_'+_cy+'_'+(_cm<10?'0'+_cm:''+_cm);
     if(!code)throw new Error('No version code for period '+period);
     var vid=(_vMap||{})[code];
     if(!vid)throw new Error('Version '+code+' not in DB');
