@@ -846,6 +846,24 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
   #topbar, #sidebar, #notifPanel, .tb-print-btn { display: none !important; }
   #main { padding: 0; }
 }
+@keyframes skel-shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+.skel {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 600px 100%;
+  animation: skel-shimmer 1.4s infinite linear;
+  border-radius: 4px;
+  display: inline-block;
+  height: 14px;
+}
+.skel-row td { padding: 8px 6px; }
+.skel-w25  { width: 25%; }
+.skel-w40  { width: 40%; }
+.skel-w60  { width: 60%; }
+.skel-w80  { width: 80%; }
+.skel-w100 { width: 100%; }
 </style>
 </head>
 <body>
@@ -2484,6 +2502,7 @@ function _escHtml(s) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+function esc(s) { return _escHtml(s); }
 
 /* ─── PLATFORM AUDIT — canonical v1 ───────────────────────────────────────
    Contract: action (string), target (string|null), oldVal (any|null), newVal (any|null)
@@ -2559,27 +2578,41 @@ function _debounce(fn, ms) {
     t = setTimeout(function () { fn.apply(null, a); }, ms);
   };
 }
+// Public alias — matches spec signature debounce(fn, ms)
+function debounce(fn, ms) { return _debounce(fn, ms); }
 
 async function _sbQ(fn, opts) {
   opts = opts || {};
   const silent = !!opts.silent;
+  const retries = opts.retries != null ? opts.retries : 3;
   const sb = _getSB();
   if (!sb) return null;
-  try {
-    const res = await fn(sb);
+  for (let i = 0; i < retries; i++) {
+    let res;
+    try {
+      res = await fn(sb);
+    } catch (e) {
+      if (!silent) toast(e.message || 'Unknown error', 'err');
+      if (window.JpsMonitor && JpsMonitor.warning) JpsMonitor.warning('db:query:exception', e.message || 'error', {});
+      return null;
+    }
     if (res && res.error) {
       const status = res.error.status != null ? res.error.status : res.error.statusCode;
-      if (status === 429) { toast('Rate limit — retry in a moment', 'w'); return null; }
+      if (status === 429 && i < retries - 1) {
+        const wait = 500 * Math.pow(2, i);
+        if (!silent) toast('Rate limit — retrying in ' + (wait / 1000).toFixed(1) + 's…', 'w');
+        if (window.JpsMonitor && JpsMonitor.warning) JpsMonitor.warning('db:429:retry', 'attempt ' + (i + 1), {});
+        await new Promise(function(res) { setTimeout(res, wait); });
+        continue;
+      }
+      if (status === 429) { toast('Rate limit — please wait a moment', 'w'); return null; }
       if (!silent) toast('DB: ' + (res.error.message || 'error'), 'err');
       if (window.JpsMonitor && JpsMonitor.warning) JpsMonitor.warning('db:query:error', res.error.message || 'error', {});
       return null;
     }
     return res;
-  } catch (e) {
-    if (!silent) toast(e.message || 'Unknown error', 'err');
-    if (window.JpsMonitor && JpsMonitor.warning) JpsMonitor.warning('db:query:exception', e.message || 'error', {});
-    return null;
   }
+  return null;
 }
 
 /* ---------- Toast ---------- */
@@ -4008,7 +4041,7 @@ async function loadP3() {
     'tot_a',
     'ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl',
     'bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to',
-    'ltd','leases','bs_cust_dep_lt','bs_dtl','bs_decomm_lt',
+    'ltd','leases','bs_cust_dep_lt','bs_dtl','bs_decomm_lt','bs_ref_adv',
     'bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref'
   ];
 
@@ -4080,8 +4113,8 @@ async function loadP3() {
   const ta_p   = pv('tot_a') || (nca_p + ca_p);
   const eq_c   = cv('bs_share_cap') + cv('bs_retained') + cv('bs_cap_res') + cv('bs_cap_redm') + cv('bs_pref');
   const eq_p   = pv('bs_share_cap') + pv('bs_retained') + pv('bs_cap_res') + pv('bs_cap_redm') + pv('bs_pref');
-  const ncl_c  = cv('ltd') + cv('leases') + cv('bs_cust_dep_lt') + cv('bs_dtl') + cv('bs_decomm_lt');
-  const ncl_p  = pv('ltd') + pv('leases') + pv('bs_cust_dep_lt') + pv('bs_dtl') + pv('bs_decomm_lt');
+  const ncl_c  = cv('ltd') + cv('leases') + cv('bs_cust_dep_lt') + cv('bs_dtl') + cv('bs_decomm_lt') + cv('bs_ref_adv');
+  const ncl_p  = pv('ltd') + pv('leases') + pv('bs_cust_dep_lt') + pv('bs_dtl') + pv('bs_decomm_lt') + pv('bs_ref_adv');
   const cl_c   = cv('ap') + cv('bs_int_acc') + cv('bs_corp_tax') + cv('bs_bank_od') + cv('lease_cl') + cv('bs_curr_ltd') + cv('bs_cust_dep') + cv('bs_payroll_tax') + cv('bs_std') + cv('bs_emp_ben') + cv('bs_due_to');
   const cl_p   = pv('ap') + pv('bs_int_acc') + pv('bs_corp_tax') + pv('bs_bank_od') + pv('lease_cl') + pv('bs_curr_ltd') + pv('bs_cust_dep') + pv('bs_payroll_tax') + pv('bs_std') + pv('bs_emp_ben') + pv('bs_due_to');
   const tel_c  = eq_c + ncl_c + cl_c;
@@ -4136,8 +4169,9 @@ async function loadP3() {
     + bsRow('Lease Liabilities (IFRS 16)', cv('leases'),       pv('leases'), null, 'leases')
     + bsRow('Customer Deposits (LT)',      cv('bs_cust_dep_lt'),pv('bs_cust_dep_lt'))
     + bsRow('Deferred Tax Liability',      cv('bs_dtl'),       pv('bs_dtl'), null, 'bs_dtl')
-    + bsRow('Decommissioning Provision',   cv('bs_decomm_lt'), pv('bs_decomm_lt'))
-    + bsRow('Total Non-Current Liabilities',ncl_c,            ncl_p, 'rs')
+    + bsRow('Decommissioning Provision',      cv('bs_decomm_lt'),  pv('bs_decomm_lt'))
+    + bsRow('Refundable Customer Advance',    cv('bs_ref_adv'),    pv('bs_ref_adv'))
+    + bsRow('Total Non-Current Liabilities',  ncl_c,               ncl_p, 'rs')
     + sec('Current Liabilities')
     + bsRow('Accounts Payable',            cv('ap'),           pv('ap'),         null, 'ap')
     + bsRow('Accrued Interest',            cv('bs_int_acc'),   pv('bs_int_acc'))
@@ -4263,8 +4297,9 @@ function _buildBSMultiCol(ctx, actF, aopF, priF, priPer, view) {
     + rline('Lease Liabilities (IFRS 16)', get('leases'))
     + rline('Customer Deposits (LT)',      get('bs_cust_dep_lt'))
     + rline('Deferred Tax Liability',      get('bs_dtl'))
-    + rline('Decommissioning Provision',   get('bs_decomm_lt'))
-    + rsub('Total Non-Current Liabilities', sum(['ltd','leases','bs_cust_dep_lt','bs_dtl','bs_decomm_lt']), 'rs')
+    + rline('Decommissioning Provision',      get('bs_decomm_lt'))
+    + rline('Refundable Customer Advance',    get('bs_ref_adv'))
+    + rsub('Total Non-Current Liabilities', sum(['ltd','leases','bs_cust_dep_lt','bs_dtl','bs_decomm_lt','bs_ref_adv']), 'rs')
     + rsec('Current Liabilities')
     + rline('Accounts Payable',            get('ap'))
     + rline('Accrued Interest',            get('bs_int_acc'))
@@ -4278,7 +4313,7 @@ function _buildBSMultiCol(ctx, actF, aopF, priF, priPer, view) {
     + rline('Employee Benefits (Current)', get('bs_emp_ben'))
     + rline('Due to Related Party',        get('bs_due_to'))
     + rsub('Total Current Liabilities', sum(['ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to']), 'rs')
-    + rsub('TOTAL EQUITY &amp; LIABILITIES', sum(['bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref','ltd','leases','bs_cust_dep_lt','bs_dtl','bs_decomm_lt','ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to']), 'rs');
+    + rsub('TOTAL EQUITY &amp; LIABILITIES', sum(['bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref','ltd','leases','bs_cust_dep_lt','bs_dtl','bs_decomm_lt','bs_ref_adv','ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to']), 'rs');
 
   const note = ctx.isCY && maxMo < 12
     ? '<div style="font-size:11px;color:var(--muted);padding:6px 0">* Up to ' + _MONS[maxMo-1] + ' ' + yr + ' = Actuals &nbsp;|&nbsp; Remaining = AOP ' + yr + '</div>'
@@ -5119,7 +5154,7 @@ function flashRenderNotes() {
       +'<div class="flash-note-avatar">'+initials+'</div>'
       +'<div class="flash-note-body">'
       +'<div class="flash-note-meta"><span class="flash-note-author">'+_escHtml(n.entered_by||'?')+'</span>'
-      +'<span>'+dt+'</span><span class="flash-note-tag">'+((n.section||'general').replace(/_/g,' '))+'</span></div>'
+      +'<span>'+dt+'</span><span class="flash-note-tag">'+_escHtml((n.section||'general').replace(/_/g,' '))+'</span></div>'
       +'<div class="flash-note-text">'+_escHtml(n.note_text||'').replace(/\n/g,'<br>')+'</div>'
       +'</div></div>';
   }).join('');
@@ -6081,8 +6116,8 @@ function _renderNotifList() {
     return '<div class="notif-item" data-nid="' + n.id + '">'
       + '<div class="notif-dot' + (read ? ' read' : '') + '"></div>'
       + '<div style="flex:1">'
-      + '<b>' + icon + ' ' + (n.title || '') + '</b>'
-      + (n.body ? '<p>' + n.body + '</p>' : '')
+      + '<b>' + icon + ' ' + _escHtml(n.title || '') + '</b>'
+      + (n.body ? '<p>' + _escHtml(n.body) + '</p>' : '')
       + '<div class="nt">' + when + '</div>'
       + '</div>'
       + '</div>';
@@ -6501,9 +6536,9 @@ function auditFilter(el, flt) {
   applyAuditView();
 }
 
-function auditSearch() {
+var auditSearch = _debounce(function auditSearch() {
   applyAuditView();
-}
+}, 300);
 
 function applyAuditView() {
   const q = (document.getElementById('auditSearch').value || '').toLowerCase();
