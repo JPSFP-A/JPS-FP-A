@@ -1651,7 +1651,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
       <section class="page" id="p13">
         <div class="page-head">
           <h1>Scenario Manager</h1>
-          <div class="ph-sub">Create, compare and activate financial scenarios &middot; FY<span id="scnYear">2026</span></div>
+          <div class="ph-sub">Create, compare and activate financial scenarios &middot; FY<span id="scnYear"></span></div>
           <button class="btn-primary" onclick="scnOpenNew()">+ New Scenario</button>
         </div>
 
@@ -5403,7 +5403,7 @@ function _wbCalcDerived(period){
 }
 
 function _wbBuildTable(yr,periods){
-  var isEditable=(yr===2026);
+  var isEditable=(yr===_CY);
   var mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var html='<div class="wb-tbl-wrap"><table class="wb-tbl"><thead><tr><th>Cash Flow (US\'000)</th>';
   periods.forEach(function(p,i){html+='<th>'+mons[i]+' '+yr+'</th>';});
