@@ -6019,8 +6019,13 @@ async function loadP7() {
     fxMap[m].n++;
   });
   Object.keys(fxMap).forEach(function(m) {
-    fxMap[m] = fxMap[m].n ? fxMap[m].sum / fxMap[m].n : 160; // fallback 160
+    fxMap[m] = fxMap[m].n ? fxMap[m].sum / fxMap[m].n : null; // null = no FX data for month
   });
+  var _missingFx = months.filter(function(m){ return !fxMap[m]; });
+  if (_missingFx.length) {
+    var MON_EARLY = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    toast('FX rates missing for ' + _missingFx.map(function(m){ return MON_EARLY[m-1]; }).join(', ') + ' — USD revenue shown as zero. Upload via DataManager → FX Rates.', 'warn');
+  }
 
   if (!actRows || actRows.length === 0) {
     var pg7 = document.getElementById('p7Body');
@@ -6058,8 +6063,8 @@ async function loadP7() {
     rcYtdUsd[rc] = 0; rcYtdGwh[rc] = 0;
     months.forEach(function(m) {
       var d = rcData[rc][m] || { revJmd: 0, kwh: 0 };
-      var fx = fxMap[m] || 160;
-      var revUsd = d.revJmd / fx / 1000; // JMD → USD $000s
+      var fx = fxMap[m]; // null = missing — will show zero, not wrong number
+      var revUsd = (fx && d.revJmd) ? d.revJmd / fx / 1000 : 0; // JMD → USD $000s
       var gwh    = d.kwh / 1e6;
       rcUsd[rc][m] = revUsd;
       rcGwh[rc][m] = gwh;
@@ -6079,7 +6084,7 @@ async function loadP7() {
     + '<div class="kpi-card"><div class="k-lbl">Total Billed Revenue</div><div class="k-val">' + _fmtM(totRevUsd) + '</div><div class="k-delta neut">USD $000s · YTD</div></div>'
     + '<div class="kpi-card"><div class="k-lbl">GWh Billed</div><div class="k-val">' + totGwh.toFixed(1) + '</div><div class="k-delta neut">Gigawatt-hours · YTD</div></div>'
     + '<div class="kpi-card"><div class="k-lbl">Revenue / kWh</div><div class="k-val">' + revPerKwh.toFixed(2) + '¢</div><div class="k-delta neut">US cents per kWh</div></div>'
-    + '<div class="kpi-card"><div class="k-lbl">Avg FX Rate</div><div class="k-val">' + (Object.values(fxMap).reduce(function(s,v){return s+v;},0)/Math.max(1,Object.keys(fxMap).length)).toFixed(2) + '</div><div class="k-delta neut">JMD / USD (billing)</div></div>'
+    + (function(){ var fv=Object.values(fxMap).filter(Boolean); return '<div class="kpi-card"><div class="k-lbl">Avg FX Rate</div><div class="k-val">' + (fv.length ? (fv.reduce(function(s,v){return s+v;},0)/fv.length).toFixed(2) : '—') + '</div><div class="k-delta neut">JMD / USD (billing)</div></div>'; })()
     + '</div>';
 
   // Revenue by rate class table
