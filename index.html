@@ -2802,9 +2802,20 @@ function _pgLoad(id, on) {
   if (!pg) return;
   if (on) {
     pg.classList.add('pg-loading');
-    pg.innerHTML = _skelPage(id);
+    // Overlay approach — do NOT replace innerHTML (would destroy p{n}Body elements)
+    if (!pg.querySelector('.pg-skel')) {
+      var sk = document.createElement('div');
+      sk.className = 'pg-skel';
+      sk.innerHTML = _skelPage(id);
+      // Insert after page-head if present, otherwise prepend
+      var ph = pg.querySelector('.page-head');
+      if (ph && ph.nextSibling) { pg.insertBefore(sk, ph.nextSibling); }
+      else { pg.appendChild(sk); }
+    }
   } else {
     pg.classList.remove('pg-loading');
+    var sk = pg.querySelector('.pg-skel');
+    if (sk) sk.remove();
   }
 }
 
