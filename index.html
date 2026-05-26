@@ -2838,7 +2838,9 @@ async function _fetchFacts(vCode, lines, pStart, pEnd) {
 // ── Alias helpers ────────────────────────────────────────────────────────────
 // Monthly actuals use 'nonfuel' instead of 'nr_rev'; AOP lacks 'pl_total_sales'
 function _expandAliasLines(lines) {
-  const extra = ['nonfuel', 'ipp_fr', 'other_r', 'nr_cust_charge'];
+  // Always fetch alias source IDs so _normalizeAlias can map them
+  const extra = ['nonfuel', 'ipp_fr', 'other_r', 'nr_cust_charge',
+                 'pl_afudc', 'oth_inc', 'nfc_pref'];
   return lines.concat(extra.filter(function(l) { return lines.indexOf(l) < 0; }));
 }
 function _hasFactData(f, lid) {
@@ -2863,6 +2865,19 @@ function _normalizeAlias(f) {
       });
     });
     if (Object.keys(merged).length) f['pl_total_sales'] = merged;
+  }
+  // ID normalization: DB uses different names across load generations
+  // nfc_afudc ← pl_afudc (DB canonical for AFUDC is pl_afudc)
+  if (!_hasFactData(f, 'nfc_afudc') && _hasFactData(f, 'pl_afudc')) {
+    f['nfc_afudc'] = f['pl_afudc'];
+  }
+  // other_inc ← oth_inc (DB canonical is oth_inc)
+  if (!_hasFactData(f, 'other_inc') && _hasFactData(f, 'oth_inc')) {
+    f['other_inc'] = f['oth_inc'];
+  }
+  // pl_pref_div ← nfc_pref (some older loads used nfc_pref)
+  if (!_hasFactData(f, 'pl_pref_div') && _hasFactData(f, 'nfc_pref')) {
+    f['pl_pref_div'] = f['nfc_pref'];
   }
   return f;
 }
