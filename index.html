@@ -1689,145 +1689,18 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
       <section class="page" id="p8">
         <div class="page-head">
           <h1>Variance Analysis</h1>
-          <div class="ph-sub">Line-by-line variance with driver commentary &middot; USD $000s</div>
+          <div class="ph-sub" id="p8PhSub">Actual vs AOP &middot; USD $000s</div>
         </div>
-
-        <div class="cmp-bar">
-          <span>Comparing:</span>
-          <select class="sel" id="varCmpA" onchange="onVarianceChange()">
-            <option>Actuals</option><option>LE2</option><option>LE1</option>
-          </select>
-          <span>vs</span>
-          <select class="sel" id="varCmpB" onchange="onVarianceChange()">
-            <option>Budget</option><option>LE1</option><option>LE2</option>
-          </select>
-          <span class="pill">YTD Jan&ndash;Apr 2026</span>
-        </div>
-
-        <div class="card">
-          <div class="card-head">Variance Waterfall &mdash; P&amp;L Lines</div>
-          <div class="tbl-wrap">
-            <table class="dt">
-              <thead><tr>
-                <th>Line Item</th><th>Actual</th><th>Budget</th><th>Var $</th><th>Var %</th><th>Driver Commentary</th>
-              </tr></thead>
-              <tbody>
-                <tr><td>Non-Fuel Revenue</td>
-                  <td class="num">158,300</td><td class="num">156,900</td>
-                  <td class="num fav">1,400</td><td class="num fav">0.9%</td>
-                  <td style="text-align:left">RT40 commercial demand recovery above plan</td></tr>
-                <tr><td>Fuel Cost Recovery</td>
-                  <td class="num">116,800</td><td class="num">116,600</td>
-                  <td class="num fav">200</td><td class="num fav">0.2%</td>
-                  <td style="text-align:left">Pass-through tracking fuel price closely</td></tr>
-                <tr><td>Fuel &amp; IPP Energy</td>
-                  <td class="num">(142,600)</td><td class="num">(140,200)</td>
-                  <td class="num adv">(2,400)</td><td class="num adv">(1.7%)</td>
-                  <td style="text-align:left">HFO price +US$3.2/bbl vs budget assumption</td></tr>
-                <tr><td>Variable O&amp;M</td>
-                  <td class="num">(18,400)</td><td class="num">(18,800)</td>
-                  <td class="num fav">400</td><td class="num fav">2.1%</td>
-                  <td style="text-align:left">Lower chemical &amp; consumable usage</td></tr>
-                <tr><td>Fixed O&amp;M / Overheads</td>
-                  <td class="num">(42,200)</td><td class="num">(41,800)</td>
-                  <td class="num adv">(400)</td><td class="num adv">(1.0%)</td>
-                  <td style="text-align:left">Overtime &amp; contractor costs in Q1 storm response</td></tr>
-                <tr class="rs"><td>EBITDA</td>
-                  <td class="num">71,900</td><td class="num">72,700</td>
-                  <td class="num adv">(800)</td><td class="num adv">(1.1%)</td>
-                  <td style="text-align:left">Net adverse &mdash; fuel cost is primary driver</td></tr>
-                <tr><td>Depreciation</td>
-                  <td class="num">(31,500)</td><td class="num">(31,200)</td>
-                  <td class="num adv">(300)</td><td class="num adv">(1.0%)</td>
-                  <td style="text-align:left">Earlier capitalization of Unit 4 overhaul</td></tr>
-                <tr><td>Finance Costs (net)</td>
-                  <td class="num">(14,100)</td><td class="num">(13,700)</td>
-                  <td class="num adv">(400)</td><td class="num adv">(2.9%)</td>
-                  <td style="text-align:left">Higher short-term borrowing rates</td></tr>
-                <tr><td>Income Tax</td>
-                  <td class="num">(6,370)</td><td class="num">(7,170)</td>
-                  <td class="num fav">800</td><td class="num fav">11.2%</td>
-                  <td style="text-align:left">Lower NPBT base reduces tax charge</td></tr>
-                <tr class="rs"><td>NPAT</td>
-                  <td class="num">19,930</td><td class="num">20,630</td>
-                  <td class="num adv">(700)</td><td class="num adv">(3.4%)</td>
-                  <td style="text-align:left">EBITDA shortfall partly offset by lower tax</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <div id="p8Body"></div>
       </section>
 
       <!-- ============ PAGE 9: FINANCIAL RATIOS ============ -->
       <section class="page" id="p9">
         <div class="page-head">
           <h1>Financial Ratios</h1>
-          <div class="ph-sub">Profitability, liquidity, leverage &amp; operational ratios &middot; YTD Apr 2026</div>
+          <div class="ph-sub" id="p9PhSub">Profitability, liquidity &amp; leverage &middot; USD $000s</div>
         </div>
-
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-head">Profitability</div>
-            <div class="tbl-wrap">
-              <table class="dt">
-                <thead><tr><th>Ratio</th><th>Value</th><th>vs AOP</th><th>RAG</th></tr></thead>
-                <tbody>
-                  <tr><td>Gross Margin %</td><td class="num">41.5%</td><td class="num adv">(0.4)pp</td><td><span class="dot dot-a"></span></td></tr>
-                  <tr><td><span class="tip" data-tip="Earnings Before Interest, Tax, Depreciation &amp; Amortisation. Operating cash proxy.">EBITDA</span> Margin %</td><td class="num">26.1%</td><td class="num adv">(0.5)pp</td><td><span class="dot dot-a"></span></td></tr>
-                  <tr><td>Net Margin %</td><td class="num">7.2%</td><td class="num adv">(0.3)pp</td><td><span class="dot dot-a"></span></td></tr>
-                  <tr><td>Return on Equity (ROE)</td><td class="num">7.9%</td><td class="num adv">(0.4)pp</td><td><span class="dot dot-a"></span></td></tr>
-                  <tr><td>Return on Assets (ROA)</td><td class="num">3.6%</td><td class="num adv">(0.2)pp</td><td><span class="dot dot-a"></span></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-head">Liquidity</div>
-            <div class="tbl-wrap">
-              <table class="dt">
-                <thead><tr><th>Ratio</th><th>Value</th><th>vs AOP</th><th>RAG</th></tr></thead>
-                <tbody>
-                  <tr><td>Current Ratio</td><td class="num">0.78</td><td class="num adv">(0.04)</td><td><span class="dot dot-r"></span></td></tr>
-                  <tr><td>Quick Ratio</td><td class="num">0.64</td><td class="num adv">(0.03)</td><td><span class="dot dot-a"></span></td></tr>
-                  <tr><td>Cash Ratio</td><td class="num">0.19</td><td class="num adv">(0.03)</td><td><span class="dot dot-a"></span></td></tr>
-                  <tr><td>Operating Cash Flow Ratio</td><td class="num">0.20</td><td class="num adv">(0.02)</td><td><span class="dot dot-a"></span></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-head">Leverage</div>
-            <div class="tbl-wrap">
-              <table class="dt">
-                <thead><tr><th>Ratio</th><th>Value</th><th>vs AOP</th><th>RAG</th></tr></thead>
-                <tbody>
-                  <tr><td>Debt / Equity</td><td class="num">0.93</td><td class="num adv">0.03</td><td><span class="dot dot-a"></span></td></tr>
-                  <tr><td>Net Debt / <span class="tip" data-tip="Earnings Before Interest, Tax, Depreciation &amp; Amortisation. Operating cash proxy.">EBITDA</span></td><td class="num">2.6x</td><td class="num adv">0.2x</td><td><span class="dot dot-a"></span></td></tr>
-                  <tr><td>Interest Coverage</td><td class="num">2.9x</td><td class="num adv">(0.2x)</td><td><span class="dot dot-a"></span></td></tr>
-                  <tr><td>Debt Service Coverage</td><td class="num">1.8x</td><td class="num fav">0.1x</td><td><span class="dot dot-g"></span></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-head">Operational</div>
-            <div class="tbl-wrap">
-              <table class="dt">
-                <thead><tr><th>Ratio</th><th>Value</th><th>vs AOP</th><th>RAG</th></tr></thead>
-                <tbody>
-                  <tr><td><span class="tip" data-tip="Transmission &amp; Distribution. The grid infrastructure.">T&amp;D</span> Loss %</td><td class="num">18.4%</td><td class="num adv">0.5pp</td><td><span class="dot dot-r"></span></td></tr>
-                  <tr><td>Revenue per kWh (US&cent;)</td><td class="num">25.4</td><td class="num adv">(0.3)</td><td><span class="dot dot-a"></span></td></tr>
-                  <tr><td>GWh per 000 Customers</td><td class="num">1.59</td><td class="num fav">0.02</td><td><span class="dot dot-g"></span></td></tr>
-                  <tr><td>SAIDI (minutes)</td><td class="num">412</td><td class="num adv">27</td><td><span class="dot dot-r"></span></td></tr>
-                  <tr><td>SAIFI (interruptions)</td><td class="num">5.8</td><td class="num adv">0.4</td><td><span class="dot dot-a"></span></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <div id="p9Body"></div>
       </section>
 
       <!-- ============ PAGE 10: KPI SCORECARD ============ -->
@@ -6085,6 +5958,311 @@ async function loadP6() {
   if (pg) pg.innerHTML = isTable + ifrsTable;
 }
 
+/* ----- p8: VARIANCE ANALYSIS ----- */
+async function loadP8() {
+  _pgLoad('p8', true);
+  await _ensureMaxMo(_activeYear);
+  const ctx = _getCtx();
+  if (!ctx) { _pgLoad('p8', false); return; }
+
+  var sub = document.getElementById('p8PhSub');
+  if (sub) sub.textContent = 'Actual vs AOP · ' + ctx.viewLbl + ' · USD $000s';
+
+  const LINES = [
+    'fuel_rev','fuel_cost','nonfuel','ipp_fr','ipp_cost','other_r','nr_cust_charge',
+    'opex','depn','nfc_int_exp','nfc_lease','nfc_int_inc','nfc_afudc','pl_afudc',
+    'nfc_pref','nfc_fees','pl_fx','oth_inc','other_inc','tax'
+  ];
+
+  const [aF_raw, bF] = await Promise.all([
+    _fetchFactsAct(ctx, LINES),
+    _fetchFactsN('AOP_' + ctx.yr, LINES, ctx.yr * 100 + 1, ctx.yr * 100 + 12),
+  ]);
+  _normalizeAlias(aF_raw);
+  _pgLoad('p8', false);
+
+  function sa(lid) { return _fSumP(aF_raw, lid, ctx.actPeriods); }
+  function sb(lid) {
+    var src = bF[lid] || {};
+    return _fSumP(bF, lid, ctx.actPeriods); // AOP YTD same period count
+  }
+
+  // Derived IS lines
+  var aFuelSurp = sa('fuel_rev') - sa('fuel_cost');
+  var bFuelSurp = sb('fuel_rev') - sb('fuel_cost');
+  var aPpSurp   = sa('ipp_fr') - sa('ipp_cost');
+  var bPpSurp   = sb('ipp_fr') - sb('ipp_cost');
+  var aNfr = _hasFactData(aF_raw,'nr_rev') ? sa('nr_rev') : sa('nonfuel');
+  var bNfr = _hasFactData(bF,'nr_rev') ? sb('nr_rev') : sb('nonfuel');
+  var aCustChg = sa('nr_cust_charge');
+  var bCustChg = sb('nr_cust_charge');
+  var aOther = sa('other_r');
+  var bOther = sb('other_r');
+  var aTotRev  = aFuelSurp + aPpSurp + aNfr + aCustChg + aOther;
+  var bTotRev  = bFuelSurp + bPpSurp + bNfr + bCustChg + bOther;
+  var aOpex    = sa('opex');
+  var bOpex    = sb('opex');
+  var aEbitda  = aTotRev - aOpex;
+  var bEbitda  = bTotRev - bOpex;
+  var aDepn    = sa('depn');
+  var bDepn    = sb('depn');
+  var aEbit    = aEbitda - aDepn;
+  var bEbit    = bEbitda - bDepn;
+  var aIntExp  = sa('nfc_int_exp');
+  var bIntExp  = sb('nfc_int_exp');
+  var aLease   = sa('nfc_lease');
+  var bLease   = sb('nfc_lease');
+  var aIntInc  = _hasFactData(aF_raw,'nfc_afudc') ? sa('nfc_afudc') : sa('pl_afudc');
+  var bIntInc  = _hasFactData(bF,'nfc_afudc') ? sb('nfc_afudc') : sb('pl_afudc');
+  var aOthInc2 = _hasFactData(aF_raw,'other_inc') ? sa('other_inc') : sa('oth_inc');
+  var bOthInc2 = _hasFactData(bF,'other_inc') ? sb('other_inc') : sb('oth_inc');
+  var aNfcNet  = -(aIntExp) - aLease + aIntInc + aOthInc2;
+  var bNfcNet  = -(bIntExp) - bLease + bIntInc + bOthInc2;
+  var aPretax  = aEbit + aNfcNet;
+  var bPretax  = bEbit + bNfcNet;
+  var aTax     = sa('tax');
+  var bTax     = sb('tax');
+  var aNpat    = aPretax - aTax;
+  var bNpat    = bPretax - bTax;
+
+  function vRow(lbl, a, b, cls, higherGood) {
+    var v = a - b;
+    var hg = (higherGood === false) ? false : true;
+    var favAdv = (hg ? v >= 0 : v <= 0) ? 'fav' : 'adv';
+    var vPct = b ? (v / Math.abs(b) * 100) : 0;
+    var pctStr = (vPct >= 0 ? '+' : '') + vPct.toFixed(1) + '%';
+    return '<tr class="' + (cls || 'rind') + '">'
+      + '<td>' + lbl + '</td>'
+      + '<td class="num">' + _fmtM(a) + '</td>'
+      + '<td class="num">' + _fmtM(b) + '</td>'
+      + '<td class="num ' + favAdv + '">' + _fmtM(v) + '</td>'
+      + '<td class="num ' + favAdv + '">' + pctStr + '</td>'
+      + '</tr>';
+  }
+  function secRow(lbl) {
+    return '<tr class="rsec"><td colspan="5">' + lbl + '</td></tr>';
+  }
+  function subRow(lbl, a, b, hg) { return vRow(lbl, a, b, 'rs', hg); }
+
+  var kpis = '<div class="kpi-strip">'
+    + '<div class="kpi-card"><div class="k-lbl">Revenue — Actual</div><div class="k-val">' + _fmtM(aTotRev) + '</div><div class="k-delta ' + (aTotRev >= bTotRev ? 'k-up' : 'k-dn') + '">' + (aTotRev >= bTotRev ? '▲' : '▼') + ' vs AOP</div></div>'
+    + '<div class="kpi-card"><div class="k-lbl">EBITDA — Actual</div><div class="k-val">' + _fmtM(aEbitda) + '</div><div class="k-delta ' + (aEbitda >= bEbitda ? 'k-up' : 'k-dn') + '">' + (aEbitda >= bEbitda ? '▲' : '▼') + ' vs AOP</div></div>'
+    + '<div class="kpi-card"><div class="k-lbl">EBITDA Margin</div><div class="k-val">' + (aTotRev ? (aEbitda/aTotRev*100).toFixed(1) : '—') + '%</div><div class="k-delta neut">AOP: ' + (bTotRev ? (bEbitda/bTotRev*100).toFixed(1) : '—') + '%</div></div>'
+    + '<div class="kpi-card"><div class="k-lbl">NPAT — Actual</div><div class="k-val">' + _fmtM(aNpat) + '</div><div class="k-delta ' + (aNpat >= bNpat ? 'k-up' : 'k-dn') + '">' + (aNpat >= bNpat ? '▲' : '▼') + ' vs AOP</div></div>'
+    + '</div>';
+
+  var tbl = '<div class="card"><div class="card-head">P&amp;L Variance — Actual vs AOP'
+    + '<span class="ch-sub">' + ctx.viewLbl + ' &middot; USD $000s</span></div>'
+    + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+    + '<th>Line Item</th><th class="num">Actual</th><th class="num">AOP</th><th class="num">Var $</th><th class="num">Var %</th>'
+    + '</tr></thead><tbody>'
+    + secRow('Revenue')
+    + vRow('Non-Fuel Revenue (Energy Clause)', aNfr, bNfr, 'rind')
+    + vRow('Customer Charge', aCustChg, bCustChg, 'rind')
+    + vRow('Other Revenue', aOther, bOther, 'rind')
+    + vRow('Fuel Cost Recovery (net)', aFuelSurp, bFuelSurp, 'rind')
+    + vRow('Purchased Power (net)', aPpSurp, bPpSurp, 'rind')
+    + subRow('Total Revenue / Gross Margin', aTotRev, bTotRev)
+    + secRow('Operating Costs')
+    + vRow('O&M Expense', -aOpex, -bOpex, 'rind', false)
+    + subRow('EBITDA', aEbitda, bEbitda)
+    + secRow('Below EBITDA')
+    + vRow('Depreciation', -aDepn, -bDepn, 'rind', false)
+    + subRow('EBIT', aEbit, bEbit)
+    + vRow('Interest Expense', -aIntExp, -bIntExp, 'rind', false)
+    + vRow('Lease Interest (IFRS 16)', -aLease, -bLease, 'rind', false)
+    + vRow('AFUDC / Interest Income', aIntInc, bIntInc, 'rind')
+    + vRow('Other Income', aOthInc2, bOthInc2, 'rind')
+    + subRow('Profit Before Tax', aPretax, bPretax)
+    + vRow('Income Tax', -aTax, -bTax, 'rind', false)
+    + subRow('Net Profit After Tax (NPAT)', aNpat, bNpat)
+    + '</tbody></table></div></div>';
+
+  var pg = document.getElementById('p8Body');
+  if (pg) pg.innerHTML = kpis + tbl;
+}
+
+/* ----- p9: FINANCIAL RATIOS ----- */
+async function loadP9() {
+  _pgLoad('p9', true);
+  await _ensureMaxMo(_activeYear);
+  const ctx = _getCtx();
+  if (!ctx) { _pgLoad('p9', false); return; }
+
+  var sub = document.getElementById('p9PhSub');
+  if (sub) sub.textContent = 'Profitability, liquidity & leverage · ' + ctx.viewLbl + ' · USD $000s';
+
+  const IS_LINES = ['fuel_rev','fuel_cost','nonfuel','ipp_fr','ipp_cost','other_r','nr_cust_charge',
+                    'opex','depn','nfc_int_exp','nfc_lease','pl_afudc','nfc_afudc','oth_inc','other_inc','tax'];
+  const BS_LINES = ['cash','rcash','recv','unbill','finv','matls','bs_prepaid',
+                    'ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd',
+                    'bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to',
+                    'ltd','leases','bs_retained','bs_share_cap','bs_cap_res','bs_cap_redm','bs_pref',
+                    'tot_a','bs_fa_cost','bs_accum_depn','cwip','bs_curr_ltd'];
+  const ALL = IS_LINES.concat(BS_LINES.filter(function(l){ return IS_LINES.indexOf(l)<0; }));
+
+  const [aF_raw, bF] = await Promise.all([
+    _fetchFactsAct(ctx, ALL),
+    _fetchFactsN('AOP_' + ctx.yr, ALL, ctx.yr * 100 + 1, ctx.yr * 100 + 12),
+  ]);
+  _normalizeAlias(aF_raw);
+  _pgLoad('p9', false);
+
+  function sa(lid) { return _fSumP(aF_raw, lid, ctx.actPeriods); }
+  function sb(lid) { return _fSumP(bF, lid, ctx.actPeriods); }
+  function aLast(lid) {
+    var src = aF_raw[lid] || {};
+    var pids = ctx.actPeriods.slice().sort(function(a,b){return a-b;});
+    for (var i=pids.length-1;i>=0;i--) if (src[pids[i]]!==undefined) return src[pids[i]];
+    var bSrc = bF[lid] || {};
+    var bPids = Object.keys(bSrc).map(Number).sort(function(a,b){return a-b;});
+    return bPids.length ? bSrc[bPids[bPids.length-1]] : 0;
+  }
+  function bLast(lid) {
+    var src = bF[lid] || {};
+    var pids = ctx.actPeriods.slice().sort(function(a,b){return a-b;});
+    for (var i=pids.length-1;i>=0;i--) if (src[pids[i]]!==undefined) return src[pids[i]];
+    return 0;
+  }
+
+  // IS derivations
+  var aFuelS = sa('fuel_rev') - sa('fuel_cost');
+  var bFuelS = sb('fuel_rev') - sb('fuel_cost');
+  var aPpS   = sa('ipp_fr') - sa('ipp_cost');
+  var bPpS   = sb('ipp_fr') - sb('ipp_cost');
+  var aNfr   = _hasFactData(aF_raw,'nr_rev') ? sa('nr_rev') : sa('nonfuel');
+  var bNfr   = _hasFactData(bF,'nr_rev') ? sb('nr_rev') : sb('nonfuel');
+  var aRev   = aFuelS + aPpS + aNfr + sa('nr_cust_charge') + sa('other_r');
+  var bRev   = bFuelS + bPpS + bNfr + sb('nr_cust_charge') + sb('other_r');
+  var aOpex  = sa('opex');
+  var bOpex  = sb('opex');
+  var aEbitda= aRev - aOpex;
+  var bEbitda= bRev - bOpex;
+  var aDepn  = sa('depn');
+  var bDepn  = sb('depn');
+  var aEbit  = aEbitda - aDepn;
+  var bEbit  = bEbitda - bDepn;
+  var aIntExp= sa('nfc_int_exp') + sa('nfc_lease');
+  var bIntExp= sb('nfc_int_exp') + sb('nfc_lease');
+  var aAfudc = _hasFactData(aF_raw,'nfc_afudc') ? sa('nfc_afudc') : sa('pl_afudc');
+  var bAfudc = _hasFactData(bF,'nfc_afudc') ? sb('nfc_afudc') : sb('pl_afudc');
+  var aOi    = _hasFactData(aF_raw,'other_inc') ? sa('other_inc') : sa('oth_inc');
+  var bOi    = _hasFactData(bF,'other_inc') ? sb('other_inc') : sb('oth_inc');
+  var aPretax= aEbit - aIntExp + aAfudc + aOi;
+  var bPretax= bEbit - bIntExp + bAfudc + bOi;
+  var aTax   = sa('tax');
+  var bTax   = sb('tax');
+  var aNpat  = aPretax - aTax;
+  var bNpat  = bPretax - bTax;
+
+  // BS point-in-time (latest actuals period)
+  var aCa = aLast('recv') + aLast('unbill') + aLast('cash') + aLast('rcash')
+          + aLast('finv') + aLast('matls') + aLast('bs_prepaid');
+  var bCa = bLast('recv') + bLast('unbill') + bLast('cash') + bLast('rcash')
+          + bLast('finv') + bLast('matls') + bLast('bs_prepaid');
+  var aCl = aLast('ap') + aLast('bs_int_acc') + aLast('bs_corp_tax') + aLast('bs_bank_od')
+          + aLast('lease_cl') + aLast('bs_curr_ltd') + aLast('bs_cust_dep')
+          + aLast('bs_payroll_tax') + aLast('bs_std') + aLast('bs_emp_ben') + aLast('bs_due_to');
+  var bCl = bLast('ap') + bLast('bs_int_acc') + bLast('bs_corp_tax') + bLast('bs_bank_od')
+          + bLast('lease_cl') + bLast('bs_curr_ltd') + bLast('bs_cust_dep')
+          + bLast('bs_payroll_tax') + bLast('bs_std') + bLast('bs_emp_ben') + bLast('bs_due_to');
+  var aEq  = aLast('bs_share_cap') + aLast('bs_retained') + aLast('bs_cap_res')
+           + aLast('bs_cap_redm') + aLast('bs_pref');
+  var bEq  = bLast('bs_share_cap') + bLast('bs_retained') + bLast('bs_cap_res')
+           + bLast('bs_cap_redm') + bLast('bs_pref');
+  var aLtd = aLast('ltd') + aLast('leases');
+  var bLtd = bLast('ltd') + bLast('leases');
+  var aCash= aLast('cash') + aLast('rcash');
+  var bCash= bLast('cash') + bLast('rcash');
+  var aNetDebt = aLtd - aCash;
+  var bNetDebt = bLtd - bCash;
+
+  // Annualise EBITDA for ratios if YTD (scale up to FY)
+  var nMo = ctx.actPeriods.length;
+  var aEbitdaAnn = nMo > 0 ? aEbitda * 12 / nMo : aEbitda;
+  var bEbitdaAnn = nMo > 0 ? bEbitda * 12 / nMo : bEbitda;
+  var aRevAnn    = nMo > 0 ? aRev * 12 / nMo : aRev;
+  var bRevAnn    = nMo > 0 ? bRev * 12 / nMo : bRev;
+  var aNpatAnn   = nMo > 0 ? aNpat * 12 / nMo : aNpat;
+  var bNpatAnn   = nMo > 0 ? bNpat * 12 / nMo : bNpat;
+
+  function pct(v) { return isFinite(v) ? v.toFixed(1) + '%' : '—'; }
+  function x(v)   { return isFinite(v) && isFinite(v) ? v.toFixed(2) + 'x' : '—'; }
+  function pp(a,b){ var d=a-b; return (d>=0?'+':'')+d.toFixed(1)+'pp'; }
+  function ppCls(a,b,hg){ var d=a-b; return (hg?d>=0:d<=0)?'fav':'adv'; }
+
+  function ratioRow(lbl, aVal, bVal, fmtFn, lbl2, hg) {
+    var av = fmtFn(aVal), bv = fmtFn(bVal);
+    var diff = aVal - bVal;
+    var cls  = (hg !== false ? diff >= 0 : diff <= 0) ? 'fav' : 'adv';
+    var vStr = isFinite(diff) ? ((diff >= 0 ? '+' : '') + diff.toFixed(2) + (lbl2 || '')) : '—';
+    return '<tr><td>' + lbl + '</td><td class="num">' + av + '</td>'
+      + '<td class="num">' + bv + '</td>'
+      + '<td class="num ' + cls + '">' + vStr + '</td></tr>';
+  }
+
+  function ratioCard(title, rows) {
+    return '<div class="card"><div class="card-head">' + title + '</div>'
+      + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+      + '<th>Ratio</th><th class="num">Actual</th><th class="num">AOP</th><th class="num">Var</th>'
+      + '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+  }
+
+  var ebitdaMgA = aRevAnn ? aEbitdaAnn / aRevAnn * 100 : 0;
+  var ebitdaMgB = bRevAnn ? bEbitdaAnn / bRevAnn * 100 : 0;
+  var netMgA    = aRevAnn ? aNpatAnn / aRevAnn * 100 : 0;
+  var netMgB    = bRevAnn ? bNpatAnn / bRevAnn * 100 : 0;
+  var roeA = aEq ? aNpatAnn / aEq * 100 : 0;
+  var roeB = bEq ? bNpatAnn / bEq * 100 : 0;
+  var roaA = aLast('tot_a') ? aNpatAnn / aLast('tot_a') * 100 : 0;
+  var roaB = bLast('tot_a') ? bNpatAnn / bLast('tot_a') * 100 : 0;
+
+  var curRatA = aCl ? aCa / aCl : 0;
+  var curRatB = bCl ? bCa / bCl : 0;
+  var cashRatA = aCl ? aCash / aCl : 0;
+  var cashRatB = bCl ? bCash / bCl : 0;
+  var qkA  = aCl ? (aCa - aLast('finv') - aLast('matls')) / aCl : 0;
+  var qkB  = bCl ? (bCa - bLast('finv') - bLast('matls')) / bCl : 0;
+
+  var ndEbA = aEbitdaAnn ? aNetDebt / aEbitdaAnn : 0;
+  var ndEbB = bEbitdaAnn ? bNetDebt / bEbitdaAnn : 0;
+  var icA   = aIntExp ? aEbitdaAnn / (aIntExp * 12 / nMo) : 0;
+  var icB   = bIntExp ? bEbitdaAnn / (bIntExp * 12 / nMo) : 0;
+  var deA   = aEq ? aLtd / aEq : 0;
+  var deB   = bEq ? bLtd / bEq : 0;
+
+  var note = nMo < 12 ? '<p style="color:var(--muted);font-size:11px;padding:4px 0 8px">IS-based ratios annualised (×12/' + nMo + ') for comparability. BS ratios use period-end balances.</p>' : '';
+
+  var profRows = ''
+    + ratioRow('EBITDA Margin %', ebitdaMgA, ebitdaMgB, function(v){return pct(v);}, 'pp')
+    + ratioRow('Net Profit Margin %', netMgA, netMgB, function(v){return pct(v);}, 'pp')
+    + ratioRow('Return on Equity (ROE) %', roeA, roeB, function(v){return pct(v);}, 'pp')
+    + ratioRow('Return on Assets (ROA) %', roaA, roaB, function(v){return pct(v);}, 'pp');
+
+  var liqRows = ''
+    + ratioRow('Current Ratio', curRatA, curRatB, function(v){return v.toFixed(2)+'x';}, 'x')
+    + ratioRow('Quick Ratio', qkA, qkB, function(v){return v.toFixed(2)+'x';}, 'x')
+    + ratioRow('Cash Ratio', cashRatA, cashRatB, function(v){return v.toFixed(2)+'x';}, 'x');
+
+  var levRows = ''
+    + ratioRow('Net Debt / EBITDA (annualised)', ndEbA, ndEbB, function(v){return v.toFixed(2)+'x';}, 'x', false)
+    + ratioRow('Interest Coverage (EBIT / Interest)', icA, icB, function(v){return v.toFixed(2)+'x';}, 'x')
+    + ratioRow('Debt / Equity', deA, deB, function(v){return v.toFixed(2)+'x';}, 'x', false);
+
+  var html = note
+    + '<div class="grid-2">'
+    + ratioCard('Profitability', profRows)
+    + ratioCard('Liquidity', liqRows)
+    + ratioCard('Leverage', levRows)
+    + '<div class="card" style="background:var(--bg);border-style:dashed;display:flex;align-items:center;justify-content:center;min-height:140px;color:var(--muted);font-size:13px;text-align:center;padding:20px">'
+    + '<div><strong>Operational Ratios</strong><br>SAIDI, SAIFI, T&amp;D loss %, revenue/kWh<br><span style="font-size:11px">Upload KPI data via DataManager to enable</span></div>'
+    + '</div>'
+    + '</div>';
+
+  var pg = document.getElementById('p9Body');
+  if (pg) pg.innerHTML = html;
+}
+
 /* ================================================================ */
 
 function loadPage(id) {
@@ -6095,13 +6273,15 @@ function loadPage(id) {
   else if (id === 'p4')  loadP4();
   else if (id === 'p5')  loadP5();
   else if (id === 'p6')  loadP6();
+  else if (id === 'p8')  loadP8();
+  else if (id === 'p9')  loadP9();
   else if (id === 'p10') loadP10();
   else if (id === 'p13') loadP13();
   else if (id === 'p17') loadP17();
   else if (id === 'p11') loadP11();
   else if (id === 'p15') loadAuditFromDB();
   else if (id === 'p18') loadP18();
-  // p7–p9, p12, p14, p16: static HTML retained
+  // p7, p12, p14, p16: static HTML retained
 }
 
 /* ====================================================================
