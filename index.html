@@ -3287,11 +3287,12 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
   const tax_a       = sa('tax'),             tax_b       = sb('tax');
 
   // Derived segments (never read ebitda/ebit/pretax/net_inc from DB)
+  const oco_a       = sa('pl_other_cos'),     oco_b       = sb('pl_other_cos'); // IFRS16/other COS adj (negative)
   const fuel_sur_a  = fuel_rev_a - fuel_cost_a, fuel_sur_b = fuel_rev_b - fuel_cost_b;
   const reg_ebd_a   = fuel_sur_a + nfr_a + cust_chg_a + oth_a - opx_a;
   const reg_ebd_b   = fuel_sur_b + nfr_b + cust_chg_b + oth_b - opx_b;
   const pp_sur_a    = ipp_fr_a - ipp_cost_a, pp_sur_b = ipp_fr_b - ipp_cost_b;
-  const ebd_a       = reg_ebd_a + pp_sur_a,  ebd_b    = reg_ebd_b + pp_sur_b;
+  const ebd_a       = reg_ebd_a + pp_sur_a + oco_a,  ebd_b    = reg_ebd_b + pp_sur_b + oco_b;
   const ebit_a      = ebd_a - dep_a,         ebit_b   = ebd_b - dep_b;
   const nfc_a       = int_exp_a - int_inc_a - afudc_a + pref_a;
   const nfc_b       = int_exp_b - int_inc_b - afudc_b + pref_b;
@@ -3398,9 +3399,10 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   const moHdr = ctx.actPeriods.map(function(p) { return '<th>' + _pLabel(p) + '</th>'; }).join('');
 
   // Derived subtotals — never read ebitda/ebit from DB
-  const gp_a     = sa('pl_total_sales') - sa('fuel_cost') - sa('ipp_cost');
-  const gp_b     = sb('pl_total_sales') - sb('fuel_cost') - sb('ipp_cost');
-  const gpFY     = sbFY('pl_total_sales') - sbFY('fuel_cost') - sbFY('ipp_cost');
+  // pl_other_cos is negative (additional cost) — IFRS 16 / other COS adjustments
+  const gp_a     = sa('pl_total_sales') - sa('fuel_cost') - sa('ipp_cost') + sa('pl_other_cos');
+  const gp_b     = sb('pl_total_sales') - sb('fuel_cost') - sb('ipp_cost') + sb('pl_other_cos');
+  const gpFY     = sbFY('pl_total_sales') - sbFY('fuel_cost') - sbFY('ipp_cost') + sbFY('pl_other_cos');
   const ebitda_a = gp_a - sa('opex');
   const ebitda_b = gp_b - sb('opex');
   const ebitdaFY = gpFY - sbFY('opex');
