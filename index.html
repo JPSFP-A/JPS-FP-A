@@ -1642,72 +1642,9 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
       <section class="page" id="p12">
         <div class="page-head">
           <h1>Budget vs LE</h1>
-          <div class="ph-sub">Side-by-side version comparison &middot; FY2026 &middot; USD $000s</div>
+          <div class="ph-sub" id="p12PhSub">Version comparison &middot; Full Year &middot; USD $000s</div>
         </div>
-
-        <div class="cmp-bar">
-          <span>Compare:</span>
-          <select class="sel" id="bvlA" onchange="onBvlChange()">
-            <option>Budget</option><option>LE1</option><option>LE2</option>
-          </select>
-          <span>against</span>
-          <select class="sel" id="bvlB" onchange="onBvlChange()">
-            <option>LE2</option><option>LE1</option><option>Budget</option>
-          </select>
-          <span class="pill">Full Year FY2026</span>
-        </div>
-
-        <div class="card">
-          <div class="card-head">Budget vs Latest Estimate &mdash; Key P&amp;L Lines
-            <span class="ch-sub">LE above budget shown teal &middot; below budget shown rose</span></div>
-          <div class="tbl-wrap">
-            <table class="dt">
-              <thead><tr>
-                <th>P&amp;L Line</th><th>Budget FY</th><th>LE2 FY</th><th>Delta $</th><th>Delta %</th>
-              </tr></thead>
-              <tbody>
-                <tr><td>Total Revenue</td>
-                  <td class="num">830,600</td><td class="num">838,200</td>
-                  <td class="num" style="color:var(--teal);font-weight:600">7,600</td>
-                  <td class="num" style="color:var(--teal);font-weight:600">0.9%</td></tr>
-                <tr><td>Fuel &amp; IPP Energy</td>
-                  <td class="num">(425,300)</td><td class="num">(432,800)</td>
-                  <td class="num" style="color:var(--rose);font-weight:600">(7,500)</td>
-                  <td class="num" style="color:var(--rose);font-weight:600">(1.8%)</td></tr>
-                <tr><td>Variable O&amp;M</td>
-                  <td class="num">(56,900)</td><td class="num">(55,400)</td>
-                  <td class="num" style="color:var(--teal);font-weight:600">1,500</td>
-                  <td class="num" style="color:var(--teal);font-weight:600">2.6%</td></tr>
-                <tr class="rs"><td>Gross Margin</td>
-                  <td class="num">348,400</td><td class="num">350,000</td>
-                  <td class="num">1,600</td><td class="num">0.5%</td></tr>
-                <tr><td>Fixed O&amp;M / Overheads</td>
-                  <td class="num">(126,900)</td><td class="num">(128,600)</td>
-                  <td class="num" style="color:var(--rose);font-weight:600">(1,700)</td>
-                  <td class="num" style="color:var(--rose);font-weight:600">(1.3%)</td></tr>
-                <tr class="rs"><td>EBITDA</td>
-                  <td class="num">221,500</td><td class="num">221,400</td>
-                  <td class="num">(100)</td><td class="num">(0.0%)</td></tr>
-                <tr><td>Depreciation</td>
-                  <td class="num">(94,600)</td><td class="num">(95,800)</td>
-                  <td class="num" style="color:var(--rose);font-weight:600">(1,200)</td>
-                  <td class="num" style="color:var(--rose);font-weight:600">(1.3%)</td></tr>
-                <tr><td>Finance Costs (net)</td>
-                  <td class="num">(41,600)</td><td class="num">(42,900)</td>
-                  <td class="num" style="color:var(--rose);font-weight:600">(1,300)</td>
-                  <td class="num" style="color:var(--rose);font-weight:600">(3.1%)</td></tr>
-                <tr><td>Income Tax</td>
-                  <td class="num">(21,300)</td><td class="num">(20,700)</td>
-                  <td class="num" style="color:var(--teal);font-weight:600">600</td>
-                  <td class="num" style="color:var(--teal);font-weight:600">2.8%</td></tr>
-                <tr class="rs"><td>NPAT</td>
-                  <td class="num">64,000</td><td class="num">62,000</td>
-                  <td class="num" style="color:var(--rose);font-weight:600">(2,000)</td>
-                  <td class="num" style="color:var(--rose);font-weight:600">(3.1%)</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <div id="p12Body"></div>
       </section>
 
       <!-- ============ PAGE 13: SCENARIO MANAGER ============ -->
@@ -5856,6 +5793,105 @@ async function loadP6() {
   if (pg) pg.innerHTML = isTable + ifrsTable;
 }
 
+/* ----- p12: BUDGET VS LE ----- */
+async function loadP12() {
+  _pgLoad('p12', true);
+  var yr = _activeYear;
+  var sub = document.getElementById('p12PhSub');
+  if (sub) sub.textContent = 'Version comparison · Full Year ' + yr + ' · USD $000s';
+
+  const LINES = ['fuel_rev','fuel_cost','nonfuel','ipp_fr','ipp_cost','other_r','nr_cust_charge',
+                 'opex','depn','nfc_int_exp','nfc_lease','pl_afudc','nfc_afudc','oth_inc','other_inc','tax'];
+  const ps = yr * 100, pe = yr * 100 + 12;
+  const aopCode = 'AOP_' + yr, le1Code = 'LE_' + yr + '_01', le2Code = 'LE_' + yr + '_02';
+
+  const [aopF, le1F, le2F] = await Promise.all([
+    _fetchFactsN(aopCode, LINES, ps + 1, pe),
+    _fetchFactsN(le1Code, LINES, ps + 1, pe),
+    _fetchFactsN(le2Code, LINES, ps + 1, pe),
+  ]);
+  _pgLoad('p12', false);
+
+  // Check if LE versions have data
+  var le1Empty = Object.keys(le1F).length === 0;
+  var le2Empty = Object.keys(le2F).length === 0;
+
+  function fySum(f, lid) {
+    var src = f[lid] || {};
+    return Object.values(src).reduce(function(s,v){ return s + parseFloat(v||0); }, 0);
+  }
+
+  function deriveBlock(f, alias) {
+    var nfr = _hasFactData(f,'nr_rev') ? fySum(f,'nr_rev') : (alias ? fySum(f,'nonfuel') : fySum(f,'nonfuel'));
+    var fuelS = fySum(f,'fuel_rev') - fySum(f,'fuel_cost');
+    var ppS   = fySum(f,'ipp_fr') - fySum(f,'ipp_cost');
+    var rev   = nfr + fySum(f,'nr_cust_charge') + fySum(f,'other_r') + fuelS + ppS;
+    var opex  = fySum(f,'opex');
+    var ebitda= rev - opex;
+    var depn  = fySum(f,'depn');
+    var ebit  = ebitda - depn;
+    var intE  = fySum(f,'nfc_int_exp') + fySum(f,'nfc_lease');
+    var afudc = _hasFactData(f,'nfc_afudc') ? fySum(f,'nfc_afudc') : fySum(f,'pl_afudc');
+    var oi    = _hasFactData(f,'other_inc') ? fySum(f,'other_inc') : fySum(f,'oth_inc');
+    var pretax= ebit - intE + afudc + oi;
+    var tax   = fySum(f,'tax');
+    var npat  = pretax - tax;
+    return { rev: rev, opex: opex, ebitda: ebitda, depn: depn, intE: intE, pretax: pretax, tax: tax, npat: npat };
+  }
+
+  var aop = deriveBlock(aopF, false);
+  var le1 = le1Empty ? null : deriveBlock(le1F, false);
+  var le2 = le2Empty ? null : deriveBlock(le2F, false);
+
+  function colVal(d, key) {
+    if (!d) return '<td class="num" style="color:var(--muted);font-style:italic">not available</td>';
+    return '<td class="num">' + _fmtM(d[key]) + '</td>';
+  }
+  function deltaCol(a, b, key, hg) {
+    if (!b) return '<td class="num">—</td><td class="num">—</td>';
+    var v = b[key] - a[key];
+    var pct = a[key] ? (v / Math.abs(a[key]) * 100) : 0;
+    var good = hg !== false ? v >= 0 : v <= 0;
+    var cls = good ? 'fav' : 'adv';
+    return '<td class="num ' + cls + '">' + _fmtM(v) + '</td>'
+         + '<td class="num ' + cls + '">' + (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%</td>';
+  }
+  function row(lbl, key, cls, hg) {
+    return '<tr class="' + (cls||'rind') + '"><td>' + lbl + '</td>'
+      + '<td class="num">' + _fmtM(aop[key]) + '</td>'
+      + colVal(le1, key) + deltaCol(aop, le1, key, hg)
+      + colVal(le2, key) + deltaCol(aop, le2, key, hg)
+      + '</tr>';
+  }
+
+  var leNote = (le1Empty && le2Empty)
+    ? '<div class="card" style="background:var(--bg);border-style:dashed;padding:16px 24px;color:var(--muted);font-size:13px">'
+      + '<strong>LE versions not yet available for ' + yr + '.</strong> '
+      + 'Seed LE_' + yr + '_01 and LE_' + yr + '_02 via the O&amp;M Platform LE workflow to enable comparison.'
+      + '</div>'
+    : '';
+
+  var tbl = '<div class="card"><div class="card-head">P&amp;L — Budget vs LE Comparison'
+    + '<span class="ch-sub">Full Year ' + yr + ' &middot; USD $000s</span></div>'
+    + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+    + '<th>Line</th><th class="num">AOP (Budget)</th>'
+    + '<th class="num">LE1</th><th class="num">ΔLE1 $</th><th class="num">ΔLE1 %</th>'
+    + '<th class="num">LE2</th><th class="num">ΔLE2 $</th><th class="num">ΔLE2 %</th>'
+    + '</tr></thead><tbody>'
+    + row('Revenue', 'rev', '', true)
+    + row('O&M Expense', 'opex', 'rind', false)
+    + row('EBITDA', 'ebitda', 'rs', true)
+    + row('Depreciation', 'depn', 'rind', false)
+    + row('Net Finance Costs', 'intE', 'rind', false)
+    + row('Profit Before Tax', 'pretax', 'rs', true)
+    + row('Income Tax', 'tax', 'rind', false)
+    + row('NPAT', 'npat', 'rs', true)
+    + '</tbody></table></div></div>';
+
+  var pg = document.getElementById('p12Body');
+  if (pg) pg.innerHTML = leNote + tbl;
+}
+
 /* ----- p7: REVENUE & GENERATION ----- */
 async function loadP7() {
   _pgLoad('p7', true);
@@ -6328,6 +6364,7 @@ function loadPage(id) {
   else if (id === 'p6')  loadP6();
   else if (id === 'p7')  loadP7();
   else if (id === 'p8')  loadP8();
+  else if (id === 'p12') loadP12();
   else if (id === 'p9')  loadP9();
   else if (id === 'p10') loadP10();
   else if (id === 'p13') loadP13();
@@ -6335,7 +6372,7 @@ function loadPage(id) {
   else if (id === 'p11') loadP11();
   else if (id === 'p15') loadAuditFromDB();
   else if (id === 'p18') loadP18();
-  // p12, p14, p16: static HTML retained
+  // p14, p16: static HTML retained
 }
 
 /* ====================================================================
