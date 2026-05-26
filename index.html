@@ -739,10 +739,10 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
   background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 600;
 }
 .btn-outline:hover { background: var(--bg); }
-.p2-cv-btn,.p3-cv-btn,.p4-cv-btn,.p4-method-btn { padding:4px 12px; border:none; background:none; font-size:11px; font-weight:600; color:var(--muted); cursor:pointer; transition:all .15s; border-radius:5px; }
-.p2-cv-btn.active,.p3-cv-btn.active,.p4-cv-btn.active { background:var(--teal); color:#fff; }
+.p2-cv-btn,.p3-cv-btn,.p4-cv-btn,.p4-method-btn,.p5-cv-btn,.p6-cv-btn,.p7-cv-btn,.p8-cv-btn,.p9-cv-btn,.p10-cv-btn,.p11-cv-btn,.p12-cv-btn { padding:4px 12px; border:none; background:none; font-size:11px; font-weight:600; color:var(--muted); cursor:pointer; transition:all .15s; border-radius:5px; }
+.p2-cv-btn.active,.p3-cv-btn.active,.p4-cv-btn.active,.p5-cv-btn.active,.p6-cv-btn.active,.p7-cv-btn.active,.p8-cv-btn.active,.p9-cv-btn.active,.p10-cv-btn.active,.p11-cv-btn.active,.p12-cv-btn.active { background:var(--teal); color:#fff; }
 .p4-method-btn.active { background:var(--accent,#6366f1); color:#fff; }
-.p2-cv-btn:hover:not(.active),.p3-cv-btn:hover:not(.active),.p4-cv-btn:hover:not(.active),.p4-method-btn:hover:not(.active) { background:var(--bg); color:var(--text); }
+.p2-cv-btn:hover:not(.active),.p3-cv-btn:hover:not(.active),.p4-cv-btn:hover:not(.active),.p4-method-btn:hover:not(.active),.p5-cv-btn:hover:not(.active),.p6-cv-btn:hover:not(.active),.p7-cv-btn:hover:not(.active),.p8-cv-btn:hover:not(.active),.p9-cv-btn:hover:not(.active),.p10-cv-btn:hover:not(.active),.p11-cv-btn:hover:not(.active),.p12-cv-btn:hover:not(.active) { background:var(--bg); color:var(--text); }
 
 /* ===================== GEN MIX BAR ===================== */
 .genmix-row {
@@ -2788,6 +2788,23 @@ function _skelTableRows(rows, cols) {
   return '<div class="skel-tbl"><div class="skel-th"></div>'
     + tr.repeat(rows) + '</div>';
 }
+// _cvHdr — shared column-view control bar for pages p5-p12
+// pgId: 'p5'-'p12', curView: current colView state, leftTabs: array of {lbl,fn,active}
+function _cvHdr(pgId, curView, leftTabs) {
+  var tabs = (leftTabs || []).map(function(t) {
+    return '<button class="tab-btn' + (t.active ? ' active' : '') + '" onclick="' + t.fn + '">' + t.lbl + '</button>';
+  }).join('');
+  return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
+    + tabs
+    + '<div style="flex:1"></div>'
+    + '<div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:6px;padding:2px;gap:1px">'
+    + '<button class="' + pgId + '-cv-btn' + (curView === 'monthly'   ? ' active' : '') + '" onclick="' + pgId + 'SetColView(\'monthly\',this)">Monthly</button>'
+    + '<button class="' + pgId + '-cv-btn' + (curView === 'quarterly' ? ' active' : '') + '" onclick="' + pgId + 'SetColView(\'quarterly\',this)">Quarterly</button>'
+    + '<button class="' + pgId + '-cv-btn' + (curView === 'ytd'       ? ' active' : '') + '" onclick="' + pgId + 'SetColView(\'ytd\',this)">YTD</button>'
+    + '<button class="' + pgId + '-cv-btn' + (curView === 'ytg'       ? ' active' : '') + '" onclick="' + pgId + 'SetColView(\'ytg\',this)">Year to Go</button>'
+    + '</div></div>';
+}
+
 function _skelPage(id) {
   const head = '<span class="skel skel-head"></span>'
     + '<span class="skel skel-row w40" style="height:11px;margin-bottom:20px"></span>';
@@ -3170,6 +3187,23 @@ function p4SetColView(v, el) {
   if(el) el.classList.add('active');
   _loadedPages.delete('p4'); loadP4();
 }
+let _p5ColView  = 'ytd';
+let _p6ColView  = 'ytd';
+let _p7ColView  = 'monthly';  // p7 is already monthly by nature
+let _p8ColView  = 'ytd';
+let _p9ColView  = 'ytd';
+let _p10ColView = 'ytd';
+let _p11ColView = 'monthly';  // p11 is already monthly by nature
+let _p12ColView = 'ytd';
+function p5SetColView(v, el) { _p5ColView = v; document.querySelectorAll('.p5-cv-btn').forEach(function(b){b.classList.remove('active');}); if(el) el.classList.add('active'); _loadedPages.delete('p5'); loadP5(); }
+function p6SetColView(v, el) { _p6ColView = v; document.querySelectorAll('.p6-cv-btn').forEach(function(b){b.classList.remove('active');}); if(el) el.classList.add('active'); _loadedPages.delete('p6'); loadP6(); }
+function p7SetColView(v, el) { _p7ColView = v; document.querySelectorAll('.p7-cv-btn').forEach(function(b){b.classList.remove('active');}); if(el) el.classList.add('active'); _loadedPages.delete('p7'); loadP7(); }
+function p8SetColView(v, el) { _p8ColView = v; document.querySelectorAll('.p8-cv-btn').forEach(function(b){b.classList.remove('active');}); if(el) el.classList.add('active'); _loadedPages.delete('p8'); loadP8(); }
+function p9SetColView(v, el) { _p9ColView = v; document.querySelectorAll('.p9-cv-btn').forEach(function(b){b.classList.remove('active');}); if(el) el.classList.add('active'); _loadedPages.delete('p9'); loadP9(); }
+function p10SetColView(v, el) { _p10ColView = v; document.querySelectorAll('.p10-cv-btn').forEach(function(b){b.classList.remove('active');}); if(el) el.classList.add('active'); _loadedPages.delete('p10'); loadP10(true); }
+function p11SetColView(v, el) { _p11ColView = v; document.querySelectorAll('.p11-cv-btn').forEach(function(b){b.classList.remove('active');}); if(el) el.classList.add('active'); _loadedPages.delete('p11'); loadP11(true); }
+function p12SetColView(v, el) { _p12ColView = v; document.querySelectorAll('.p12-cv-btn').forEach(function(b){b.classList.remove('active');}); if(el) el.classList.add('active'); _loadedPages.delete('p12'); loadP12(); }
+
 function p4SetMethod(v, el) {
   _cfMethod = v;
   document.querySelectorAll('.p4-method-btn').forEach(function(b){ b.classList.remove('active'); });
@@ -5042,7 +5076,7 @@ async function loadP10(force) {
     var finDerived = _p10DeriveFinancial(finFacts, months, kpiActuals);
 
     // Build table
-    if (body) body.innerHTML = _p10BuildTable(targets, kpiActuals, finDerived, months, ctx);
+    if (body) body.innerHTML = _cvHdr('p10', _p10ColView, []) + _p10BuildTable(targets, kpiActuals, finDerived, months, ctx);
 
   } catch(e) {
     console.error('[p10]', e);
@@ -5655,17 +5689,33 @@ async function loadP5() {
   const LINES = ['cf_capex','cwip','bs_fa_cost','bs_accum_depn','depn'];
   const pyCode = 'HIST_ACTUAL_' + (ctx.yr - 1);
   const pyDecPer = (ctx.yr - 1) * 100 + 12;
+  var yr = ctx.yr, ps = yr * 100;
+  var allPids = []; for (var mi = 1; mi <= 12; mi++) allPids.push(ps + mi);
 
-  // Fetch actuals YTD, AOP full year, prior year Dec (for opening balances)
-  const [aF, aopF, pyF] = await Promise.all([
-    _fetchFactsAct(ctx, LINES),
-    _fetchFactsN('AOP_' + ctx.yr, LINES, ctx.yr * 100 + 1, ctx.yr * 100 + 12),
-    _fetchFactsN(pyCode, LINES, pyDecPer, pyDecPer),
-  ]);
+  var aF, aopF, pyF, allActF;
+
+  if (_p5ColView === 'monthly' || _p5ColView === 'quarterly') {
+    // Fetch all 12 months of actuals + full AOP
+    [allActF, aopF, pyF] = await Promise.all([
+      ctx.hasMonthly
+        ? _fetchFactsMulti(yr, _expandAliasLines(LINES), allPids)
+        : _fetchFactsN('HIST_ACTUAL_' + yr, LINES, ps + 1, ps + 12),
+      _fetchFactsN('AOP_' + yr, LINES, ps + 1, ps + 12),
+      _fetchFactsN(pyCode, LINES, pyDecPer, pyDecPer),
+    ]);
+    aF = allActF;
+  } else {
+    // YTD / YTG — existing fetch
+    [aF, aopF, pyF] = await Promise.all([
+      _fetchFactsAct(ctx, LINES),
+      _fetchFactsN('AOP_' + yr, LINES, ps + 1, ps + 12),
+      _fetchFactsN(pyCode, LINES, pyDecPer, pyDecPer),
+    ]);
+  }
   _pgLoad('p5', false);
 
-  function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
-  function saop(lid) { return _fSumP(aopF, lid, Object.keys(aopF[lid] || {}).map(Number)); }
+  var hdr = _cvHdr('p5', _p5ColView, []);
+
   function pyLast(lid) {
     var src = pyF[lid] || {};
     var vals = Object.values(src);
@@ -5677,21 +5727,123 @@ async function loadP5() {
     for (var i = pids.length - 1; i >= 0; i--) {
       if (src[pids[i]] !== undefined) return src[pids[i]];
     }
-    return 0;
+    // fallback: last available
+    var ks = Object.keys(src).map(Number).sort(function(a,b){return a-b;});
+    return ks.length ? src[ks[ks.length-1]] : 0;
   }
 
-  // YTD capex stored as negative outflow — abs for display
+  if (_p5ColView === 'monthly' || _p5ColView === 'quarterly') {
+    // Build monthly or quarterly table
+    var groups, gHdr;
+    if (_p5ColView === 'monthly') {
+      groups = [[1],[2],[3],[4],[5],[6],[7],[8],[9],[10],[11],[12]];
+      gHdr = _MONS.map(function(m){ return '<th class="num">' + m + '</th>'; }).join('');
+    } else {
+      groups = [[1,2,3],[4,5,6],[7,8,9],[10,11,12]];
+      gHdr = '<th class="num">Q1</th><th class="num">Q2</th><th class="num">Q3</th><th class="num">Q4</th>';
+    }
+    function gVal(lid, grp) {
+      // For flow lines: sum. For BS snapshot lines: last in group
+      var bsLines = ['cwip','bs_fa_cost','bs_accum_depn'];
+      if (bsLines.indexOf(lid) >= 0) {
+        // use last month in group that has data
+        for (var gi = grp.length - 1; gi >= 0; gi--) {
+          var v = (aF[lid] || {})[ps + grp[gi]];
+          if (v !== undefined) return v;
+        }
+        return 0;
+      }
+      return grp.reduce(function(s,m){ return s + ((aF[lid]||{})[ps+m] || 0); }, 0);
+    }
+    function aopGVal(lid, grp) {
+      var bsLines = ['cwip','bs_fa_cost','bs_accum_depn'];
+      if (bsLines.indexOf(lid) >= 0) {
+        for (var gi = grp.length - 1; gi >= 0; gi--) {
+          var v = (aopF[lid] || {})[ps + grp[gi]];
+          if (v !== undefined) return v;
+        }
+        return 0;
+      }
+      return grp.reduce(function(s,m){ return s + ((aopF[lid]||{})[ps+m] || 0); }, 0);
+    }
+    function annVal(lid) {
+      var bsLines = ['cwip','bs_fa_cost','bs_accum_depn'];
+      if (bsLines.indexOf(lid) >= 0) return aLast(lid);
+      return allPids.reduce(function(s,p){ return s + ((aF[lid]||{})[p] || 0); }, 0);
+    }
+    function aopAnn(lid) {
+      var bsLines = ['cwip','bs_fa_cost','bs_accum_depn'];
+      if (bsLines.indexOf(lid) >= 0) {
+        var src = aopF[lid] || {};
+        var ks = Object.keys(src).map(Number).sort(function(a,b){return a-b;});
+        return ks.length ? src[ks[ks.length-1]] : 0;
+      }
+      return allPids.reduce(function(s,p){ return s + ((aopF[lid]||{})[p] || 0); }, 0);
+    }
+    function mRow(lbl, lid, cls, abs) {
+      var cells = groups.map(function(g){
+        var v = gVal(lid, g);
+        return '<td class="num">' + _fmtM(abs ? Math.abs(v) : v) + '</td>';
+      }).join('');
+      var ann = annVal(lid), aop = aopAnn(lid);
+      var varV = (abs ? Math.abs(ann) : ann) - (abs ? Math.abs(aop) : aop);
+      return '<tr class="' + (cls||'rind') + '"><td>' + lbl + '</td>'
+        + cells
+        + '<td class="num" style="font-weight:600">' + _fmtM(abs ? Math.abs(ann) : ann) + '</td>'
+        + '<td class="num" style="color:var(--muted)">' + _fmtM(abs ? Math.abs(aop) : aop) + '</td>'
+        + '<td class="num ' + (varV >= 0 ? 'fav' : 'adv') + '">' + _fmtM(varV) + '</td>'
+        + '</tr>';
+    }
+    var mTbl = '<div class="card"><div class="card-head">CapEx &amp; PP&amp;E — '
+      + (_p5ColView === 'monthly' ? 'Monthly' : 'Quarterly')
+      + ' View<span class="ch-sub">USD $000s</span></div>'
+      + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+      + '<th>Line</th>' + gHdr
+      + '<th class="num">Annual</th><th class="num">AOP</th><th class="num">Var $</th>'
+      + '</tr></thead><tbody>'
+      + mRow('Capital Expenditure', 'cf_capex', '', true)
+      + mRow('Depreciation', 'depn', 'rind', false)
+      + mRow('CWIP Balance (period-end)', 'cwip', 'rind', false)
+      + mRow('Gross PP&amp;E', 'bs_fa_cost', 'rind', false)
+      + (function(){
+          var cells = groups.map(function(g){
+            var fa = gVal('bs_fa_cost',g), ad = gVal('bs_accum_depn',g);
+            return '<td class="num">' + _fmtM(fa - ad) + '</td>';
+          }).join('');
+          var ann = annVal('bs_fa_cost') - aLast('bs_accum_depn');
+          var aop2 = aopAnn('bs_fa_cost') - aopAnn('bs_accum_depn');
+          return '<tr class="rs"><td>Net PP&amp;E</td>' + cells
+            + '<td class="num" style="font-weight:600">' + _fmtM(ann) + '</td>'
+            + '<td class="num" style="color:var(--muted)">' + _fmtM(aop2) + '</td>'
+            + '<td class="num ' + (ann >= aop2 ? 'fav' : 'adv') + '">' + _fmtM(ann - aop2) + '</td></tr>';
+        })()
+      + '</tbody></table></div></div>';
+
+    var note = '<div class="card" style="background:var(--bg);border-style:dashed;text-align:center;color:var(--muted);padding:18px 24px">'
+      + '<strong>Project-level CapEx register not yet available.</strong><br>'
+      + 'Upload project data via the CapEx Platform to enable project-by-project tracking, committed spend, and status reporting.'
+      + '</div>';
+    var pg = document.getElementById('p5Body');
+    if (pg) pg.innerHTML = hdr + mTbl + note;
+    return;
+  }
+
+  // YTD / YTG view (existing behavior)
+  function sa(lid) {
+    var periods = (_p5ColView === 'ytg') ? allPids : ctx.actPeriods;
+    return _fSumP(aF, lid, periods);
+  }
+  function saop(lid) { return _fSumP(aopF, lid, Object.keys(aopF[lid] || {}).map(Number)); }
+
   var ytdSpend  = Math.abs(sa('cf_capex'));
   var aopBudget = Math.abs(saop('cf_capex'));
   var pctBudget = aopBudget ? (ytdSpend / aopBudget * 100) : 0;
 
-  // CWIP roll-forward
-  var cwipOpen   = pyLast('cwip');       // Dec PY
-  var cwipClose  = aLast('cwip');        // latest actual month
-  var cwipAdd    = ytdSpend;             // additions = capex spend
-  var cwipXfer   = cwipOpen + cwipAdd - cwipClose; // implied transfers to FA
+  var cwipOpen   = pyLast('cwip');
+  var cwipClose  = aLast('cwip');
+  var cwipAdd    = ytdSpend;
+  var cwipXfer   = cwipOpen + cwipAdd - cwipClose;
 
-  // PP&E movement
   var faOpen  = pyLast('bs_fa_cost');
   var faClose = aLast('bs_fa_cost');
   var adOpen  = pyLast('bs_accum_depn');
@@ -5700,6 +5852,7 @@ async function loadP5() {
   var netClose= faClose - adClose;
   var ytdDepn = sa('depn');
 
+  var viewLbl = (_p5ColView === 'ytg') ? 'Year to Go' : ctx.viewLbl;
   function pctStr(p) { return (p >= 0 ? '+' : '') + p.toFixed(1) + '%'; }
   function kpiCard(lbl, val, sub2, cls) {
     return '<div class="kpi-card"><div class="k-lbl">' + lbl + '</div>'
@@ -5707,7 +5860,7 @@ async function loadP5() {
       + '<div class="k-delta ' + (cls || 'neut') + '">' + sub2 + '</div></div>';
   }
   var kpis = '<div class="kpi-strip">'
-    + kpiCard('AOP Budget', aopBudget, 'FY' + ctx.yr + ' full year', 'neut')
+    + kpiCard('AOP Budget', aopBudget, 'FY' + yr + ' full year', 'neut')
     + kpiCard('YTD Spend', ytdSpend, pctStr(pctBudget) + '% of budget', pctBudget <= 40 ? 'neut' : 'k-up')
     + kpiCard('CWIP Balance', cwipClose, 'End of period (actuals)', 'neut')
     + kpiCard('Net PP&E', netClose, 'Gross less accumulated depn', 'neut')
@@ -5717,18 +5870,18 @@ async function loadP5() {
     return '<tr class="' + (cls || 'rind') + '"><td>' + lbl + '</td><td class="num">' + _fmtM(val) + '</td></tr>';
   }
   var cwipTable = '<div class="card"><div class="card-head">CWIP Roll-Forward'
-    + '<span class="ch-sub">' + ctx.viewLbl + ' &middot; USD $000s</span></div>'
+    + '<span class="ch-sub">' + viewLbl + ' &middot; USD $000s</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr><th>Description</th><th class="num">USD $000s</th></tr></thead><tbody>'
-    + dtRow('Opening CWIP (Dec ' + (ctx.yr - 1) + ')', cwipOpen, '')
+    + dtRow('Opening CWIP (Dec ' + (yr - 1) + ')', cwipOpen, '')
     + dtRow('Add: Capital additions (CapEx spend)', cwipAdd, 'rind')
     + dtRow('Less: Transfers to fixed assets', -cwipXfer, 'rind')
-    + dtRow('Closing CWIP (' + ctx.viewLbl + ')', cwipClose, 'rs')
+    + dtRow('Closing CWIP (' + viewLbl + ')', cwipClose, 'rs')
     + '</tbody></table></div></div>';
 
   var ppeTable = '<div class="card"><div class="card-head">PP&amp;E Movement'
-    + '<span class="ch-sub">Dec ' + (ctx.yr-1) + ' → ' + ctx.viewLbl + ' &middot; USD $000s</span></div>'
+    + '<span class="ch-sub">Dec ' + (yr-1) + ' → ' + viewLbl + ' &middot; USD $000s</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr><th>Description</th>'
-    + '<th class="num">Dec ' + (ctx.yr - 1) + '</th><th class="num">' + ctx.viewLbl + '</th><th class="num">Movement</th></tr></thead><tbody>'
+    + '<th class="num">Dec ' + (yr - 1) + '</th><th class="num">' + viewLbl + '</th><th class="num">Movement</th></tr></thead><tbody>'
     + '<tr><td>Gross Fixed Assets</td><td class="num">' + _fmtM(faOpen) + '</td><td class="num">' + _fmtM(faClose) + '</td><td class="num">' + _fmtM(faClose - faOpen) + '</td></tr>'
     + '<tr class="rind"><td>Accumulated Depreciation</td><td class="num">(' + _fmtM(adOpen) + ')</td><td class="num">(' + _fmtM(adClose) + ')</td><td class="num">' + _fmtM(adOpen - adClose) + '</td></tr>'
     + '<tr class="rs"><td>Net PP&amp;E</td><td class="num">' + _fmtM(netOpen) + '</td><td class="num">' + _fmtM(netClose) + '</td><td class="num">' + _fmtM(netClose - netOpen) + '</td></tr>'
@@ -5742,7 +5895,7 @@ async function loadP5() {
     + '</div>';
 
   var pg = document.getElementById('p5Body');
-  if (pg) pg.innerHTML = kpis + cwipTable + ppeTable + note;
+  if (pg) pg.innerHTML = hdr + kpis + cwipTable + ppeTable + note;
 }
 
 /* ----- p6: OTHER INCOME / IFRS ----- */
@@ -5757,20 +5910,35 @@ async function loadP6() {
 
   const IS_LINES  = ['nfc_int_inc','pl_fx','pl_afudc','nfc_pref','nfc_fees','oth_inc','other_inc'];
   const BS_LINES  = ['leases','lease_cl','rou_asset'];
+  const ALL_LINES = IS_LINES.concat(BS_LINES);
   const pyCode    = 'HIST_ACTUAL_' + (ctx.yr - 1);
   const pyDecPer  = (ctx.yr - 1) * 100 + 12;
+  var yr = ctx.yr, ps = yr * 100;
+  var allPids = []; for (var mi6 = 1; mi6 <= 12; mi6++) allPids.push(ps + mi6);
 
-  const [aF, aopF, pyF] = await Promise.all([
-    _fetchFactsAct(ctx, IS_LINES.concat(BS_LINES)),
-    _fetchFactsN('AOP_' + ctx.yr, IS_LINES.concat(BS_LINES), ctx.yr * 100 + 1, ctx.yr * 100 + 12),
-    _fetchFactsN(pyCode, BS_LINES, pyDecPer, pyDecPer),
-  ]);
+  var aF, aopF, pyF;
+  if (_p6ColView === 'monthly' || _p6ColView === 'quarterly') {
+    [aF, aopF, pyF] = await Promise.all([
+      ctx.hasMonthly
+        ? _fetchFactsMulti(yr, _expandAliasLines(ALL_LINES), allPids)
+        : _fetchFactsN('HIST_ACTUAL_' + yr, ALL_LINES, ps + 1, ps + 12),
+      _fetchFactsN('AOP_' + yr, ALL_LINES, ps + 1, ps + 12),
+      _fetchFactsN(pyCode, BS_LINES, pyDecPer, pyDecPer),
+    ]);
+  } else {
+    [aF, aopF, pyF] = await Promise.all([
+      _fetchFactsAct(ctx, ALL_LINES),
+      _fetchFactsN('AOP_' + yr, ALL_LINES, ps + 1, ps + 12),
+      _fetchFactsN(pyCode, BS_LINES, pyDecPer, pyDecPer),
+    ]);
+  }
   _normalizeAlias(aF);
   _pgLoad('p6', false);
 
+  var hdr6 = _cvHdr('p6', _p6ColView, []);
+
   function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
   function saop(lid) {
-    var src = aopF[lid] || {};
     var aopPids = ctx.actPeriods; // AOP YTD = same period count as actuals
     return _fSumP(aopF, lid, aopPids);
   }
@@ -5782,14 +5950,8 @@ async function loadP6() {
   function pyLast(lid) { return aLast(lid, pyF); }
 
   // Prefer stored other_inc; fall back to oth_inc alias
-  function saOthInc() {
-    var v = sa('other_inc');
-    return v || sa('oth_inc');
-  }
-  function saopOthInc() {
-    var v = saop('other_inc');
-    return v || saop('oth_inc');
-  }
+  function saOthInc() { var v = sa('other_inc'); return v || sa('oth_inc'); }
+  function saopOthInc() { var v = saop('other_inc'); return v || saop('oth_inc'); }
 
   // Var formatting
   function varPct(a, b) {
@@ -5799,6 +5961,63 @@ async function loadP6() {
     var s = (p >= 0 ? '+' : '') + p.toFixed(1) + '%';
     return '<span class="' + cls + '">' + s + '</span>';
   }
+
+  if (_p6ColView === 'monthly' || _p6ColView === 'quarterly') {
+    var g6, g6Hdr;
+    if (_p6ColView === 'monthly') {
+      g6 = [[1],[2],[3],[4],[5],[6],[7],[8],[9],[10],[11],[12]];
+      g6Hdr = _MONS.map(function(m){ return '<th class="num">' + m + '</th>'; }).join('');
+    } else {
+      g6 = [[1,2,3],[4,5,6],[7,8,9],[10,11,12]];
+      g6Hdr = '<th class="num">Q1</th><th class="num">Q2</th><th class="num">Q3</th><th class="num">Q4</th>';
+    }
+    var OI_DEFS = [
+      { lbl:'Interest Income',       lid:'nfc_int_inc', sign:1 },
+      { lbl:'FX Gain / (Loss)',      lid:'pl_fx',       sign:1 },
+      { lbl:'AFUDC — IAS 20',        lid:'pl_afudc',    sign:1 },
+      { lbl:'Preference Dividend',   lid:'nfc_pref',    sign:-1 },
+      { lbl:'Loan Arrangement Fees', lid:'nfc_fees',    sign:-1 },
+      { lbl:'Other Income',          lid:'other_inc',   sign:1 },
+    ];
+    function g6Val(lid, grp) { return grp.reduce(function(s,m){ return s + ((aF[lid]||{})[ps+m]||0); }, 0); }
+    function g6Aop(lid, grp) { return grp.reduce(function(s,m){ return s + ((aopF[lid]||{})[ps+m]||0); }, 0); }
+    function g6Ann(lid) { return allPids.reduce(function(s,p){ return s + ((aF[lid]||{})[p]||0); }, 0); }
+    function g6AopAnn(lid) { return allPids.reduce(function(s,p){ return s + ((aopF[lid]||{})[p]||0); }, 0); }
+    var mRows6 = OI_DEFS.map(function(d) {
+      var lid = d.lid === 'other_inc' ? (_hasFactData(aF,'other_inc') ? 'other_inc' : 'oth_inc') : d.lid;
+      var cells = g6.map(function(g){ return '<td class="num">' + _fmtM(d.sign * g6Val(lid,g)) + '</td>'; }).join('');
+      var ann = d.sign * g6Ann(lid), aop6 = d.sign * g6AopAnn(lid), v6 = ann - aop6;
+      return '<tr class="rind"><td>' + d.lbl + '</td>' + cells
+        + '<td class="num" style="font-weight:600">' + _fmtM(ann) + '</td>'
+        + '<td class="num" style="color:var(--muted)">' + _fmtM(aop6) + '</td>'
+        + '<td class="num ' + (v6 >= 0 ? 'fav' : 'adv') + '">' + _fmtM(v6) + '</td></tr>';
+    }).join('');
+    // Total row
+    var totCells6 = g6.map(function(g) {
+      var tot = OI_DEFS.reduce(function(s,d){
+        var lid = d.lid === 'other_inc' ? (_hasFactData(aF,'other_inc') ? 'other_inc' : 'oth_inc') : d.lid;
+        return s + d.sign * g6Val(lid, g);
+      }, 0);
+      return '<td class="num" style="font-weight:600">' + _fmtM(tot) + '</td>';
+    }).join('');
+    var totAnn6 = OI_DEFS.reduce(function(s,d){ var lid=d.lid==='other_inc'?(_hasFactData(aF,'other_inc')?'other_inc':'oth_inc'):d.lid; return s+d.sign*g6Ann(lid); }, 0);
+    var totAop6 = OI_DEFS.reduce(function(s,d){ var lid=d.lid==='other_inc'?(_hasFactData(aF,'other_inc')?'other_inc':'oth_inc'):d.lid; return s+d.sign*g6AopAnn(lid); }, 0);
+    var mTbl6 = '<div class="card"><div class="card-head">Other Income / (Expense) — '
+      + (_p6ColView==='monthly'?'Monthly':'Quarterly') + ' View<span class="ch-sub">USD $000s</span></div>'
+      + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+      + '<th>Item</th>' + g6Hdr
+      + '<th class="num">Annual</th><th class="num">AOP</th><th class="num">Var $</th>'
+      + '</tr></thead><tbody>' + mRows6
+      + '<tr class="rs"><td>Net Other Income / (Expense)</td>' + totCells6
+      + '<td class="num">' + _fmtM(totAnn6) + '</td>'
+      + '<td class="num" style="color:var(--muted)">' + _fmtM(totAop6) + '</td>'
+      + '<td class="num ' + (totAnn6-totAop6 >= 0 ? 'fav' : 'adv') + '">' + _fmtM(totAnn6-totAop6) + '</td></tr>'
+      + '</tbody></table></div></div>';
+    var pg6 = document.getElementById('p6Body');
+    if (pg6) pg6.innerHTML = hdr6 + mTbl6;
+    return;
+  }
+
   function oiRow(lbl, lid, lbl2) {
     var a = lid === '_oth' ? saOthInc() : sa(lid);
     var b = lid === '_oth' ? saopOthInc() : saop(lid);
@@ -5877,7 +6096,7 @@ async function loadP6() {
     + '</div>';
 
   var pg = document.getElementById('p6Body');
-  if (pg) pg.innerHTML = isTable + ifrsTable;
+  if (pg) pg.innerHTML = hdr6 + isTable + ifrsTable;
 }
 
 /* ----- p14: AI COMMENTARY (populate context panel from DB) ----- */
@@ -5921,6 +6140,7 @@ async function loadP12() {
                  'opex','depn','nfc_int_exp','nfc_lease','pl_afudc','nfc_afudc','oth_inc','other_inc','tax'];
   const ps = yr * 100, pe = yr * 100 + 12;
   const aopCode = 'AOP_' + yr, le1Code = 'LE_' + yr + '_01', le2Code = 'LE_' + yr + '_02';
+  var allPids12 = []; for (var mi12 = 1; mi12 <= 12; mi12++) allPids12.push(ps + mi12);
 
   const [aopF, le1F, le2F] = await Promise.all([
     _fetchFactsN(aopCode, LINES, ps + 1, pe),
@@ -5929,6 +6149,8 @@ async function loadP12() {
   ]);
   _pgLoad('p12', false);
 
+  var hdr12 = _cvHdr('p12', _p12ColView, []);
+
   // Check if LE versions have data
   var le1Empty = Object.keys(le1F).length === 0;
   var le2Empty = Object.keys(le2F).length === 0;
@@ -5936,6 +6158,69 @@ async function loadP12() {
   function fySum(f, lid) {
     var src = f[lid] || {};
     return Object.values(src).reduce(function(s,v){ return s + parseFloat(v||0); }, 0);
+  }
+  function pSum(f, lid, grp) {
+    return grp.reduce(function(s,p){ return s+((f[lid]||{})[p]||0); }, 0);
+  }
+  function pDeriveBlock12(f, grp) {
+    function g(lid) { return pSum(f, lid, grp); }
+    var nfr = _hasFactData(f,'nr_rev') ? g('nr_rev') : g('nonfuel');
+    var fS = g('fuel_rev') - g('fuel_cost'), pS = g('ipp_fr') - g('ipp_cost');
+    var rev = nfr + g('nr_cust_charge') + g('other_r') + fS + pS;
+    var opex = g('opex'), ebitda = rev - opex, depn = g('depn');
+    var intE = g('nfc_int_exp') + g('nfc_lease');
+    var afudc = _hasFactData(f,'nfc_afudc') ? g('nfc_afudc') : g('pl_afudc');
+    var oi = _hasFactData(f,'other_inc') ? g('other_inc') : g('oth_inc');
+    var pretax = ebitda - depn - intE + afudc + oi, tax = g('tax'), npat = pretax - tax;
+    return { rev:rev, opex:opex, ebitda:ebitda, depn:depn, intE:intE, pretax:pretax, tax:tax, npat:npat };
+  }
+
+  if (_p12ColView === 'monthly' || _p12ColView === 'quarterly') {
+    var g12, g12Hdr;
+    if (_p12ColView === 'monthly') {
+      g12 = [[1],[2],[3],[4],[5],[6],[7],[8],[9],[10],[11],[12]].map(function(g){ return g.map(function(m){ return ps+m; }); });
+      g12Hdr = _MONS.map(function(m){ return '<th class="num">' + m + '</th>'; }).join('');
+    } else {
+      g12 = [[1,2,3],[4,5,6],[7,8,9],[10,11,12]].map(function(g){ return g.map(function(m){ return ps+m; }); });
+      g12Hdr = '<th class="num">Q1</th><th class="num">Q2</th><th class="num">Q3</th><th class="num">Q4</th>';
+    }
+    var useLe = le2Empty ? le1F : le2F;
+    var leLbl = le2Empty ? (le1Empty ? '—' : 'LE1') : 'LE2';
+    var leEmpty12 = le1Empty && le2Empty;
+    var P12_ROWS = [
+      { lbl:'Revenue', key:'rev', cls:'rs', hg:true },
+      { lbl:'O&M Expense', key:'opex', cls:'rind', hg:false, negate:true },
+      { lbl:'EBITDA', key:'ebitda', cls:'rs', hg:true },
+      { lbl:'Depreciation', key:'depn', cls:'rind', hg:false, negate:true },
+      { lbl:'Net Finance Costs', key:'intE', cls:'rind', hg:false, negate:true },
+      { lbl:'Profit Before Tax', key:'pretax', cls:'rs', hg:true },
+      { lbl:'Income Tax', key:'tax', cls:'rind', hg:false, negate:true },
+      { lbl:'NPAT', key:'npat', cls:'rs', hg:true },
+    ];
+    var mTblRows12 = P12_ROWS.map(function(r) {
+      var cells12 = g12.map(function(grp) {
+        var a = pDeriveBlock12(aopF, grp), b = pDeriveBlock12(useLe, grp);
+        var av = r.negate ? -(a[r.key]||0) : (a[r.key]||0);
+        var bv = r.negate ? -(b[r.key]||0) : (b[r.key]||0);
+        var diff = bv - av;
+        var cls12 = (r.hg ? diff >= 0 : diff <= 0) ? 'fav' : 'adv';
+        return '<td class="num">' + _fmtM(av) + '</td>'
+          + (leEmpty12 ? '<td class="num" style="color:var(--muted)">—</td><td>—</td>'
+            : '<td class="num">' + _fmtM(bv) + '</td><td class="num ' + cls12 + '">' + _fmtM(diff) + '</td>');
+      }).join('');
+      return '<tr class="' + r.cls + '"><td>' + r.lbl + '</td>' + cells12 + '</tr>';
+    }).join('');
+    var subHdr12 = g12.map(function(){ return '<th class="num" style="font-size:10px;color:var(--muted)">AOP</th><th class="num" style="font-size:10px;color:var(--muted)">' + leLbl + ' Δ</th>'; }).join('');
+    var mTbl12 = '<div class="card"><div class="card-head">Budget vs LE — '
+      + (_p12ColView==='monthly'?'Monthly':'Quarterly')
+      + '<span class="ch-sub">AOP | ' + leLbl + ' Delta · USD $000s</span></div>'
+      + '<div class="tbl-wrap" style="overflow-x:auto"><table class="dt"><thead>'
+      + '<tr><th>Line</th>' + g12Hdr + '</tr>'
+      + '<tr><th></th>' + subHdr12 + '</tr>'
+      + '</thead><tbody>' + mTblRows12 + '</tbody></table></div></div>';
+    var pg12m = document.getElementById('p12Body');
+    if (pg12m) pg12m.innerHTML = hdr12 + mTbl12;
+    return;
   }
 
   function deriveBlock(f, alias) {
@@ -6006,7 +6291,7 @@ async function loadP12() {
     + '</tbody></table></div></div>';
 
   var pg = document.getElementById('p12Body');
-  if (pg) pg.innerHTML = leNote + tbl;
+  if (pg) pg.innerHTML = hdr12 + leNote + tbl;
 }
 
 /* ----- p7: REVENUE & GENERATION ----- */
@@ -6018,6 +6303,7 @@ async function loadP7() {
   var yr = ctx.yr, maxMo = ctx.maxMo;
   var sub = document.getElementById('p7PhSub');
   if (sub) sub.textContent = 'Tariff revenue & billing volumes by rate class · ' + ctx.viewLbl + ' · USD $000s';
+  var hdr7 = _cvHdr('p7', _p7ColView, []);
 
   var sb = _getSB();
 
@@ -6113,60 +6399,66 @@ async function loadP7() {
     + (function(){ var fv=Object.values(fxMap).filter(Boolean); return '<div class="kpi-card"><div class="k-lbl">Avg FX Rate</div><div class="k-val">' + (fv.length ? (fv.reduce(function(s,v){return s+v;},0)/fv.length).toFixed(2) : '—') + '</div><div class="k-delta neut">JMD / USD (billing)</div></div>'; })()
     + '</div>';
 
-  // Revenue by rate class table
-  var moHdrs = months.map(function(m){ return '<th class="num">' + MON[m-1] + '</th>'; }).join('');
-  var revRows = RATE_CLASSES.map(function(rc) {
-    var moCells = months.map(function(m) {
-      return '<td class="num">' + (rcUsd[rc][m] ? _fmtM(rcUsd[rc][m]) : '—') + '</td>';
-    }).join('');
-    return '<tr><td>' + rc + '</td><td>' + (RC_DESC[rc] || '') + '</td>'
-      + moCells
-      + '<td class="num" style="font-weight:600">' + _fmtM(rcYtdUsd[rc]) + '</td>'
-      + '<td class="num">' + rcYtdGwh[rc].toFixed(1) + '</td>'
-      + '</tr>';
+  // Build column groups based on view
+  var colGroups7, colHdrs7;
+  if (_p7ColView === 'quarterly') {
+    colGroups7 = [[1,2,3],[4,5,6],[7,8,9],[10,11,12]].map(function(g){ return g.filter(function(m){ return m <= maxMo; }).length ? g : null; }).filter(Boolean);
+    colHdrs7 = ['Q1','Q2','Q3','Q4'].slice(0, colGroups7.length).map(function(q){ return '<th class="num">' + q + '</th>'; }).join('');
+  } else if (_p7ColView === 'ytd') {
+    colGroups7 = [months]; // single column = YTD total
+    colHdrs7 = '<th class="num">YTD</th>';
+  } else {
+    // monthly (default)
+    colGroups7 = months.map(function(m){ return [m]; });
+    colHdrs7 = months.map(function(m){ return '<th class="num">' + MON[m-1] + '</th>'; }).join('');
+  }
+  function g7RevUsd(rc, grp) { return grp.reduce(function(s,m){ return s + (rcUsd[rc][m]||0); }, 0); }
+  function g7GwhUsd(rc, grp) { return grp.reduce(function(s,m){ return s + (rcGwh[rc][m]||0); }, 0); }
+  function g7TotRev(grp) { return grp.reduce(function(s,m){ return s + totalsByMonth[m].revUsd; }, 0); }
+  function g7TotGwh(grp) { return grp.reduce(function(s,m){ return s + totalsByMonth[m].gwh; }, 0); }
+
+  var showYtdCol = _p7ColView === 'monthly' || _p7ColView === 'quarterly';
+  var revRows7 = RATE_CLASSES.map(function(rc) {
+    var cells = colGroups7.map(function(g){ return '<td class="num">' + (_p7ColView==='ytd'||g.some(function(m){return rcUsd[rc][m];})?_fmtM(g7RevUsd(rc,g)):'—') + '</td>'; }).join('');
+    return '<tr><td>' + rc + '</td><td>' + (RC_DESC[rc]||'') + '</td>' + cells
+      + (showYtdCol ? '<td class="num" style="font-weight:600">' + _fmtM(rcYtdUsd[rc]) + '</td>' : '')
+      + '<td class="num">' + rcYtdGwh[rc].toFixed(1) + '</td></tr>';
   }).join('');
-  var totMoCells = months.map(function(m){
-    return '<td class="num" style="font-weight:600">' + _fmtM(totalsByMonth[m].revUsd) + '</td>';
-  }).join('');
+  var totCells7 = colGroups7.map(function(g){ return '<td class="num" style="font-weight:600">' + _fmtM(g7TotRev(g)) + '</td>'; }).join('');
   var revTable = '<div class="card"><div class="card-head">Revenue by Rate Class'
     + '<span class="ch-sub">USD $000s (JMD converted at billing FX rate)</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
-    + '<th>Rate Class</th><th>Description</th>' + moHdrs
-    + '<th class="num">YTD Rev ($000s)</th><th class="num">GWh YTD</th>'
+    + '<th>Rate Class</th><th>Description</th>' + colHdrs7
+    + (showYtdCol ? '<th class="num">YTD Rev ($000s)</th>' : '')
+    + '<th class="num">GWh YTD</th>'
     + '</tr></thead><tbody>'
-    + revRows
-    + '<tr class="rs"><td colspan="2">Total</td>' + totMoCells
-    + '<td class="num">' + _fmtM(totRevUsd) + '</td>'
+    + revRows7
+    + '<tr class="rs"><td colspan="2">Total</td>' + totCells7
+    + (showYtdCol ? '<td class="num">' + _fmtM(totRevUsd) + '</td>' : '')
     + '<td class="num">' + totGwh.toFixed(1) + '</td></tr>'
     + '</tbody></table></div>'
     + '<p style="color:var(--muted);font-size:11px;padding:6px 12px 10px">Note: JMD revenue converted to USD using monthly billing FX rate from fpa_fx_rates. Generation mix not in jps_actuals — upload via DataManager when available.</p>'
     + '</div>';
 
-  // GWh by rate class table
-  var gwhRows = RATE_CLASSES.map(function(rc) {
-    var moCells = months.map(function(m) {
-      return '<td class="num">' + (rcGwh[rc][m] ? rcGwh[rc][m].toFixed(2) : '—') + '</td>';
-    }).join('');
-    return '<tr><td>' + rc + '</td><td>' + (RC_DESC[rc] || '') + '</td>'
-      + moCells
-      + '<td class="num" style="font-weight:600">' + rcYtdGwh[rc].toFixed(2) + '</td></tr>';
+  var gwhRows7 = RATE_CLASSES.map(function(rc) {
+    var cells = colGroups7.map(function(g){ return '<td class="num">' + g7GwhUsd(rc,g).toFixed(2) + '</td>'; }).join('');
+    return '<tr><td>' + rc + '</td><td>' + (RC_DESC[rc]||'') + '</td>' + cells
+      + (showYtdCol ? '<td class="num" style="font-weight:600">' + rcYtdGwh[rc].toFixed(2) + '</td>' : '') + '</tr>';
   }).join('');
-  var gwhMoCells = months.map(function(m){
-    return '<td class="num" style="font-weight:600">' + totalsByMonth[m].gwh.toFixed(2) + '</td>';
-  }).join('');
+  var gwhTotCells7 = colGroups7.map(function(g){ return '<td class="num" style="font-weight:600">' + g7TotGwh(g).toFixed(2) + '</td>'; }).join('');
   var gwhTable = '<div class="card"><div class="card-head">GWh Billed by Rate Class'
     + '<span class="ch-sub">Gigawatt-hours</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
-    + '<th>Rate Class</th><th>Description</th>' + moHdrs
-    + '<th class="num">YTD GWh</th>'
+    + '<th>Rate Class</th><th>Description</th>' + colHdrs7
+    + (showYtdCol ? '<th class="num">YTD GWh</th>' : '')
     + '</tr></thead><tbody>'
-    + gwhRows
-    + '<tr class="rs"><td colspan="2">Total</td>' + gwhMoCells
-    + '<td class="num">' + totGwh.toFixed(2) + '</td></tr>'
-    + '</tbody></table></div></div>';
+    + gwhRows7
+    + '<tr class="rs"><td colspan="2">Total</td>' + gwhTotCells7
+    + (showYtdCol ? '<td class="num">' + totGwh.toFixed(2) + '</td>' : '')
+    + '</tr></tbody></table></div></div>';
 
   var pg = document.getElementById('p7Body');
-  if (pg) pg.innerHTML = kpis + revTable + gwhTable;
+  if (pg) pg.innerHTML = hdr7 + kpis + revTable + gwhTable;
 }
 
 /* ----- p8: VARIANCE ANALYSIS ----- */
@@ -6184,13 +6476,105 @@ async function loadP8() {
     'opex','depn','nfc_int_exp','nfc_lease','nfc_int_inc','nfc_afudc','pl_afudc',
     'nfc_pref','nfc_fees','pl_fx','oth_inc','other_inc','tax'
   ];
+  var yr8 = ctx.yr, ps8 = yr8 * 100;
+  var allPids8 = []; for (var mi8 = 1; mi8 <= 12; mi8++) allPids8.push(ps8 + mi8);
 
-  const [aF_raw, bF] = await Promise.all([
-    _fetchFactsAct(ctx, LINES),
-    _fetchFactsN('AOP_' + ctx.yr, LINES, ctx.yr * 100 + 1, ctx.yr * 100 + 12),
-  ]);
+  var aF_raw, bF;
+  if (_p8ColView === 'monthly' || _p8ColView === 'quarterly') {
+    [aF_raw, bF] = await Promise.all([
+      ctx.hasMonthly ? _fetchFactsMulti(yr8, _expandAliasLines(LINES), allPids8)
+        : _fetchFactsN('HIST_ACTUAL_' + yr8, LINES, ps8 + 1, ps8 + 12),
+      _fetchFactsN('AOP_' + yr8, LINES, ps8 + 1, ps8 + 12),
+    ]);
+  } else {
+    [aF_raw, bF] = await Promise.all([
+      _fetchFactsAct(ctx, LINES),
+      _fetchFactsN('AOP_' + yr8, LINES, ps8 + 1, ps8 + 12),
+    ]);
+  }
   _normalizeAlias(aF_raw);
   _pgLoad('p8', false);
+
+  var hdr8 = _cvHdr('p8', _p8ColView, []);
+
+  // Monthly/Quarterly view: column-by-column Actual | AOP | Var
+  if (_p8ColView === 'monthly' || _p8ColView === 'quarterly') {
+    var g8, g8Hdr;
+    if (_p8ColView === 'monthly') {
+      g8 = [[1],[2],[3],[4],[5],[6],[7],[8],[9],[10],[11],[12]];
+      g8Hdr = _MONS.map(function(m){ return '<th class="num" colspan="2">' + m + '</th>'; }).join('');
+    } else {
+      g8 = [[1,2,3],[4,5,6],[7,8,9],[10,11,12]];
+      g8Hdr = '<th class="num" colspan="2">Q1</th><th class="num" colspan="2">Q2</th><th class="num" colspan="2">Q3</th><th class="num" colspan="2">Q4</th>';
+    }
+    function gA8(lid, grp) { return grp.reduce(function(s,m){ return s+((aF_raw[lid]||{})[ps8+m]||0); }, 0); }
+    function gB8(lid, grp) { return grp.reduce(function(s,m){ return s+((bF[lid]||{})[ps8+m]||0); }, 0); }
+    function derive8(f, grp) {
+      function g(lid) { return grp.reduce(function(s,m){ return s+((f[lid]||{})[ps8+m]||0); }, 0); }
+      var nfr = _hasFactData(f,'nr_rev') ? g('nr_rev') : g('nonfuel');
+      var fS = g('fuel_rev') - g('fuel_cost');
+      var pS = g('ipp_fr') - g('ipp_cost');
+      var rev = nfr + g('nr_cust_charge') + g('other_r') + fS + pS;
+      var opex = g('opex');
+      var ebitda = rev - opex;
+      var depn = g('depn');
+      var ebit = ebitda - depn;
+      var intE = g('nfc_int_exp') + g('nfc_lease');
+      var afudc = _hasFactData(f,'nfc_afudc') ? g('nfc_afudc') : g('pl_afudc');
+      var oi = _hasFactData(f,'other_inc') ? g('other_inc') : g('oth_inc');
+      var pretax = ebit - intE + afudc + oi;
+      var tax = g('tax');
+      var npat = pretax - tax;
+      return { nfr:nfr, custChg:g('nr_cust_charge'), otherR:g('other_r'), fuelS:fS, ppS:pS,
+               rev:rev, opex:opex, ebitda:ebitda, depn:depn, ebit:ebit,
+               intE:g('nfc_int_exp'), lease:g('nfc_lease'), afudc:afudc, oi:oi,
+               pretax:pretax, tax:tax, npat:npat };
+    }
+    var ROWS8 = [
+      { lbl:'Revenue', keys:['rev'], cls:'rs', hg:true },
+      { lbl:'Non-Fuel Revenue', key:'nfr', cls:'rind', hg:true },
+      { lbl:'Customer Charge', key:'custChg', cls:'rind', hg:true },
+      { lbl:'Other Revenue', key:'otherR', cls:'rind', hg:true },
+      { lbl:'Fuel Cost Recovery (net)', key:'fuelS', cls:'rind', hg:true },
+      { lbl:'Purchased Power (net)', key:'ppS', cls:'rind', hg:true },
+      { lbl:'Total Revenue', key:'rev', cls:'rs', hg:true },
+      { lbl:'O&M Expense', key:'opex', cls:'rind', hg:false, negate:true },
+      { lbl:'EBITDA', key:'ebitda', cls:'rs', hg:true },
+      { lbl:'Depreciation', key:'depn', cls:'rind', hg:false, negate:true },
+      { lbl:'EBIT', key:'ebit', cls:'rs', hg:true },
+      { lbl:'Interest Expense', key:'intE', cls:'rind', hg:false, negate:true },
+      { lbl:'AFUDC / Int. Income', key:'afudc', cls:'rind', hg:true },
+      { lbl:'Other Income', key:'oi', cls:'rind', hg:true },
+      { lbl:'Profit Before Tax', key:'pretax', cls:'rs', hg:true },
+      { lbl:'Income Tax', key:'tax', cls:'rind', hg:false, negate:true },
+      { lbl:'NPAT', key:'npat', cls:'rs', hg:true },
+    ];
+    var isSec = { 'Revenue':true, 'Total Revenue':false };
+    var subHdr8 = g8.map(function(){ return '<th class="num" style="font-size:10px;color:var(--muted)">Act</th><th class="num" style="font-size:10px;color:var(--muted)">Var</th>'; }).join('');
+    var tblRows8 = ROWS8.filter(function(r){ return !isSec[r.lbl]; }).map(function(r) {
+      if (r.cls === 'rsec') return '<tr class="rsec"><td colspan="' + (1 + g8.length*2) + '">' + r.lbl + '</td></tr>';
+      var cells8 = g8.map(function(g) {
+        var da = derive8(aF_raw, g), db = derive8(bF, g);
+        var av = r.negate ? -(da[r.key]||0) : (da[r.key]||0);
+        var bv = r.negate ? -(db[r.key]||0) : (db[r.key]||0);
+        var vv = av - bv;
+        var cls8 = (r.hg ? vv >= 0 : vv <= 0) ? 'fav' : 'adv';
+        return '<td class="num">' + _fmtM(av) + '</td><td class="num ' + cls8 + '">' + _fmtM(vv) + '</td>';
+      }).join('');
+      return '<tr class="' + r.cls + '"><td>' + r.lbl + '</td>' + cells8 + '</tr>';
+    }).join('');
+    // Filter out duplicated Revenue/Total Revenue — keep Total Revenue, remove first 'Revenue' section header
+    var mTbl8 = '<div class="card"><div class="card-head">P&amp;L Variance — '
+      + (_p8ColView==='monthly'?'Monthly':'Quarterly') + ' Actual vs AOP'
+      + '<span class="ch-sub">USD $000s — each period: Actual | Var vs AOP</span></div>'
+      + '<div class="tbl-wrap" style="overflow-x:auto"><table class="dt"><thead>'
+      + '<tr><th>Line Item</th>' + g8Hdr + '</tr>'
+      + '<tr><th></th>' + subHdr8 + '</tr>'
+      + '</thead><tbody>' + tblRows8 + '</tbody></table></div></div>';
+    var pg8 = document.getElementById('p8Body');
+    if (pg8) pg8.innerHTML = hdr8 + mTbl8;
+    return;
+  }
 
   function sa(lid) { return _fSumP(aF_raw, lid, ctx.actPeriods); }
   function sb(lid) {
@@ -6290,7 +6674,7 @@ async function loadP8() {
     + '</tbody></table></div></div>';
 
   var pg = document.getElementById('p8Body');
-  if (pg) pg.innerHTML = kpis + tbl;
+  if (pg) pg.innerHTML = hdr8 + kpis + tbl;
 }
 
 /* ----- p9: FINANCIAL RATIOS ----- */
@@ -6311,13 +6695,95 @@ async function loadP9() {
                     'ltd','leases','bs_retained','bs_share_cap','bs_cap_res','bs_cap_redm','bs_pref',
                     'tot_a','bs_fa_cost','bs_accum_depn','cwip','bs_curr_ltd'];
   const ALL = IS_LINES.concat(BS_LINES.filter(function(l){ return IS_LINES.indexOf(l)<0; }));
+  var yr9 = ctx.yr, ps9 = yr9 * 100;
+  var allPids9 = []; for (var mi9 = 1; mi9 <= 12; mi9++) allPids9.push(ps9 + mi9);
 
-  const [aF_raw, bF] = await Promise.all([
-    _fetchFactsAct(ctx, ALL),
-    _fetchFactsN('AOP_' + ctx.yr, ALL, ctx.yr * 100 + 1, ctx.yr * 100 + 12),
-  ]);
+  var aF_raw, bF;
+  if (_p9ColView === 'monthly' || _p9ColView === 'quarterly') {
+    [aF_raw, bF] = await Promise.all([
+      ctx.hasMonthly ? _fetchFactsMulti(yr9, _expandAliasLines(ALL), allPids9)
+        : _fetchFactsN('HIST_ACTUAL_' + yr9, ALL, ps9+1, ps9+12),
+      _fetchFactsN('AOP_' + yr9, ALL, ps9+1, ps9+12),
+    ]);
+  } else {
+    [aF_raw, bF] = await Promise.all([
+      _fetchFactsAct(ctx, ALL),
+      _fetchFactsN('AOP_' + yr9, ALL, ps9+1, ps9+12),
+    ]);
+  }
   _normalizeAlias(aF_raw);
   _pgLoad('p9', false);
+
+  var hdr9 = _cvHdr('p9', _p9ColView, []);
+
+  if (_p9ColView === 'monthly' || _p9ColView === 'quarterly') {
+    var g9, g9Hdr;
+    if (_p9ColView === 'monthly') {
+      g9 = [[1],[2],[3],[4],[5],[6],[7],[8],[9],[10],[11],[12]];
+      g9Hdr = _MONS.map(function(m){ return '<th class="num">' + m + '</th>'; }).join('');
+    } else {
+      g9 = [[1,2,3],[4,5,6],[7,8,9],[10,11,12]];
+      g9Hdr = '<th class="num">Q1</th><th class="num">Q2</th><th class="num">Q3</th><th class="num">Q4</th>';
+    }
+    function gIs9(f, lid, grp) { return grp.reduce(function(s,m){ return s+((f[lid]||{})[ps9+m]||0); }, 0); }
+    function gBsLast9(f, lid, grp) {
+      for (var i=grp.length-1;i>=0;i--) {
+        var v=(f[lid]||{})[ps9+grp[i]]; if(v!==undefined) return v;
+      }
+      return 0;
+    }
+    function deriveRatios9(grp) {
+      function g(lid) { return gIs9(aF_raw, lid, grp); }
+      function gL(lid) { return gBsLast9(aF_raw, lid, grp); }
+      var nfr = _hasFactData(aF_raw,'nr_rev') ? g('nr_rev') : g('nonfuel');
+      var fS = g('fuel_rev') - g('fuel_cost'), pS = g('ipp_fr') - g('ipp_cost');
+      var rev = nfr + g('nr_cust_charge') + g('other_r') + fS + pS;
+      var opex = g('opex'), ebitda = rev - opex, depn = g('depn'), ebit = ebitda - depn;
+      var intE = g('nfc_int_exp') + g('nfc_lease');
+      var oi = _hasFactData(aF_raw,'other_inc') ? g('other_inc') : g('oth_inc');
+      var tax = g('tax'), npat = ebit - intE + oi - tax;
+      var nMoGrp = grp.length;
+      var revAnn = nMoGrp ? rev * 12 / nMoGrp : rev;
+      var ebitdaAnn = nMoGrp ? ebitda * 12 / nMoGrp : ebitda;
+      var npatAnn = nMoGrp ? npat * 12 / nMoGrp : npat;
+      var ca = gL('recv')+gL('unbill')+gL('cash')+gL('rcash')+gL('finv')+gL('matls')+gL('bs_prepaid');
+      var cl = gL('ap')+gL('bs_int_acc')+gL('bs_corp_tax')+gL('bs_bank_od')+gL('lease_cl')+gL('bs_curr_ltd')+gL('bs_cust_dep')+gL('bs_payroll_tax')+gL('bs_std')+gL('bs_emp_ben')+gL('bs_due_to');
+      var eq = gL('bs_share_cap')+gL('bs_retained')+gL('bs_cap_res')+gL('bs_cap_redm')+gL('bs_pref');
+      var ltd = gL('ltd')+gL('leases'), cash = gL('cash')+gL('rcash');
+      var netDebt = ltd - cash;
+      return {
+        ebitdaMg: revAnn ? ebitdaAnn/revAnn*100 : 0,
+        netMg: revAnn ? npatAnn/revAnn*100 : 0,
+        curRat: cl ? ca/cl : 0,
+        ndEb: ebitdaAnn ? netDebt/ebitdaAnn : 0,
+        icov: intE ? ebitdaAnn/(intE*12/nMoGrp) : 0,
+      };
+    }
+    var RATIOS9 = [
+      { lbl:'EBITDA Margin %', key:'ebitdaMg', fmt:function(v){return v.toFixed(1)+'%';}, hg:true },
+      { lbl:'Net Margin %', key:'netMg', fmt:function(v){return v.toFixed(1)+'%';}, hg:true },
+      { lbl:'Current Ratio', key:'curRat', fmt:function(v){return v.toFixed(2)+'x';}, hg:true },
+      { lbl:'Net Debt/EBITDA', key:'ndEb', fmt:function(v){return v.toFixed(2)+'x';}, hg:false },
+      { lbl:'Interest Coverage', key:'icov', fmt:function(v){return v.toFixed(2)+'x';}, hg:true },
+    ];
+    var ratTblRows9 = RATIOS9.map(function(r) {
+      var cells9 = g9.map(function(g) {
+        var d = deriveRatios9(g);
+        return '<td class="num">' + r.fmt(d[r.key]) + '</td>';
+      }).join('');
+      return '<tr class="rind"><td>' + r.lbl + '</td>' + cells9 + '</tr>';
+    }).join('');
+    var g9Note = '<p style="color:var(--muted);font-size:11px;padding:4px 0 8px">IS ratios annualised per period. BS ratios use period-end balances.</p>';
+    var mTbl9 = g9Note + '<div class="card"><div class="card-head">Financial Ratios Trend — '
+      + (_p9ColView==='monthly'?'Monthly':'Quarterly')
+      + '<span class="ch-sub">Computed from fpa_facts per period</span></div>'
+      + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+      + '<th>Ratio</th>' + g9Hdr + '</tr></thead><tbody>'
+      + ratTblRows9 + '</tbody></table></div></div>';
+    var pg9m = document.getElementById('p9Body');
+    if (pg9m) pg9m.innerHTML = hdr9 + mTbl9;
+    return;
+  }
 
   function sa(lid) { return _fSumP(aF_raw, lid, ctx.actPeriods); }
   function sb(lid) { return _fSumP(bF, lid, ctx.actPeriods); }
@@ -6471,7 +6937,7 @@ async function loadP9() {
     + '</div>';
 
   var pg = document.getElementById('p9Body');
-  if (pg) pg.innerHTML = html;
+  if (pg) pg.innerHTML = hdr9 + html;
 }
 
 /* ================================================================ */
@@ -6957,9 +7423,30 @@ async function loadP11(force) {
     if(sub) sub.textContent = 'Cost Item Group & Cost Item · ' + ytdLabel + ' ' + yr + ' · USD $000s';
     if(title) title.textContent = 'O&M Expenditure — ' + ytdLabel + ' ' + yr;
 
+    // Determine column groups based on _p11ColView
+    var colPids11, colLabels11;
+    if (_p11ColView === 'quarterly') {
+      // Group ytdPids into quarters by period month
+      var qGroups11 = [[],[],[],[]];
+      ytdPids.forEach(function(pid) { var mo = pid % 100; qGroups11[Math.floor((mo-1)/3)].push(pid); });
+      colPids11 = qGroups11.filter(function(g){ return g.length; });
+      colLabels11 = ['Q1','Q2','Q3','Q4'].slice(0, colPids11.length);
+    } else if (_p11ColView === 'ytd' || _p11ColView === 'ytg') {
+      colPids11 = [ytdPids]; // single column
+      colLabels11 = [ytdLabel];
+    } else {
+      // monthly (default)
+      colPids11 = ytdPids.map(function(pid){ return [pid]; });
+      colLabels11 = moLabels.slice(0, numMo);
+    }
+    var nCols11 = colPids11.length;
+    function sumPids11(idx, pids) {
+      return pids.reduce(function(s,pid){ return s+(idx&&idx[pid]!=null?idx[pid]:0); }, 0);
+    }
+
     var thead = '<thead><tr>'
       + '<th style="text-align:left;min-width:210px">Cost Item</th>'
-      + moLabels.slice(0, numMo).map(function(m){ return '<th>' + m + '</th>'; }).join('')
+      + colLabels11.map(function(m){ return '<th>' + m + '</th>'; }).join('')
       + '<th>' + ytdLabel + '</th><th>Budget YTD</th><th>Var $</th><th>Var %</th><th>Budget FY</th>'
       + '</tr></thead>';
 
@@ -6976,15 +7463,18 @@ async function loadP11(force) {
       var lineRows = '';
 
       catLines.forEach(function(l) {
-        var moVals = ytdPids.map(function(pid){ return actIdx[l.id] && actIdx[l.id][pid] != null ? actIdx[l.id][pid] : null; });
-        var actYtd = moVals.reduce(function(s,v){ return s + (v||0); }, 0);
+        var actYtd = ytdPids.reduce(function(s,pid){ return s+(actIdx[l.id]&&actIdx[l.id][pid]!=null?actIdx[l.id][pid]:0);},0);
         var budYtd = ytdPids.reduce(function(s,pid){ return s + (budIdx[l.id]&&budIdx[l.id][pid]!=null?budIdx[l.id][pid]:0); }, 0);
         var budFy  = periodIds.reduce(function(s,pid){ return s + (budIdx[l.id]&&budIdx[l.id][pid]!=null?budIdx[l.id][pid]:0); }, 0);
         catActYtd += actYtd; catBudYtd += budYtd; catBudFy += budFy;
+        var colCells11 = colPids11.map(function(grp){
+          var v = grp.reduce(function(s,pid){ return s+(actIdx[l.id]&&actIdx[l.id][pid]!=null?actIdx[l.id][pid]:0);},0);
+          return '<td>' + f000(v) + '</td>';
+        }).join('');
 
         lineRows += '<tr class="rind">'
           + '<td>' + _escHtml(l.name) + '</td>'
-          + moVals.map(function(v){ return '<td>' + f000(v) + '</td>'; }).join('')
+          + colCells11
           + '<td style="font-weight:600">' + f000(actYtd) + '</td>'
           + '<td style="color:var(--muted)">' + f000(budYtd) + '</td>'
           + varFmt(actYtd, budYtd)
@@ -6994,14 +7484,15 @@ async function loadP11(force) {
 
       grandActYtd += catActYtd; grandBudYtd += catBudYtd; grandBudFy += catBudFy;
 
-      tbody += '<tr class="rsec"><td colspan="' + (numMo + 6) + '">' + (_OM_CAT_LABELS[cat] || cat) + '</td></tr>';
+      tbody += '<tr class="rsec"><td colspan="' + (nCols11 + 6) + '">' + (_OM_CAT_LABELS[cat] || cat) + '</td></tr>';
       tbody += lineRows;
+      var catColCells11 = colPids11.map(function(grp){
+        var v = catLines.reduce(function(s2,l2){ return s2+grp.reduce(function(s3,pid){ return s3+(actIdx[l2.id]&&actIdx[l2.id][pid]!=null?actIdx[l2.id][pid]:0);},0);},0);
+        return '<td style="font-weight:700">' + f000(v) + '</td>';
+      }).join('');
       tbody += '<tr class="rs">'
         + '<td>Subtotal — ' + (_OM_CAT_LABELS[cat] || cat) + '</td>'
-        + ytdPids.map(function(pid){
-            var v = catLines.reduce(function(s,l){ return s+(actIdx[l.id]&&actIdx[l.id][pid]!=null?actIdx[l.id][pid]:0);},0);
-            return '<td style="font-weight:700">' + f000(v) + '</td>';
-          }).join('')
+        + catColCells11
         + '<td style="font-weight:700">' + f000(catActYtd) + '</td>'
         + '<td>' + f000(catBudYtd) + '</td>'
         + varFmt(catActYtd, catBudYtd)
@@ -7010,19 +7501,21 @@ async function loadP11(force) {
     });
 
     // Grand total
+    var totColCells11 = colPids11.map(function(grp){
+      var v = lines.reduce(function(s2,l2){ return s2+grp.reduce(function(s3,pid){ return s3+(actIdx[l2.id]&&actIdx[l2.id][pid]!=null?actIdx[l2.id][pid]:0);},0);},0);
+      return '<td>' + f000(v) + '</td>';
+    }).join('');
     tbody += '<tr class="rt">'
       + '<td>TOTAL O&amp;M</td>'
-      + ytdPids.map(function(pid){
-          var v = lines.reduce(function(s,l){ return s+(actIdx[l.id]&&actIdx[l.id][pid]!=null?actIdx[l.id][pid]:0);},0);
-          return '<td>' + f000(v) + '</td>';
-        }).join('')
+      + totColCells11
       + '<td>' + f000(grandActYtd) + '</td>'
       + '<td>' + f000(grandBudYtd) + '</td>'
       + varFmt(grandActYtd, grandBudYtd)
       + '<td>' + f000(grandBudFy) + '</td>'
       + '</tr>';
 
-    if (body) body.innerHTML = '<div class="tw"><table class="kpi-sc-tbl"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
+    var hdr11 = _cvHdr('p11', _p11ColView, []);
+    if (body) body.innerHTML = hdr11 + '<div class="tw"><table class="kpi-sc-tbl"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
 
   } catch(e) {
     console.error('[p11]', e);
