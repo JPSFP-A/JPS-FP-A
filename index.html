@@ -864,6 +864,36 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 .skel-w60  { width: 60%; }
 .skel-w80  { width: 80%; }
 .skel-w100 { width: 100%; }
+/* Financial term tooltips */
+.tip {
+  position: relative;
+  cursor: help;
+  border-bottom: 1px dashed currentColor;
+  text-decoration: none;
+}
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a2332;
+  color: #e8edf3;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  padding: 6px 10px;
+  border-radius: 5px;
+  white-space: normal;
+  width: 220px;
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 9999;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.tip:hover::after { opacity: 1; }
 </style>
 </head>
 <body>
@@ -1197,7 +1227,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
           <div class="tbl-wrap">
             <table class="dt">
               <thead><tr>
-                <th>Metric</th><th>YTD Actual</th><th>YTD AOP</th>
+                <th>Metric</th><th><span class="tip" data-tip="Year to Date. Cumulative from January to current period.">YTD</span> Actual</th><th>YTD <span class="tip" data-tip="Annual Operating Plan. The approved yearly budget.">AOP</span></th>
                 <th>Variance $</th><th>Var %</th><th>RAG</th><th>Commentary</th>
               </tr></thead>
               <tbody>
@@ -1209,7 +1239,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
                   <td style="text-align:left">Higher RT40 commercial volumes</td>
                 </tr>
                 <tr>
-                  <td>EBITDA</td>
+                  <td><span class="tip" data-tip="Earnings Before Interest, Tax, Depreciation &amp; Amortisation. Operating cash proxy.">EBITDA</span></td>
                   <td class="num">71,900</td><td class="num">72,700</td>
                   <td class="num adv">(800)</td><td class="num adv">(1.1%)</td>
                   <td><span class="rag rag-a">AMBER</span></td>
@@ -1223,14 +1253,14 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
                   <td style="text-align:left">EBITDA shortfall flows through</td>
                 </tr>
                 <tr>
-                  <td>EBITDA Margin %</td>
+                  <td><span class="tip" data-tip="Earnings Before Interest, Tax, Depreciation &amp; Amortisation. Operating cash proxy.">EBITDA</span> Margin %</td>
                   <td class="num">26.1%</td><td class="num">26.6%</td>
                   <td class="num adv">(0.5)pp</td><td class="num adv">(1.7%)</td>
                   <td><span class="rag rag-a">AMBER</span></td>
                   <td style="text-align:left">Margin compression on fuel</td>
                 </tr>
                 <tr>
-                  <td>CapEx Spend</td>
+                  <td><span class="tip" data-tip="Capital Expenditure. Spend on fixed assets (generation, T&amp;D, customer).">CapEx</span> Spend</td>
                   <td class="num">65,200</td><td class="num">62,600</td>
                   <td class="num neut">2,600</td><td class="num neut">4.2%</td>
                   <td><span class="rag rag-g">GREEN</span></td>
@@ -1244,7 +1274,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
                   <td style="text-align:left">Demand recovery across all classes</td>
                 </tr>
                 <tr>
-                  <td>T&amp;D Loss %</td>
+                  <td><span class="tip" data-tip="Transmission &amp; Distribution. The grid infrastructure.">T&amp;D</span> Loss %</td>
                   <td class="num">18.4%</td><td class="num">17.9%</td>
                   <td class="num adv">0.5pp</td><td class="num adv">2.8%</td>
                   <td><span class="rag rag-r">RED</span></td>
@@ -1274,13 +1304,13 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
                   <tr class="rind"><td>Fuel Cost Recovery</td><td class="num">116,800</td><td class="num">116,600</td><td class="num fav">0.2%</td></tr>
                   <tr class="rs"><td>Total Revenue</td><td class="num">275,100</td><td class="num">273,500</td><td class="num">0.6%</td></tr>
                   <tr class="rsec"><td colspan="4">Cost of Generation</td></tr>
-                  <tr class="rind"><td>Fuel &amp; IPP Energy</td><td class="num">142,600</td><td class="num">140,200</td><td class="num adv">(1.7%)</td></tr>
+                  <tr class="rind"><td>Fuel &amp; <span class="tip" data-tip="Independent Power Producer. Third-party generation contracted by JPS.">IPP</span> Energy</td><td class="num">142,600</td><td class="num">140,200</td><td class="num adv">(1.7%)</td></tr>
                   <tr class="rind"><td>Variable O&amp;M</td><td class="num">18,400</td><td class="num">18,800</td><td class="num fav">2.1%</td></tr>
                   <tr class="rs"><td>Gross Margin</td><td class="num">114,100</td><td class="num">114,500</td><td class="num adv">(0.3%)</td></tr>
                   <tr class="rsec"><td colspan="4">Operating</td></tr>
                   <tr class="rind"><td>Fixed O&amp;M / Overheads</td><td class="num">42,200</td><td class="num">41,800</td><td class="num adv">(1.0%)</td></tr>
-                  <tr class="rs"><td>EBITDA</td><td class="num">71,900</td><td class="num">72,700</td><td class="num adv">(1.1%)</td></tr>
-                  <tr class="rind"><td>Depreciation</td><td class="num">31,500</td><td class="num">31,200</td><td class="num neut">(1.0%)</td></tr>
+                  <tr class="rs"><td><span class="tip" data-tip="Earnings Before Interest, Tax, Depreciation &amp; Amortisation. Operating cash proxy.">EBITDA</span></td><td class="num">71,900</td><td class="num">72,700</td><td class="num adv">(1.1%)</td></tr>
+                  <tr class="rind"><td><span class="tip" data-tip="Depreciation. Systematic allocation of fixed asset cost over useful life (IAS 16).">Depreciation</span></td><td class="num">31,500</td><td class="num">31,200</td><td class="num neut">(1.0%)</td></tr>
                   <tr class="rind"><td>Finance Costs (net)</td><td class="num">14,100</td><td class="num">13,700</td><td class="num adv">(2.9%)</td></tr>
                   <tr class="rind"><td>Tax</td><td class="num">6,370</td><td class="num">7,170</td><td class="num fav">11.2%</td></tr>
                   <tr class="rs"><td>NPAT</td><td class="num">19,930</td><td class="num">20,630</td><td class="num adv">(3.4%)</td></tr>
@@ -1297,8 +1327,8 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
                 <tbody>
                   <tr><td>Net Generation (GWh)</td><td class="num">1,326</td><td class="num">1,295</td><td><span class="dot dot-g"></span></td></tr>
                   <tr><td>GWh Billed</td><td class="num">1,082</td><td class="num">1,063</td><td><span class="dot dot-g"></span></td></tr>
-                  <tr><td>System Heat Rate (Btu/kWh)</td><td class="num">9,840</td><td class="num">9,720</td><td><span class="dot dot-a"></span></td></tr>
-                  <tr><td>T&amp;D Loss %</td><td class="num">18.4%</td><td class="num">17.9%</td><td><span class="dot dot-r"></span></td></tr>
+                  <tr><td>System Heat Rate (<span class="tip" data-tip="British Thermal Units per kWh. Heat rate in imperial units (lower = more efficient).">Btu/kWh</span>)</td><td class="num">9,840</td><td class="num">9,720</td><td><span class="dot dot-a"></span></td></tr>
+                  <tr><td><span class="tip" data-tip="Transmission &amp; Distribution. The grid infrastructure.">T&amp;D</span> Loss %</td><td class="num">18.4%</td><td class="num">17.9%</td><td><span class="dot dot-r"></span></td></tr>
                   <tr><td>Avg Fuel Price (US$/bbl)</td><td class="num">84.2</td><td class="num">81.0</td><td><span class="dot dot-a"></span></td></tr>
                   <tr><td>Customers (000s)</td><td class="num">682</td><td class="num">678</td><td><span class="dot dot-g"></span></td></tr>
                   <tr><td>Revenue per kWh (US&cent;)</td><td class="num">25.4</td><td class="num">25.7</td><td><span class="dot dot-a"></span></td></tr>
@@ -1349,7 +1379,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 
                 <tr class="rsec"><td colspan="10">Cost of Generation</td></tr>
                 <tr class="rind" data-line="cog_fuel">
-                  <td>Fuel &amp; IPP Energy</td>
+                  <td>Fuel &amp; <span class="tip" data-tip="Independent Power Producer. Third-party generation contracted by JPS.">IPP</span> Energy</td>
                   <td class="num">(35,200)</td><td class="num">(34,600)</td><td class="num">(36,100)</td><td class="num">(36,700)</td>
                   <td class="num">(142,600)</td><td class="num">(140,200)</td><td class="num adv">(2,400)</td><td class="num adv">(1.7%)</td><td class="num">(425,300)</td>
                 </tr>
@@ -1371,19 +1401,19 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
                   <td class="num">(42,200)</td><td class="num">(41,800)</td><td class="num adv">(400)</td><td class="num adv">(1.0%)</td><td class="num">(126,900)</td>
                 </tr>
                 <tr class="rs" data-line="ebitda">
-                  <td>EBITDA</td>
+                  <td><span class="tip" data-tip="Earnings Before Interest, Tax, Depreciation &amp; Amortisation. Operating cash proxy.">EBITDA</span></td>
                   <td class="num">17,600</td><td class="num">16,800</td><td class="num">18,600</td><td class="num">18,900</td>
                   <td class="num">71,900</td><td class="num">72,700</td><td class="num adv">(800)</td><td class="num adv">(1.1%)</td><td class="num">221,500</td>
                 </tr>
 
                 <tr class="rsec"><td colspan="10">Depreciation</td></tr>
                 <tr class="rind" data-line="depreciation">
-                  <td>Depreciation &amp; Amortization</td>
+                  <td><span class="tip" data-tip="Depreciation. Systematic allocation of fixed asset cost over useful life (IAS 16).">Depreciation</span> &amp; Amortization</td>
                   <td class="num">(7,800)</td><td class="num">(7,850)</td><td class="num">(7,900)</td><td class="num">(7,950)</td>
                   <td class="num">(31,500)</td><td class="num">(31,200)</td><td class="num adv">(300)</td><td class="num adv">(1.0%)</td><td class="num">(94,600)</td>
                 </tr>
                 <tr class="rs" data-line="ebit">
-                  <td>EBIT</td>
+                  <td><span class="tip" data-tip="Earnings Before Interest and Tax. Operating profit after depreciation.">EBIT</span></td>
                   <td class="num">9,800</td><td class="num">8,950</td><td class="num">10,700</td><td class="num">10,950</td>
                   <td class="num">40,400</td><td class="num">41,500</td><td class="num adv">(1,100)</td><td class="num adv">(2.7%)</td><td class="num">126,900</td>
                 </tr>
@@ -1395,7 +1425,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
                   <td class="num">(12,300)</td><td class="num">(12,000)</td><td class="num adv">(300)</td><td class="num adv">(2.5%)</td><td class="num">(36,400)</td>
                 </tr>
                 <tr class="rind" data-line="finance_lease">
-                  <td>Lease Interest (IFRS 16)</td>
+                  <td>Lease Interest (<span class="tip" data-tip="Lease accounting standard. Requires most leases on balance sheet.">IFRS 16</span>)</td>
                   <td class="num">(450)</td><td class="num">(450)</td><td class="num">(450)</td><td class="num">(450)</td>
                   <td class="num">(1,800)</td><td class="num">(1,700)</td><td class="num adv">(100)</td><td class="num adv">(5.9%)</td><td class="num">(5,200)</td>
                 </tr>
@@ -1873,7 +1903,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
                 <thead><tr><th>Ratio</th><th>Value</th><th>vs AOP</th><th>RAG</th></tr></thead>
                 <tbody>
                   <tr><td>Gross Margin %</td><td class="num">41.5%</td><td class="num adv">(0.4)pp</td><td><span class="dot dot-a"></span></td></tr>
-                  <tr><td>EBITDA Margin %</td><td class="num">26.1%</td><td class="num adv">(0.5)pp</td><td><span class="dot dot-a"></span></td></tr>
+                  <tr><td><span class="tip" data-tip="Earnings Before Interest, Tax, Depreciation &amp; Amortisation. Operating cash proxy.">EBITDA</span> Margin %</td><td class="num">26.1%</td><td class="num adv">(0.5)pp</td><td><span class="dot dot-a"></span></td></tr>
                   <tr><td>Net Margin %</td><td class="num">7.2%</td><td class="num adv">(0.3)pp</td><td><span class="dot dot-a"></span></td></tr>
                   <tr><td>Return on Equity (ROE)</td><td class="num">7.9%</td><td class="num adv">(0.4)pp</td><td><span class="dot dot-a"></span></td></tr>
                   <tr><td>Return on Assets (ROA)</td><td class="num">3.6%</td><td class="num adv">(0.2)pp</td><td><span class="dot dot-a"></span></td></tr>
@@ -1904,7 +1934,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
                 <thead><tr><th>Ratio</th><th>Value</th><th>vs AOP</th><th>RAG</th></tr></thead>
                 <tbody>
                   <tr><td>Debt / Equity</td><td class="num">0.93</td><td class="num adv">0.03</td><td><span class="dot dot-a"></span></td></tr>
-                  <tr><td>Net Debt / EBITDA</td><td class="num">2.6x</td><td class="num adv">0.2x</td><td><span class="dot dot-a"></span></td></tr>
+                  <tr><td>Net Debt / <span class="tip" data-tip="Earnings Before Interest, Tax, Depreciation &amp; Amortisation. Operating cash proxy.">EBITDA</span></td><td class="num">2.6x</td><td class="num adv">0.2x</td><td><span class="dot dot-a"></span></td></tr>
                   <tr><td>Interest Coverage</td><td class="num">2.9x</td><td class="num adv">(0.2x)</td><td><span class="dot dot-a"></span></td></tr>
                   <tr><td>Debt Service Coverage</td><td class="num">1.8x</td><td class="num fav">0.1x</td><td><span class="dot dot-g"></span></td></tr>
                 </tbody>
@@ -1918,7 +1948,7 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
               <table class="dt">
                 <thead><tr><th>Ratio</th><th>Value</th><th>vs AOP</th><th>RAG</th></tr></thead>
                 <tbody>
-                  <tr><td>T&amp;D Loss %</td><td class="num">18.4%</td><td class="num adv">0.5pp</td><td><span class="dot dot-r"></span></td></tr>
+                  <tr><td><span class="tip" data-tip="Transmission &amp; Distribution. The grid infrastructure.">T&amp;D</span> Loss %</td><td class="num">18.4%</td><td class="num adv">0.5pp</td><td><span class="dot dot-r"></span></td></tr>
                   <tr><td>Revenue per kWh (US&cent;)</td><td class="num">25.4</td><td class="num adv">(0.3)</td><td><span class="dot dot-a"></span></td></tr>
                   <tr><td>GWh per 000 Customers</td><td class="num">1.59</td><td class="num fav">0.02</td><td><span class="dot dot-g"></span></td></tr>
                   <tr><td>SAIDI (minutes)</td><td class="num">412</td><td class="num adv">27</td><td><span class="dot dot-r"></span></td></tr>
@@ -2512,6 +2542,47 @@ function _escHtml(s) {
     .replace(/'/g, '&#39;');
 }
 function esc(s) { return _escHtml(s); }
+
+const GLOSSARY = {
+  'EBITDA':   'Earnings Before Interest, Tax, Depreciation & Amortisation. Operating cash proxy.',
+  'EBIT':     'Earnings Before Interest and Tax. Operating profit after depreciation.',
+  'NFC':      'Net Finance Costs. Interest expense net of interest income.',
+  'OM':       'Operations & Maintenance expense. Day-to-day running costs.',
+  'CAPEX':    'Capital Expenditure. Spend on fixed assets (generation, T&D, customer).',
+  'IPP':      'Independent Power Producer. Third-party generation contracted by JPS.',
+  'T&D':      'Transmission & Distribution. The grid infrastructure.',
+  'EAF':      'Equivalent Availability Factor. % of time generation is available to produce.',
+  'EFOR':     'Equivalent Forced Outage Rate. % of time lost due to unplanned outages.',
+  'GCT':      'General Consumption Tax. Jamaica VAT equivalent, currently 15%.',
+  'SCT':      'Special Consumption Tax. Applied to certain fuel products in Jamaica.',
+  'BOJ':      'Bank of Jamaica. Sets monetary policy and publishes FX rates.',
+  'OUR':      'Office of Utilities Regulation. Regulates JPS tariff rates.',
+  'WACC':     'Weighted Average Cost of Capital. Hurdle rate for investment decisions.',
+  'DSO':      'Days Sales Outstanding. Average days to collect receivables.',
+  'DPO':      'Days Payable Outstanding. Average days to pay suppliers.',
+  'FCF':      'Free Cash Flow. Operating cash flow less capital expenditure.',
+  'AOP':      'Annual Operating Plan. The approved yearly budget.',
+  'LE':       'Latest Estimate. In-year reforecast combining actuals + revised outlook.',
+  'YTD':      'Year to Date. Cumulative from January to current period.',
+  'YTG':      'Year to Go. Remaining months from current period to year-end.',
+  'PY':       'Prior Year. Same period in the previous calendar/fiscal year.',
+  'CY':       'Current Year.',
+  'FAV':      'Favourable variance. Actual better than budget/LE.',
+  'UNF':      'Unfavourable variance. Actual worse than budget/LE.',
+  'DEPN':     'Depreciation. Systematic allocation of fixed asset cost over useful life (IAS 16).',
+  'WIP':      'Work In Progress. Capital projects not yet transferred to fixed assets.',
+  'IFRS 16':  'Lease accounting standard. Requires most leases on balance sheet.',
+  'kWh':      'Kilowatt-hour. Standard unit of electrical energy.',
+  'GWh':      'Gigawatt-hour. 1,000,000 kWh.',
+  'BTU':      'British Thermal Unit. Energy unit used for heat rate measurement.',
+  'kJ/kWh':   'Kilojoules per kilowatt-hour. Heat rate in SI units (lower = more efficient).',
+  'BTU/kWh':  'British Thermal Units per kWh. Heat rate in imperial units (lower = more efficient).',
+};
+function tip(term, override) {
+  const def = override || GLOSSARY[term] || GLOSSARY[term.toUpperCase()];
+  if (!def) return esc(term);
+  return `<span class="tip" data-tip="${esc(def)}">${esc(term)}</span>`;
+}
 
 /* ─── PLATFORM AUDIT — canonical v1 ───────────────────────────────────────
    Contract: action (string), target (string|null), oldVal (any|null), newVal (any|null)
@@ -4083,10 +4154,17 @@ async function loadP3() {
     ]);
   } else {
     const curPer = ctx.actEnd;
-    [cF, pF] = await Promise.all([
+    let _actPt, _aopPt;
+    [_actPt, _aopPt, pF] = await Promise.all([
       _fetchFactsActPt(ctx, curPer, LINES),
+      ctx.hasMonthly ? _fetchFactsN('AOP_' + ctx.yr, LINES, curPer, curPer) : Promise.resolve({}),
       _fetchFactsN(pyCode, LINES, pyPer, pyPer),
     ]);
+    // AOP as base; actual overrides where real data exists (fills equity/CL gaps in monthly actuals)
+    cF = Object.assign({}, _aopPt);
+    Object.keys(_actPt).forEach(function(lid) {
+      if (_hasFactData(_actPt, lid)) cF[lid] = _actPt[lid];
+    });
   }
   _pgLoad('p3', false);
   _renderMoNav(ctx.maxMo); // keep month nav in sync regardless of active page
