@@ -2631,46 +2631,40 @@ async function _fetchFactsN(vCode, lines, pStart, pEnd) {
   return _normalizeAlias(f);
 }
 
-// _fetchFactsMulti — CY: fetch each month from its own ACTUALS_YYYY_MM version
+// _fetchFactsMulti — CY: batch-fetch all active ACTUALS_YYYY_MM months in one query
 async function _fetchFactsMulti(yr, lines, periods) {
   await _ensureVMap();
   const cacheKey = 'fpa_multi_' + yr + '_' + lines.join(',') + '_' + periods.join(',');
   return _cachedFetch(cacheKey, function() {
-    const fetches = periods.map(function(p) {
-      const mo = p % 100;
-      const vCode = 'ACTUALS_' + yr + '_' + (mo < 10 ? '0' + mo : mo);
+    // Map each active period → its version UUID (skip months with no active version)
+    const vidToPeriod = {};
+    const activeVids = [];
+    periods.forEach(function(p) {
+      const m = p % 100;
+      const vCode = 'ACTUALS_' + yr + '_' + (m < 10 ? '0' + m : m);
       const vid = (_vMap || {})[vCode];
-      if (!vid) return Promise.resolve({});
-      return _sbQ(function(sb) {
-        return sb.from('fpa_facts').select('line_id,value')
-          .eq('version_id', vid).eq('period_id', p).in('line_id', lines);
-      }).then(function(r) {
-        if (!r || !r.data) return {};
-        const o = {};
-        r.data.forEach(function(row) {
-          if (!o[row.line_id]) o[row.line_id] = {};
-          o[row.line_id][p] = Number(row.value) || 0;
-        });
-        return o;
-      });
-    });
-    return Promise.all(fetches).then(function(results) {
-      const merged = {};
-      results.forEach(function(o) {
-        if (!o) return; // guard null from failed _sbQ
-        Object.keys(o).forEach(function(lid) {
-          if (!merged[lid]) merged[lid] = {};
-          Object.assign(merged[lid], o[lid]);
-        });
-      });
-      // DEBUG — remove after confirming nr_cust_charge fix
-      if (merged['nr_cust_charge']) {
-        console.log('[fpa_multi] nr_cust_charge fetched OK:', JSON.stringify(merged['nr_cust_charge']));
-      } else {
-        console.warn('[fpa_multi] nr_cust_charge MISSING from merged result. periods=', periods, 'results count=', results.length);
-        results.forEach(function(o,i){ if(o && Object.keys(o).length) console.log('  result['+i+']:', Object.keys(o)); });
+      if (vid && !vidToPeriod[vid]) {
+        vidToPeriod[vid] = p;
+        activeVids.push(vid);
       }
-      return _normalizeAlias(merged);
+    });
+    if (activeVids.length === 0) return Promise.resolve({});
+
+    // Single query — each ACTUALS_YYYY_MM version has exactly one period_id,
+    // so version_id lookup is sufficient to reconstruct the period mapping.
+    return _sbQ(function(sb) {
+      return sb.from('fpa_facts').select('version_id,line_id,value')
+        .in('version_id', activeVids).in('line_id', lines);
+    }).then(function(r) {
+      if (!r || !r.data) return {};
+      const o = {};
+      r.data.forEach(function(row) {
+        const p = vidToPeriod[row.version_id];
+        if (!p) return;
+        if (!o[row.line_id]) o[row.line_id] = {};
+        o[row.line_id][p] = Number(row.value) || 0;
+      });
+      return _normalizeAlias(o);
     });
   }, 120_000);
 }
@@ -3212,10 +3206,6 @@ async function loadP2() {
         : _fetchFactsN('HIST_ACTUAL_' + yr, LINES, ps + 1, ps + 12),
       _fetchFactsN('AOP_' + yr, LINES, ps + 1, ps + 12),
     ]);
-    // DEBUG — remove after fix confirmed
-    console.log('[p2-multi] allActF nr_cust_charge:', JSON.stringify(allActF['nr_cust_charge']));
-    console.log('[p2-multi] allActF keys:', Object.keys(allActF).sort().join(','));
-    console.log('[p2-multi] ctx.maxMo:', ctx.maxMo, '| hasMonthly:', ctx.hasMonthly);
   } else {
     [aF, bF] = await Promise.all([
       _fetchFactsAct(ctx, LINES),
