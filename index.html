@@ -2494,6 +2494,15 @@ function _cacheInvalidate(pattern) {
   for (const k of _cache.keys()) { if (k.includes(pattern)) _cache.delete(k); }
 }
 
+function skelRows(n, pattern) {
+  var cells = pattern.map(function(w) { return '<td><div class="skel ' + w + '"></div></td>'; }).join('');
+  var row = '<tr class="skel-row">' + cells + '</tr>';
+  return Array(n).fill(row).join('');
+}
+function skelCards(n) {
+  return Array(n).fill('<div class="skel skel-w80" style="height:60px;margin:8px 0;display:block"></div>').join('');
+}
+
 function _escHtml(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;')
@@ -2880,7 +2889,8 @@ function _expandAliasLines(lines) {
   // Always fetch alias source IDs so _normalizeAlias can map them
   const extra = ['nonfuel', 'ipp_fr', 'other_r', 'nr_cust_charge',
                  'pl_afudc', 'oth_inc', 'nfc_pref',
-                 'bs_fa_cost', 'bs_accum_depn'];
+                 'bs_fa_cost', 'bs_accum_depn',
+                 'ltd', 'bs_curr_ltd', 'leases', 'bs_std'];
   return lines.concat(extra.filter(function(l) { return lines.indexOf(l) < 0; }));
 }
 function _hasFactData(f, lid) {
@@ -2918,6 +2928,16 @@ function _normalizeAlias(f) {
   // pl_pref_div ← nfc_pref (some older loads used nfc_pref)
   if (!_hasFactData(f, 'pl_pref_div') && _hasFactData(f, 'nfc_pref')) {
     f['pl_pref_div'] = f['nfc_pref'];
+  }
+  // total_debt ← ltd + bs_curr_ltd + leases + bs_std (never stored directly)
+  if (!_hasFactData(f, 'total_debt')) {
+    var debtSrc = ['ltd', 'bs_curr_ltd', 'leases', 'bs_std'];
+    var dMerge = {};
+    debtSrc.forEach(function(lid) {
+      var src = f[lid] || {};
+      Object.keys(src).forEach(function(p) { dMerge[p] = (dMerge[p] || 0) + (src[p] || 0); });
+    });
+    if (Object.keys(dMerge).length) f['total_debt'] = dMerge;
   }
   // ppe ← bs_fa_cost - bs_accum_depn (HIST_ACTUAL stores gross + accum depn separately)
   if (!_hasFactData(f, 'ppe') && _hasFactData(f, 'bs_fa_cost')) {
@@ -5224,7 +5244,7 @@ async function loadP10(force) {
   if (!ctx) return;
 
   var body = document.getElementById('p10Body');
-  if (body) body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px">Loading KPI data…</div>';
+  if (body) body.innerHTML = '<table style="width:100%"><tbody>' + skelRows(8, ['skel-w25','skel-w60','skel-w40','skel-w25','skel-w25','skel-w25','skel-w25','skel-w25']) + '</tbody></table>';
 
   // Update subtitle
   var sub = document.getElementById('p10Sub');
@@ -5235,13 +5255,17 @@ async function loadP10(force) {
   try {
     // Parallel: targets, operational actuals, financial facts
     var results = await Promise.all([
-      _sbQ(function(sb) {
-        return sb.from('jps_kpi_targets').select('*').eq('year', ctx.yr).order('sort_order');
-      }),
-      _sbQ(function(sb) {
-        return sb.from('jps_kpi_actuals').select('period_id,kpi_code,value,adjusted_value')
-          .in('period_id', months).order('period_id');
-      }),
+      _cachedFetch('kpi_targets_' + ctx.yr, function() {
+        return _sbQ(function(sb) {
+          return sb.from('jps_kpi_targets').select('*').eq('year', ctx.yr).order('sort_order');
+        });
+      }, 300_000),
+      _cachedFetch('kpi_actuals_' + ctx.yr + '_' + months.join(','), function() {
+        return _sbQ(function(sb) {
+          return sb.from('jps_kpi_actuals').select('period_id,kpi_code,value,adjusted_value')
+            .in('period_id', months).order('period_id');
+        });
+      }, 300_000),
       _fetchFactsAct(ctx, _KPI_FIN_LINES)
     ]);
 
@@ -5528,7 +5552,7 @@ async function loadP18(){
   var body=document.getElementById('wb-body');
   var status=document.getElementById('wb-status');
   if(!body)return;
-  body.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted);font-size:12px">Loading…</div>';
+  body.innerHTML='<table style="width:100%"><tbody>'+skelRows(8,['skel-w40','skel-w25','skel-w25','skel-w25','skel-w25','skel-w25','skel-w25','skel-w25','skel-w25','skel-w25','skel-w25','skel-w25','skel-w25'])+'</tbody></table>';
   if(status)status.textContent='';
   try{
     await _ensureVMap();
@@ -5577,10 +5601,12 @@ async function loadP18(){
     }
     // Load KPI targets for ratio benchmarks
     _wbTargets={};
-    var r3=await _sbQ(function(sb){
-      return sb.from('jps_kpi_targets').select('kpi_code,display_name,annual_target,favorable_direction,unit')
-        .in('kpi_code',['net_debt_ebitda','ebitda_margin','npat_margin','dso_days']);
-    });
+    var r3=await _cachedFetch('kpi_targets_wb_ratios', function(){
+      return _sbQ(function(sb){
+        return sb.from('jps_kpi_targets').select('kpi_code,display_name,annual_target,favorable_direction,unit')
+          .in('kpi_code',['net_debt_ebitda','ebitda_margin','npat_margin','dso_days']);
+      });
+    }, 300_000);
     if(r3&&r3.data){r3.data.forEach(function(row){_wbTargets[row.kpi_code]=row;});}
     body.innerHTML=_wbBuildTable(yr,periods);
     if(status){var loaded=Object.keys(_wbData).length;status.textContent=loaded+' of 12 months loaded';}
@@ -6011,10 +6037,12 @@ let _openYears = []; // populated from Supabase on init — do NOT use localStor
 
 async function _loadOpenYears() {
   try {
-    const { data } = await _sbQ(function(sb) {
-      return sb.from('fpa_planning_years').select('year').eq('status', 'open');
-    });
-    _openYears = (data || []).map(function(r) { return r.year; });
+    const r = await _cachedFetch('planning_years_open', function() {
+      return _sbQ(function(sb) {
+        return sb.from('fpa_planning_years').select('year').eq('status', 'open');
+      });
+    }, 300_000);
+    _openYears = (r && r.data || []).map(function(r) { return r.year; });
   } catch(e) {
     console.warn('[FPA] fpa_planning_years load failed:', e.message);
     _openYears = [];
@@ -6244,14 +6272,18 @@ async function loadP11(force) {
   var body = document.getElementById('p11Body');
   var sub  = document.getElementById('p11Sub');
   var title = document.getElementById('p11CardTitle');
-  if (body) body.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:13px">Loading O&amp;M data…</div>';
+  if (body) body.innerHTML = '<table style="width:100%"><tbody>' + skelRows(8, ['skel-w40','skel-w25','skel-w25','skel-w25','skel-w25','skel-w25','skel-w25']) + '</tbody></table>';
 
   try {
     // Get current year periods from om_dim_period
     var yr = _activeYear || _CY;
     var [dimLinesR, periodsR] = await Promise.all([
-      _sbQ(function(sb){ return sb.from('om_dim_line').select('*').order('sort_order'); }),
-      _sbQ(function(sb){ return sb.from('om_dim_period').select('id,period_key,year,month').eq('year', yr).order('month'); })
+      _cachedFetch('om_dim_line', function() {
+        return _sbQ(function(sb){ return sb.from('om_dim_line').select('*').order('sort_order'); });
+      }, 600_000),
+      _cachedFetch('om_dim_period_' + yr, function() {
+        return _sbQ(function(sb){ return sb.from('om_dim_period').select('id,period_key,year,month').eq('year', yr).order('month'); });
+      }, 300_000)
     ]);
     var lines   = (dimLinesR && dimLinesR.data) || [];
     var periods = (periodsR  && periodsR.data)  || [];
@@ -6385,9 +6417,13 @@ async function loadP13(force) {
   var ctx = await _getCtx();
   var yr = ctx ? ctx.yr : _CY;
   var el = document.getElementById('scnYear'); if(el) el.textContent = yr;
-  var r = await _sbQ(function(sb){
-    return sb.from('fpa_scenarios').select('*').eq('year', yr).order('created_at');
-  });
+  var grid = document.getElementById('scnGrid');
+  if (grid) grid.innerHTML = skelCards(4);
+  var r = await _cachedFetch('fpa_scenarios_' + yr, function() {
+    return _sbQ(function(sb){
+      return sb.from('fpa_scenarios').select('*').eq('year', yr).order('created_at');
+    });
+  }, 300_000);
   _scnData = (r && r.data) || [];
   _scnRender();
 }
@@ -6452,6 +6488,7 @@ async function scnActivate(id) {
   if (!r1) return;
   var r2 = await _sbQ(function(sb){ return sb.from('fpa_scenarios').update({is_active:true}).eq('id', id); });
   if (!r2) return;
+  _cacheInvalidate('fpa_scenarios_');
   _scnData.forEach(function(s){ s.is_active = (s.id === id); });
   _scnRender();
   toast('Scenario activated: ' + _escHtml(scn.name), 'ok');
@@ -6516,6 +6553,7 @@ async function scnSave() {
     if (r && r.data && r.data[0]) _scnData.push(r.data[0]);
   }
   if (!r) return;
+  _cacheInvalidate('fpa_scenarios_');
   scnCloseModal();
   _scnRender();
   toast(editId ? 'Scenario updated' : 'Scenario created', 'ok');
@@ -6580,6 +6618,7 @@ function _auditFmtTs(ts) {
 async function loadAuditFromDB() {
   const tbody = document.getElementById('auditBody');
   if (!tbody) return;
+  tbody.innerHTML = skelRows(6, ['skel-w25', 'skel-w40', 'skel-w25', 'skel-w60', 'skel-w40', 'skel-w40']);
   const res = await _sbQ(function (s) {
     return s.from('fpa_audit_log').select('*').eq('app','fpa')
       .order('created_at', { ascending: false }).limit(50);
