@@ -537,10 +537,17 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 .kpi-sc-tbl .rsec td { font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--gold);padding-top:14px;padding-bottom:3px;font-weight:700;background:var(--bg);border-bottom:none; }
 .kpi-sc-tbl .rind td:first-child { padding-left:24px;color:var(--muted); }
 .kpi-sc-tbl .rt td { background:var(--dark);color:#fff;font-weight:700; }
+/* .rs subtotal rows: ensure label text is always white (dark bg overrides var(--text)) */
+.kpi-sc-tbl .rs td { color:#fff; }
+/* .rs / .rt hover: prevent hover rule from clearing dark bg → white text on white card */
+.kpi-sc-tbl .rs:hover td,
+.kpi-sc-tbl .rt:hover td { background:var(--dark);color:#fff; }
 [data-theme="slate"] .kpi-sc-tbl td { border-bottom-color:#1e293b; }
 [data-theme="slate"] .kpi-sc-tbl th { background:#0a0f1e; }
 [data-theme="slate"] .kpi-sc-tbl .rsec td { background:#1e293b; }
 [data-theme="slate"] .kpi-sc-tbl tr:hover td { background:#1e293b; }
+[data-theme="slate"] .kpi-sc-tbl .rs:hover td,
+[data-theme="slate"] .kpi-sc-tbl .rt:hover td { background:var(--dark); }
 [data-theme="slate"] .rb.g { background:rgba(21,128,61,.2);color:#4ade80; }
 [data-theme="slate"] .rb.a { background:rgba(217,119,6,.2);color:#fbbf24; }
 [data-theme="slate"] .rb.r { background:rgba(196,30,58,.2);color:#fca5a5; }
