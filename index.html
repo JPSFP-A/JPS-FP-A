@@ -3617,8 +3617,8 @@ function _buildP2YearToGo(ctx, ytdF, leF) {
   function cvFY(lid)   { return fyProj(lid); }
 
   // P&L derivations using leF for LE months
-  function rev_ytd()  { return cvYTD('nr_rev')+cvYTD('fuel_rev')+cvYTD('ipp_fr')+cvYTD('other_r'); }
-  function rev_le(p)  { return cvLE('nr_rev',p)+cvLE('fuel_rev',p)+cvLE('ipp_fr',p)+cvLE('other_r',p); }
+  function rev_ytd()  { return cvYTD('nr_rev')+cvYTD('nr_cust_charge')+cvYTD('fuel_rev')+cvYTD('ipp_fr')+cvYTD('other_r'); }
+  function rev_le(p)  { return cvLE('nr_rev',p)+cvLE('nr_cust_charge',p)+cvLE('fuel_rev',p)+cvLE('ipp_fr',p)+cvLE('other_r',p); }
   function rev_fy()   { return rev_ytd()+leCols.reduce(function(s,c){return s+rev_le(c.period);},0); }
 
   // Table header
@@ -3658,15 +3658,16 @@ function _buildP2YearToGo(ctx, ytdF, leF) {
     + rline('Fuel Clause (FCR)',           'fuel_rev')
     + rline('IPP Surcharge',               'ipp_fr')
     + rline('Non-Fuel Revenue',            'nr_rev')
+    + rline('Customer Charge',             'nr_cust_charge')
     + rline('Other Operating Revenue',     'other_r')
-    + rsub('Total Revenue',                sumFn(['nr_rev','fuel_rev','ipp_fr','other_r']), 'rs')
+    + rsub('Total Revenue',                sumFn(['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','other_r']), 'rs')
     + rsec('Cost of Sales')
     + rline('Fuel Cost',                   'fuel_cost', 'rind', true)
     + rline('Purchased Power (excl. fuel)','ipp_cost',  'rind', true)
-    + rsub('Gross Profit', deriveFn(function(c){ return getColVal('nr_rev',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c); }), 'rs')
+    + rsub('Gross Profit', deriveFn(function(c){ return getColVal('nr_rev',c)+getColVal('nr_cust_charge',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c); }), 'rs')
     + rsec('Operating Expenses')
     + rline('Operating Expenses',          'opex',      'rind', true)
-    + rsub('EBITDA', deriveFn(function(c){ return getColVal('nr_rev',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c); }), 'rt')
+    + rsub('EBITDA', deriveFn(function(c){ return getColVal('nr_rev',c)+getColVal('nr_cust_charge',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c); }), 'rt')
     + rsec('Below EBITDA')
     + rline('Depreciation',               'depn',      'rind', true)
     + rsub('EBIT', deriveFn(function(c){ var ebd=getColVal('nr_rev',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c); return ebd-getColVal('depn',c); }), 'rs')
@@ -3677,13 +3678,13 @@ function _buildP2YearToGo(ctx, ytdF, leF) {
     + (!_p2Standalone ? rline('Other Income &amp; Dividends','other_inc') : '')
     + rsec('Taxation')
     + rsub('Net Profit Before Tax', deriveFn(function(c){
-        var ebd=getColVal('nr_rev',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c);
+        var ebd=getColVal('nr_rev',c)+getColVal('nr_cust_charge',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c);
         var ebit=ebd-getColVal('depn',c);
         return ebit-getColVal('nfc_int_exp',c)+getColVal('nfc_int_inc',c)+getColVal('nfc_afudc',c)-getColVal('pl_pref_div',c)+(!_p2Standalone?getColVal('other_inc',c):0);
       }), 'rs')
     + rline('Income Tax Expense',         'tax',        'rind', true)
     + rsub('Net Profit After Tax (NPAT)', deriveFn(function(c){
-        var ebd=getColVal('nr_rev',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c);
+        var ebd=getColVal('nr_rev',c)+getColVal('nr_cust_charge',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c);
         var ebit=ebd-getColVal('depn',c);
         var pretax=ebit-getColVal('nfc_int_exp',c)+getColVal('nfc_int_inc',c)+getColVal('nfc_afudc',c)-getColVal('pl_pref_div',c)+(!_p2Standalone?getColVal('other_inc',c):0);
         return pretax-getColVal('tax',c);
@@ -4575,7 +4576,7 @@ async function flashFetchFacts(versionId, periodIds) {
   if (!agg['nr_rev'] && agg['nonfuel']) agg['nr_rev'] = agg['nonfuel'];
   // pl_total_sales
   if (!agg['pl_total_sales']) {
-    var tot = (agg['nr_rev']||0) + (agg['fuel_rev']||0) + (agg['ipp_fr']||0) + (agg['other_r']||0);
+    var tot = (agg['nr_rev']||0) + (agg['nr_cust_charge']||0) + (agg['fuel_rev']||0) + (agg['ipp_fr']||0) + (agg['other_r']||0);
     if (tot) agg['pl_total_sales'] = tot;
   }
   // gross_profit: revenue - fuel - ipp
@@ -4930,7 +4931,7 @@ var _KPI_SECTIONS = {
 var _KPI_FINANCIAL = ['ebitda_margin', 'npat_margin', 'net_debt_ebitda', 'rev_per_kwh'];
 
 // fpa_facts line IDs needed for financial KPI derivation
-var _KPI_FIN_LINES = ['pl_total_sales', 'nonfuel', 'fuel_rev', 'ipp_fr', 'other_r',
+var _KPI_FIN_LINES = ['pl_total_sales', 'nonfuel', 'nr_cust_charge', 'fuel_rev', 'ipp_fr', 'other_r',
                       'ebitda', 'net_inc', 'total_debt', 'cash', 'nr_rev'];
 
 async function loadP10(force) {
@@ -4993,6 +4994,7 @@ async function loadP10(force) {
 function _p10GetRevForPeriod(f, p) {
   return (f['pl_total_sales'] && f['pl_total_sales'][p]) ||
     ((f['nr_rev'] && f['nr_rev'][p] || 0) +
+     (f['nr_cust_charge'] && f['nr_cust_charge'][p] || 0) +
      (f['fuel_rev'] && f['fuel_rev'][p] || 0) +
      (f['ipp_fr'] && f['ipp_fr'][p] || 0) +
      (f['other_r'] && f['other_r'][p] || 0)) || 0;
