@@ -2351,7 +2351,7 @@ async function doLogin() {
     try {
       const { data: accRows } = await sb.rpc('get_app_access', { p_app_id: 'fpa_hub' });
       accessRole = accRows?.[0]?.role || null;
-    } catch (_) {}
+    } catch(e) { console.error('[auth] get_app_access failed', e); toast('Access check failed — reload', 'error'); }
     _user = {
       id: u.id,
       name: (u.user_metadata && u.user_metadata.full_name) || email,
@@ -2548,7 +2548,7 @@ async function _fetchFacts(vCode, lines, pStart, pEnd) {
 function _expandAliasLines(lines) {
   // Always fetch alias source IDs so _normalizeAlias can map them
   const extra = ['nonfuel', 'ipp_fr', 'other_r', 'nr_cust_charge',
-                 'pl_afudc', 'oth_inc', 'nfc_pref',
+                 'pl_afudc', 'oth_inc', 'nfc_pref', 'pl_other_cos', 'pl_div_recv',
                  'pl_int_income', 'pl_loan_fees', 'pl_ppa', 'pl_int_expense',
                  'bs_fa_cost', 'bs_accum_depn',
                  'ltd', 'bs_curr_ltd', 'leases', 'bs_std'];
@@ -2920,10 +2920,10 @@ async function loadP1() {
     return;
   }
 
-  // Input lines only — ebitda/net_inc/pl_total_sales are always derived in JS, never fetched from DB
+  // Input lines only — all derived IS lines (ebitda/net_inc etc.) always computed in JS
   const LINES = ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','other_r','fuel_cost','ipp_cost',
-    'opex','depn','nfc_int_exp','nfc_int_inc','nfc_afudc','pl_fx','nfc_pref','pl_pref_div','tax',
-    'cf_capex','stat_billed_gwh','cf_ops_net'];
+    'pl_other_cos','opex','depn','nfc_int_exp','nfc_int_inc','nfc_afudc','pl_fx','nfc_pref',
+    'pl_pref_div','tax','pl_div_recv','cf_capex','stat_billed_gwh','cf_ops_net'];
   const CM_LINES = ['pl_total_sales','ebitda','net_inc','ebitda_margin','cf_capex','stat_billed_gwh','cf_ops_net'];
   const [aF, bF] = await Promise.all([
     _fetchFactsAct(ctx, LINES),
@@ -2957,10 +2957,12 @@ async function loadP1() {
   // Derived lines — always computed in JS, never read from DB
   const rev_a = nfr_a + cust_a + frl_a + ipr_a + otr_a;
   const rev_b = nfr_b + cust_b + frl_b + ipr_b + otr_b;
-  const gm_a  = rev_a - fc_a - ic_a, gm_b = rev_b - fc_b - ic_b;
-  const ebd_a = gm_a - opx_a,        ebd_b = gm_b - opx_b;
-  const ebit_a = ebd_a - dep_a,      ebit_b = ebd_b - dep_b;
-  const ni_a  = ebit_a - fin_a - tax_a, ni_b = ebit_b - fin_b - tax_b;
+  const oco_a = sa('pl_other_cos'),   oco_b = sb('pl_other_cos');  // IFRS16/other COS adj (negative)
+  const div_a = sa('pl_div_recv'),    div_b = sb('pl_div_recv');   // tax-free dividend received
+  const gm_a  = rev_a - fc_a - ic_a + oco_a, gm_b = rev_b - fc_b - ic_b + oco_b;
+  const ebd_a = gm_a - opx_a,                ebd_b = gm_b - opx_b;
+  const ebit_a = ebd_a - dep_a,              ebit_b = ebd_b - dep_b;
+  const ni_a  = ebit_a - fin_a - tax_a + div_a, ni_b = ebit_b - fin_b - tax_b + div_b;
   const ebdMg_a = rev_a ? (ebd_a / rev_a * 100) : 0;
   const ebdMg_b = rev_b ? (ebd_b / rev_b * 100) : 0;
 
@@ -3501,14 +3503,16 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
   // Derived P&L helpers
   function rev(ps)    { return cv('nr_rev',ps)+cv('nr_cust_charge',ps)+cv('fuel_rev',ps)+cv('ipp_fr',ps)+cv('other_r',ps); }
   function cos(ps)    { return cv('fuel_cost',ps)+cv('ipp_cost',ps); }
-  function gp(ps)     { return rev(ps)-cos(ps); }
+  // pl_other_cos stored negative = additional cost (IFRS 16 / other COS adjustments)
+  function gp(ps)     { return rev(ps)-cos(ps)+cv('pl_other_cos',ps); }
   function ebitda(ps) { return gp(ps)-cv('opex',ps); }
   function ebit(ps)   { return ebitda(ps)-cv('depn',ps); }
   function pretax(ps) {
     return ebit(ps) - cv('nfc_int_exp',ps) + cv('nfc_int_inc',ps) + cv('nfc_afudc',ps)
       - cv('pl_pref_div',ps) + (!_p2Standalone ? cv('other_inc',ps) : 0);
   }
-  function npat(ps)   { return pretax(ps) - cv('tax',ps); }
+  // pl_div_recv is tax-free — added after tax, not part of taxable pretax
+  function npat(ps)   { return pretax(ps) - cv('tax',ps) + cv('pl_div_recv',ps); }
 
   // Header
   var thead = '<thead><tr><th style="text-align:left;min-width:200px">Line Item</th>';
@@ -4617,8 +4621,8 @@ async function flashFetchFacts(versionId, periodIds) {
   // ── ALWAYS derive IS lines — NEVER use stored values (architectural rule) ──
   // pl_total_sales: always computed from components
   agg['pl_total_sales'] = (agg['nr_rev']||0) + (agg['nr_cust_charge']||0) + (agg['fuel_rev']||0) + (agg['ipp_fr']||0) + (agg['other_r']||0);
-  // pl_gross_profit: revenue - fuel - ipp
-  agg['pl_gross_profit'] = agg['pl_total_sales'] - (agg['fuel_cost']||0) - (agg['ipp_cost']||0);
+  // pl_gross_profit: revenue - fuel - ipp + pl_other_cos (stored negative = additional cost)
+  agg['pl_gross_profit'] = agg['pl_total_sales'] - (agg['fuel_cost']||0) - (agg['ipp_cost']||0) + (agg['pl_other_cos']||0);
   // ebitda: gross_profit - opex
   agg['ebitda'] = agg['pl_gross_profit'] - (agg['opex']||0);
   // ebit: ebitda - depreciation
@@ -4630,8 +4634,8 @@ async function flashFetchFacts(versionId, periodIds) {
     + (agg['nfc_int_inc']||0)
     - (agg['nfc_pref']||0)
     + (agg['pl_fx']||0);
-  // net_inc: pretax - tax
-  agg['net_inc'] = agg['pretax'] - (agg['tax']||0) - (agg['oth_tax']||0);
+  // net_inc: pretax - tax + pl_div_recv (dividend received is tax-free, added after tax line)
+  agg['net_inc'] = agg['pretax'] - (agg['tax']||0) - (agg['oth_tax']||0) + (agg['pl_div_recv']||0);
   return agg;
 }
 
@@ -4960,8 +4964,9 @@ var _KPI_FINANCIAL = ['ebitda_margin', 'npat_margin', 'net_debt_ebitda', 'rev_pe
 
 // fpa_facts line IDs needed for financial KPI derivation (input lines only — derived computed in JS)
 var _KPI_FIN_LINES = ['nonfuel', 'nr_cust_charge', 'fuel_rev', 'ipp_fr', 'other_r', 'nr_rev',
-                      'fuel_cost', 'ipp_cost', 'opex', 'depn', 'nfc_int_exp', 'nfc_int_inc',
-                      'nfc_afudc', 'pl_fx', 'nfc_pref', 'tax', 'total_debt', 'cash'];
+                      'fuel_cost', 'ipp_cost', 'pl_other_cos', 'opex', 'depn',
+                      'nfc_int_exp', 'nfc_int_inc', 'nfc_afudc', 'pl_fx', 'nfc_pref',
+                      'tax', 'pl_div_recv', 'total_debt', 'cash'];
 
 async function loadP10(force) {
   if (!force && _loadedPages.has('p10')) return;
@@ -6797,7 +6802,7 @@ async function _loadNotifications() {
         }
       }
     }
-  } catch (_) {}
+  } catch(e) { console.warn('[notifications] build failed', e); }
 
   _notifLoaded = true;
   _renderNotifList();
@@ -7202,7 +7207,7 @@ function _auditFmtVal(raw) {
         return k + ': ' + v;
       }).join(' · ').slice(0, 90);
     }
-  } catch(e) { /* not JSON */ }
+  } catch(e) { console.warn('[json parse] not valid JSON', e); }
   return String(raw).slice(0, 90);
 }
 function _auditFmtTs(ts) {
