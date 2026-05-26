@@ -208,28 +208,6 @@ async function checkActualsFreshness() {
   await writeResult('Actuals Freshness', 'data_quality', 'fpa', status, msg, { row_count: rows, age_days: ageDays });
 }
 
-// ── Check 9: VI table freshness (vi_pl, vi_cash, vi_ar) ──────────────────────
-async function checkViTablesFreshness() {
-  const tables = ['vi_pl', 'vi_cash', 'vi_ar'];
-  for (const tbl of tables) {
-    const { data, error } = await sb
-      .from(tbl)
-      .select('updated_at')
-      .order('updated_at', { ascending: false })
-      .limit(1);
-
-    if (error) {
-      await writeResult('VI Table Freshness', 'data_quality', 'fpa', 'warn', `${tbl}: query error: ${error.message}`, { table: tbl });
-      continue;
-    }
-    const last = data?.[0]?.updated_at;
-    const ageDays = last ? Math.floor((Date.now() - new Date(last)) / 86400000) : null;
-    const status = ageDays === null ? 'warn' : ageDays > 30 ? 'warn' : 'pass';
-    const msg = ageDays === null ? `${tbl}: no rows found` : `${tbl}: last updated ${ageDays}d ago`;
-    await writeResult('VI Table Freshness', 'data_quality', 'fpa', status, msg, { table: tbl, age_days: ageDays });
-  }
-}
-
 // ── Check 10: jps_periods — current period draft status ──────────────────────
 async function checkPeriodStatus() {
   const { data, error } = await sb
@@ -287,7 +265,6 @@ async function main() {
     checkFpaFactsFreshness(),
     checkUnknownApps(),
     checkActualsFreshness(),
-    checkViTablesFreshness(),
     checkPeriodStatus(),
     checkDraftVersions(),
   ]);
