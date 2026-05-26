@@ -1721,14 +1721,14 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
           <div class="ai-ctx">
             <h3>AI Context</h3>
             <div class="ctx-sub">Data sent with each question</div>
-            <div class="ctx-row"><span>Period</span><b>Apr 2026 YTD</b></div>
-            <div class="ctx-row"><span>Version</span><b>Actuals</b></div>
-            <div class="ctx-row"><span>Revenue YTD</span><b>$275.1M</b></div>
-            <div class="ctx-row"><span>EBITDA YTD</span><b>$71.9M</b></div>
-            <div class="ctx-row"><span>NPAT YTD</span><b>$19.9M</b></div>
-            <div class="ctx-row"><span>EBITDA Margin</span><b>26.1%</b></div>
-            <div class="ctx-row"><span>GWh Billed</span><b>1,082</b></div>
-            <div class="ctx-row"><span>T&amp;D Loss</span><b>18.4%</b></div>
+            <div class="ctx-row"><span>Period</span><b id="aiCtxPeriod">—</b></div>
+            <div class="ctx-row"><span>Version</span><b>Actuals vs AOP</b></div>
+            <div class="ctx-row"><span>Revenue YTD</span><b id="aiCtxRev">—</b></div>
+            <div class="ctx-row"><span>EBITDA YTD</span><b id="aiCtxEbitda">—</b></div>
+            <div class="ctx-row"><span>NPAT YTD</span><b id="aiCtxNpat">—</b></div>
+            <div class="ctx-row"><span>EBITDA Margin</span><b id="aiCtxMgn">—</b></div>
+            <div class="ctx-row"><span>GWh Billed</span><b id="aiCtxGwh">—</b></div>
+            <div class="ctx-row"><span>T&amp;D Loss</span><b id="aiCtxTdl">—</b></div>
 
             <div class="ctx-divider">Include in Context</div>
             <label class="ctx-check"><input type="checkbox" id="ctxPnl" checked /> P&amp;L Summary</label>
@@ -5793,6 +5793,36 @@ async function loadP6() {
   if (pg) pg.innerHTML = isTable + ifrsTable;
 }
 
+/* ----- p14: AI COMMENTARY (populate context panel from DB) ----- */
+async function loadP14() {
+  await _ensureMaxMo(_activeYear);
+  const ctx = _getCtx();
+  if (!ctx) return;
+  const LINES = ['fuel_rev','fuel_cost','nonfuel','ipp_fr','ipp_cost','other_r','nr_cust_charge',
+                 'opex','depn','nfc_int_exp','stat_billed_gwh'];
+  const aF = await _fetchFactsAct(ctx, LINES);
+  _normalizeAlias(aF);
+  function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
+  var aNfr   = _hasFactData(aF,'nr_rev') ? sa('nr_rev') : sa('nonfuel');
+  var aFuelS = sa('fuel_rev') - sa('fuel_cost');
+  var aPpS   = sa('ipp_fr') - sa('ipp_cost');
+  var aRev   = aNfr + sa('nr_cust_charge') + sa('other_r') + aFuelS + aPpS;
+  var aEbitda= aRev - sa('opex');
+  var aDepn  = sa('depn');
+  var aIntE  = sa('nfc_int_exp');
+  var aNpat  = aEbitda - aDepn - aIntE; // simplified
+  var aGwh   = sa('stat_billed_gwh');
+  var mgn    = aRev ? (aEbitda / aRev * 100) : 0;
+  function setEl(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
+  setEl('aiCtxPeriod', ctx.viewLbl);
+  setEl('aiCtxRev',    _fmtM(aRev));
+  setEl('aiCtxEbitda', _fmtM(aEbitda));
+  setEl('aiCtxNpat',   _fmtM(aNpat));
+  setEl('aiCtxMgn',    mgn.toFixed(1) + '%');
+  setEl('aiCtxGwh',    aGwh ? aGwh.toFixed(1) : '—');
+  setEl('aiCtxTdl',    '—'); // T&D loss not in fpa_facts — needs KPI upload
+}
+
 /* ----- p12: BUDGET VS LE ----- */
 async function loadP12() {
   _pgLoad('p12', true);
@@ -6365,6 +6395,7 @@ function loadPage(id) {
   else if (id === 'p7')  loadP7();
   else if (id === 'p8')  loadP8();
   else if (id === 'p12') loadP12();
+  else if (id === 'p14') loadP14();
   else if (id === 'p9')  loadP9();
   else if (id === 'p10') loadP10();
   else if (id === 'p13') loadP13();
