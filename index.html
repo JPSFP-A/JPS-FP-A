@@ -2563,8 +2563,8 @@ function _normalizeAlias(f) {
   if (!_hasFactData(f, 'nr_rev') && _hasFactData(f, 'nonfuel')) {
     f['nr_rev'] = f['nonfuel'];
   }
-  // pl_total_sales: derive from components when absent (AOP, some monthly versions)
-  if (!_hasFactData(f, 'pl_total_sales')) {
+  // pl_total_sales: always compute from components — never use stored DB value
+  {
     const srcs = ['nr_rev', 'nonfuel', 'fuel_rev', 'ipp_fr', 'other_r', 'nr_cust_charge'];
     const merged = {};
     srcs.forEach(function(lid) {
@@ -2896,8 +2896,15 @@ async function loadP1() {
     _renderYrNav(); _renderMoNav(0);
     const priYr = ctx.yr - 1, priPer = priYr * 100 + 12;
     const priCode = _hasMonthly(priYr) ? ('ACTUALS_' + priYr + '_12') : ('HIST_ACTUAL_' + priYr);
-    const priF = await _fetchFactsN(priCode, ['pl_total_sales','ebitda','net_inc','cash','recv','ppe'], priPer, priPer);
-    function pv(l) { return _fVal(priF, l, priPer); }
+    const priF = await _fetchFactsN(priCode,
+      ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','other_r','fuel_cost','ipp_cost','opex','depn','nfc_int_exp','tax','cash','recv','ppe'],
+      priPer, priPer);
+    function pv(l) {
+      if (l === 'pl_total_sales') return (_fVal(priF,'nr_rev',priPer)||0)+(_fVal(priF,'nr_cust_charge',priPer)||0)+(_fVal(priF,'fuel_rev',priPer)||0)+(_fVal(priF,'ipp_fr',priPer)||0)+(_fVal(priF,'other_r',priPer)||0);
+      if (l === 'ebitda') { var rev=pv('pl_total_sales'); return rev-(_fVal(priF,'fuel_cost',priPer)||0)-(_fVal(priF,'ipp_cost',priPer)||0)-(_fVal(priF,'opex',priPer)||0); }
+      if (l === 'net_inc') { var eb=pv('ebitda'); return eb-(_fVal(priF,'depn',priPer)||0)-(_fVal(priF,'nfc_int_exp',priPer)||0)-(_fVal(priF,'tax',priPer)||0); }
+      return _fVal(priF, l, priPer);
+    }
     const pg = document.getElementById('p1');
     if (pg) pg.innerHTML = '<div class="page-head"><h1>Overview — FY ' + ctx.yr + '</h1>'
       + '<div class="ph-sub" style="color:var(--teal)">&#128197; Planning Year — No actuals loaded. Opening balances from Dec ' + priYr + '.</div></div>'
@@ -2913,8 +2920,10 @@ async function loadP1() {
     return;
   }
 
-  const LINES = ['pl_total_sales','nr_rev','nr_cust_charge','fuel_rev','ipp_fr','other_r','ebitda','net_inc','cf_capex',
-    'stat_billed_gwh','opex','depn','nfc_int_exp','tax','cf_ops_net','fuel_cost','ipp_cost'];
+  // Input lines only — ebitda/net_inc/pl_total_sales are always derived in JS, never fetched from DB
+  const LINES = ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','other_r','fuel_cost','ipp_cost',
+    'opex','depn','nfc_int_exp','nfc_int_inc','nfc_afudc','pl_fx','nfc_pref','pl_pref_div','tax',
+    'cf_capex','stat_billed_gwh','cf_ops_net'];
   const CM_LINES = ['pl_total_sales','ebitda','net_inc','ebitda_margin','cf_capex','stat_billed_gwh','cf_ops_net'];
   const [aF, bF] = await Promise.all([
     _fetchFactsAct(ctx, LINES),
@@ -2930,14 +2939,12 @@ async function loadP1() {
   function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
   function sb(lid) { return _fSumP(bF, lid, ctx.cmpPeriods); }
 
-  const rev_a = sa('pl_total_sales'), rev_b = sb('pl_total_sales');
-  const ebd_a = sa('ebitda'),         ebd_b = sb('ebitda');
-  const ni_a  = sa('net_inc'),        ni_b  = sb('net_inc');
-  const cpx_a = Math.abs(sa('cf_capex')), cpx_b = Math.abs(sb('cf_capex'));
-  const gwh_a = sa('stat_billed_gwh'), gwh_b = sb('stat_billed_gwh');
+  // Input lines fetched from DB
   const nfr_a = sa('nr_rev'),          nfr_b = sb('nr_rev');
   const cust_a = sa('nr_cust_charge'), cust_b = sb('nr_cust_charge');
   const frl_a = sa('fuel_rev'),        frl_b = sb('fuel_rev');
+  const ipr_a = sa('ipp_fr'),          ipr_b = sb('ipp_fr');
+  const otr_a = sa('other_r'),         otr_b = sb('other_r');
   const fc_a  = sa('fuel_cost'), fc_b = sb('fuel_cost');
   const ic_a  = sa('ipp_cost'),  ic_b = sb('ipp_cost');
   const opx_a = sa('opex'),     opx_b = sb('opex');
@@ -2945,7 +2952,15 @@ async function loadP1() {
   const fin_a = sa('nfc_int_exp'), fin_b = sb('nfc_int_exp');
   const tax_a = sa('tax'),      tax_b = sb('tax');
   const ocf_a = sa('cf_ops_net'), ocf_b = sb('cf_ops_net');
+  const cpx_a = Math.abs(sa('cf_capex')), cpx_b = Math.abs(sb('cf_capex'));
+  const gwh_a = sa('stat_billed_gwh'), gwh_b = sb('stat_billed_gwh');
+  // Derived lines — always computed in JS, never read from DB
+  const rev_a = nfr_a + cust_a + frl_a + ipr_a + otr_a;
+  const rev_b = nfr_b + cust_b + frl_b + ipr_b + otr_b;
   const gm_a  = rev_a - fc_a - ic_a, gm_b = rev_b - fc_b - ic_b;
+  const ebd_a = gm_a - opx_a,        ebd_b = gm_b - opx_b;
+  const ebit_a = ebd_a - dep_a,      ebit_b = ebd_b - dep_b;
+  const ni_a  = ebit_a - fin_a - tax_a, ni_b = ebit_b - fin_b - tax_b;
   const ebdMg_a = rev_a ? (ebd_a / rev_a * 100) : 0;
   const ebdMg_b = rev_b ? (ebd_b / rev_b * 100) : 0;
 
@@ -4599,36 +4614,24 @@ async function flashFetchFacts(versionId, periodIds) {
   if (!agg['ipp_cost']     && agg['pl_ppa'])           agg['ipp_cost']     = agg['pl_ppa'];
   if (!agg['nfc_fees']     && agg['pl_loan_fees'])     agg['nfc_fees']     = agg['pl_loan_fees'];
   if (!agg['pl_pref_div']  && agg['nfc_pref'])         agg['pl_pref_div']  = agg['nfc_pref'];
-  // pl_total_sales
-  if (!agg['pl_total_sales']) {
-    var tot = (agg['nr_rev']||0) + (agg['nr_cust_charge']||0) + (agg['fuel_rev']||0) + (agg['ipp_fr']||0) + (agg['other_r']||0);
-    if (tot) agg['pl_total_sales'] = tot;
-  }
-  // gross_profit: revenue - fuel - ipp
-  if (!agg['pl_gross_profit'] && agg['pl_total_sales']) {
-    agg['pl_gross_profit'] = (agg['pl_total_sales']||0) - (agg['fuel_cost']||0) - (agg['ipp_cost']||0);
-  }
-  // ebitda: gross_profit - opex (other income is below EBIT — not in EBITDA)
-  if (!agg['ebitda'] && agg['pl_gross_profit'] != null) {
-    agg['ebitda'] = (agg['pl_gross_profit']||0) - (agg['opex']||0);
-  }
+  // ── ALWAYS derive IS lines — NEVER use stored values (architectural rule) ──
+  // pl_total_sales: always computed from components
+  agg['pl_total_sales'] = (agg['nr_rev']||0) + (agg['nr_cust_charge']||0) + (agg['fuel_rev']||0) + (agg['ipp_fr']||0) + (agg['other_r']||0);
+  // pl_gross_profit: revenue - fuel - ipp
+  agg['pl_gross_profit'] = agg['pl_total_sales'] - (agg['fuel_cost']||0) - (agg['ipp_cost']||0);
+  // ebitda: gross_profit - opex
+  agg['ebitda'] = agg['pl_gross_profit'] - (agg['opex']||0);
   // ebit: ebitda - depreciation
-  if (!agg['ebit'] && agg['ebitda'] != null) {
-    agg['ebit'] = (agg['ebitda']||0) - (agg['depn']||0);
-  }
-  // pretax: ebit + net finance
-  if (!agg['pretax'] && agg['ebit'] != null) {
-    agg['pretax'] = (agg['ebit']||0)
-      + (agg['pl_afudc']||0)
-      - (agg['nfc_int_exp']||0)
-      + (agg['nfc_int_inc']||0)
-      - (agg['nfc_pref']||0)
-      + (agg['pl_fx']||0);
-  }
+  agg['ebit'] = agg['ebitda'] - (agg['depn']||0);
+  // pretax: ebit + net finance items
+  agg['pretax'] = agg['ebit']
+    + (agg['pl_afudc']||0)
+    - (agg['nfc_int_exp']||0)
+    + (agg['nfc_int_inc']||0)
+    - (agg['nfc_pref']||0)
+    + (agg['pl_fx']||0);
   // net_inc: pretax - tax
-  if (!agg['net_inc'] && agg['pretax'] != null) {
-    agg['net_inc'] = (agg['pretax']||0) - (agg['tax']||0) - (agg['oth_tax']||0);
-  }
+  agg['net_inc'] = agg['pretax'] - (agg['tax']||0) - (agg['oth_tax']||0);
   return agg;
 }
 
@@ -4955,9 +4958,10 @@ var _KPI_SECTIONS = {
 // Financial KPI codes derived from fpa_facts (not stored in jps_kpi_actuals)
 var _KPI_FINANCIAL = ['ebitda_margin', 'npat_margin', 'net_debt_ebitda', 'rev_per_kwh'];
 
-// fpa_facts line IDs needed for financial KPI derivation
-var _KPI_FIN_LINES = ['pl_total_sales', 'nonfuel', 'nr_cust_charge', 'fuel_rev', 'ipp_fr', 'other_r',
-                      'ebitda', 'net_inc', 'total_debt', 'cash', 'nr_rev'];
+// fpa_facts line IDs needed for financial KPI derivation (input lines only — derived computed in JS)
+var _KPI_FIN_LINES = ['nonfuel', 'nr_cust_charge', 'fuel_rev', 'ipp_fr', 'other_r', 'nr_rev',
+                      'fuel_cost', 'ipp_cost', 'opex', 'depn', 'nfc_int_exp', 'nfc_int_inc',
+                      'nfc_afudc', 'pl_fx', 'nfc_pref', 'tax', 'total_debt', 'cash'];
 
 async function loadP10(force) {
   if (!force && _loadedPages.has('p10')) return;
@@ -5017,12 +5021,12 @@ async function loadP10(force) {
 }
 
 function _p10GetRevForPeriod(f, p) {
-  return (f['pl_total_sales'] && f['pl_total_sales'][p]) ||
-    ((f['nr_rev'] && f['nr_rev'][p] || 0) +
-     (f['nr_cust_charge'] && f['nr_cust_charge'][p] || 0) +
-     (f['fuel_rev'] && f['fuel_rev'][p] || 0) +
-     (f['ipp_fr'] && f['ipp_fr'][p] || 0) +
-     (f['other_r'] && f['other_r'][p] || 0)) || 0;
+  // Always compute from components — never read pl_total_sales from DB
+  return ((f['nr_rev']        && f['nr_rev'][p]        || 0) +
+          (f['nr_cust_charge'] && f['nr_cust_charge'][p] || 0) +
+          (f['fuel_rev']       && f['fuel_rev'][p]       || 0) +
+          (f['ipp_fr']         && f['ipp_fr'][p]         || 0) +
+          (f['other_r']        && f['other_r'][p]        || 0));
 }
 
 function _p10DeriveFinancial(f, months, kpiActuals) {
@@ -5034,8 +5038,17 @@ function _p10DeriveFinancial(f, months, kpiActuals) {
 
   months.forEach(function(p, idx) {
     var rev    = _p10GetRevForPeriod(f, p);
-    var ebitda = (f['ebitda']  && f['ebitda'][p])  || 0;
-    var netInc = (f['net_inc'] && f['net_inc'][p]) || 0;
+    var fc     = (f['fuel_cost']   && f['fuel_cost'][p])   || 0;
+    var ic     = (f['ipp_cost']    && f['ipp_cost'][p])    || 0;
+    var opx    = (f['opex']        && f['opex'][p])        || 0;
+    var depn   = (f['depn']        && f['depn'][p])        || 0;
+    var intexp = (f['nfc_int_exp'] && f['nfc_int_exp'][p]) || 0;
+    var tax    = (f['tax']         && f['tax'][p])         || 0;
+    // Always derive — never read ebitda/net_inc from DB
+    var gp     = rev - fc - ic;
+    var ebitda = gp - opx;
+    var ebit   = ebitda - depn;
+    var netInc = ebit - intexp - tax;
     var gwh    = (kpiActuals['gwh_billed'] && kpiActuals['gwh_billed'][p] && kpiActuals['gwh_billed'][p].val) || 0;
 
     revSum    += rev;
@@ -5311,9 +5324,10 @@ async function loadP18(){
       var r2=await _sbQ(function(sb){
         return sb.from('fpa_facts').select('line_id,period_id,value')
           .eq('version_id',histVerId)
+          // Input lines only — derived (ebitda/ebit/pretax/pl_gross_profit/net_inc) computed in JS
           .in('line_id',['cf_ops_net','cf_inv_net','cf_fin_net','cf_change','cf_ni',
-                         'net_inc','ebitda','ebit','pretax','pl_gross_profit','depn',
-                         'fuel_cost','ipp_cost','nonfuel',
+                         'depn','fuel_cost','ipp_cost','nonfuel','nr_cust_charge','fuel_rev','ipp_fr','other_r',
+                         'opex','nfc_int_exp','nfc_int_inc','nfc_afudc','pl_fx','nfc_pref','tax',
                          'ltd','bs_curr_ltd','bs_bank_od','lease_cl','cash','rcash','recv'])
           .gte('period_id',yr*100+1).lte('period_id',yr*100+12);
       });
@@ -5322,6 +5336,18 @@ async function loadP18(){
         if(!_wbSummData[p])_wbSummData[p]={};
         _wbSummData[p][row.line_id]=parseFloat(row.value)||0;
       });}
+      // Compute derived IS lines from input components — never read from DB
+      Object.keys(_wbSummData).forEach(function(p){
+        var d=_wbSummData[p];
+        var rev=(d['nonfuel']||0)+(d['nr_cust_charge']||0)+(d['fuel_rev']||0)+(d['ipp_fr']||0)+(d['other_r']||0);
+        var gp=rev-(d['fuel_cost']||0)-(d['ipp_cost']||0);
+        var ebitda=gp-(d['opex']||0);
+        var ebit=ebitda-(d['depn']||0);
+        var pretax=ebit+(d['nfc_afudc']||0)-(d['nfc_int_exp']||0)+(d['nfc_int_inc']||0)-(d['nfc_pref']||0)+(d['pl_fx']||0);
+        var netInc=pretax-(d['tax']||0);
+        d['pl_total_sales']=rev; d['pl_gross_profit']=gp; d['ebitda']=ebitda;
+        d['ebit']=ebit; d['pretax']=pretax; d['net_inc']=netInc;
+      });
     }
     // Load KPI targets for ratio benchmarks
     _wbTargets={};
@@ -5349,8 +5375,9 @@ function _wbSV(period,lid){
 function _wbCalcRatios(yr,periods){
   var ltmEbitda=0,ltmNetInc=0,ltmRevenue=0,hasData=false;
   periods.forEach(function(p){
+    // ebitda/net_inc now derived in _wbSummData post-processing
     var e=_wbSV(p,'ebitda'),n=_wbSV(p,'net_inc');
-    var rev=(_wbSV(p,'pl_gross_profit')||0)+(_wbSV(p,'fuel_cost')||0)+(_wbSV(p,'ipp_cost')||0)+(_wbSV(p,'nonfuel')||0);
+    var rev=_wbSV(p,'pl_total_sales')||0;  // derived from components
     if(e!==null){ltmEbitda+=e;hasData=true;}
     if(n!==null)ltmNetInc+=n;
     ltmRevenue+=rev;
