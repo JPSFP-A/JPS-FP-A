@@ -2660,11 +2660,19 @@ async function _fetchFactsMulti(yr, lines, periods) {
     return Promise.all(fetches).then(function(results) {
       const merged = {};
       results.forEach(function(o) {
+        if (!o) return; // guard null from failed _sbQ
         Object.keys(o).forEach(function(lid) {
           if (!merged[lid]) merged[lid] = {};
           Object.assign(merged[lid], o[lid]);
         });
       });
+      // DEBUG — remove after confirming nr_cust_charge fix
+      if (merged['nr_cust_charge']) {
+        console.log('[fpa_multi] nr_cust_charge fetched OK:', JSON.stringify(merged['nr_cust_charge']));
+      } else {
+        console.warn('[fpa_multi] nr_cust_charge MISSING from merged result. periods=', periods, 'results count=', results.length);
+        results.forEach(function(o,i){ if(o && Object.keys(o).length) console.log('  result['+i+']:', Object.keys(o)); });
+      }
       return _normalizeAlias(merged);
     });
   }, 120_000);
