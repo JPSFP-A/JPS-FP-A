@@ -3213,6 +3213,10 @@ async function loadP2() {
         : _fetchFactsN('HIST_ACTUAL_' + yr, LINES, ps + 1, ps + 12),
       _fetchFactsN('AOP_' + yr, LINES, ps + 1, ps + 12),
     ]);
+    // DEBUG — remove after fix confirmed
+    console.log('[p2-multi] allActF nr_cust_charge:', JSON.stringify(allActF['nr_cust_charge']));
+    console.log('[p2-multi] allActF keys:', Object.keys(allActF).sort().join(','));
+    console.log('[p2-multi] ctx.maxMo:', ctx.maxMo, '| hasMonthly:', ctx.hasMonthly);
   } else {
     [aF, bF] = await Promise.all([
       _fetchFactsAct(ctx, LINES),
