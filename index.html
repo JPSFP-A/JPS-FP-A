@@ -7426,9 +7426,14 @@ async function loadP11(force) {
     // Determine column groups based on _p11ColView
     var colPids11, colLabels11;
     if (_p11ColView === 'quarterly') {
-      // Group ytdPids into quarters by period month
+      // Group ytdPids into quarters by period month (look up month from periods array — pids are UUIDs)
       var qGroups11 = [[],[],[],[]];
-      ytdPids.forEach(function(pid) { var mo = pid % 100; qGroups11[Math.floor((mo-1)/3)].push(pid); });
+      ytdPids.forEach(function(pid) {
+        var per = periods.find(function(p){ return p.id === pid; });
+        if (!per) return;
+        var qi = Math.floor((per.month - 1) / 3);
+        if (qi >= 0 && qi < 4) qGroups11[qi].push(pid);
+      });
       colPids11 = qGroups11.filter(function(g){ return g.length; });
       colLabels11 = ['Q1','Q2','Q3','Q4'].slice(0, colPids11.length);
     } else if (_p11ColView === 'ytd' || _p11ColView === 'ytg') {
