@@ -188,6 +188,93 @@ async function checkUnknownApps() {
   await writeResult('Unknown App Codes', 'data_quality', 'all', status, msg, { count: unknown.length, unknown });
 }
 
+// ── Check 8: jps_actuals data freshness ──────────────────────────────────────
+async function checkActualsFreshness() {
+  const { data, error, count } = await sb
+    .from('jps_actuals')
+    .select('updated_at', { count: 'exact', head: false })
+    .order('updated_at', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    await writeResult('Actuals Freshness', 'data_quality', 'fpa', 'warn', `Query error: ${error.message}`);
+    return;
+  }
+  const rows = count ?? data?.length ?? 0;
+  const last = data?.[0]?.updated_at;
+  const ageDays = last ? Math.floor((Date.now() - new Date(last)) / 86400000) : null;
+  const status = rows === 0 ? 'warn' : ageDays > 30 ? 'warn' : 'pass';
+  const msg = rows === 0 ? 'No jps_actuals rows found' : `${rows} rows, last updated ${ageDays}d ago`;
+  await writeResult('Actuals Freshness', 'data_quality', 'fpa', status, msg, { row_count: rows, age_days: ageDays });
+}
+
+// ── Check 9: VI table freshness (vi_pl, vi_cash, vi_ar) ──────────────────────
+async function checkViTablesFreshness() {
+  const tables = ['vi_pl', 'vi_cash', 'vi_ar'];
+  for (const tbl of tables) {
+    const { data, error } = await sb
+      .from(tbl)
+      .select('updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      await writeResult('VI Table Freshness', 'data_quality', 'fpa', 'warn', `${tbl}: query error: ${error.message}`, { table: tbl });
+      continue;
+    }
+    const last = data?.[0]?.updated_at;
+    const ageDays = last ? Math.floor((Date.now() - new Date(last)) / 86400000) : null;
+    const status = ageDays === null ? 'warn' : ageDays > 30 ? 'warn' : 'pass';
+    const msg = ageDays === null ? `${tbl}: no rows found` : `${tbl}: last updated ${ageDays}d ago`;
+    await writeResult('VI Table Freshness', 'data_quality', 'fpa', status, msg, { table: tbl, age_days: ageDays });
+  }
+}
+
+// ── Check 10: jps_periods — current period draft status ──────────────────────
+async function checkPeriodStatus() {
+  const { data, error } = await sb
+    .from('jps_periods')
+    .select('year,month,status')
+    .order('year', { ascending: false })
+    .order('month', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    await writeResult('Period Status', 'data_quality', 'fpa', 'warn', `Query error: ${error.message}`);
+    return;
+  }
+  const p = data?.[0];
+  if (!p) {
+    await writeResult('Period Status', 'data_quality', 'fpa', 'warn', 'No periods found');
+    return;
+  }
+  const today = new Date();
+  const dayOfMonth = today.getDate();
+  // Warn if current month's period is still draft after day 10
+  const isCurrent = p.year === today.getFullYear() && p.month === today.getMonth() + 1;
+  const status = (isCurrent && p.status === 'draft' && dayOfMonth > 10) ? 'warn' : 'pass';
+  const msg = `${p.year}-${String(p.month).padStart(2,'0')}: ${p.status}`;
+  await writeResult('Period Status', 'data_quality', 'fpa', status, msg, { year: p.year, month: p.month, status: p.status, day_of_month: dayOfMonth });
+}
+
+// ── Check 11: fpa_versions — stale drafts ────────────────────────────────────
+async function checkDraftVersions() {
+  const { data, error } = await sb
+    .from('fpa_versions')
+    .select('status')
+    .eq('status', 'draft');
+
+  if (error) {
+    await writeResult('Draft Versions', 'data_quality', 'fpa', 'warn', `Query error: ${error.message}`);
+    return;
+  }
+  const draftCount = data?.length ?? 0;
+  const dayOfMonth = new Date().getDate();
+  const status = (draftCount > 0 && dayOfMonth > 5) ? 'warn' : 'pass';
+  const msg = draftCount === 0 ? 'No draft versions' : `${draftCount} draft version${draftCount !== 1 ? 's' : ''} open`;
+  await writeResult('Draft Versions', 'data_quality', 'fpa', status, msg, { count: draftCount, day_of_month: dayOfMonth });
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
   console.log(`[audit] run_id=${RUN_ID} triggered_by=${TRIGGERED_BY}`);
@@ -199,6 +286,10 @@ async function main() {
     checkMonitorHeartbeats(),
     checkFpaFactsFreshness(),
     checkUnknownApps(),
+    checkActualsFreshness(),
+    checkViTablesFreshness(),
+    checkPeriodStatus(),
+    checkDraftVersions(),
   ]);
   console.log('[audit] done');
 }
