@@ -2840,7 +2840,8 @@ async function _fetchFacts(vCode, lines, pStart, pEnd) {
 function _expandAliasLines(lines) {
   // Always fetch alias source IDs so _normalizeAlias can map them
   const extra = ['nonfuel', 'ipp_fr', 'other_r', 'nr_cust_charge',
-                 'pl_afudc', 'oth_inc', 'nfc_pref'];
+                 'pl_afudc', 'oth_inc', 'nfc_pref',
+                 'bs_fa_cost', 'bs_accum_depn'];
   return lines.concat(extra.filter(function(l) { return lines.indexOf(l) < 0; }));
 }
 function _hasFactData(f, lid) {
@@ -2878,6 +2879,15 @@ function _normalizeAlias(f) {
   // pl_pref_div ← nfc_pref (some older loads used nfc_pref)
   if (!_hasFactData(f, 'pl_pref_div') && _hasFactData(f, 'nfc_pref')) {
     f['pl_pref_div'] = f['nfc_pref'];
+  }
+  // ppe ← bs_fa_cost - bs_accum_depn (HIST_ACTUAL stores gross + accum depn separately)
+  if (!_hasFactData(f, 'ppe') && _hasFactData(f, 'bs_fa_cost')) {
+    const gross = f['bs_fa_cost'] || {}, accum = f['bs_accum_depn'] || {};
+    const net = {};
+    Object.keys(gross).forEach(function(p) {
+      net[p] = (gross[p] || 0) - (accum[p] || 0);
+    });
+    if (Object.keys(net).length) f['ppe'] = net;
   }
   return f;
 }
@@ -3986,12 +3996,13 @@ async function loadP3() {
   }
 
   const LINES = [
-    'ppe','cwip','rou_asset','eqinv','finv','bs_dta',
-    'recv','cash','bs_prepaid','bs_other_recv','unbill','bs_reg_asset',
+    'ppe','bs_fa_cost','bs_accum_depn',
+    'cwip','rou_asset','eqinv','pension','bs_dta',
+    'recv','cash','rcash','unbill','finv','matls','bs_prepaid','bs_other_recv','bs_reg_asset',
     'tot_a',
     'ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl',
-    'bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben',
-    'ltd','leases','bs_cust_dep_lt','bs_due_to','pension','bs_dtl','bs_decomm_lt',
+    'bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to',
+    'ltd','leases','bs_cust_dep_lt','bs_dtl','bs_decomm_lt',
     'bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref'
   ];
 
@@ -4050,22 +4061,22 @@ async function loadP3() {
   const ppe_c  = cv('ppe'),  ppe_p  = pv('ppe');
   const cwip_c = cv('cwip'), cwip_p = pv('cwip');
   const rou_c  = cv('rou_asset'), rou_p = pv('rou_asset');
-  const nca_c  = ppe_c + cwip_c + rou_c + cv('eqinv') + cv('finv') + cv('bs_dta');
-  const nca_p  = ppe_p + cwip_p + rou_p + pv('eqinv') + pv('finv') + pv('bs_dta');
+  const nca_c  = ppe_c + cwip_c + rou_c + cv('eqinv') + cv('pension') + cv('bs_dta');
+  const nca_p  = ppe_p + cwip_p + rou_p + pv('eqinv') + pv('pension') + pv('bs_dta');
   const recv_c = cv('recv'), recv_p = pv('recv');
   const cash_c = cv('cash'), cash_p = pv('cash');
-  const oth_c  = cv('bs_prepaid') + cv('bs_other_recv') + cv('unbill') + cv('bs_reg_asset');
-  const oth_p  = pv('bs_prepaid') + pv('bs_other_recv') + pv('unbill') + pv('bs_reg_asset');
+  const oth_c  = cv('rcash') + cv('unbill') + cv('finv') + cv('matls') + cv('bs_prepaid') + cv('bs_other_recv') + cv('bs_reg_asset');
+  const oth_p  = pv('rcash') + pv('unbill') + pv('finv') + pv('matls') + pv('bs_prepaid') + pv('bs_other_recv') + pv('bs_reg_asset');
   const ca_c   = recv_c + cash_c + oth_c;
   const ca_p   = recv_p + cash_p + oth_p;
   const ta_c   = cv('tot_a') || (nca_c + ca_c);
   const ta_p   = pv('tot_a') || (nca_p + ca_p);
   const eq_c   = cv('bs_share_cap') + cv('bs_retained') + cv('bs_cap_res') + cv('bs_cap_redm') + cv('bs_pref');
   const eq_p   = pv('bs_share_cap') + pv('bs_retained') + pv('bs_cap_res') + pv('bs_cap_redm') + pv('bs_pref');
-  const ncl_c  = cv('ltd') + cv('leases') + cv('bs_cust_dep_lt') + cv('bs_due_to') + cv('pension') + cv('bs_dtl') + cv('bs_decomm_lt');
-  const ncl_p  = pv('ltd') + pv('leases') + pv('bs_cust_dep_lt') + pv('bs_due_to') + pv('pension') + pv('bs_dtl') + pv('bs_decomm_lt');
-  const cl_c   = cv('ap') + cv('bs_int_acc') + cv('bs_corp_tax') + cv('bs_bank_od') + cv('lease_cl') + cv('bs_curr_ltd') + cv('bs_cust_dep') + cv('bs_payroll_tax') + cv('bs_std') + cv('bs_emp_ben');
-  const cl_p   = pv('ap') + pv('bs_int_acc') + pv('bs_corp_tax') + pv('bs_bank_od') + pv('lease_cl') + pv('bs_curr_ltd') + pv('bs_cust_dep') + pv('bs_payroll_tax') + pv('bs_std') + pv('bs_emp_ben');
+  const ncl_c  = cv('ltd') + cv('leases') + cv('bs_cust_dep_lt') + cv('bs_dtl') + cv('bs_decomm_lt');
+  const ncl_p  = pv('ltd') + pv('leases') + pv('bs_cust_dep_lt') + pv('bs_dtl') + pv('bs_decomm_lt');
+  const cl_c   = cv('ap') + cv('bs_int_acc') + cv('bs_corp_tax') + cv('bs_bank_od') + cv('lease_cl') + cv('bs_curr_ltd') + cv('bs_cust_dep') + cv('bs_payroll_tax') + cv('bs_std') + cv('bs_emp_ben') + cv('bs_due_to');
+  const cl_p   = pv('ap') + pv('bs_int_acc') + pv('bs_corp_tax') + pv('bs_bank_od') + pv('lease_cl') + pv('bs_curr_ltd') + pv('bs_cust_dep') + pv('bs_payroll_tax') + pv('bs_std') + pv('bs_emp_ben') + pv('bs_due_to');
   const tel_c  = eq_c + ncl_c + cl_c;
   const tel_p  = eq_p + ncl_p + cl_p;
 
@@ -4094,13 +4105,17 @@ async function loadP3() {
     + bsRow('Capital Work in Progress',              cwip_c, cwip_p, null, 'cwip')
     + bsRow('Right-of-Use Assets (IFRS 16)',         rou_c,  rou_p,  null, 'rou_asset')
     + bsRow('Equity Investments',          cv('eqinv'),       pv('eqinv'))
-    + bsRow('Financial Investments',       cv('finv'),        pv('finv'))
+    + bsRow('Pension Asset',               cv('pension'),     pv('pension'))
     + bsRow('Deferred Tax Asset',          cv('bs_dta'),      pv('bs_dta'))
     + bsRow('Total Non-Current Assets',    nca_c,             nca_p,  'rs')
     + sec('Current Assets')
     + bsRow('Trade Receivables',           recv_c,            recv_p, null, 'recv')
     + bsRow('Cash &amp; Equivalents',      cash_c,            cash_p, null, 'cash')
-    + bsRow('Prepayments &amp; Other',     cv('bs_prepaid') + cv('bs_other_recv') + cv('unbill'), pv('bs_prepaid') + pv('bs_other_recv') + pv('unbill'))
+    + bsRow('Restricted Cash (EDF)',       cv('rcash'),       pv('rcash'))
+    + bsRow('Unbilled Revenue',            cv('unbill'),      pv('unbill'))
+    + bsRow('Fuel Inventory',              cv('finv'),        pv('finv'))
+    + bsRow('Materials &amp; Supplies',    cv('matls'),       pv('matls'))
+    + bsRow('Prepayments &amp; Other',     cv('bs_prepaid') + cv('bs_other_recv'), pv('bs_prepaid') + pv('bs_other_recv'))
     + bsRow('Regulatory Asset',            cv('bs_reg_asset'), pv('bs_reg_asset'), null, 'bs_reg_asset')
     + bsRow('Total Current Assets',        ca_c,              ca_p,   'rs')
     + bsRow('TOTAL ASSETS',                ta_c,              ta_p,   'rs')
@@ -4114,9 +4129,7 @@ async function loadP3() {
     + bsRow('Long-Term Borrowings',        cv('ltd'),          pv('ltd'),    null, 'ltd')
     + bsRow('Lease Liabilities (IFRS 16)', cv('leases'),       pv('leases'), null, 'leases')
     + bsRow('Customer Deposits (LT)',      cv('bs_cust_dep_lt'),pv('bs_cust_dep_lt'))
-    + bsRow('Due to Related Party',        cv('bs_due_to'),    pv('bs_due_to'))
     + bsRow('Deferred Tax Liability',      cv('bs_dtl'),       pv('bs_dtl'), null, 'bs_dtl')
-    + bsRow('Pension Obligations',         cv('pension'),      pv('pension'), null, 'pension')
     + bsRow('Decommissioning Provision',   cv('bs_decomm_lt'), pv('bs_decomm_lt'))
     + bsRow('Total Non-Current Liabilities',ncl_c,            ncl_p, 'rs')
     + sec('Current Liabilities')
@@ -4130,6 +4143,7 @@ async function loadP3() {
     + bsRow('Payroll Tax Payable',         cv('bs_payroll_tax'),pv('bs_payroll_tax'))
     + bsRow('Short-term Debt',             cv('bs_std'),        pv('bs_std'))
     + bsRow('Employee Benefits (Current)', cv('bs_emp_ben'),    pv('bs_emp_ben'))
+    + bsRow('Due to Related Party',        cv('bs_due_to'),    pv('bs_due_to'))
     + bsRow('Total Current Liabilities',   cl_c,               cl_p,  'rs')
     + bsRow('TOTAL EQUITY &amp; LIABILITIES', tel_c,           tel_p, 'rs')
     + '</tbody></table></div></div>';
@@ -4219,16 +4233,20 @@ function _buildBSMultiCol(ctx, actF, aopF, priF, priPer, view) {
     + rline('Capital Work in Progress',              get('cwip'))
     + rline('Right-of-Use Assets (IFRS 16)',         get('rou_asset'))
     + rline('Equity Investments',                    get('eqinv'))
-    + rline('Financial Investments',                 get('finv'))
+    + rline('Pension Asset',                         get('pension'))
     + rline('Deferred Tax Asset',                    get('bs_dta'))
-    + rsub('Total Non-Current Assets', sum(['ppe','cwip','rou_asset','eqinv','finv','bs_dta']), 'rs')
+    + rsub('Total Non-Current Assets', sum(['ppe','cwip','rou_asset','eqinv','pension','bs_dta']), 'rs')
     + rsec('Current Assets')
-    + rline('Trade Receivables',     get('recv'))
-    + rline('Cash &amp; Equivalents', get('cash'))
-    + rline('Prepayments &amp; Other', sum(['bs_prepaid','bs_other_recv','unbill']))
-    + rline('Regulatory Asset',      get('bs_reg_asset'))
-    + rsub('Total Current Assets',   sum(['recv','cash','bs_prepaid','bs_other_recv','unbill','bs_reg_asset']), 'rs')
-    + rsub('TOTAL ASSETS',           sum(['ppe','cwip','rou_asset','eqinv','finv','bs_dta','recv','cash','bs_prepaid','bs_other_recv','unbill','bs_reg_asset']), 'rs')
+    + rline('Trade Receivables',           get('recv'))
+    + rline('Cash &amp; Equivalents',      get('cash'))
+    + rline('Restricted Cash (EDF)',       get('rcash'))
+    + rline('Unbilled Revenue',            get('unbill'))
+    + rline('Fuel Inventory',              get('finv'))
+    + rline('Materials &amp; Supplies',    get('matls'))
+    + rline('Prepayments &amp; Other',     sum(['bs_prepaid','bs_other_recv']))
+    + rline('Regulatory Asset',            get('bs_reg_asset'))
+    + rsub('Total Current Assets',   sum(['recv','cash','rcash','unbill','finv','matls','bs_prepaid','bs_other_recv','bs_reg_asset']), 'rs')
+    + rsub('TOTAL ASSETS',           sum(['ppe','cwip','rou_asset','eqinv','pension','bs_dta','recv','cash','rcash','unbill','finv','matls','bs_prepaid','bs_other_recv','bs_reg_asset']), 'rs')
     + rsec('Equity')
     + rline('Share Capital',   get('bs_share_cap'))
     + rline('Retained Earnings', get('bs_retained'))
@@ -4239,11 +4257,9 @@ function _buildBSMultiCol(ctx, actF, aopF, priF, priPer, view) {
     + rline('Long-Term Borrowings',        get('ltd'))
     + rline('Lease Liabilities (IFRS 16)', get('leases'))
     + rline('Customer Deposits (LT)',      get('bs_cust_dep_lt'))
-    + rline('Due to Related Party',        get('bs_due_to'))
     + rline('Deferred Tax Liability',      get('bs_dtl'))
-    + rline('Pension Obligations',         get('pension'))
     + rline('Decommissioning Provision',   get('bs_decomm_lt'))
-    + rsub('Total Non-Current Liabilities', sum(['ltd','leases','bs_cust_dep_lt','bs_due_to','pension','bs_dtl','bs_decomm_lt']), 'rs')
+    + rsub('Total Non-Current Liabilities', sum(['ltd','leases','bs_cust_dep_lt','bs_dtl','bs_decomm_lt']), 'rs')
     + rsec('Current Liabilities')
     + rline('Accounts Payable',            get('ap'))
     + rline('Accrued Interest',            get('bs_int_acc'))
@@ -4255,8 +4271,9 @@ function _buildBSMultiCol(ctx, actF, aopF, priF, priPer, view) {
     + rline('Payroll Tax Payable',         get('bs_payroll_tax'))
     + rline('Short-term Debt',             get('bs_std'))
     + rline('Employee Benefits (Current)', get('bs_emp_ben'))
-    + rsub('Total Current Liabilities', sum(['ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben']), 'rs')
-    + rsub('TOTAL EQUITY &amp; LIABILITIES', sum(['bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref','ltd','leases','bs_cust_dep_lt','bs_due_to','pension','bs_dtl','bs_decomm_lt','ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben']), 'rs');
+    + rline('Due to Related Party',        get('bs_due_to'))
+    + rsub('Total Current Liabilities', sum(['ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to']), 'rs')
+    + rsub('TOTAL EQUITY &amp; LIABILITIES', sum(['bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref','ltd','leases','bs_cust_dep_lt','bs_dtl','bs_decomm_lt','ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to']), 'rs');
 
   const note = ctx.isCY && maxMo < 12
     ? '<div style="font-size:11px;color:var(--muted);padding:6px 0">* Up to ' + _MONS[maxMo-1] + ' ' + yr + ' = Actuals &nbsp;|&nbsp; Remaining = AOP ' + yr + '</div>'
