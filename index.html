@@ -2710,6 +2710,17 @@ function toast(msg, type) {
   }, 3500);
 }
 
+/* ---------- Optimistic rendering helper ---------- */
+async function optimisticToggle(updateUiFn, revertUiFn, writeFn, errorMsg) {
+  updateUiFn();
+  try {
+    await writeFn();
+  } catch (e) {
+    revertUiFn();
+    toast(errorMsg || 'Save failed — changes reverted', 'error');
+  }
+}
+
 /* ---------- Theme ---------- */
 (function () {
   const saved = localStorage.getItem('jps_theme_v2') || 'light';
@@ -4160,8 +4171,18 @@ async function loadP3() {
       ctx.hasMonthly ? _fetchFactsN('AOP_' + ctx.yr, LINES, curPer, curPer) : Promise.resolve({}),
       _fetchFactsN(pyCode, LINES, pyPer, pyPer),
     ]);
-    // AOP as base; actual overrides where real data exists (fills equity/CL gaps in monthly actuals)
-    cF = Object.assign({}, _aopPt);
+    // Selective AOP fallback: equity + CL + small NCA items NOT in monthly actuals.
+    // Do NOT use AOP for large NCA lines (rou_asset, ppe, cwip, eqinv, pension) — would inflate vs stored tot_a.
+    var AOP_FILL_LINES = new Set([
+      'bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref',
+      'ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd',
+      'bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to',
+      'bs_dta','bs_other_recv'
+    ]);
+    cF = {};
+    AOP_FILL_LINES.forEach(function(lid) {
+      if (_hasFactData(_aopPt, lid)) cF[lid] = _aopPt[lid];
+    });
     Object.keys(_actPt).forEach(function(lid) {
       if (_hasFactData(_actPt, lid)) cF[lid] = _actPt[lid];
     });
@@ -5266,17 +5287,37 @@ async function flashSaveNote() {
   var periodId=yr2*100+mo2;
   var y=Math.floor(parseInt(periodId)/100), m=parseInt(periodId)%100;
   var rptPeriod=y+'-'+String(m).padStart(2,'0');
-  var r=await _sbQ(function(sb){
-    return sb.from('fpa_flash_notes').insert({
-      report_period:rptPeriod, section:section,
-      note_text:noteText,
-      entered_by:(_user&&(_user.user_metadata?.name||_user.email))||'User',
-    });
-  });
-  if(!r){return;}
-  document.getElementById('flashNoteInput').value='';
-  toast('Note saved','ok');
-  await flashLoadNotes();
+  var author=(_user&&(_user.user_metadata?.name||_user.email))||'User';
+  // Optimistic: add note to local state and clear input immediately
+  var tempNote={report_period:rptPeriod,section:section,note_text:noteText,entered_by:author,entered_at:new Date().toISOString(),_optimistic:true};
+  var prevNotes=_flashNotesData.slice();
+  var inputEl=document.getElementById('flashNoteInput');
+  var prevInputVal=inputEl?inputEl.value:'';
+  _flashNotesData=[tempNote].concat(_flashNotesData);
+  flashRenderNotes();
+  if(inputEl)inputEl.value='';
+  await optimisticToggle(
+    function(){},  // already updated above
+    function(){    // revert: restore previous state
+      _flashNotesData=prevNotes;
+      flashRenderNotes();
+      if(inputEl)inputEl.value=prevInputVal;
+    },
+    async function(){
+      var r=await _sbQ(function(sb){
+        return sb.from('fpa_flash_notes').insert({
+          report_period:rptPeriod, section:section,
+          note_text:noteText,
+          entered_by:author,
+        });
+      });
+      if(!r){throw new Error('DB write returned null');}
+      // Replace temp note with fresh data from DB
+      await flashLoadNotes();
+      toast('Note saved','ok');
+    },
+    'Note save failed — reverted'
+  );
 }
 
 // ── Export ────────────────────────────────────────────────────────────────────
@@ -6560,17 +6601,28 @@ async function scnActivate(id) {
   // Set is_active=true for this id, false for all others (same year)
   var scn = _scnData.find(function(s){ return s.id === id; });
   if (!scn) return;
-  // Deactivate all
   var yr = scn.year;
-  var r1 = await _sbQ(function(sb){ return sb.from('fpa_scenarios').update({is_active:false}).eq('year', yr); });
-  if (!r1) return;
-  var r2 = await _sbQ(function(sb){ return sb.from('fpa_scenarios').update({is_active:true}).eq('id', id); });
-  if (!r2) return;
-  _cacheInvalidate('fpa_scenarios_');
+  // Optimistic: snapshot previous active state, flip immediately
+  var prevActive = _scnData.map(function(s){ return {id:s.id, is_active:s.is_active}; });
   _scnData.forEach(function(s){ s.is_active = (s.id === id); });
   _scnRender();
-  toast('Scenario activated: ' + _escHtml(scn.name), 'ok');
-  if (window.JpsMonitor) JpsMonitor.info && JpsMonitor.info('scenario:activate', scn.name, {});
+  await optimisticToggle(
+    function(){},  // already updated above
+    function(){    // revert
+      prevActive.forEach(function(p){ var s=_scnData.find(function(x){return x.id===p.id;}); if(s)s.is_active=p.is_active; });
+      _scnRender();
+    },
+    async function(){
+      var r1 = await _sbQ(function(sb){ return sb.from('fpa_scenarios').update({is_active:false}).eq('year', yr); });
+      if (!r1) throw new Error('DB deactivate failed');
+      var r2 = await _sbQ(function(sb){ return sb.from('fpa_scenarios').update({is_active:true}).eq('id', id); });
+      if (!r2) throw new Error('DB activate failed');
+      _cacheInvalidate('fpa_scenarios_');
+      toast('Scenario activated: ' + _escHtml(scn.name), 'ok');
+      if (window.JpsMonitor) JpsMonitor.info && JpsMonitor.info('scenario:activate', scn.name, {});
+    },
+    'Scenario activate failed — reverted'
+  );
 }
 
 function scnOpenNew() {
