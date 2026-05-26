@@ -2935,8 +2935,9 @@ async function loadP1() {
   const ni_a  = sa('net_inc'),        ni_b  = sb('net_inc');
   const cpx_a = Math.abs(sa('cf_capex')), cpx_b = Math.abs(sb('cf_capex'));
   const gwh_a = sa('stat_billed_gwh'), gwh_b = sb('stat_billed_gwh');
-  const nfr_a = sa('nr_rev'),   nfr_b = sb('nr_rev');
-  const frl_a = sa('fuel_rev'), frl_b = sb('fuel_rev');
+  const nfr_a = sa('nr_rev'),          nfr_b = sb('nr_rev');
+  const cust_a = sa('nr_cust_charge'), cust_b = sb('nr_cust_charge');
+  const frl_a = sa('fuel_rev'),        frl_b = sb('fuel_rev');
   const fc_a  = sa('fuel_cost'), fc_b = sb('fuel_cost');
   const ic_a  = sa('ipp_cost'),  ic_b = sb('ipp_cost');
   const opx_a = sa('opex'),     opx_b = sb('opex');
@@ -3034,9 +3035,10 @@ async function loadP1() {
     + '<th>Line</th><th>Actual</th><th>' + ctx.cmpLbl + '</th><th>Var %</th>'
     + '</tr></thead><tbody>'
     + '<tr class="rsec"><td colspan="4">Revenue</td></tr>'
-    + plRow('Non-Fuel Revenue',    nfr_a, nfr_b, 'rind', false)
-    + plRow('Fuel Cost Recovery',  frl_a, frl_b, 'rind', false)
-    + plRow('Total Revenue',       rev_a, rev_b, 'rs',   false)
+    + plRow('Non-Fuel Revenue',    nfr_a,  nfr_b,  'rind', false)
+    + plRow('Customer Charge',     cust_a, cust_b, 'rind', false)
+    + plRow('Fuel Cost Recovery',  frl_a,  frl_b,  'rind', false)
+    + plRow('Total Revenue',       rev_a,  rev_b,  'rs',   false)
     + '<tr class="rsec"><td colspan="4">Cost of Generation</td></tr>'
     + plRow('Fuel &amp; IPP Energy', fc_a + ic_a, fc_b + ic_b, 'rind', true)
     + plRow('Operating Expenses',  opx_a, opx_b, 'rind', true)
@@ -3687,7 +3689,7 @@ function _buildP2YearToGo(ctx, ytdF, leF) {
     + rsub('EBITDA', deriveFn(function(c){ return getColVal('nr_rev',c)+getColVal('nr_cust_charge',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c); }), 'rt')
     + rsec('Below EBITDA')
     + rline('Depreciation',               'depn',      'rind', true)
-    + rsub('EBIT', deriveFn(function(c){ var ebd=getColVal('nr_rev',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c); return ebd-getColVal('depn',c); }), 'rs')
+    + rsub('EBIT', deriveFn(function(c){ var ebd=getColVal('nr_rev',c)+getColVal('nr_cust_charge',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c); return ebd-getColVal('depn',c); }), 'rs')
     + rline('Interest Expense',           'nfc_int_exp','rind', true)
     + rline('Interest Income',            'nfc_int_inc')
     + rline('AFUDC',                      'nfc_afudc')
