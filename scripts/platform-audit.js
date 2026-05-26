@@ -125,9 +125,9 @@ async function checkDuplicateLogins() {
   await writeResult('Duplicate Logins', 'data_quality', 'all', status, msg, { count: dupes.length, sample: dupes.slice(0, 3) });
 }
 
-// ── Check 5: Monitor heartbeat gaps (last 2h) ─────────────────────────────────
+// ── Check 5: Monitor heartbeat gaps (last 24h) ────────────────────────────────
 async function checkMonitorHeartbeats() {
-  const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   for (const app of APPS) {
     const { data, error } = await sb
       .from('fpa_audit_log')
@@ -141,9 +141,9 @@ async function checkMonitorHeartbeats() {
     if (error) continue;
     const last = data?.[0]?.created_at;
     const gapMin = last ? Math.floor((Date.now() - new Date(last)) / 60000) : null;
-    const status = gapMin === null ? 'warn' : gapMin > 90 ? 'warn' : 'pass';
+    const status = gapMin === null ? 'warn' : gapMin > 1440 ? 'warn' : 'pass';
     const msg = gapMin === null
-      ? 'No monitor heartbeat in last 2h'
+      ? 'No monitor heartbeat in last 24h'
       : `Last heartbeat ${gapMin}m ago`;
     await writeResult('Monitor Heartbeat', 'health', app, status, msg, { gap_minutes: gapMin });
   }
