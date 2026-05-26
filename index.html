@@ -2770,19 +2770,25 @@ function _verCode(uiVer) {
 }
 
 let _vMap = null;
-let _vMapP = null; // in-flight promise guard
+const _VMAP_TTL = 120_000; // 2 min — short enough to pick up new uploads quickly
+let _vMapTs = 0;
+let _vMapP  = null;
 async function _ensureVMap() {
-  if (_vMap) return;
-  if (!_vMapP) {
-    _vMapP = _cachedFetch('vmap', function() {
-      return _sbQ(function(sb) {
-        return sb.from('fpa_versions').select('id,code').eq('is_active', true);
-      });
-    }, 300_000).then(function(r) {
+  const now = Date.now();
+  // Return early only if map is fresh (within TTL)
+  if (_vMap && (now - _vMapTs) < _VMAP_TTL) return;
+  // Deduplicate in-flight requests
+  if (_vMapP) return _vMapP;
+  _vMapP = (function() {
+    return _sbQ(function(sb) {
+      return sb.from('fpa_versions').select('id,code').eq('is_active', true);
+    }).then(function(r) {
       _vMap = {};
       (r && r.data || []).forEach(function(v) { _vMap[v.code] = v.id; });
+      _vMapTs = Date.now();
+      _vMapP  = null; // allow next refresh after TTL
     });
-  }
+  })();
   return _vMapP;
 }
 
@@ -2983,7 +2989,7 @@ function _planYrBanner(yr, title, sub) {
     + 'This year is open for planning but no data has been uploaded yet.<br>'
     + 'Upload AOP ' + yr + ' data via DataManager to activate all reports.</p>'
     + '<div style="display:flex;gap:10px;align-items:center">'
-    + '<a href="https://datamanager.jmfinancelab.com" target="_blank" style="padding:8px 16px;background:var(--teal);color:#fff;border-radius:7px;font-size:12px;font-weight:700;text-decoration:none">Open DataManager &rarr;</a>'
+    + '<a href="data-manager.html" style="padding:8px 16px;background:var(--teal);color:#fff;border-radius:7px;font-size:12px;font-weight:700;text-decoration:none">Open DataManager &rarr;</a>'
     + '<button onclick="toggleOpenYear(' + yr + ')" style="padding:8px 16px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Close This Year</button>'
     + '</div></div>';
 }
@@ -3172,7 +3178,7 @@ async function loadP1() {
       + _planKpi('Net Income', pv('net_inc')) + _planKpi('Cash', pv('cash'))
       + _planKpi('Receivables', pv('recv'))   + _planKpi('PPE (Net)', pv('ppe'))
       + '</div>'
-      + '<div style="margin-top:16px;font-size:11px;color:var(--muted)">Upload AOP data via <a href="https://datamanager.jmfinancelab.com" target="_blank">DataManager</a> to activate this year.</div>'
+      + '<div style="margin-top:16px;font-size:11px;color:var(--muted)">Upload AOP data via <a href="data-manager.html">DataManager</a> to activate this year.</div>'
       + '</div>';
     return;
   }
@@ -4060,9 +4066,10 @@ async function loadP3() {
 
   const ppe_c  = cv('ppe'),  ppe_p  = pv('ppe');
   const cwip_c = cv('cwip'), cwip_p = pv('cwip');
-  const rou_c  = cv('rou_asset'), rou_p = pv('rou_asset');
-  const nca_c  = ppe_c + cwip_c + rou_c + cv('eqinv') + cv('pension') + cv('bs_dta');
-  const nca_p  = ppe_p + cwip_p + rou_p + pv('eqinv') + pv('pension') + pv('bs_dta');
+  // rou_asset = GROSS ROU at cost, already embedded in bs_fa_cost → ppe alias includes net ROU
+  // Do NOT add rou_asset separately — it would double-count
+  const nca_c  = ppe_c + cwip_c + cv('eqinv') + cv('pension') + cv('bs_dta');
+  const nca_p  = ppe_p + cwip_p + pv('eqinv') + pv('pension') + pv('bs_dta');
   const recv_c = cv('recv'), recv_p = pv('recv');
   const cash_c = cv('cash'), cash_p = pv('cash');
   const oth_c  = cv('rcash') + cv('unbill') + cv('finv') + cv('matls') + cv('bs_prepaid') + cv('bs_other_recv') + cv('bs_reg_asset');
@@ -4101,9 +4108,8 @@ async function loadP3() {
     + '<th>Description</th><th>' + curLbl + '</th><th>' + priLbl + '</th><th>Movement</th>'
     + '</tr></thead><tbody>'
     + sec('Non-Current Assets')
-    + bsRow('Property, Plant &amp; Equipment (Net)', ppe_c,  ppe_p,  null, 'bs_fa_cost')
-    + bsRow('Capital Work in Progress',              cwip_c, cwip_p, null, 'cwip')
-    + bsRow('Right-of-Use Assets (IFRS 16)',         rou_c,  rou_p,  null, 'rou_asset')
+    + bsRow('Property, Plant &amp; Equipment (Net, incl. ROU)', ppe_c, ppe_p, null, 'bs_fa_cost')
+    + bsRow('Capital Work in Progress',    cwip_c,            cwip_p, null, 'cwip')
     + bsRow('Equity Investments',          cv('eqinv'),       pv('eqinv'))
     + bsRow('Pension Asset',               cv('pension'),     pv('pension'))
     + bsRow('Deferred Tax Asset',          cv('bs_dta'),      pv('bs_dta'))
@@ -4229,13 +4235,12 @@ function _buildBSMultiCol(ctx, actF, aopF, priF, priPer, view) {
 
   var tbody = ''
     + rsec('Non-Current Assets')
-    + rline('Property, Plant &amp; Equipment (Net)', get('ppe'))
+    + rline('Property, Plant &amp; Equipment (Net, incl. ROU)', get('ppe'))
     + rline('Capital Work in Progress',              get('cwip'))
-    + rline('Right-of-Use Assets (IFRS 16)',         get('rou_asset'))
     + rline('Equity Investments',                    get('eqinv'))
     + rline('Pension Asset',                         get('pension'))
     + rline('Deferred Tax Asset',                    get('bs_dta'))
-    + rsub('Total Non-Current Assets', sum(['ppe','cwip','rou_asset','eqinv','pension','bs_dta']), 'rs')
+    + rsub('Total Non-Current Assets', sum(['ppe','cwip','eqinv','pension','bs_dta']), 'rs')
     + rsec('Current Assets')
     + rline('Trade Receivables',           get('recv'))
     + rline('Cash &amp; Equivalents',      get('cash'))
@@ -4246,7 +4251,7 @@ function _buildBSMultiCol(ctx, actF, aopF, priF, priPer, view) {
     + rline('Prepayments &amp; Other',     sum(['bs_prepaid','bs_other_recv']))
     + rline('Regulatory Asset',            get('bs_reg_asset'))
     + rsub('Total Current Assets',   sum(['recv','cash','rcash','unbill','finv','matls','bs_prepaid','bs_other_recv','bs_reg_asset']), 'rs')
-    + rsub('TOTAL ASSETS',           sum(['ppe','cwip','rou_asset','eqinv','pension','bs_dta','recv','cash','rcash','unbill','finv','matls','bs_prepaid','bs_other_recv','bs_reg_asset']), 'rs')
+    + rsub('TOTAL ASSETS',           sum(['ppe','cwip','eqinv','pension','bs_dta','recv','cash','rcash','unbill','finv','matls','bs_prepaid','bs_other_recv','bs_reg_asset']), 'rs')
     + rsec('Equity')
     + rline('Share Capital',   get('bs_share_cap'))
     + rline('Retained Earnings', get('bs_retained'))
@@ -5460,19 +5465,7 @@ function _p10BuildTable(targets, kpiActuals, finDerived, months, ctx) {
 /* ================================================================
    CASH WORKBENCH (p18) — JPS Liquidity Analysis
    ================================================================ */
-const _WB_VER_2025 = {
-  202501:'9382fd8f-2f41-44bb-8eb5-abe9f1badce5',202502:'be840c35-77c0-45d5-8d94-bcfe993b3fad',
-  202503:'e59b4563-73ad-469a-b790-14cde227f8e2',202504:'a0c990c7-ba65-40b2-a67f-45659443a980',
-  202505:'e1faed6d-65c7-4606-ae54-dfa106e71e40',202506:'62698d1a-b189-430b-87a2-e5b52149a2c8',
-  202507:'4944e0e7-e36c-4379-9a6b-fcc9f51a45bb',202508:'e3649ef0-c997-4198-a441-663c8a91343f',
-  202509:'95d4e74f-2577-4be8-a186-a32dce060785',202510:'875270b2-a378-44e8-ac08-f1fd00046099',
-  202511:'0216e14d-7679-4af5-9e95-31733032ca4d',202512:'891f845b-cc98-49fe-a008-bad228e76b6e',
-};
-const _WB_VER_CODES_2026 = {
-  202601:'ACTUALS_2026_01',202602:'ACTUALS_2026_02',202603:'ACTUALS_2026_03',202604:'ACTUALS_2026_04',
-  202605:'ACTUALS_2026_05',202606:'ACTUALS_2026_06',202607:'ACTUALS_2026_07',202608:'ACTUALS_2026_08',
-  202609:'ACTUALS_2026_09',202610:'ACTUALS_2026_10',202611:'ACTUALS_2026_11',202612:'ACTUALS_2026_12',
-};
+// Version IDs resolved dynamically via _vMap (ACTUALS_{YYYY}_{MM}) — no hardcoded UUIDs
 let _wbData={}, _wbEdits={}, _wbSummData={}, _wbTargets={};
 const _WB_LINES=[
   ['_sec_recv','RECEIPTS','s'],
@@ -5508,16 +5501,12 @@ async function loadP18(){
     var periods=[];
     for(var m=1;m<=12;m++)periods.push(yr*100+m);
     var verIds=[];
-    if(yr===2025){
-      periods.forEach(function(p){if(_WB_VER_2025[p])verIds.push(_WB_VER_2025[p]);});
-    }else{
-      periods.forEach(function(p){
-        var y=Math.floor(p/100),m=p%100;
-        var code='ACTUALS_'+y+'_'+(m<10?'0'+m:''+m);
-        var vid=(_vMap||{})[code];
-        if(vid)verIds.push(vid);
-      });
-    }
+    periods.forEach(function(p){
+      var y=Math.floor(p/100),m=p%100;
+      var code='ACTUALS_'+y+'_'+(m<10?'0'+m:''+m);
+      var vid=(_vMap||{})[code];
+      if(vid)verIds.push(vid);
+    });
     _wbData={}; _wbSummData={};
     if(verIds.length>0){
       var r=await _sbQ(function(sb){
@@ -5533,13 +5522,8 @@ async function loadP18(){
       }
     }
     // Load P&L + Indirect CF from HIST ACTUALS for reconciliation
-    var _histVerMap={
-      2022:'a779254f-2940-49e9-86e3-37453cce89c0',
-      2023:'0b204181-217d-4445-bd9a-4ade9365ad79',
-      2024:'d7aa218d-9844-4b9c-9f19-7fe3aca8579b',
-      2025:'6526d68d-6bb7-4d61-8179-5b9e7eefa4a6'
-    };
-    var histVerId=_histVerMap[yr]||null;
+    // Resolved dynamically: HIST_ACTUAL_{yr} via _vMap (no hardcoded UUIDs)
+    var histVerId=(_vMap||{})['HIST_ACTUAL_'+yr]||null;
     if(histVerId){
       var r2=await _sbQ(function(sb){
         return sb.from('fpa_facts').select('line_id,period_id,value')
@@ -5644,8 +5628,7 @@ function _wbBuildTable(yr,periods){
     periods.forEach(function(p){
       var _py=Math.floor(p/100),_pm=p%100;
       var code='ACTUALS_'+_py+'_'+(_pm<10?'0'+_pm:''+_pm);
-      if(yr===2025&&_WB_VER_2025[p])code=null; // 2025 uses hardcoded UUIDs
-      var hasVer=yr===2025?!!_WB_VER_2025[p]:!!(code&&(_vMap||{})[code]);
+      var hasVer=!!(code&&(_vMap||{})[code]);
       html+='<td style="background:var(--surface);padding:3px 4px;text-align:center">';
       if(hasVer)html+='<button class="wb-commit-btn" id="wb-btn-'+p+'" onclick="wbCommit('+p+',this)">&#128190; Save</button>';
       else html+='<span style="font-size:9px;color:var(--muted)">—</span>';
@@ -6038,7 +6021,7 @@ function _renderYrMgmt() {
     html = '<div style="color:var(--muted);font-size:12px;padding:4px 0">No planning years open.<br>Add them in DataManager → Year Management.</div>';
   }
   html += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">'
-    + '<a href="https://datamanager.jmfinancelab.com" target="_blank" style="font-size:11px;color:var(--teal);font-weight:600">Manage years in DataManager &rarr;</a>'
+    + '<a href="data-manager.html" style="font-size:11px;color:var(--teal);font-weight:600">Manage years in DataManager &rarr;</a>'
     + '</div>';
   el.innerHTML = html;
 }
