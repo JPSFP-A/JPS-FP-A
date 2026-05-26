@@ -2549,6 +2549,7 @@ function _expandAliasLines(lines) {
   // Always fetch alias source IDs so _normalizeAlias can map them
   const extra = ['nonfuel', 'ipp_fr', 'other_r', 'nr_cust_charge',
                  'pl_afudc', 'oth_inc', 'nfc_pref',
+                 'pl_int_income', 'pl_loan_fees', 'pl_ppa', 'pl_int_expense',
                  'bs_fa_cost', 'bs_accum_depn',
                  'ltd', 'bs_curr_ltd', 'leases', 'bs_std'];
   return lines.concat(extra.filter(function(l) { return lines.indexOf(l) < 0; }));
@@ -2588,6 +2589,22 @@ function _normalizeAlias(f) {
   // pl_pref_div ← nfc_pref (some older loads used nfc_pref)
   if (!_hasFactData(f, 'pl_pref_div') && _hasFactData(f, 'nfc_pref')) {
     f['pl_pref_div'] = f['nfc_pref'];
+  }
+  // nfc_int_inc ← pl_int_income (DataManager pre-remap uploads, ACTUALS_2026_MM)
+  if (!_hasFactData(f, 'nfc_int_inc') && _hasFactData(f, 'pl_int_income')) {
+    f['nfc_int_inc'] = f['pl_int_income'];
+  }
+  // nfc_fees ← pl_loan_fees (DataManager pre-remap uploads)
+  if (!_hasFactData(f, 'nfc_fees') && _hasFactData(f, 'pl_loan_fees')) {
+    f['nfc_fees'] = f['pl_loan_fees'];
+  }
+  // ipp_cost ← pl_ppa (DataManager pre-remap uploads — prefer stored ipp_cost if present)
+  if (!_hasFactData(f, 'ipp_cost') && _hasFactData(f, 'pl_ppa')) {
+    f['ipp_cost'] = f['pl_ppa'];
+  }
+  // nfc_int_exp ← pl_int_expense (DataManager pre-remap uploads — prefer stored nfc_int_exp)
+  if (!_hasFactData(f, 'nfc_int_exp') && _hasFactData(f, 'pl_int_expense')) {
+    f['nfc_int_exp'] = f['pl_int_expense'];
   }
   // total_debt ← ltd + bs_curr_ltd + leases + bs_std (never stored directly)
   if (!_hasFactData(f, 'total_debt')) {
@@ -4574,6 +4591,12 @@ async function flashFetchFacts(versionId, periodIds) {
   });
   // ── Alias + derived line normalization (flat scalar format) ──────────────────
   if (!agg['nr_rev'] && agg['nonfuel']) agg['nr_rev'] = agg['nonfuel'];
+  // Old-name aliases from pre-remap DataManager uploads (ACTUALS_2026_MM)
+  if (!agg['nfc_int_inc']  && agg['pl_int_income'])   agg['nfc_int_inc']  = agg['pl_int_income'];
+  if (!agg['nfc_int_exp']  && agg['pl_int_expense'])  agg['nfc_int_exp']  = agg['pl_int_expense'];
+  if (!agg['ipp_cost']     && agg['pl_ppa'])           agg['ipp_cost']     = agg['pl_ppa'];
+  if (!agg['nfc_fees']     && agg['pl_loan_fees'])     agg['nfc_fees']     = agg['pl_loan_fees'];
+  if (!agg['pl_pref_div']  && agg['nfc_pref'])         agg['pl_pref_div']  = agg['nfc_pref'];
   // pl_total_sales
   if (!agg['pl_total_sales']) {
     var tot = (agg['nr_rev']||0) + (agg['nr_cust_charge']||0) + (agg['fuel_rev']||0) + (agg['ipp_fr']||0) + (agg['other_r']||0);
@@ -4583,9 +4606,9 @@ async function flashFetchFacts(versionId, periodIds) {
   if (!agg['pl_gross_profit'] && agg['pl_total_sales']) {
     agg['pl_gross_profit'] = (agg['pl_total_sales']||0) - (agg['fuel_cost']||0) - (agg['ipp_cost']||0);
   }
-  // ebitda: gross_profit - opex + other income
+  // ebitda: gross_profit - opex (other income is below EBIT — not in EBITDA)
   if (!agg['ebitda'] && agg['pl_gross_profit'] != null) {
-    agg['ebitda'] = (agg['pl_gross_profit']||0) - (agg['opex']||0) + (agg['oth_inc']||0);
+    agg['ebitda'] = (agg['pl_gross_profit']||0) - (agg['opex']||0);
   }
   // ebit: ebitda - depreciation
   if (!agg['ebit'] && agg['ebitda'] != null) {
