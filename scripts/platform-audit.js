@@ -188,31 +188,35 @@ async function checkUnknownApps() {
   await writeResult('Unknown App Codes', 'data_quality', 'all', status, msg, { count: unknown.length, unknown });
 }
 
-// ── Check 8: jps_actuals data freshness ──────────────────────────────────────
+// ── Check 8: jps_actuals data freshness (uses year+month, no updated_at col) ─
 async function checkActualsFreshness() {
-  const { data, error, count } = await sb
-    .from('jps_actuals')
-    .select('updated_at', { count: 'exact', head: false })
-    .order('updated_at', { ascending: false })
-    .limit(1);
+  const [countRes, latestRes] = await Promise.all([
+    sb.from('jps_actuals').select('*', { count: 'exact', head: true }),
+    sb.from('jps_actuals').select('year,month').order('year', { ascending: false }).order('month', { ascending: false }).limit(1),
+  ]);
 
-  if (error) {
-    await writeResult('Actuals Freshness', 'data_quality', 'fpa', 'warn', `Query error: ${error.message}`);
+  if (countRes.error || latestRes.error) {
+    const msg = (countRes.error || latestRes.error).message;
+    await writeResult('Actuals Freshness', 'data_quality', 'fpa', 'warn', `Query error: ${msg}`);
     return;
   }
-  const rows = count ?? data?.length ?? 0;
-  const last = data?.[0]?.updated_at;
-  const ageDays = last ? Math.floor((Date.now() - new Date(last)) / 86400000) : null;
-  const status = rows === 0 ? 'warn' : ageDays > 30 ? 'warn' : 'pass';
-  const msg = rows === 0 ? 'No jps_actuals rows found' : `${rows} rows, last updated ${ageDays}d ago`;
-  await writeResult('Actuals Freshness', 'data_quality', 'fpa', status, msg, { row_count: rows, age_days: ageDays });
+  const rows = countRes.count ?? 0;
+  const last = latestRes.data?.[0];
+  const ageDays = last
+    ? Math.floor((Date.now() - new Date(last.year, last.month - 1, 1)) / 86400000)
+    : null;
+  const status = rows === 0 ? 'warn' : ageDays > 60 ? 'warn' : 'pass';
+  const msg = rows === 0
+    ? 'No jps_actuals rows found'
+    : `${rows} rows, latest period ${last.year}-${String(last.month).padStart(2,'0')} (${ageDays}d ago)`;
+  await writeResult('Actuals Freshness', 'data_quality', 'fpa', status, msg, { row_count: rows, latest_year: last?.year, latest_month: last?.month, age_days: ageDays });
 }
 
-// ── Check 10: jps_periods — current period draft status ──────────────────────
+// ── Check 10: fpa_dim_period — current period close status ───────────────────
 async function checkPeriodStatus() {
   const { data, error } = await sb
-    .from('jps_periods')
-    .select('year,month,status')
+    .from('fpa_dim_period')
+    .select('year,month,is_closed,closed_at')
     .order('year', { ascending: false })
     .order('month', { ascending: false })
     .limit(1);
@@ -223,16 +227,17 @@ async function checkPeriodStatus() {
   }
   const p = data?.[0];
   if (!p) {
-    await writeResult('Period Status', 'data_quality', 'fpa', 'warn', 'No periods found');
+    await writeResult('Period Status', 'data_quality', 'fpa', 'warn', 'No periods found in fpa_dim_period');
     return;
   }
   const today = new Date();
   const dayOfMonth = today.getDate();
-  // Warn if current month's period is still draft after day 10
   const isCurrent = p.year === today.getFullYear() && p.month === today.getMonth() + 1;
-  const status = (isCurrent && p.status === 'draft' && dayOfMonth > 10) ? 'warn' : 'pass';
-  const msg = `${p.year}-${String(p.month).padStart(2,'0')}: ${p.status}`;
-  await writeResult('Period Status', 'data_quality', 'fpa', status, msg, { year: p.year, month: p.month, status: p.status, day_of_month: dayOfMonth });
+  // Warn if current month is still open after day 10
+  const status = (isCurrent && !p.is_closed && dayOfMonth > 10) ? 'warn' : 'pass';
+  const label = p.is_closed ? 'closed' : 'open';
+  const msg = `${p.year}-${String(p.month).padStart(2,'0')}: ${label}`;
+  await writeResult('Period Status', 'data_quality', 'fpa', status, msg, { year: p.year, month: p.month, is_closed: p.is_closed, day_of_month: dayOfMonth });
 }
 
 // ── Check 11: fpa_versions — stale drafts ────────────────────────────────────
