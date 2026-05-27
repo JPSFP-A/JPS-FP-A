@@ -7249,59 +7249,143 @@ function _renderNotifList() {
 }
 
 async function _loadNotifications() {
-  // 1. Fetch from DB
+  const MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fmtM = function(v) { return '$' + Math.abs(v/1e6).toFixed(1) + 'M'; };
+  const now   = new Date();
+  const cutoff = new Date(now.getTime() - 30 * 864e5).toISOString();
+
+  // 1. DB notifications — unread OR within last 30 days only (skip stale read ones)
   const r = await _sbQ(function(sb) {
     return sb.from('fpa_notifications')
       .select('id,title,body,category,event_type,is_read,created_at')
+      .or('is_read.eq.false,created_at.gte.' + cutoff)
       .order('created_at', { ascending: false })
-      .limit(20);
+      .limit(10);
   }, { silent: true });
   _notifData = (r && r.data) ? r.data : [];
 
-  // 2. Live variance alert: compare latest ACTUALS EBITDA vs AOP
+  // 2. Live insights computed from actuals vs AOP
+  const liveAlerts = [];
   try {
     await _ensureVMap();
     const vm = _vMap || {};
-    // Find latest closed month ACTUALS
     const actKeys = Object.keys(vm).filter(function(c){ return /^ACTUALS_\d{4}_\d{2}$/.test(c); }).sort();
     const latestAct = actKeys.length ? actKeys[actKeys.length - 1] : null;
     const aopKey    = 'AOP_' + _CY;
+
+    // 2a. Missing month alert — flag if we're past the 20th and this month has no actuals
+    const curMo = now.getMonth() + 1, curYr = now.getFullYear();
+    if (now.getDate() >= 20) {
+      const expectedKey = 'ACTUALS_' + curYr + '_' + String(curMo).padStart(2, '0');
+      if (!vm[expectedKey]) {
+        liveAlerts.push({
+          id: 'missing_' + expectedKey, title: MONS[curMo - 1] + ' ' + curYr + ' actuals not loaded',
+          body: 'Period is past day 20 but ' + MONS[curMo - 1] + ' actuals have not been uploaded. Data manager upload required.',
+          category: 'alert', is_read: false, created_at: now.toISOString(), _severity: 3,
+        });
+      }
+    }
+
     if (latestAct && vm[aopKey]) {
       const mMatch = latestAct.match(/^ACTUALS_(\d{4})_(\d{2})$/);
       const yr = parseInt(mMatch[1]), mo = parseInt(mMatch[2]);
-      const ytdPeriods = [];
-      for (var mi = 1; mi <= mo; mi++) ytdPeriods.push(yr * 100 + mi);
-      const aopPeriods = ytdPeriods.map(function(p){ return p; });
+      const ytdPids = [];
+      for (var mi = 1; mi <= mo; mi++) ytdPids.push(yr * 100 + mi);
+      const moLabel  = MONS[mo - 1] + ' ' + yr;
+      const ytdLabel = 'YTD ' + moLabel;
 
-      const [rA, rB] = await Promise.all([
-        _sbQ(function(sb){ return sb.from('fpa_facts').select('line_id,value').eq('version_id', vm[latestAct]).in('period_id', ytdPeriods); }, { silent: true }),
-        _sbQ(function(sb){ return sb.from('fpa_facts').select('line_id,value').eq('version_id', vm[aopKey]).in('period_id', aopPeriods); }, { silent: true }),
+      const FLOW_LINES = ['REV_TOTAL','FUEL_COST','FUEL_REV','NONFUEL','IPP_COST','OM_TOTAL','DEPN','NFC_TOTAL','CX_TOTAL','CF_EBITDA'];
+      const BS_LINES   = ['BS_CASH'];
+      const latestVid  = vm[latestAct]; // version_id for latest month only (for BS snapshot)
+      const ytdVids    = ytdPids.map(function(p){ return vm['ACTUALS_' + yr + '_' + String(p % 100).padStart(2,'0')]; }).filter(Boolean);
+
+      const [rA, rB, rBS] = await Promise.all([
+        _sbQ(function(sb){ return sb.from('fpa_facts').select('line_id,value')
+          .in('version_id', ytdVids).in('line_id', FLOW_LINES); }, { silent: true }),
+        _sbQ(function(sb){ return sb.from('fpa_facts').select('line_id,value')
+          .eq('version_id', vm[aopKey]).in('period_id', ytdPids).in('line_id', FLOW_LINES.concat(BS_LINES)); }, { silent: true }),
+        // BS_CASH: latest month snapshot only (not YTD sum)
+        _sbQ(function(sb){ return sb.from('fpa_facts').select('line_id,value')
+          .eq('version_id', latestVid).in('line_id', BS_LINES); }, { silent: true }),
       ]);
-      const aggAct = {}, aggAop = {};
-      (rA && rA.data || []).forEach(function(row){ aggAct[row.line_id] = (aggAct[row.line_id] || 0) + (parseFloat(row.value) || 0); });
-      (rB && rB.data || []).forEach(function(row){ aggAop[row.line_id] = (aggAop[row.line_id] || 0) + (parseFloat(row.value) || 0); });
 
-      const eAct = aggAct['ebitda'] ?? null;
-      const eAop = aggAop['ebitda'] ?? null;
-      if (eAct !== null && eAop !== null && eAop !== 0) {
-        const varPct = ((eAct - eAop) / Math.abs(eAop)) * 100;
+      // Aggregate flow lines YTD; BS lines from latest month only
+      const aggAct = {}, aggAop = {}, aggBS = {};
+      (rA  && rA.data  || []).forEach(function(row){ aggAct[row.line_id] = (aggAct[row.line_id] || 0) + (parseFloat(row.value) || 0); });
+      (rB  && rB.data  || []).forEach(function(row){ aggAop[row.line_id] = (aggAop[row.line_id] || 0) + (parseFloat(row.value) || 0); });
+      (rBS && rBS.data || []).forEach(function(row){ aggBS[row.line_id]  = parseFloat(row.value) || 0; });
+
+      function varAlert(id, lineId, label, favorable, thresholdPct, severity) {
+        const act = aggAct[lineId], aop = aggAop[lineId];
+        if (!act || !aop || aop === 0) return;
+        const varAmt = act - aop;
+        const varPct = (varAmt / Math.abs(aop)) * 100;
+        if (Math.abs(varPct) < thresholdPct) return;
+        const isFav = favorable ? varAmt > 0 : varAmt < 0;
+        const dir   = varAmt > 0 ? 'above' : 'below';
+        const sign  = varAmt > 0 ? '+' : '−';
+        liveAlerts.push({
+          id: id, is_read: false, created_at: now.toISOString(), _severity: isFav ? 0 : severity,
+          category: isFav ? 'system' : 'variance',
+          title: label + ' — ' + (isFav ? 'on track' : 'adverse') + ' (' + ytdLabel + ')',
+          body: sign + fmtM(Math.abs(varAmt)) + ' (' + Math.abs(varPct).toFixed(1) + '%) ' + dir + ' AOP. '
+            + (isFav ? 'Favourable variance.' : 'Investigate drivers.'),
+        });
+      }
+
+      // Revenue: favorable if actual > AOP
+      varAlert('live_rev',    'REV_TOTAL',  'Revenue',         true,  1, 2);
+      // Fuel cost: adverse if actual > AOP (cost — lower is better)
+      varAlert('live_fuel',   'FUEL_COST',  'Fuel cost',       false, 2, 3);
+      // O&M: adverse if actual > AOP
+      varAlert('live_om',     'OM_TOTAL',   'O&M costs',       false, 2, 2);
+      // CapEx: flag either direction (under-spend may mean project delays)
+      varAlert('live_capex',  'CX_TOTAL',   'CapEx spend',     false, 5, 1);
+      // EBITDA proxy via CF_EBITDA (if loaded) or derive: REV_TOTAL - FUEL_COST - IPP_COST - OM_TOTAL
+      const eAct = aggAct['CF_EBITDA'] || ((aggAct['REV_TOTAL'] || 0) - (aggAct['FUEL_COST'] || 0) - (aggAct['IPP_COST'] || 0) - (aggAct['OM_TOTAL'] || 0) - (aggAct['DEPN'] || 0));
+      const eAop = aggAop['CF_EBITDA'] || ((aggAop['REV_TOTAL'] || 0) - (aggAop['FUEL_COST'] || 0) - (aggAop['IPP_COST'] || 0) - (aggAop['OM_TOTAL'] || 0) - (aggAop['DEPN'] || 0));
+      if (eAct && eAop && eAop !== 0) {
+        const varAmt = eAct - eAop, varPct = (varAmt / Math.abs(eAop)) * 100;
         if (Math.abs(varPct) >= 1) {
-          const dir = varPct < 0 ? 'below' : 'above';
-          const mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-          const label = 'YTD ' + mons[mo - 1] + ' ' + yr;
-          _notifData.unshift({
-            id: 'live_var',
-            title: 'EBITDA variance — ' + label,
-            body: 'EBITDA ' + Math.abs(varPct).toFixed(1) + '% ' + dir + ' AOP (' + label + '). Review cost drivers.',
-            category: 'variance',
-            event_type: 'variance',
-            is_read: false,
-            created_at: new Date().toISOString(),
+          const isFav = varAmt > 0;
+          liveAlerts.push({
+            id: 'live_ebitda', is_read: false, created_at: now.toISOString(), _severity: isFav ? 0 : 3,
+            category: isFav ? 'system' : 'variance',
+            title: 'EBITDA ' + (isFav ? 'ahead of' : 'behind') + ' AOP (' + ytdLabel + ')',
+            body: (varAmt > 0 ? '+' : '−') + fmtM(Math.abs(varAmt)) + ' (' + Math.abs(varPct).toFixed(1) + '%) vs AOP. '
+              + (isFav ? 'Positive earnings trajectory.' : 'Revenue shortfall or cost overrun — review P&L.'),
           });
         }
       }
+
+      // 2b. Cash position alert — latest month BS snapshot (not YTD sum)
+      const cashAct = aggBS['BS_CASH'];
+      const cashAop = aggAop['BS_CASH'];
+      if (cashAct && cashAop && cashAop !== 0) {
+        const cashVar = ((cashAct - cashAop) / Math.abs(cashAop)) * 100;
+        if (cashVar < -10) { // cash >10% below AOP plan — flag
+          liveAlerts.push({
+            id: 'live_cash_var', is_read: false, created_at: now.toISOString(), _severity: 2,
+            category: 'alert',
+            title: 'Cash below plan — ' + moLabel,
+            body: 'Cash: ' + fmtM(cashAct) + ' vs AOP ' + fmtM(cashAop) + ' (' + cashVar.toFixed(1) + '%). Review liquidity position.',
+          });
+        }
+      }
+      if (cashAct && cashAct < 500) { // absolute low — under $500M JMD
+        liveAlerts.push({
+          id: 'live_cash', is_read: false, created_at: now.toISOString(), _severity: 2,
+          category: 'alert',
+          title: 'Cash position low — ' + moLabel,
+          body: 'BS Cash: ' + fmtM(cashAct) + ' as at ' + moLabel + '. Monitor liquidity against upcoming obligations.',
+        });
+      }
     }
-  } catch(e) { console.warn('[notifications] build failed', e); }
+  } catch(e) { console.warn('[notifications] live alerts failed', e); }
+
+  // Sort live alerts by severity desc, prepend to DB list
+  liveAlerts.sort(function(a,b){ return (b._severity||0) - (a._severity||0); });
+  _notifData = liveAlerts.concat(_notifData);
 
   _notifLoaded = true;
   _renderNotifList();
@@ -7317,7 +7401,7 @@ function toggleNotif() {
 
 async function markAllRead() {
   // Update DB for persisted notifications (skip live variance row id='live_var')
-  const ids = _notifData.filter(function(n){ return !n.is_read && n.id !== 'live_var'; }).map(function(n){ return n.id; });
+  const ids = _notifData.filter(function(n){ return !n.is_read && !String(n.id).startsWith('live_') && !String(n.id).startsWith('missing_'); }).map(function(n){ return n.id; });
   if (ids.length) {
     await _sbQ(function(sb){
       return sb.from('fpa_notifications').update({ is_read: true }).in('id', ids);
