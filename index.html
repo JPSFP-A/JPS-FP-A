@@ -2587,7 +2587,7 @@ function _normalizeAlias(f) {
   }
   // pl_total_sales: always compute from components — never use stored DB value
   {
-    const srcs = ['nr_rev', 'nonfuel', 'fuel_rev', 'ipp_fr', 'ipp_nr', 'other_r', 'nr_cust_charge'];
+    const srcs = ['nr_rev', 'nonfuel', 'fuel_rev', 'ipp_fr', 'other_r', 'nr_cust_charge'];
     const merged = {};
     srcs.forEach(function(lid) {
       const src = f[lid] || {};
@@ -3569,9 +3569,10 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
 
   // Derived subtotals — never read ebitda/ebit from DB
   // pl_other_cos is negative (additional cost) — IFRS 16 / other COS adjustments
-  const gp_a     = sa('pl_total_sales') - sa('fuel_cost') - sa('ipp_cost') + sa('pl_other_cos');
-  const gp_b     = sb('pl_total_sales') - sb('fuel_cost') - sb('ipp_cost') + sb('pl_other_cos');
-  const gpFY     = sbFY('pl_total_sales') - sbFY('fuel_cost') - sbFY('ipp_cost') + sbFY('pl_other_cos');
+  function _totRev(f) { return f('nr_rev')+f('nr_cust_charge')+f('fuel_rev')+f('ipp_fr')+f('ipp_nr')+f('other_r'); }
+  const gp_a     = _totRev(sa) - sa('fuel_cost') - sa('ipp_cost') + sa('pl_other_cos');
+  const gp_b     = _totRev(sb) - sb('fuel_cost') - sb('ipp_cost') + sb('pl_other_cos');
+  const gpFY     = _totRev(sbFY) - sbFY('fuel_cost') - sbFY('ipp_cost') + sbFY('pl_other_cos');
   const ebitda_a = gp_a - sa('opex');
   const ebitda_b = gp_b - sb('opex');
   const ebitdaFY = gpFY - sbFY('opex');
@@ -3589,7 +3590,8 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   const niFY     = pretaxFY - sbFY('tax');
 
   // Per-period derived helpers for monthly cells
-  function _gpP(p)     { return _fVal(aF,'pl_total_sales',p) - _fVal(aF,'fuel_cost',p) - _fVal(aF,'ipp_cost',p) + _fVal(aF,'pl_other_cos',p); }
+  function _totRevP(p) { return ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','ipp_nr','other_r'].reduce(function(s,l){return s+(_fVal(aF,l,p)||0);},0); }
+  function _gpP(p)     { return _totRevP(p) - _fVal(aF,'fuel_cost',p) - _fVal(aF,'ipp_cost',p) + _fVal(aF,'pl_other_cos',p); }
   function _ebitdaP(p) { return _gpP(p) - _fVal(aF,'opex',p); }
   function _ebitP(p)   { return _ebitdaP(p) - _fVal(aF,'depn',p); }
   function _nfcP(p)    { return _fVal(aF,'nfc_int_exp',p) - _fVal(aF,'nfc_int_inc',p) - _fVal(aF,'nfc_afudc',p) + _fVal(aF,'pl_pref_div',p) + _fVal(aF,'nfc_fees',p); }
@@ -3611,7 +3613,7 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
     + row('Non-Fuel Revenue',               'nr_rev',        'rind', false)
     + row('Customer Charge',                'nr_cust_charge','rind', false)
     + row('Other Operating Revenue',        'other_r',       'rind', false)
-    + row('Operating Revenue',              'pl_total_sales','rs',   false)
+    + rowDerived('Operating Revenue', _totRev(sa), _totRev(sb), _totRev(sbFY), 'rs', false, _totRevP)
     + sec('Cost of Sales')
     + row('Fuel',                           'fuel_cost',     'rind', true)
     + row('Purchased Power (excl. fuel)',   'ipp_cost',      'rind', true)
