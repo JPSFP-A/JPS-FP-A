@@ -3873,6 +3873,77 @@ function bsToggle(gid) {
   if (t) t.textContent = t.textContent === '▶' ? '▼' : '▶';
 }
 
+function _buildRERecon(ctx, actF, priF, pyPer) {
+  const yr = ctx.yr;
+  const months = [];
+  for (var m = 1; m <= ctx.maxMo; m++) months.push(yr * 100 + m);
+  if (!months.length) return '';
+
+  function g(lid, p)  { return (actF[lid] && actF[lid][p]  != null) ? Number(actF[lid][p])       : 0; }
+  function pg(lid)    { return (priF[lid] && priF[lid][pyPer] != null) ? Number(priF[lid][pyPer]) : 0; }
+
+  function netInc(p) {
+    var fuel_sur = g('fuel_rev',p) - g('fuel_cost',p);
+    var pp_sur   = g('ipp_fr',p)  - g('ipp_cost',p);
+    var oco      = g('pl_other_cos',p);
+    var ebitda   = fuel_sur + pp_sur + oco + g('nr_rev',p) + g('nr_cust_charge',p) + g('other_r',p) - g('opex',p);
+    var ebit     = ebitda - g('depn',p);
+    var nfc      = g('nfc_int_exp',p) - g('nfc_int_inc',p) - g('nfc_afudc',p) + g('pl_pref_div',p) + g('nfc_fees',p);
+    return ebit - nfc + g('other_inc',p) + g('pl_fx',p) - g('tax',p);
+  }
+
+  function openRE(p) {
+    var mo = p % 100;
+    return mo === 1 ? pg('bs_retained') : g('bs_retained', yr * 100 + (mo - 1));
+  }
+
+  var ytdNI  = 0;
+  months.forEach(function(p) { ytdNI += netInc(p); });
+  var openingRE = pg('bs_retained');
+  var ytdActRE  = g('bs_retained', months[months.length - 1]);
+  var ytdExp    = openingRE + ytdNI;
+  var ytdVar    = ytdActRE - ytdExp;
+
+  function varCell(v) {
+    if (Math.abs(v) < 0.5) return '<span style="color:var(--green,#22c55e)">—</span>';
+    var c = Math.abs(v) < 50 ? 'var(--amber,#f59e0b)' : 'var(--rose,#f43f5e)';
+    return '<span style="color:' + c + '">' + _fmtM(v) + '</span>';
+  }
+
+  var moHdr = months.map(function(p) { return '<th>' + _MONS[(p % 100) - 1] + '</th>'; }).join('');
+  var rows = [
+    { lbl:'Opening Retained Earnings', fn: openRE,                                         isVar:false, cls:'rind' },
+    { lbl:'+ Net Income (P&L)',        fn: netInc,                                         isVar:false, cls:'rind' },
+    { lbl:'Expected Closing RE',       fn: function(p){ return openRE(p) + netInc(p); },   isVar:false, cls:'rs'   },
+    { lbl:'Actual RE (Balance Sheet)', fn: function(p){ return g('bs_retained', p); },     isVar:false, cls:'rs'   },
+    { lbl:'Variance (BS − Expected)',  fn: function(p){ return g('bs_retained',p) - openRE(p) - netInc(p); }, isVar:true, cls:'rind' },
+  ];
+
+  var ytdVals = [ openingRE, ytdNI, ytdExp, ytdActRE, ytdVar ];
+  var tbody = rows.map(function(row, i) {
+    var cells = months.map(function(p) {
+      var v = row.fn(p);
+      return '<td class="num">' + (row.isVar ? varCell(v) : _fmtM(v)) + '</td>';
+    }).join('');
+    var yv = ytdVals[i];
+    return '<tr class="' + row.cls + '"><td>' + row.lbl + '</td>' + cells
+      + '<td class="num">' + (row.isVar ? varCell(yv) : _fmtM(yv)) + '</td></tr>';
+  }).join('');
+
+  var ok = Math.abs(ytdVar) < 1;
+  var status = ok
+    ? '<span style="color:var(--green,#22c55e);font-weight:700">&#10003; Reconciles</span>'
+    : '<span style="color:var(--amber,#f59e0b);font-weight:700">&#9888; YTD variance ' + _fmtM(ytdVar)
+      + ' — may reflect dividends paid, restatements, or data gaps</span>';
+
+  return '<div class="card"><div class="card-head">Retained Earnings Reconciliation'
+    + '<span class="ch-sub">' + yr + ' &middot; JMD $000s</span></div>'
+    + '<div style="padding:6px 16px;font-size:11px;color:var(--muted)">'
+    + 'Opening RE + Net Income (P&L) should equal Closing RE (BS). &nbsp;' + status + '</div>'
+    + '<div class="tbl-wrap"><table class="dt"><thead><tr><th>Description</th>'
+    + moHdr + '<th>YTD</th></tr></thead><tbody>' + tbody + '</tbody></table></div></div>';
+}
+
 /* ----- p3: BALANCE SHEET ----- */
 async function loadP3() {
   _pgLoad('p3', true);
@@ -3894,7 +3965,13 @@ async function loadP3() {
     'ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl',
     'bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to',
     'ltd','leases','bs_cust_dep_lt','bs_dtl','bs_decomm_lt','bs_ref_adv',
-    'bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref'
+    'bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref',
+    // P&L lines for retained earnings reconciliation
+    'fuel_rev','ipp_fr','nonfuel','nr_cust_charge','other_r',
+    'fuel_cost','ipp_cost','pl_other_cos',
+    'opex','depn',
+    'nfc_int_exp','nfc_int_inc','nfc_afudc','pl_pref_div','nfc_fees',
+    'other_inc','pl_fx','tax'
   ];
 
   const pyYr   = ctx.yr - 1;
@@ -3954,7 +4031,8 @@ async function loadP3() {
       + (_p3ColView === 'quarterly' ? 'Quarterly' : 'Monthly') + ' ' + ctx.yr
       + ' &middot; JMD $000s</div>'
       + '<div style="margin-top:8px">' + cvToggle + '</div></div>'
-      + _buildBSMultiCol(ctx, allActF, aopF, pF, pyPer, _p3ColView);
+      + _buildBSMultiCol(ctx, allActF, aopF, pF, pyPer, _p3ColView)
+      + _buildRERecon(ctx, allActF, pF, pyPer);
     const pg = document.getElementById('p3');
     if (pg) pg.innerHTML = html;
     return;
@@ -7391,13 +7469,14 @@ document.addEventListener('click', function(e) {
 /* ---------- Notifications (live from DB + variance alerts) ---------- */
 let _notifData = [];   // cached rows from fpa_notifications
 let _notifLoaded = false;
-function _liveAlertTime(id) {
-  var key = '_nat_' + id;
+function _liveAlertTime(id, periodCtx) {
+  // localStorage persists across page refreshes; period-keyed so new data = fresh timestamp
+  var key = '_nat_' + id + (periodCtx ? '_' + periodCtx : '');
   try {
-    var stored = sessionStorage.getItem(key);
+    var stored = localStorage.getItem(key);
     if (stored) return stored;
     var ts = new Date().toISOString();
-    sessionStorage.setItem(key, ts);
+    localStorage.setItem(key, ts);
     return ts;
   } catch(e) { return new Date().toISOString(); }
 }
@@ -7533,7 +7612,7 @@ async function _loadNotifications() {
         const dir   = varAmt > 0 ? 'above' : 'below';
         const sign  = varAmt > 0 ? '+' : '−';
         liveAlerts.push({
-          id: id, is_read: false, created_at: _liveAlertTime(id), _severity: isFav ? 0 : severity,
+          id: id, is_read: false, created_at: _liveAlertTime(id, latestAct), _severity: isFav ? 0 : severity,
           category: isFav ? 'system' : 'variance',
           title: label + ' — ' + (isFav ? 'on track' : 'adverse') + ' (' + ytdLabel + ')',
           body: sign + fmtM(Math.abs(varAmt)) + ' (' + Math.abs(varPct).toFixed(1) + '%) ' + dir + ' AOP. '
@@ -7557,7 +7636,7 @@ async function _loadNotifications() {
         if (Math.abs(varPct) >= 1) {
           const isFav = varAmt > 0;
           liveAlerts.push({
-            id: 'live_ebitda', is_read: false, created_at: _liveAlertTime('live_ebitda'), _severity: isFav ? 0 : 3,
+            id: 'live_ebitda', is_read: false, created_at: _liveAlertTime('live_ebitda', latestAct), _severity: isFav ? 0 : 3,
             category: isFav ? 'system' : 'variance',
             title: 'EBITDA ' + (isFav ? 'ahead of' : 'behind') + ' AOP (' + ytdLabel + ')',
             body: (varAmt > 0 ? '+' : '−') + fmtM(Math.abs(varAmt)) + ' (' + Math.abs(varPct).toFixed(1) + '%) vs AOP. '
@@ -7573,7 +7652,7 @@ async function _loadNotifications() {
         const cashVar = ((cashAct - cashAop) / Math.abs(cashAop)) * 100;
         if (cashVar < -10) { // cash >10% below AOP plan — flag
           liveAlerts.push({
-            id: 'live_cash_var', is_read: false, created_at: _liveAlertTime('live_cash_var'), _severity: 2,
+            id: 'live_cash_var', is_read: false, created_at: _liveAlertTime('live_cash_var', latestAct), _severity: 2,
             category: 'alert',
             title: 'Cash below plan — ' + moLabel,
             body: 'Cash: ' + fmtM(cashAct) + ' vs AOP ' + fmtM(cashAop) + ' (' + cashVar.toFixed(1) + '%). Review liquidity position.',
@@ -7582,7 +7661,7 @@ async function _loadNotifications() {
       }
       if (cashAct && cashAct < 500) { // absolute low — under $500M JMD
         liveAlerts.push({
-          id: 'live_cash', is_read: false, created_at: _liveAlertTime('live_cash'), _severity: 2,
+          id: 'live_cash', is_read: false, created_at: _liveAlertTime('live_cash', latestAct), _severity: 2,
           category: 'alert',
           title: 'Cash position low — ' + moLabel,
           body: 'BS Cash: ' + fmtM(cashAct) + ' as at ' + moLabel + '. Monitor liquidity against upcoming obligations.',
