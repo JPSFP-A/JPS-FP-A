@@ -6868,7 +6868,6 @@ async function loadP8() {
     function derive8(f, grp) {
       function g(lid) { return grp.reduce(function(s,m){ return s+((f[lid]||{})[ps8+m]||0); }, 0); }
       var nfr = _hasFactData(f,'nr_rev') ? g('nr_rev') : g('nonfuel');
-      var fS = g('fuel_rev') - g('fuel_cost');
       var ippRev = g('ipp_fr');
       var ippCost = g('ipp_cost');
       var grossRev = g('fuel_rev') + ippRev + nfr + g('nr_cust_charge') + g('other_r');
@@ -6891,7 +6890,7 @@ async function loadP8() {
     }
     var ROWS8 = [
       { lbl:'Fuel Cost Recovery (FCR)', key:'fuelRev', cls:'rind', hg:true },
-      { lbl:'IPP Revenue', key:'ippRev', cls:'rind', hg:true },
+      { lbl:'IPP Fuel Recovery', key:'ippRev', cls:'rind', hg:true },
       { lbl:'Non-Fuel Revenue', key:'nfr', cls:'rind', hg:true },
       { lbl:'Customer Charge', key:'custChg', cls:'rind', hg:true },
       { lbl:'Other Revenue', key:'otherR', cls:'rind', hg:true },
@@ -7020,7 +7019,7 @@ async function loadP8() {
     + '</tr></thead><tbody>'
     + secRow('Revenue')
     + vRow('Fuel Cost Recovery (FCR)', aFuelRev, bFuelRev, 'rind')
-    + vRow('IPP &amp; Purchased Power Revenues', aIppRev, bIppRev, 'rind')
+    + vRow('IPP Fuel Recovery', aIppRev, bIppRev, 'rind')
     + vRow('Non-Fuel Revenue (Energy Clause)', aNfr, bNfr, 'rind')
     + vRow('Customer Charge', aCustChg, bCustChg, 'rind')
     + vRow('Other Revenue', aOther, bOther, 'rind')
