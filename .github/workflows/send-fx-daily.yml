@@ -23,6 +23,7 @@ jobs:
 
     steps:
       - name: Trigger send-fx-daily edge function
+        id: fx
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -50,3 +51,19 @@ jobs:
               print(f'❌ {d.get(\"error\") or d.get(\"reason\",\"unknown error\")}')
               sys.exit(1)
           "
+
+      - name: Write audit trail to platform_audit_results
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          STATUS_VAL=$([ "$JOB_STATUS" = "success" ] && echo "pass" || echo "fail")
+          DETAIL="GitHub Actions run #${{ github.run_number }} — triggered_by: ${{ github.event_name }}"
+          curl -s -X POST "${SUPABASE_URL}/rest/v1/platform_audit_results" \
+            -H "Content-Type: application/json" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -d "{\"check_name\":\"fx_daily_email\",\"status\":\"${STATUS_VAL}\",\"detail\":\"${DETAIL}\",\"triggered_by\":\"github_actions\"}"
+          echo "Audit trail written: fx_daily_email → ${STATUS_VAL}"
