@@ -3144,8 +3144,7 @@ async function loadP1() {
     + plSub('p1_rev', 'Non-Fuel Revenue', nfr_a,  nfr_b,  false)
     + plSub('p1_rev', 'Customer Charge',  cust_a, cust_b, false)
     + plSub('p1_rev', 'Fuel Cost Recovery', frl_a, frl_b, false)
-    + plSub('p1_rev', 'IPP Fuel Recovery',     ipr_a, ipr_b, false)
-    + plSub('p1_rev', 'IPP Non-Fuel Revenue',  inr_a, inr_b, false)
+    + plSub('p1_rev', 'IPP Revenue',             ipr_a + inr_a, ipr_b + inr_b, false)
     + plSub('p1_rev', 'Other Revenue',         otr_a, otr_b, false)
     + '<tr class="rsec"><td colspan="4">Cost of Generation &amp; Non-Regulated</td></tr>'
     + plGrp('p1_fuel', 'Fuel &amp; IPP Energy', fc_a + ic_a, fc_b + ic_b, 'rind', true)
@@ -3484,8 +3483,7 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
     + er('Regulated Business EBITDA', reg_ebd_a, reg_ebd_b,  'rs',   false)
     + eblank()
     + esec('Purchased Power')
-    + er('IPP Fuel Revenue',       ipp_fr_a,    ipp_fr_b,    'rind', false)
-    + er('IPP Non-Fuel Revenue',   ipp_nr_a,    ipp_nr_b,    'rind', false)
+    + er('IPP Revenue',            ipp_fr_a + ipp_nr_a, ipp_fr_b + ipp_nr_b, 'rind', false)
     + er('(−) IPP &amp; Purchased Power Costs', ipp_cost_a, ipp_cost_b, 'rind', true)
     + er('Purchased Power Surplus / (Deficit)', pp_sur_a, pp_sur_b, 'rs', false)
     + eblank()
@@ -3606,8 +3604,7 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
     + '</tr></thead><tbody>'
     + sec('Revenue')
     + row('Fuel Clause (FCR)',              'fuel_rev',      'rind', false)
-    + row('IPP Fuel Revenue',               'ipp_fr',        'rind', false)
-    + row('IPP Non-Fuel Revenue',           'ipp_nr',        'rind', false)
+    + rowDerived('IPP Revenue', sa('ipp_fr')+sa('ipp_nr'), sb('ipp_fr')+sb('ipp_nr'), sbFY('ipp_fr')+sbFY('ipp_nr'), 'rind', false, function(p){return (_fVal(aF,'ipp_fr',p)||0)+(_fVal(aF,'ipp_nr',p)||0);})
     + row('Non-Fuel Revenue',               'nr_rev',        'rind', false)
     + row('Customer Charge',                'nr_cust_charge','rind', false)
     + row('Other Operating Revenue',        'other_r',       'rind', false)
@@ -3750,8 +3747,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
       + rline('(&#8722;) Operating Expenses',     function(ps){ return cv('opex',ps); }, 'rind', true)
       + rsub('Regulated Business EBITDA',         reg_ebitda, 'rs')
       + rsec('Purchased Power')
-      + rline('IPP Fuel Revenue',                 function(ps){ return cv('ipp_fr',ps); })
-      + rline('IPP Non-Fuel Revenue',             function(ps){ return cv('ipp_nr',ps); })
+      + rline('IPP Revenue',                      function(ps){ return cv('ipp_fr',ps)+cv('ipp_nr',ps); })
       + rline('(&#8722;) IPP &amp; Purchased Power Costs', function(ps){ return cv('ipp_cost',ps); }, 'rind', true)
       + rsub('Purchased Power Surplus / (Deficit)', pp_surplus, 'rs')
       + rsec('Non-Regulated Business')
@@ -3775,8 +3771,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
     tbody = ''
       + rsec('Revenue')
       + rline('Fuel Clause (FCR)',           function(ps){ return cv('fuel_rev',ps); })
-      + rline('IPP Surcharge',               function(ps){ return cv('ipp_fr',ps); })
-      + rline('IPP Non-Fuel Revenue',        function(ps){ return cv('ipp_nr',ps); })
+      + rline('IPP Revenue',                  function(ps){ return cv('ipp_fr',ps)+cv('ipp_nr',ps); })
       + rline('Non-Fuel Revenue',            function(ps){ return cv('nr_rev',ps); })
       + rline('Customer Charge',             function(ps){ return cv('nr_cust_charge',ps); })
       + rline('Other Operating Revenue',     function(ps){ return cv('other_r',ps); })
@@ -6874,10 +6869,12 @@ async function loadP8() {
       function g(lid) { return grp.reduce(function(s,m){ return s+((f[lid]||{})[ps8+m]||0); }, 0); }
       var nfr = _hasFactData(f,'nr_rev') ? g('nr_rev') : g('nonfuel');
       var fS = g('fuel_rev') - g('fuel_cost');
-      var pS = g('ipp_fr') + g('ipp_nr') - g('ipp_cost');
-      var rev = nfr + g('nr_cust_charge') + g('other_r') + fS + pS;
+      var ippRev = g('ipp_fr') + g('ipp_nr');
+      var ippCost = g('ipp_cost');
+      var grossRev = g('fuel_rev') + ippRev + nfr + g('nr_cust_charge') + g('other_r');
+      var grossMargin = grossRev - g('fuel_cost') - ippCost;
       var opex = g('opex');
-      var ebitda = rev - opex;
+      var ebitda = grossMargin - opex;
       var depn = g('depn');
       var ebit = ebitda - depn;
       var intE = g('nfc_int_exp') + g('nfc_lease');
@@ -6886,19 +6883,22 @@ async function loadP8() {
       var pretax = ebit - intE + afudc + oi;
       var tax = g('tax');
       var npat = pretax - tax;
-      return { nfr:nfr, custChg:g('nr_cust_charge'), otherR:g('other_r'), fuelS:fS, ppS:pS,
-               rev:rev, opex:opex, ebitda:ebitda, depn:depn, ebit:ebit,
+      return { fuelRev:g('fuel_rev'), ippRev:ippRev, nfr:nfr, custChg:g('nr_cust_charge'), otherR:g('other_r'),
+               grossRev:grossRev, fuelCost:g('fuel_cost'), ippCost:ippCost, grossMargin:grossMargin,
+               opex:opex, ebitda:ebitda, depn:depn, ebit:ebit,
                intE:g('nfc_int_exp'), lease:g('nfc_lease'), afudc:afudc, oi:oi,
                pretax:pretax, tax:tax, npat:npat };
     }
     var ROWS8 = [
-      { lbl:'Revenue', keys:['rev'], cls:'rs', hg:true },
+      { lbl:'Fuel Cost Recovery (FCR)', key:'fuelRev', cls:'rind', hg:true },
+      { lbl:'IPP Revenue', key:'ippRev', cls:'rind', hg:true },
       { lbl:'Non-Fuel Revenue', key:'nfr', cls:'rind', hg:true },
       { lbl:'Customer Charge', key:'custChg', cls:'rind', hg:true },
       { lbl:'Other Revenue', key:'otherR', cls:'rind', hg:true },
-      { lbl:'Fuel Cost Recovery (net)', key:'fuelS', cls:'rind', hg:true },
-      { lbl:'Purchased Power (net)', key:'ppS', cls:'rind', hg:true },
-      { lbl:'Total Revenue', key:'rev', cls:'rs', hg:true },
+      { lbl:'Total Revenue', key:'grossRev', cls:'rs', hg:true },
+      { lbl:'(−) Fuel Cost', key:'fuelCost', cls:'rind', hg:false, negate:true },
+      { lbl:'(−) IPP &amp; PP Cost', key:'ippCost', cls:'rind', hg:false, negate:true },
+      { lbl:'Gross Margin', key:'grossMargin', cls:'rs', hg:true },
       { lbl:'O&M Expense', key:'opex', cls:'rind', hg:false, negate:true },
       { lbl:'EBITDA', key:'ebitda', cls:'rs', hg:true },
       { lbl:'Depreciation', key:'depn', cls:'rind', hg:false, negate:true },
