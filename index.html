@@ -3415,7 +3415,9 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
 }
 
 function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
-  const nCols = ctx.actPeriods.length + 5;
+  // FY column only valid when bF has full-year data (monthly/quarterly). In YTD view bF=YTD only → drop duplicate.
+  const showFY = (_p2ColView !== 'ytd');
+  const nCols = ctx.actPeriods.length + (showFY ? 5 : 4);
   const fyHdr = _activeCmp === 'PY' ? ('FY ' + (ctx.yr - 1) + ' Act') : (ctx.cmpLbl.split(' ')[0] + ' FY');
 
   function row(lbl, lid, cls, isCost) {
@@ -3434,7 +3436,7 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
       + '<td class="num">' + fmt(cmpTotal) + '</td>'
       + '<td class="num ' + vCls + '">' + _fmtM(v$) + '</td>'
       + '<td class="num ' + vCls + '">' + _fmtPct(actTotal, cmpTotal) + '</td>'
-      + '<td class="num">' + fmt(fyTotal) + '</td>'
+      + (showFY ? '<td class="num">' + fmt(fyTotal) + '</td>' : '')
       + '</tr>';
   }
   // Derived total row (computed value, not a DB lid)
@@ -3450,7 +3452,7 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
       + '<td class="num">' + fmt(b_val) + '</td>'
       + '<td class="num ' + vCls + '">' + _fmtM(v$) + '</td>'
       + '<td class="num ' + vCls + '">' + _fmtPct(a_val, b_val) + '</td>'
-      + '<td class="num">' + fmt(fy_val) + '</td>'
+      + (showFY ? '<td class="num">' + fmt(fy_val) + '</td>' : '')
       + '</tr>';
   }
   function sec(lbl) { return '<tr class="rsec"><td colspan="' + nCols + '">' + lbl + '</td></tr>'; }
@@ -3483,7 +3485,8 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
     + ' <span class="ch-sub">' + ctx.viewLbl + ' &middot; vs ' + ctx.cmpLbl + '</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
     + '<th>Description</th>' + moHdr
-    + '<th>Actual</th><th>' + ctx.cmpLbl + '</th><th>Var $</th><th>Var %</th><th>' + fyHdr + '</th>'
+    + '<th>Actual</th><th>' + ctx.cmpLbl + '</th><th>Var $</th><th>Var %</th>'
+    + (showFY ? '<th>' + fyHdr + '</th>' : '')
     + '</tr></thead><tbody>'
     + sec('Revenue')
     + row('Fuel Clause (FCR)',              'fuel_rev',      'rind', false)
