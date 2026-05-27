@@ -7581,14 +7581,19 @@ async function _loadNotifications() {
 
     // 2a. Missing month alert — flag if we're past the 20th and this month has no actuals
     const curMo = now.getMonth() + 1, curYr = now.getFullYear();
-    if (now.getDate() >= 20) {
-      const expectedKey = 'ACTUALS_' + curYr + '_' + String(curMo).padStart(2, '0');
+    // Alert fires when we're 36+ days past the end of the previous complete month
+    const prevMo  = curMo === 1 ? 12 : curMo - 1;
+    const prevYr  = curMo === 1 ? curYr - 1 : curYr;
+    const prevEnd = new Date(prevYr, prevMo, 0); // last day of previous month
+    const daysSincePrevEnd = Math.floor((now - prevEnd) / 864e5);
+    if (daysSincePrevEnd >= 36) {
+      const expectedKey = 'ACTUALS_' + prevYr + '_' + String(prevMo).padStart(2, '0');
       if (!vm[expectedKey]) {
-        // Anchor: day 20 of the expected month — when data was due
-        const dueTs = new Date(curYr, curMo - 1, 20).toISOString();
+        // Anchor: 36 days after previous month-end — when data was due
+        const dueTs = new Date(prevEnd.getTime() + 36 * 864e5).toISOString();
         liveAlerts.push({
-          id: 'missing_' + expectedKey, title: MONS[curMo - 1] + ' ' + curYr + ' actuals not loaded',
-          body: 'Period is past day 20 but ' + MONS[curMo - 1] + ' actuals have not been uploaded. Data manager upload required.',
+          id: 'missing_' + expectedKey, title: MONS[prevMo - 1] + ' ' + prevYr + ' actuals not loaded',
+          body: 'More than 36 days past ' + MONS[prevMo - 1] + ' month-end and actuals have not been uploaded. Data manager upload required.',
           category: 'alert', is_read: false, created_at: _liveAlertTime('missing_' + expectedKey, null, dueTs), _severity: 3,
         });
       }
