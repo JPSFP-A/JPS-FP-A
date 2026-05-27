@@ -3910,7 +3910,7 @@ function _buildRERecon(ctx, actF, priF, pyPer, aopF) {
     var ebitda   = fuel_sur + pp_sur + oco + g('nr_rev',p) + g('nr_cust_charge',p) + g('other_r',p) - g('opex',p);
     var ebit     = ebitda - g('depn',p);
     var nfc      = g('nfc_int_exp',p) - g('nfc_int_inc',p) - g('nfc_afudc',p) + g('pl_pref_div',p) + g('nfc_fees',p);
-    return ebit - nfc + g('other_inc',p) + g('pl_fx',p) - g('tax',p);
+    return ebit - nfc + g('other_inc',p) + g('pl_fx',p) + g('pl_div_recv',p) - g('tax',p);
   }
 
   // Opening RE = Dec prior year closing + cumulative net income up to (but not including) this month.
@@ -3996,7 +3996,7 @@ async function loadP3() {
     'fuel_cost','ipp_cost','pl_other_cos',
     'opex','depn',
     'nfc_int_exp','nfc_int_inc','nfc_afudc','pl_pref_div','nfc_fees',
-    'other_inc','pl_fx','tax'
+    'other_inc','pl_fx','pl_div_recv','tax'
   ];
 
   const pyYr   = ctx.yr - 1;
