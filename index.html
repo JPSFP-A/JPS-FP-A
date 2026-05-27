@@ -3022,9 +3022,9 @@ async function loadP1() {
   const nr_rev_a = bdr_a + vpr_a, nr_rev_b = bdr_b + vpr_b;
   const nr_ebd_a = nr_rev_a - bdc_a - bdo_a - vpo_a;
   const nr_ebd_b = nr_rev_b - bdc_b - bdo_b - vpo_b;
-  // Derived lines — always computed in JS, never read from DB
-  const rev_a = nfr_a + cust_a + frl_a + ipr_a + inr_a + otr_a + nr_rev_a;
-  const rev_b = nfr_b + cust_b + frl_b + ipr_b + inr_b + otr_b + nr_rev_b;
+  // Derived lines — BD/VPP are subsets of other_r, do not add separately
+  const rev_a = nfr_a + cust_a + frl_a + ipr_a + inr_a + otr_a;
+  const rev_b = nfr_b + cust_b + frl_b + ipr_b + inr_b + otr_b;
   const oco_a = sa('pl_other_cos'),   oco_b = sb('pl_other_cos');  // IFRS16/other COS adj (negative)
   const div_a = sa('pl_div_recv'),    div_b = sb('pl_div_recv');   // tax-free dividend received
   const oi_a  = sa('other_inc'),      oi_b  = sb('other_inc');
@@ -3147,8 +3147,6 @@ async function loadP1() {
     + plSub('p1_rev', 'IPP Fuel Recovery',     ipr_a, ipr_b, false)
     + plSub('p1_rev', 'IPP Non-Fuel Revenue',  inr_a, inr_b, false)
     + plSub('p1_rev', 'Other Revenue',         otr_a, otr_b, false)
-    + plSub('p1_rev', 'BD Revenue',            bdr_a, bdr_b, false)
-    + plSub('p1_rev', 'Virtual PP Revenue',    vpr_a, vpr_b, false)
     + '<tr class="rsec"><td colspan="4">Cost of Generation &amp; Non-Regulated</td></tr>'
     + plGrp('p1_fuel', 'Fuel &amp; IPP Energy', fc_a + ic_a, fc_b + ic_b, 'rind', true)
     + plSub('p1_fuel', 'Fuel Cost',       fc_a,   fc_b,   true)
