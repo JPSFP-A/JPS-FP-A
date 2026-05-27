@@ -3887,7 +3887,7 @@ function _buildP2YearToGo(ctx, ytdF, leF, aopF) {
   var tbody = ''
     + rsec('Revenue')
     + rline('Fuel Clause (FCR)',           'fuel_rev')
-    + rline('IPP Surcharge',               'ipp_fr')
+    + rline('IPP Fuel Recovery',           'ipp_fr')
     + rline('Non-Fuel Revenue',            'nr_rev')
     + rline('Customer Charge',             'nr_cust_charge')
     + rline('Other Operating Revenue',     'other_r')
@@ -4933,9 +4933,11 @@ function _flashGetGlobalCtx() {
   // Map global view → flash view
   var fView = { Month:'month', YTD:'ytd', FY:'annual' }[_activeView] || 'month';
 
-  // Version A = best actuals for yr/mo
+  // Version A = best actuals for yr/mo — prefer HIST_ACTUAL_{yr}_YTD (consolidated) over per-month
   var verACode = null;
-  if (_hasMonthly(yr)) {
+  if (vm['HIST_ACTUAL_' + yr + '_YTD']) {
+    verACode = 'HIST_ACTUAL_' + yr + '_YTD';
+  } else if (_hasMonthly(yr)) {
     for (var m2 = mo; m2 >= 1; m2--) {
       var ak = 'ACTUALS_' + yr + '_' + (m2 < 10 ? '0'+m2 : m2);
       if (vm[ak]) { verACode = ak; break; }
@@ -5070,8 +5072,9 @@ function flashBuildPLV2(fA, fB, lA, lB) {
   var defs=[
     {section:'Revenue'},
     {id:'fuel_rev',  name:'Fuel Clause Revenue',     fav:true,  indent:true},
-    {id:'ipp_fr',    name:'IPP Surcharge',            fav:true,  indent:true},
+    {id:'ipp_fr',    name:'IPP Fuel Recovery',         fav:true,  indent:true},
     {id:'nr_rev',    name:'Non-Fuel Revenue',         fav:true,  indent:true},
+    {id:'nr_cust_charge',name:'Customer Charge',      fav:true,  indent:true},
     {id:'other_r',   name:'Other Operating Revenue',  fav:true,  indent:true},
     {id:'pl_total_sales',name:'Total Revenue',        fav:true,  subtotal:true},
     {section:'Cost of Sales'},
