@@ -3508,7 +3508,89 @@ async function loadP2() {
   }
 
   const pg = document.getElementById('p2');
-  if (pg) pg.innerHTML = html;
+  if (pg) {
+    pg.innerHTML = html;
+    if (_p2Tab === 'exec' && (_p2ColView === 'ytd' || _p2ColView === 'ytg')) _p2InitExecChart();
+  }
+}
+
+/* ----- p2 charts ----- */
+var _p2Charts = {};
+var _p2ExecChartData = null;
+
+function _p2InitExecChart() {
+  if (!_p2ExecChartData) return;
+  Object.values(_p2Charts).forEach(function(c){ try { c.destroy(); } catch(e){} });
+  _p2Charts = {};
+  if (typeof Chart === 'undefined') return;
+  var d = _p2ExecChartData;
+  var rev_a = d.rev_a, rev_b = d.rev_b;
+  var ebd_a = d.ebd_a, ebd_b = d.ebd_b;
+  var ni_a  = d.ni_a,  ni_b  = d.ni_b;
+  var cmpLbl = d.cmpLbl;
+  var ebdMg_a = rev_a ? +(ebd_a / rev_a * 100).toFixed(1) : 0;
+  var ebdMg_b = rev_b ? +(ebd_b / rev_b * 100).toFixed(1) : 0;
+  var niMg_a  = rev_a ? +(ni_a  / rev_a * 100).toFixed(1) : 0;
+  var niMg_b  = rev_b ? +(ni_b  / rev_b * 100).toFixed(1) : 0;
+  var fmtK = function(v){ return v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : String(v); };
+
+  // Grouped bar: Revenue / EBITDA / NPAT — Actual vs AOP
+  var c1 = document.getElementById('p2ChartExec');
+  if (c1) {
+    _p2Charts.exec = new Chart(c1.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['Revenue', 'EBITDA', 'NPAT'],
+        datasets: [
+          { label: 'Actual',  data: [Math.round(rev_a), Math.round(ebd_a), Math.round(ni_a)],
+            backgroundColor:'#003da5bb', borderColor:'#003da5', borderWidth:1.5, borderRadius:4 },
+          { label: cmpLbl, data: [Math.round(rev_b), Math.round(ebd_b), Math.round(ni_b)],
+            backgroundColor:'#00aeef44', borderColor:'#00aeef', borderWidth:1.5, borderRadius:4 }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{
+          legend:{ position:'top', labels:{ font:{ family:"'IBM Plex Sans',sans-serif", size:10 }, boxWidth:12 } },
+          tooltip:{ callbacks:{ label: function(c){ return c.dataset.label+': '+Number(c.raw).toLocaleString()+'K'; } } }
+        },
+        scales:{
+          x:{ grid:{display:false}, ticks:{ font:{size:10} } },
+          y:{ grid:{color:'#e8eef7'}, ticks:{ font:{size:10}, callback: fmtK } }
+        }
+      }
+    });
+  }
+
+  // Margin comparison: EBITDA % and NPAT % — Actual vs plan horizontal bars
+  var c2 = document.getElementById('p2ChartMargin');
+  if (c2) {
+    _p2Charts.margin = new Chart(c2.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['EBITDA Margin', 'NPAT Margin'],
+        datasets: [
+          { label: 'Actual',  data: [ebdMg_a, niMg_a],
+            backgroundColor:'#003da5bb', borderColor:'#003da5', borderWidth:1.5, borderRadius:4 },
+          { label: cmpLbl, data: [ebdMg_b, niMg_b],
+            backgroundColor:'#00aeef44', borderColor:'#00aeef', borderWidth:1.5, borderRadius:4 }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{ position:'top', labels:{ font:{ family:"'IBM Plex Sans',sans-serif", size:10 }, boxWidth:12 } },
+          tooltip:{ callbacks:{ label: function(c){ return c.dataset.label+': '+c.raw.toFixed(1)+'%'; } } }
+        },
+        scales:{
+          x:{ grid:{color:'#e8eef7'}, ticks:{ font:{size:10}, callback: function(v){ return v+'%'; } }, min:0 },
+          y:{ grid:{display:false}, ticks:{ font:{size:10} } }
+        }
+      }
+    });
+  }
 }
 
 function _buildP2Exec(ctx, aF, bF, sa, sb) {
@@ -3583,7 +3665,22 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
       + '<td>' + _ragBadge(a, b, hg) + '</td></tr>';
   }
 
-  return '<div class="notice-bar">Executive summary view. Cost of sales (adverse) shown as (x). Adverse variances in red.</div>'
+  // Store derived totals for chart init after innerHTML is set
+  _p2ExecChartData = {
+    rev_a: nfr_a + cust_chg_a + fuel_rev_a + ipp_fr_a + oth_a,
+    rev_b: nfr_b + cust_chg_b + fuel_rev_b + ipp_fr_b + oth_b,
+    ebd_a, ebd_b, ni_a, ni_b, cmpLbl: ctx.cmpLbl, viewLbl: ctx.viewLbl
+  };
+
+  return '<div class="chart-row wide" style="margin-bottom:0">'
+    + '<div class="card" style="margin-bottom:12px"><div class="card-head">Actual vs ' + ctx.cmpLbl
+    + ' <span class="ch-sub">' + ctx.viewLbl + ' · JMD $000s</span></div>'
+    + '<div class="chart-canvas-wrap" style="height:190px"><canvas id="p2ChartExec"></canvas></div></div>'
+    + '<div class="card" style="margin-bottom:12px"><div class="card-head">Margin %'
+    + ' <span class="ch-sub">' + ctx.viewLbl + '</span></div>'
+    + '<div class="chart-canvas-wrap" style="height:190px"><canvas id="p2ChartMargin"></canvas></div></div>'
+    + '</div>'
+    + '<div class="notice-bar">Executive summary view. Cost of sales (adverse) shown as (x). Adverse variances in red.</div>'
     + '<div class="card"><div class="card-head">Executive Summary — Segmented P&amp;L'
     + ' <span class="ch-sub">' + ctx.viewLbl + ' vs ' + ctx.cmpLbl + '</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
