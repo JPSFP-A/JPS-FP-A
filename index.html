@@ -3873,13 +3873,19 @@ function bsToggle(gid) {
   if (t) t.textContent = t.textContent === '▶' ? '▼' : '▶';
 }
 
-function _buildRERecon(ctx, actF, priF, pyPer) {
+function _buildRERecon(ctx, actF, priF, pyPer, aopF) {
   const yr = ctx.yr;
   const months = [];
   for (var m = 1; m <= ctx.maxMo; m++) months.push(yr * 100 + m);
   if (!months.length) return '';
 
-  function g(lid, p)  { return (actF[lid] && actF[lid][p]  != null) ? Number(actF[lid][p])       : 0; }
+  // Monthly ACTUALS versions typically only store P&L lines, not BS equity.
+  // Fall back to AOP for bs_retained (same fallback the "As At" view uses).
+  function g(lid, p) {
+    if (actF[lid] && actF[lid][p] != null) return Number(actF[lid][p]);
+    if (lid === 'bs_retained' && aopF && aopF[lid] && aopF[lid][p] != null) return Number(aopF[lid][p]);
+    return 0;
+  }
   function pg(lid)    { return (priF[lid] && priF[lid][pyPer] != null) ? Number(priF[lid][pyPer]) : 0; }
 
   function netInc(p) {
@@ -3915,7 +3921,7 @@ function _buildRERecon(ctx, actF, priF, pyPer) {
     { lbl:'Opening Retained Earnings', fn: openRE,                                         isVar:false, cls:'rind' },
     { lbl:'+ Net Income (P&L)',        fn: netInc,                                         isVar:false, cls:'rind' },
     { lbl:'Expected Closing RE',       fn: function(p){ return openRE(p) + netInc(p); },   isVar:false, cls:'rs'   },
-    { lbl:'Actual RE (Balance Sheet)', fn: function(p){ return g('bs_retained', p); },     isVar:false, cls:'rs'   },
+    { lbl:'Actual RE (BS / AOP)', fn: function(p){ return g('bs_retained', p); },          isVar:false, cls:'rs'   },
     { lbl:'Variance (BS − Expected)',  fn: function(p){ return g('bs_retained',p) - openRE(p) - netInc(p); }, isVar:true, cls:'rind' },
   ];
 
@@ -4032,7 +4038,7 @@ async function loadP3() {
       + ' &middot; JMD $000s</div>'
       + '<div style="margin-top:8px">' + cvToggle + '</div></div>'
       + _buildBSMultiCol(ctx, allActF, aopF, pF, pyPer, _p3ColView)
-      + _buildRERecon(ctx, allActF, pF, pyPer);
+      + _buildRERecon(ctx, allActF, pF, pyPer, aopF);
     const pg = document.getElementById('p3');
     if (pg) pg.innerHTML = html;
     return;
@@ -7469,16 +7475,19 @@ document.addEventListener('click', function(e) {
 /* ---------- Notifications (live from DB + variance alerts) ---------- */
 let _notifData = [];   // cached rows from fpa_notifications
 let _notifLoaded = false;
-function _liveAlertTime(id, periodCtx) {
-  // localStorage persists across page refreshes; period-keyed so new data = fresh timestamp
+function _liveAlertTime(id, periodCtx, defaultTs) {
+  // localStorage persists across sessions; period-keyed so new data = fresh timestamp.
+  // defaultTs = data-derived anchor (e.g. period end date) so new keys show meaningful age.
   var key = '_nat_' + id + (periodCtx ? '_' + periodCtx : '');
   try {
     var stored = localStorage.getItem(key);
-    if (stored) return stored;
-    var ts = new Date().toISOString();
+    if (stored) {
+      if (Date.now() - new Date(stored).getTime() < 45 * 864e5) return stored;
+    }
+    var ts = defaultTs || new Date().toISOString();
     localStorage.setItem(key, ts);
     return ts;
-  } catch(e) { return new Date().toISOString(); }
+  } catch(e) { return defaultTs || new Date().toISOString(); }
 }
 
 function _relTime(iso) {
@@ -7560,10 +7569,12 @@ async function _loadNotifications() {
     if (now.getDate() >= 20) {
       const expectedKey = 'ACTUALS_' + curYr + '_' + String(curMo).padStart(2, '0');
       if (!vm[expectedKey]) {
+        // Anchor: day 20 of the expected month — when data was due
+        const dueTs = new Date(curYr, curMo - 1, 20).toISOString();
         liveAlerts.push({
           id: 'missing_' + expectedKey, title: MONS[curMo - 1] + ' ' + curYr + ' actuals not loaded',
           body: 'Period is past day 20 but ' + MONS[curMo - 1] + ' actuals have not been uploaded. Data manager upload required.',
-          category: 'alert', is_read: false, created_at: _liveAlertTime('missing_' + expectedKey), _severity: 3,
+          category: 'alert', is_read: false, created_at: _liveAlertTime('missing_' + expectedKey, null, dueTs), _severity: 3,
         });
       }
     }
@@ -7575,6 +7586,8 @@ async function _loadNotifications() {
       for (var mi = 1; mi <= mo; mi++) ytdPids.push(yr * 100 + mi);
       const moLabel  = MONS[mo - 1] + ' ' + yr;
       const ytdLabel = 'YTD ' + moLabel;
+      // Anchor timestamp = last day of latest actual month (period-end date, not "now")
+      const periodEndTs = new Date(yr, mo, 0).toISOString();
 
       // Actual line IDs as stored in fpa_facts (all lowercase)
       const FLOW_LINES = ['fuel_rev','nonfuel','nr_cust_charge','other_r','fuel_cost','ipp_cost','opex','depn','ebitda','net_inc','cf_capex','cash'];
@@ -7612,7 +7625,7 @@ async function _loadNotifications() {
         const dir   = varAmt > 0 ? 'above' : 'below';
         const sign  = varAmt > 0 ? '+' : '−';
         liveAlerts.push({
-          id: id, is_read: false, created_at: _liveAlertTime(id, latestAct), _severity: isFav ? 0 : severity,
+          id: id, is_read: false, created_at: _liveAlertTime(id, latestAct, periodEndTs), _severity: isFav ? 0 : severity,
           category: isFav ? 'system' : 'variance',
           title: label + ' — ' + (isFav ? 'on track' : 'adverse') + ' (' + ytdLabel + ')',
           body: sign + fmtM(Math.abs(varAmt)) + ' (' + Math.abs(varPct).toFixed(1) + '%) ' + dir + ' AOP. '
@@ -7636,7 +7649,7 @@ async function _loadNotifications() {
         if (Math.abs(varPct) >= 1) {
           const isFav = varAmt > 0;
           liveAlerts.push({
-            id: 'live_ebitda', is_read: false, created_at: _liveAlertTime('live_ebitda', latestAct), _severity: isFav ? 0 : 3,
+            id: 'live_ebitda', is_read: false, created_at: _liveAlertTime('live_ebitda', latestAct, periodEndTs), _severity: isFav ? 0 : 3,
             category: isFav ? 'system' : 'variance',
             title: 'EBITDA ' + (isFav ? 'ahead of' : 'behind') + ' AOP (' + ytdLabel + ')',
             body: (varAmt > 0 ? '+' : '−') + fmtM(Math.abs(varAmt)) + ' (' + Math.abs(varPct).toFixed(1) + '%) vs AOP. '
@@ -7652,7 +7665,7 @@ async function _loadNotifications() {
         const cashVar = ((cashAct - cashAop) / Math.abs(cashAop)) * 100;
         if (cashVar < -10) { // cash >10% below AOP plan — flag
           liveAlerts.push({
-            id: 'live_cash_var', is_read: false, created_at: _liveAlertTime('live_cash_var', latestAct), _severity: 2,
+            id: 'live_cash_var', is_read: false, created_at: _liveAlertTime('live_cash_var', latestAct, periodEndTs), _severity: 2,
             category: 'alert',
             title: 'Cash below plan — ' + moLabel,
             body: 'Cash: ' + fmtM(cashAct) + ' vs AOP ' + fmtM(cashAop) + ' (' + cashVar.toFixed(1) + '%). Review liquidity position.',
@@ -7661,7 +7674,7 @@ async function _loadNotifications() {
       }
       if (cashAct && cashAct < 500) { // absolute low — under $500M JMD
         liveAlerts.push({
-          id: 'live_cash', is_read: false, created_at: _liveAlertTime('live_cash', latestAct), _severity: 2,
+          id: 'live_cash', is_read: false, created_at: _liveAlertTime('live_cash', latestAct, periodEndTs), _severity: 2,
           category: 'alert',
           title: 'Cash position low — ' + moLabel,
           body: 'BS Cash: ' + fmtM(cashAct) + ' as at ' + moLabel + '. Monitor liquidity against upcoming obligations.',
