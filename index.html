@@ -3831,6 +3831,15 @@ function _buildP2YearToGo(ctx, ytdF, leF, aopF) {
     + '<div class="tw"><table class="kpi-sc-tbl">'+thead+'<tbody>'+tbody+'</tbody></table></div></div>';
 }
 
+/* ----- BS expand/collapse toggle ----- */
+function bsToggle(gid) {
+  document.querySelectorAll('.bssub-' + gid).forEach(function(r) {
+    r.style.display = r.style.display === 'none' ? '' : 'none';
+  });
+  var t = document.getElementById('bst-' + gid);
+  if (t) t.textContent = t.textContent === '▶' ? '▼' : '▶';
+}
+
 /* ----- p3: BALANCE SHEET ----- */
 async function loadP3() {
   _pgLoad('p3', true);
@@ -3885,7 +3894,8 @@ async function loadP3() {
       'bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref',
       'ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd',
       'bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to',
-      'bs_dta','bs_other_recv'
+      'bs_dta','bs_other_recv',
+      'bs_cust_dep_lt','bs_decomm_lt'  // NCL lines only in AOP — fill from plan
     ]);
     cF = {};
     AOP_FILL_LINES.forEach(function(lid) {
@@ -3956,6 +3966,27 @@ async function loadP3() {
       + '<td class="num ' + mvCls + '">' + _fmtM(mv) + '</td>'
       + '</tr>';
   }
+  function bsGroup(lbl, c, p, gid) {
+    const mv = c - p;
+    const mvCls = mv > 0 ? 'fav' : (mv < 0 ? 'adv' : 'neut');
+    return '<tr class="rind" style="cursor:pointer" onclick="bsToggle(\'' + gid + '\')">'
+      + '<td><span id="bst-' + gid + '" style="font-size:10px;margin-right:6px;opacity:.6">▶</span>' + lbl + '</td>'
+      + '<td class="num">' + _fmtM(c) + '</td>'
+      + '<td class="num">' + _fmtM(p) + '</td>'
+      + '<td class="num ' + mvCls + '">' + _fmtM(mv) + '</td>'
+      + '</tr>';
+  }
+  function bsSub(lbl, c, p, gid, isCost) {
+    const mv = c - p;
+    const mvCls = mv > 0 ? 'fav' : (mv < 0 ? 'adv' : 'neut');
+    const fmt = isCost ? _fmtCost : _fmtM;
+    return '<tr class="rind bssub-' + gid + '" style="display:none">'
+      + '<td style="padding-left:28px;font-size:12px;color:var(--muted)">' + lbl + '</td>'
+      + '<td class="num" style="font-size:12px;color:var(--muted)">' + fmt(c) + '</td>'
+      + '<td class="num" style="font-size:12px;color:var(--muted)">' + fmt(p) + '</td>'
+      + '<td class="num ' + mvCls + '" style="font-size:12px;color:var(--muted)">' + _fmtM(mv) + '</td>'
+      + '</tr>';
+  }
   function sec(lbl) { return '<tr class="rsec"><td colspan="4">' + lbl + '</td></tr>'; }
 
   const html = ''
@@ -3968,7 +3999,9 @@ async function loadP3() {
     + '<th>Description</th><th>' + curLbl + '</th><th>' + priLbl + '</th><th>Movement</th>'
     + '</tr></thead><tbody>'
     + sec('Non-Current Assets')
-    + bsRow('Property, Plant &amp; Equipment (Net, incl. ROU)', ppe_c, ppe_p, null, 'bs_fa_cost')
+    + bsGroup('Property, Plant &amp; Equipment (Net)', ppe_c, ppe_p, 'ppe')
+    + bsSub('Gross Fixed Assets at Cost', cv('bs_fa_cost'), pv('bs_fa_cost'), 'ppe')
+    + bsSub('(−) Accumulated Depreciation', -cv('bs_accum_depn'), -pv('bs_accum_depn'), 'ppe', true)
     + bsRow('Capital Work in Progress',    cwip_c,            cwip_p, null, 'cwip')
     + bsRow('Equity Investments',          cv('eqinv'),       pv('eqinv'))
     + bsRow('Pension Asset',               cv('pension'),     pv('pension'))
@@ -3989,6 +4022,7 @@ async function loadP3() {
     + bsRow('Share Capital',               cv('bs_share_cap'), pv('bs_share_cap'))
     + bsRow('Retained Earnings',           cv('bs_retained'),  pv('bs_retained'))
     + bsRow('Capital Reserves',            cv('bs_cap_res'),   pv('bs_cap_res'))
+    + bsRow('Capital Redemption Reserve',  cv('bs_cap_redm'),  pv('bs_cap_redm'))
     + bsRow('Preference Shares',           cv('bs_pref'),      pv('bs_pref'))
     + bsRow('Total Equity',                eq_c,               eq_p,  'rs')
     + sec('Non-Current Liabilities')
@@ -4000,7 +4034,7 @@ async function loadP3() {
     + bsRow('Refundable Customer Advance',    cv('bs_ref_adv'),    pv('bs_ref_adv'))
     + bsRow('Total Non-Current Liabilities',  ncl_c,               ncl_p, 'rs')
     + sec('Current Liabilities')
-    + bsRow('Accounts Payable',            cv('ap'),           pv('ap'),         null, 'ap')
+    + bsRow('Accounts Payable &amp; Accruals', cv('ap'),       pv('ap'),         null, 'ap')
     + bsRow('Accrued Interest',            cv('bs_int_acc'),   pv('bs_int_acc'))
     + bsRow('Corporate Tax Payable',       cv('bs_corp_tax'),  pv('bs_corp_tax'), null, 'bs_corp_tax')
     + bsRow('Bank Overdraft',              cv('bs_bank_od'),   pv('bs_bank_od'))
@@ -4013,6 +4047,16 @@ async function loadP3() {
     + bsRow('Due to Related Party',        cv('bs_due_to'),    pv('bs_due_to'))
     + bsRow('Total Current Liabilities',   cl_c,               cl_p,  'rs')
     + bsRow('TOTAL EQUITY &amp; LIABILITIES', tel_c,           tel_p, 'rs')
+    + (function() {
+        const gap_c = ta_c - tel_c, gap_p = ta_p - tel_p;
+        const ok_c = Math.abs(gap_c) < 1, ok_p = Math.abs(gap_p) < 1;
+        const clr_c = ok_c ? 'var(--green,#22c55e)' : 'var(--red,#ef4444)';
+        const clr_p = ok_p ? 'var(--green,#22c55e)' : 'var(--red,#ef4444)';
+        return '<tr class="rind" style="font-size:11px;opacity:.75"><td>Balance Check (Assets − E&amp;L)</td>'
+          + '<td class="num" style="color:' + clr_c + '">' + _fmtM(gap_c) + '</td>'
+          + '<td class="num" style="color:' + clr_p + '">' + _fmtM(gap_p) + '</td>'
+          + '<td class="num"></td></tr>';
+      })()
     + '</tbody></table></div></div>';
 
   const pg = document.getElementById('p3');
@@ -4088,15 +4132,44 @@ function _buildBSMultiCol(ctx, actF, aopF, priF, priPer, view) {
       return bv(lid, p, isAct);
     };
   }
+  function neg(lid) {
+    return function(p, isAct, isPri) {
+      return -(isPri ? pv(lid) : bv(lid, p, isAct));
+    };
+  }
   function sum(lids) {
     return function(p, isAct, isPri) {
       return lids.reduce(function(s, lid) { return s + (isPri ? pv(lid) : bv(lid, p, isAct)); }, 0);
     };
   }
+  // Expandable row (click to toggle sub-rows)
+  function rgroup(lbl, fn, gid) {
+    var r = '<tr class="rind" style="cursor:pointer" onclick="bsToggle(\'' + gid + '\')">'
+      + '<td><span id="bst-' + gid + '" style="font-size:10px;margin-right:6px;opacity:.6">▶</span>' + lbl + '</td>';
+    allCols.forEach(function(c) {
+      var v = c.isPri ? fn(priPer, true, true) : fn(c.period, c.isAct, false);
+      r += '<td style="text-align:right;white-space:nowrap">' + _fmtM(v) + '</td>';
+    });
+    return r + '</tr>';
+  }
+  function rsub2(lbl, fn, gid, isCost) {
+    var r = '<tr class="rind bssub-' + gid + '" style="display:none">'
+      + '<td style="padding-left:28px;font-size:12px;color:var(--muted)">' + lbl + '</td>';
+    allCols.forEach(function(c) {
+      var v = c.isPri ? fn(priPer, true, true) : fn(c.period, c.isAct, false);
+      r += '<td style="text-align:right;white-space:nowrap;font-size:12px;color:var(--muted)">' + (isCost ? _fmtCost(v) : _fmtM(v)) + '</td>';
+    });
+    return r + '</tr>';
+  }
+
+  const _ASSET_LIDS = ['ppe','cwip','eqinv','pension','bs_dta','recv','cash','rcash','unbill','finv','matls','bs_prepaid','bs_other_recv','bs_reg_asset'];
+  const _EL_LIDS    = ['bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref','ltd','leases','bs_cust_dep_lt','bs_dtl','bs_decomm_lt','bs_ref_adv','ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to'];
 
   var tbody = ''
     + rsec('Non-Current Assets')
-    + rline('Property, Plant &amp; Equipment (Net, incl. ROU)', get('ppe'))
+    + rgroup('Property, Plant &amp; Equipment (Net)', get('ppe'), 'mcppe')
+    + rsub2('Gross Fixed Assets at Cost', get('bs_fa_cost'), 'mcppe')
+    + rsub2('(−) Accumulated Depreciation', neg('bs_accum_depn'), 'mcppe', true)
     + rline('Capital Work in Progress',              get('cwip'))
     + rline('Equity Investments',                    get('eqinv'))
     + rline('Pension Asset',                         get('pension'))
@@ -4112,23 +4185,24 @@ function _buildBSMultiCol(ctx, actF, aopF, priF, priPer, view) {
     + rline('Prepayments &amp; Other',     sum(['bs_prepaid','bs_other_recv']))
     + rline('Regulatory Asset',            get('bs_reg_asset'))
     + rsub('Total Current Assets',   sum(['recv','cash','rcash','unbill','finv','matls','bs_prepaid','bs_other_recv','bs_reg_asset']), 'rs')
-    + rsub('TOTAL ASSETS',           sum(['ppe','cwip','eqinv','pension','bs_dta','recv','cash','rcash','unbill','finv','matls','bs_prepaid','bs_other_recv','bs_reg_asset']), 'rs')
+    + rsub('TOTAL ASSETS',           sum(_ASSET_LIDS), 'rs')
     + rsec('Equity')
-    + rline('Share Capital',   get('bs_share_cap'))
-    + rline('Retained Earnings', get('bs_retained'))
-    + rline('Capital Reserves', get('bs_cap_res'))
-    + rline('Preference Shares', get('bs_pref'))
+    + rline('Share Capital',              get('bs_share_cap'))
+    + rline('Retained Earnings',          get('bs_retained'))
+    + rline('Capital Reserves',           get('bs_cap_res'))
+    + rline('Capital Redemption Reserve', get('bs_cap_redm'))
+    + rline('Preference Shares',          get('bs_pref'))
     + rsub('Total Equity', sum(['bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref']), 'rs')
     + rsec('Non-Current Liabilities')
     + rline('Long-Term Borrowings',        get('ltd'))
     + rline('Lease Liabilities (IFRS 16)', get('leases'))
     + rline('Customer Deposits (LT)',      get('bs_cust_dep_lt'))
     + rline('Deferred Tax Liability',      get('bs_dtl'))
-    + rline('Decommissioning Provision',      get('bs_decomm_lt'))
-    + rline('Refundable Customer Advance',    get('bs_ref_adv'))
+    + rline('Decommissioning Provision',   get('bs_decomm_lt'))
+    + rline('Refundable Customer Advance', get('bs_ref_adv'))
     + rsub('Total Non-Current Liabilities', sum(['ltd','leases','bs_cust_dep_lt','bs_dtl','bs_decomm_lt','bs_ref_adv']), 'rs')
     + rsec('Current Liabilities')
-    + rline('Accounts Payable',            get('ap'))
+    + rline('Accounts Payable &amp; Accruals', get('ap'))
     + rline('Accrued Interest',            get('bs_int_acc'))
     + rline('Corporate Tax Payable',       get('bs_corp_tax'))
     + rline('Bank Overdraft',              get('bs_bank_od'))
@@ -4140,7 +4214,19 @@ function _buildBSMultiCol(ctx, actF, aopF, priF, priPer, view) {
     + rline('Employee Benefits (Current)', get('bs_emp_ben'))
     + rline('Due to Related Party',        get('bs_due_to'))
     + rsub('Total Current Liabilities', sum(['ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to']), 'rs')
-    + rsub('TOTAL EQUITY &amp; LIABILITIES', sum(['bs_share_cap','bs_retained','bs_cap_res','bs_cap_redm','bs_pref','ltd','leases','bs_cust_dep_lt','bs_dtl','bs_decomm_lt','bs_ref_adv','ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd','bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to']), 'rs');
+    + rsub('TOTAL EQUITY &amp; LIABILITIES', sum(_EL_LIDS), 'rs')
+    + (function() {
+        var r = '<tr class="rind" style="font-size:11px;opacity:.75"><td>Balance Check (Assets − E&amp;L)</td>';
+        var aFn = sum(_ASSET_LIDS), elFn = sum(_EL_LIDS);
+        allCols.forEach(function(c) {
+          var aV = c.isPri ? aFn(priPer,true,true) : aFn(c.period,c.isAct,false);
+          var eV = c.isPri ? elFn(priPer,true,true) : elFn(c.period,c.isAct,false);
+          var gap = aV - eV;
+          var clr = Math.abs(gap) < 1 ? 'var(--green,#22c55e)' : 'var(--red,#ef4444)';
+          r += '<td style="text-align:right;white-space:nowrap;color:' + clr + '">' + _fmtM(gap) + '</td>';
+        });
+        return r + '</tr>';
+      })();
 
   const note = ctx.isCY && maxMo < 12
     ? '<div style="font-size:11px;color:var(--muted);padding:6px 0">* Up to ' + _MONS[maxMo-1] + ' ' + yr + ' = Actuals &nbsp;|&nbsp; Remaining = AOP ' + yr + '</div>'
