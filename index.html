@@ -3073,13 +3073,27 @@ async function loadP1() {
   }
 
   function plRow(lbl, a, b, cls, isCost) {
-    const v = a - b;
-    const hg = !isCost;
-    const vCls = _vc(v, hg);
+    const v = a - b; const hg = !isCost; const vCls = _vc(v, hg);
     return '<tr class="' + (cls || 'rind') + '"><td>' + lbl + '</td>'
       + '<td class="num">' + (isCost ? _fmtCost(a) : _fmtM(a)) + '</td>'
       + '<td class="num">' + (isCost ? _fmtCost(b) : _fmtM(b)) + '</td>'
       + '<td class="num ' + vCls + '">' + _fmtPct(a, b) + '</td></tr>';
+  }
+  function plGrp(gid, lbl, a, b, cls, isCost) {
+    const v = a - b; const hg = !isCost; const vCls = _vc(v, hg);
+    return '<tr class="' + (cls || 'rind') + '" style="cursor:pointer" onclick="bsToggle(\'' + gid + '\')">'
+      + '<td><span id="bst-' + gid + '" style="font-size:10px;margin-right:6px;opacity:.6">&#9654;</span>' + lbl + '</td>'
+      + '<td class="num">' + (isCost ? _fmtCost(a) : _fmtM(a)) + '</td>'
+      + '<td class="num">' + (isCost ? _fmtCost(b) : _fmtM(b)) + '</td>'
+      + '<td class="num ' + vCls + '">' + _fmtPct(a, b) + '</td></tr>';
+  }
+  function plSub(gid, lbl, a, b, isCost) {
+    const v = a - b; const hg = !isCost; const vCls = _vc(v, hg);
+    return '<tr class="rind bssub-' + gid + '" style="display:none">'
+      + '<td style="padding-left:28px;font-size:12px;color:var(--muted)">' + lbl + '</td>'
+      + '<td class="num" style="font-size:12px;color:var(--muted)">' + (isCost ? _fmtCost(a) : _fmtM(a)) + '</td>'
+      + '<td class="num" style="font-size:12px;color:var(--muted)">' + (isCost ? _fmtCost(b) : _fmtM(b)) + '</td>'
+      + '<td class="num ' + vCls + '" style="font-size:12px;color:var(--muted)">' + _fmtPct(a, b) + '</td></tr>';
   }
 
   const noData = !ctx.actPeriods.length;
@@ -3115,19 +3129,31 @@ async function loadP1() {
     + '<th>Line</th><th>Actual</th><th>' + ctx.cmpLbl + '</th><th>Var %</th>'
     + '</tr></thead><tbody>'
     + '<tr class="rsec"><td colspan="4">Revenue</td></tr>'
-    + plRow('Non-Fuel Revenue',    nfr_a,  nfr_b,  'rind', false)
-    + plRow('Customer Charge',     cust_a, cust_b, 'rind', false)
-    + plRow('Fuel Cost Recovery',  frl_a,  frl_b,  'rind', false)
-    + plRow('Total Revenue',       rev_a,  rev_b,  'rs',   false)
+    + plGrp('p1_rev', 'Total Revenue',    rev_a,  rev_b,  'rs',   false)
+    + plSub('p1_rev', 'Non-Fuel Revenue', nfr_a,  nfr_b,  false)
+    + plSub('p1_rev', 'Customer Charge',  cust_a, cust_b, false)
+    + plSub('p1_rev', 'Fuel Cost Recovery', frl_a, frl_b, false)
+    + plSub('p1_rev', 'IPP Fuel Recovery',  ipr_a, ipr_b, false)
+    + plSub('p1_rev', 'Other Revenue',    otr_a,  otr_b,  false)
     + '<tr class="rsec"><td colspan="4">Cost of Generation</td></tr>'
-    + plRow('Fuel &amp; IPP Energy', fc_a + ic_a, fc_b + ic_b, 'rind', true)
+    + plGrp('p1_fuel', 'Fuel &amp; IPP Energy', fc_a + ic_a, fc_b + ic_b, 'rind', true)
+    + plSub('p1_fuel', 'Fuel Cost',       fc_a,   fc_b,   true)
+    + plSub('p1_fuel', 'IPP Energy Cost', ic_a,   ic_b,   true)
     + plRow('Operating Expenses',  opx_a, opx_b, 'rind', true)
     + plRow('Gross Margin',        gm_a,  gm_b,  'rs',   false)
     + '<tr class="rsec"><td colspan="4">Operating</td></tr>'
     + plRow('EBITDA',              ebd_a,    ebd_b,    'rs',   false)
     + plRow('Depreciation',        dep_a,    dep_b,    'rind', true)
-    + plRow('Finance Costs (net)', nfc_a,    nfc_b,    'rind', true)
-    + plRow('Other Inc / FX / Div',btl_a,    btl_b,    'rind', false)
+    + plGrp('p1_nfc', 'Finance Costs (net)', nfc_a, nfc_b, 'rind', true)
+    + plSub('p1_nfc', 'Interest Expense',    sa('nfc_int_exp'), sb('nfc_int_exp'), true)
+    + plSub('p1_nfc', '(−) Interest Income', sa('nfc_int_inc'), sb('nfc_int_inc'), false)
+    + plSub('p1_nfc', '(−) AFUDC',           sa('nfc_afudc'),   sb('nfc_afudc'),   false)
+    + plSub('p1_nfc', 'Pref Dividend',        sa('pl_pref_div'), sb('pl_pref_div'), true)
+    + plSub('p1_nfc', 'Bank Fees',            sa('nfc_fees'),    sb('nfc_fees'),    true)
+    + plGrp('p1_btl', 'Other Inc / FX / Div',btl_a, btl_b, 'rind', false)
+    + plSub('p1_btl', 'Other Income',         oi_a,  oi_b,  false)
+    + plSub('p1_btl', 'FX Gain/(Loss)',        fx_a,  fx_b,  false)
+    + plSub('p1_btl', 'Dividend Received',     div_a, div_b, false)
     + plRow('NPBT',                pretax_a, pretax_b, 'rs',   false)
     + plRow('Tax',                 tax_a,    tax_b,    'rind', true)
     + plRow('NPAT',                ni_a,     ni_b,     'rs',   false)
@@ -4157,7 +4183,9 @@ async function loadP3() {
     + bsRow('Unbilled Revenue',            cv('unbill'),      pv('unbill'))
     + bsRow('Fuel Inventory',              cv('finv'),        pv('finv'))
     + bsRow('Materials &amp; Supplies',    cv('matls'),       pv('matls'))
-    + bsRow('Prepayments &amp; Other',     cv('bs_prepaid') + cv('bs_other_recv'), pv('bs_prepaid') + pv('bs_other_recv'))
+    + bsGroup('Prepayments &amp; Other',    cv('bs_prepaid') + cv('bs_other_recv'), pv('bs_prepaid') + pv('bs_other_recv'), 'bs_prepay')
+    + bsSub('Prepayments',                  cv('bs_prepaid'),    pv('bs_prepaid'),    'bs_prepay')
+    + bsSub('Other Receivables',            cv('bs_other_recv'), pv('bs_other_recv'), 'bs_prepay')
     + bsRow('Regulatory Asset',            cv('bs_reg_asset'), pv('bs_reg_asset'), null, 'bs_reg_asset')
     + bsRow('Total Current Assets',        ca_c,              ca_p,   'rs')
     + bsRow('TOTAL ASSETS',                ta_c,              ta_p,   'rs')
