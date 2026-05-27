@@ -2981,7 +2981,8 @@ async function loadP1() {
   // Input lines only — all derived IS lines (ebitda/net_inc etc.) always computed in JS
   const LINES = ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','ipp_nr','other_r','fuel_cost','ipp_cost',
     'pl_other_cos','opex','depn','nfc_int_exp','nfc_int_inc','nfc_afudc','pl_fx','nfc_pref',
-    'pl_pref_div','nfc_fees','other_inc','tax','pl_div_recv','cf_capex','stat_billed_gwh','cf_ops_net'];
+    'pl_pref_div','nfc_fees','other_inc','tax','pl_div_recv','cf_capex','stat_billed_gwh','cf_ops_net',
+    'bd_rev','vpp_rev','bd_cos','bd_opex','vpp_opex'];
   const CM_LINES = ['pl_total_sales','ebitda','net_inc','ebitda_margin','cf_capex','stat_billed_gwh','cf_ops_net'];
   const [aF, bF] = await Promise.all([
     _fetchFactsAct(ctx, LINES),
@@ -3012,17 +3013,26 @@ async function loadP1() {
   const ocf_a = sa('cf_ops_net'), ocf_b = sb('cf_ops_net');
   const cpx_a = Math.abs(sa('cf_capex')), cpx_b = Math.abs(sb('cf_capex'));
   const gwh_a = sa('stat_billed_gwh'), gwh_b = sb('stat_billed_gwh');
+  // Non-Regulated Business segment
+  const bdr_a = sa('bd_rev'),   bdr_b = sb('bd_rev');
+  const vpr_a = sa('vpp_rev'),  vpr_b = sb('vpp_rev');
+  const bdc_a = sa('bd_cos'),   bdc_b = sb('bd_cos');
+  const bdo_a = sa('bd_opex'),  bdo_b = sb('bd_opex');
+  const vpo_a = sa('vpp_opex'), vpo_b = sb('vpp_opex');
+  const nr_rev_a = bdr_a + vpr_a, nr_rev_b = bdr_b + vpr_b;
+  const nr_ebd_a = nr_rev_a - bdc_a - bdo_a - vpo_a;
+  const nr_ebd_b = nr_rev_b - bdc_b - bdo_b - vpo_b;
   // Derived lines — always computed in JS, never read from DB
-  const rev_a = nfr_a + cust_a + frl_a + ipr_a + inr_a + otr_a;
-  const rev_b = nfr_b + cust_b + frl_b + ipr_b + inr_b + otr_b;
+  const rev_a = nfr_a + cust_a + frl_a + ipr_a + inr_a + otr_a + nr_rev_a;
+  const rev_b = nfr_b + cust_b + frl_b + ipr_b + inr_b + otr_b + nr_rev_b;
   const oco_a = sa('pl_other_cos'),   oco_b = sb('pl_other_cos');  // IFRS16/other COS adj (negative)
   const div_a = sa('pl_div_recv'),    div_b = sb('pl_div_recv');   // tax-free dividend received
   const oi_a  = sa('other_inc'),      oi_b  = sb('other_inc');
   const fx_a  = sa('pl_fx'),          fx_b  = sb('pl_fx');
   const nfc_a = sa('nfc_int_exp') - sa('nfc_int_inc') - sa('nfc_afudc') + sa('pl_pref_div') + sa('nfc_fees');
   const nfc_b = sb('nfc_int_exp') - sb('nfc_int_inc') - sb('nfc_afudc') + sb('pl_pref_div') + sb('nfc_fees');
-  const gm_a  = rev_a - fc_a - ic_a + oco_a, gm_b = rev_b - fc_b - ic_b + oco_b;
-  const ebd_a = gm_a - opx_a,                ebd_b = gm_b - opx_b;
+  const gm_a  = rev_a - fc_a - ic_a - bdc_a + oco_a, gm_b = rev_b - fc_b - ic_b - bdc_b + oco_b;
+  const ebd_a = gm_a - opx_a - bdo_a - vpo_a,        ebd_b = gm_b - opx_b - bdo_b - vpo_b;
   const ebit_a = ebd_a - dep_a,              ebit_b = ebd_b - dep_b;
   const btl_a = oi_a + fx_a + div_a,         btl_b = oi_b + fx_b + div_b;  // below-the-line items
   const pretax_a = ebit_a - nfc_a + btl_a,   pretax_b = ebit_b - nfc_b + btl_b;
@@ -3137,14 +3147,17 @@ async function loadP1() {
     + plSub('p1_rev', 'IPP Fuel Recovery',     ipr_a, ipr_b, false)
     + plSub('p1_rev', 'IPP Non-Fuel Revenue',  inr_a, inr_b, false)
     + plSub('p1_rev', 'Other Revenue',         otr_a, otr_b, false)
-    + '<tr class="rsec"><td colspan="4">Cost of Generation</td></tr>'
+    + plSub('p1_rev', 'BD Revenue',            bdr_a, bdr_b, false)
+    + plSub('p1_rev', 'Virtual PP Revenue',    vpr_a, vpr_b, false)
+    + '<tr class="rsec"><td colspan="4">Cost of Generation &amp; Non-Regulated</td></tr>'
     + plGrp('p1_fuel', 'Fuel &amp; IPP Energy', fc_a + ic_a, fc_b + ic_b, 'rind', true)
     + plSub('p1_fuel', 'Fuel Cost',       fc_a,   fc_b,   true)
     + plSub('p1_fuel', 'IPP Energy Cost', ic_a,   ic_b,   true)
     + plRow('Operating Expenses',  opx_a, opx_b, 'rind', true)
+    + plRow('BD / VPP Costs',      bdc_a + bdo_a + vpo_a, bdc_b + bdo_b + vpo_b, 'rind', true)
     + plRow('Gross Margin',        gm_a,  gm_b,  'rs',   false)
     + '<tr class="rsec"><td colspan="4">Operating</td></tr>'
-    + plRow('EBITDA',              ebd_a,    ebd_b,    'rs',   false)
+    + plRow('EBITDA (incl. Non-Reg)', ebd_a, ebd_b, 'rs', false)
     + plRow('Depreciation',        dep_a,    dep_b,    'rind', true)
     + plGrp('p1_nfc', 'Finance Costs (net)', nfc_a, nfc_b, 'rind', true)
     + plSub('p1_nfc', 'Interest Expense',    sa('nfc_int_exp'), sb('nfc_int_exp'), true)
@@ -3296,6 +3309,7 @@ async function loadP2() {
 
   const LINES = ['pl_total_sales','nr_rev','nonfuel','nr_cust_charge','fuel_rev','ipp_fr','ipp_nr','other_r',
     'fuel_cost','ipp_cost','pl_other_cos','opex','depn',
+    'bd_rev','vpp_rev','bd_cos','bd_opex','vpp_opex',
     'nfc_int_exp','nfc_int_inc','nfc_afudc','nfc_fees','pl_pref_div','other_inc','pl_fx',
     'tax','pl_div_recv','nr_cost'];
 
@@ -6818,6 +6832,7 @@ async function loadP8() {
 
   const LINES = [
     'fuel_rev','fuel_cost','nonfuel','ipp_fr','ipp_nr','ipp_cost','other_r','nr_cust_charge',
+    'bd_rev','vpp_rev','bd_cos','bd_opex','vpp_opex',
     'opex','depn','nfc_int_exp','nfc_lease','nfc_int_inc','nfc_afudc','pl_afudc',
     'nfc_pref','nfc_fees','pl_fx','oth_inc','other_inc','tax'
   ];
@@ -7033,6 +7048,7 @@ async function loadP9() {
   if (sub) sub.textContent = 'Profitability, liquidity & leverage · ' + ctx.viewLbl + ' · USD $000s';
 
   const IS_LINES = ['fuel_rev','fuel_cost','nonfuel','ipp_fr','ipp_nr','ipp_cost','other_r','nr_cust_charge',
+                    'bd_rev','vpp_rev','bd_cos','bd_opex','vpp_opex',
                     'opex','depn','nfc_int_exp','nfc_lease','pl_afudc','nfc_afudc','oth_inc','other_inc','tax'];
   const BS_LINES = ['cash','rcash','recv','unbill','finv','matls','bs_prepaid',
                     'ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd',
