@@ -3237,7 +3237,7 @@ async function loadP2() {
 
   const LINES = ['pl_total_sales','nr_rev','nonfuel','nr_cust_charge','fuel_rev','ipp_fr','other_r',
     'fuel_cost','ipp_cost','opex','depn',
-    'nfc_int_exp','nfc_int_inc','nfc_afudc','pl_pref_div','other_inc',
+    'nfc_int_exp','nfc_int_inc','nfc_afudc','pl_pref_div','other_inc','pl_fx',
     'tax'];
 
   let aF, bF, allActF, aopF, leF;
@@ -3338,6 +3338,7 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
   const afudc_a     = sa('nfc_afudc'),       afudc_b     = sb('nfc_afudc');
   const pref_a      = sa('pl_pref_div'),     pref_b      = sb('pl_pref_div');
   const oth_inc_a   = sa('other_inc'),       oth_inc_b   = sb('other_inc');
+  const fx_a        = sa('pl_fx'),           fx_b        = sb('pl_fx');
   const tax_a       = sa('tax'),             tax_b       = sb('tax');
 
   // Derived segments (never read ebitda/ebit/pretax/net_inc from DB)
@@ -3350,8 +3351,8 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
   const ebit_a      = ebd_a - dep_a,         ebit_b   = ebd_b - dep_b;
   const nfc_a       = int_exp_a - int_inc_a - afudc_a + pref_a;
   const nfc_b       = int_exp_b - int_inc_b - afudc_b + pref_b;
-  const pretax_a    = ebit_a - nfc_a + (!_p2Standalone ? oth_inc_a : 0);
-  const pretax_b    = ebit_b - nfc_b + (!_p2Standalone ? oth_inc_b : 0);
+  const pretax_a    = ebit_a - nfc_a + (!_p2Standalone ? oth_inc_a + fx_a : 0);
+  const pretax_b    = ebit_b - nfc_b + (!_p2Standalone ? oth_inc_b + fx_b : 0);
   const ni_a        = pretax_a - tax_a,      ni_b     = pretax_b - tax_b;
 
   function er(lbl, a, b, cls, isCost, higherGood) {
@@ -3402,6 +3403,7 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
     + er('Net Financing Costs',    nfc_a,       nfc_b,       'rind', true)
     + er('Operating Profit after NFC', ebit_a - nfc_a, ebit_b - nfc_b, 'rs', false)
     + (!_p2Standalone ? er('Other Income / (Expenses)', oth_inc_a, oth_inc_b, 'rind', false) : '')
+    + (!_p2Standalone ? er('FX Gain / (Loss) — IAS 21', fx_a, fx_b, 'rind', false) : '')
     + esec('Taxation')
     + er('Net Profit Before Tax',  pretax_a,    pretax_b,    'rs',   false)
     + er('Income Tax (Expense) / Income', tax_a, tax_b,     'rind', true)
@@ -3466,9 +3468,9 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   const nfc_a    = sa('nfc_int_exp') - sa('nfc_int_inc');
   const nfc_b    = sb('nfc_int_exp') - sb('nfc_int_inc');
   const nfcFY    = sbFY('nfc_int_exp') - sbFY('nfc_int_inc');
-  const pretax_a = ebit_a - nfc_a + (!_p2Standalone ? sa('other_inc') : 0);
-  const pretax_b = ebit_b - nfc_b + (!_p2Standalone ? sb('other_inc') : 0);
-  const pretaxFY = ebitFY - nfcFY + (!_p2Standalone ? sbFY('other_inc') : 0);
+  const pretax_a = ebit_a - nfc_a + (!_p2Standalone ? sa('other_inc') + sa('pl_fx') : 0);
+  const pretax_b = ebit_b - nfc_b + (!_p2Standalone ? sb('other_inc') + sb('pl_fx') : 0);
+  const pretaxFY = ebitFY - nfcFY + (!_p2Standalone ? sbFY('other_inc') + sbFY('pl_fx') : 0);
   const ni_a     = pretax_a - sa('tax');
   const ni_b     = pretax_b - sb('tax');
   const niFY     = pretaxFY - sbFY('tax');
@@ -3505,6 +3507,7 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
     + rowDerived('Net Financing Costs',     nfc_a, nfc_b, nfcFY, 'rs', true)
     + (!_p2Standalone ? sec('Other Income / (Expenses)') : '')
     + (!_p2Standalone ? row('Other Income &amp; Dividends Received', 'other_inc', 'rind', false) : '')
+    + (!_p2Standalone ? row('FX Gain / (Loss) — IAS 21', 'pl_fx', 'rind', false) : '')
     + sec('Taxation')
     + rowDerived('Net Profit Before Tax',   pretax_a, pretax_b, pretaxFY, 'rs', false)
     + row('Income Tax Expense',             'tax',           'rind', true)
@@ -3565,7 +3568,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
   function ebit(ps)   { return ebitda(ps)-cv('depn',ps); }
   function pretax(ps) {
     return ebit(ps) - cv('nfc_int_exp',ps) + cv('nfc_int_inc',ps) + cv('nfc_afudc',ps)
-      - cv('pl_pref_div',ps) + (!_p2Standalone ? cv('other_inc',ps) : 0);
+      - cv('pl_pref_div',ps) + (!_p2Standalone ? cv('other_inc',ps) + cv('pl_fx',ps) : 0);
   }
   // pl_div_recv is tax-free — added after tax, not part of taxable pretax
   function npat(ps)   { return pretax(ps) - cv('tax',ps) + cv('pl_div_recv',ps); }
@@ -3633,6 +3636,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
       + rline('Net Financing Costs',              nfc_net, 'rind', true)
       + rsub('Operating Profit after NFC',         after_nfc, 'rs')
       + (!_p2Standalone ? rline('Other Income / (Expenses)', function(ps){ return cv('other_inc',ps); }) : '')
+      + (!_p2Standalone ? rline('FX Gain / (Loss) — IAS 21', function(ps){ return cv('pl_fx',ps); }) : '')
       + rsec('Taxation')
       + rsub('Net Profit Before Tax',              pretax, 'rs')
       + rline('Income Tax Expense',               function(ps){ return cv('tax',ps); }, 'rind', true)
@@ -3663,6 +3667,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
       + rline('Preference Dividends',       function(ps){ return cv('pl_pref_div',ps); }, 'rind', true)
       + (!_p2Standalone ? rsec('Other Income / (Expenses)') : '')
       + (!_p2Standalone ? rline('Other Income &amp; Dividends',function(ps){ return cv('other_inc',ps); }) : '')
+      + (!_p2Standalone ? rline('FX Gain / (Loss) — IAS 21', function(ps){ return cv('pl_fx',ps); }) : '')
       + rsec('Taxation')
       + rsub('Net Profit Before Tax',        pretax, 'rs')
       + rline('Income Tax Expense',         function(ps){ return cv('tax',ps); }, 'rind', true)
@@ -3774,17 +3779,18 @@ function _buildP2YearToGo(ctx, ytdF, leF, aopF) {
     + rline('AFUDC',                      'nfc_afudc')
     + rline('Preference Dividends',       'pl_pref_div','rind', true)
     + (!_p2Standalone ? rline('Other Income &amp; Dividends','other_inc') : '')
+    + (!_p2Standalone ? rline('FX Gain / (Loss) — IAS 21', 'pl_fx') : '')
     + rsec('Taxation')
     + rsub('Net Profit Before Tax', deriveFn(function(c){
         var ebd=getColVal('nr_rev',c)+getColVal('nr_cust_charge',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c);
         var ebit=ebd-getColVal('depn',c);
-        return ebit-getColVal('nfc_int_exp',c)+getColVal('nfc_int_inc',c)+getColVal('nfc_afudc',c)-getColVal('pl_pref_div',c)+(!_p2Standalone?getColVal('other_inc',c):0);
+        return ebit-getColVal('nfc_int_exp',c)+getColVal('nfc_int_inc',c)+getColVal('nfc_afudc',c)-getColVal('pl_pref_div',c)+(!_p2Standalone?getColVal('other_inc',c)+getColVal('pl_fx',c):0);
       }), 'rs')
     + rline('Income Tax Expense',         'tax',        'rind', true)
     + rsub('Net Profit After Tax (NPAT)', deriveFn(function(c){
         var ebd=getColVal('nr_rev',c)+getColVal('nr_cust_charge',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)-getColVal('opex',c);
         var ebit=ebd-getColVal('depn',c);
-        var pretax=ebit-getColVal('nfc_int_exp',c)+getColVal('nfc_int_inc',c)+getColVal('nfc_afudc',c)-getColVal('pl_pref_div',c)+(!_p2Standalone?getColVal('other_inc',c):0);
+        var pretax=ebit-getColVal('nfc_int_exp',c)+getColVal('nfc_int_inc',c)+getColVal('nfc_afudc',c)-getColVal('pl_pref_div',c)+(!_p2Standalone?getColVal('other_inc',c)+getColVal('pl_fx',c):0);
         return pretax-getColVal('tax',c);
       }), 'rt');
 
