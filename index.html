@@ -2587,7 +2587,7 @@ function _normalizeAlias(f) {
   }
   // pl_total_sales: always compute from components — never use stored DB value
   {
-    const srcs = ['nr_rev', 'nonfuel', 'fuel_rev', 'ipp_fr', 'other_r', 'nr_cust_charge'];
+    const srcs = ['nr_rev', 'nonfuel', 'fuel_rev', 'ipp_fr', 'ipp_nr', 'other_r', 'nr_cust_charge'];
     const merged = {};
     srcs.forEach(function(lid) {
       const src = f[lid] || {};
