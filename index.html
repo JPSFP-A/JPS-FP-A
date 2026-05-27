@@ -2981,7 +2981,7 @@ async function loadP1() {
   // Input lines only — all derived IS lines (ebitda/net_inc etc.) always computed in JS
   const LINES = ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','other_r','fuel_cost','ipp_cost',
     'pl_other_cos','opex','depn','nfc_int_exp','nfc_int_inc','nfc_afudc','pl_fx','nfc_pref',
-    'pl_pref_div','tax','pl_div_recv','cf_capex','stat_billed_gwh','cf_ops_net'];
+    'pl_pref_div','nfc_fees','other_inc','tax','pl_div_recv','cf_capex','stat_billed_gwh','cf_ops_net'];
   const CM_LINES = ['pl_total_sales','ebitda','net_inc','ebitda_margin','cf_capex','stat_billed_gwh','cf_ops_net'];
   const [aF, bF] = await Promise.all([
     _fetchFactsAct(ctx, LINES),
@@ -3007,7 +3007,6 @@ async function loadP1() {
   const ic_a  = sa('ipp_cost'),  ic_b = sb('ipp_cost');
   const opx_a = sa('opex'),     opx_b = sb('opex');
   const dep_a = sa('depn'),     dep_b = sb('depn');
-  const fin_a = sa('nfc_int_exp'), fin_b = sb('nfc_int_exp');
   const tax_a = sa('tax'),      tax_b = sb('tax');
   const ocf_a = sa('cf_ops_net'), ocf_b = sb('cf_ops_net');
   const cpx_a = Math.abs(sa('cf_capex')), cpx_b = Math.abs(sb('cf_capex'));
@@ -3017,10 +3016,16 @@ async function loadP1() {
   const rev_b = nfr_b + cust_b + frl_b + ipr_b + otr_b;
   const oco_a = sa('pl_other_cos'),   oco_b = sb('pl_other_cos');  // IFRS16/other COS adj (negative)
   const div_a = sa('pl_div_recv'),    div_b = sb('pl_div_recv');   // tax-free dividend received
+  const oi_a  = sa('other_inc'),      oi_b  = sb('other_inc');
+  const fx_a  = sa('pl_fx'),          fx_b  = sb('pl_fx');
+  const nfc_a = sa('nfc_int_exp') - sa('nfc_int_inc') - sa('nfc_afudc') + sa('pl_pref_div') + sa('nfc_fees');
+  const nfc_b = sb('nfc_int_exp') - sb('nfc_int_inc') - sb('nfc_afudc') + sb('pl_pref_div') + sb('nfc_fees');
   const gm_a  = rev_a - fc_a - ic_a + oco_a, gm_b = rev_b - fc_b - ic_b + oco_b;
   const ebd_a = gm_a - opx_a,                ebd_b = gm_b - opx_b;
   const ebit_a = ebd_a - dep_a,              ebit_b = ebd_b - dep_b;
-  const ni_a  = ebit_a - fin_a - tax_a + div_a, ni_b = ebit_b - fin_b - tax_b + div_b;
+  const btl_a = oi_a + fx_a + div_a,         btl_b = oi_b + fx_b + div_b;  // below-the-line items
+  const pretax_a = ebit_a - nfc_a + btl_a,   pretax_b = ebit_b - nfc_b + btl_b;
+  const ni_a  = pretax_a - tax_a,            ni_b  = pretax_b - tax_b;
   const ebdMg_a = rev_a ? (ebd_a / rev_a * 100) : 0;
   const ebdMg_b = rev_b ? (ebd_b / rev_b * 100) : 0;
 
@@ -3030,7 +3035,7 @@ async function loadP1() {
     rev_a: rev_a,   ebd_a: ebd_a,   ni_a: ni_a,
     cpx_a: cpx_a,   gwh_a: gwh_a,   ocf_a: ocf_a,
     fc_a: fc_a,     ic_a: ic_a,     opx_a: opx_a,
-    dep_a: dep_a,   fin_a: fin_a,   tax_a: tax_a,
+    dep_a: dep_a,   nfc_a: nfc_a,   tax_a: tax_a,
     ebdMg_a: ebdMg_a,
     niMg_a: rev_a ? (ni_a / rev_a * 100) : 0,
   };
@@ -3119,11 +3124,13 @@ async function loadP1() {
     + plRow('Operating Expenses',  opx_a, opx_b, 'rind', true)
     + plRow('Gross Margin',        gm_a,  gm_b,  'rs',   false)
     + '<tr class="rsec"><td colspan="4">Operating</td></tr>'
-    + plRow('EBITDA',              ebd_a, ebd_b, 'rs',   false)
-    + plRow('Depreciation',        dep_a, dep_b, 'rind', true)
-    + plRow('Finance Costs (net)', fin_a, fin_b, 'rind', true)
-    + plRow('Tax',                 tax_a, tax_b, 'rind', true)
-    + plRow('NPAT',                ni_a,  ni_b,  'rs',   false)
+    + plRow('EBITDA',              ebd_a,    ebd_b,    'rs',   false)
+    + plRow('Depreciation',        dep_a,    dep_b,    'rind', true)
+    + plRow('Finance Costs (net)', nfc_a,    nfc_b,    'rind', true)
+    + plRow('Other Inc / FX / Div',btl_a,    btl_b,    'rind', false)
+    + plRow('NPBT',                pretax_a, pretax_b, 'rs',   false)
+    + plRow('Tax',                 tax_a,    tax_b,    'rind', true)
+    + plRow('NPAT',                ni_a,     ni_b,     'rs',   false)
     + '</tbody></table></div></div>'
     + '<div class="card"><div class="card-head">Efficiency Metrics'
     + ' <span class="ch-sub">' + ctx.viewLbl + '</span></div>'
