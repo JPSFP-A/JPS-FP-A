@@ -4398,7 +4398,7 @@ async function loadP3() {
   }
   function sec(lbl) { return '<tr class="rsec"><td colspan="4">' + lbl + '</td></tr>'; }
 
-  const html = ''
+  let html = ''
     + '<div class="page-head"><h1>Balance Sheet</h1>'
     + '<div class="ph-sub">Statement of Financial Position &middot; As at ' + curLbl + ' &middot; JMD $000s</div>'
     + '<div style="margin-top:8px">' + cvToggle + '</div></div>'
@@ -4470,8 +4470,117 @@ async function loadP3() {
       })()
     + '</tbody></table></div></div>';
 
+  // ── KPI + Chart block ──────────────────────────────────────────────
+  const total_debt_c = cv('ltd') + cv('leases') + cv('bs_curr_ltd') + cv('bs_bank_od');
+  const net_debt_c   = total_debt_c - cash_c;
+  const cur_ratio_c  = cl_c   ? +(ca_c / cl_c).toFixed(2)               : 0;
+  const gearing_c    = (net_debt_c + eq_c) ? +(net_debt_c / (net_debt_c + eq_c) * 100).toFixed(1) : 0;
+  const nca_pct_c    = ta_c   ? +(nca_c / ta_c * 100).toFixed(1)        : 0;
+
+  _p3ChartData = {
+    // Asset donut: NCA breakdown
+    ppe_c:  Math.round(ppe_c),  cwip_c: Math.round(cwip_c),
+    oth_nca_c: Math.round(cv('eqinv') + cv('pension') + cv('bs_dta')),
+    recv_c: Math.round(recv_c), cash_c: Math.round(cash_c),
+    oth_ca_c: Math.round(oth_c),
+    // Capital structure donut
+    eq_c: Math.round(eq_c), ncl_c: Math.round(ncl_c), cl_c: Math.round(cl_c),
+    // KPIs
+    cur_ratio_c, net_debt_c: Math.round(net_debt_c), gearing_c, nca_pct_c,
+    curLbl, priLbl
+  };
+
+  function _kpiCard(label, value, sub, color) {
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;flex:1;min-width:140px">'
+      + '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:4px">' + label + '</div>'
+      + '<div style="font-size:20px;font-weight:700;color:' + color + ';font-family:\'IBM Plex Mono\',monospace">' + value + '</div>'
+      + (sub ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + sub + '</div>' : '')
+      + '</div>';
+  }
+
+  const crColor  = cur_ratio_c >= 1.0 ? 'var(--green)' : (cur_ratio_c >= 0.7 ? 'var(--amber)' : 'var(--rose)');
+  const gearColor= gearing_c  <= 40   ? 'var(--green)' : (gearing_c  <= 60  ? 'var(--amber)' : 'var(--rose)');
+
+  html += '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">'
+    + _kpiCard('Current Ratio',   cur_ratio_c.toFixed(2) + 'x', 'CA ÷ CL', crColor)
+    + _kpiCard('Net Debt',        _fmtM(net_debt_c),             'Total debt − cash', 'var(--teal)')
+    + _kpiCard('Gearing',         gearing_c.toFixed(1) + '%',   'Net debt ÷ (ND + Equity)', gearColor)
+    + _kpiCard('NCA / TA',        nca_pct_c.toFixed(1) + '%',   'Non-current asset intensity', 'var(--text)')
+    + '</div>'
+    + '<div class="chart-row" style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px">'
+    + '<div class="card"><div class="card-head">Asset Composition <span class="ch-sub">As at ' + curLbl + '</span></div>'
+    + '<div class="chart-canvas-wrap" style="height:220px"><canvas id="p3ChartAssets"></canvas></div></div>'
+    + '<div class="card"><div class="card-head">Capital Structure <span class="ch-sub">As at ' + curLbl + '</span></div>'
+    + '<div class="chart-canvas-wrap" style="height:220px"><canvas id="p3ChartCapStr"></canvas></div></div>'
+    + '</div>';
+
   const pg = document.getElementById('p3');
-  if (pg) pg.innerHTML = html;
+  if (pg) {
+    pg.innerHTML = html;
+    _p3InitCharts();
+  }
+}
+
+var _p3Charts    = {};
+var _p3ChartData = null;
+
+function _p3InitCharts() {
+  if (!_p3ChartData || typeof Chart === 'undefined') return;
+  Object.values(_p3Charts).forEach(function(c){ try { c.destroy(); } catch(e){} });
+  _p3Charts = {};
+  const d = _p3ChartData;
+
+  // Asset Composition donut
+  const aC = document.getElementById('p3ChartAssets');
+  if (aC) {
+    _p3Charts.assets = new Chart(aC.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['PPE (net)', 'CWIP', 'Other NCA', 'Receivables', 'Cash', 'Other CA'],
+        datasets: [{ data: [d.ppe_c, d.cwip_c, d.oth_nca_c, d.recv_c, d.cash_c, d.oth_ca_c],
+          backgroundColor: ['#003da5cc','#0059c1aa','#3a7bd5aa','#00aeefaa','#17c964aa','#7dd3fcaa'],
+          borderColor:     ['#003da5',  '#0059c1',  '#3a7bd5',  '#00aeef',  '#17c964',  '#7dd3fc'],
+          borderWidth: 1.5 }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false, cutout:'58%',
+        plugins: {
+          legend: { position:'right', labels:{ font:{ family:"'IBM Plex Sans',sans-serif", size:10 }, boxWidth:12, padding:6 } },
+          tooltip: { callbacks: { label: function(c) {
+            var tot = c.dataset.data.reduce(function(s,v){ return s+v; }, 0);
+            var pct = tot ? (c.raw/tot*100).toFixed(1) : 0;
+            return c.label+': '+Number(c.raw).toLocaleString()+'K ('+pct+'%)';
+          }}}
+        }
+      }
+    });
+  }
+
+  // Capital Structure donut
+  const cC = document.getElementById('p3ChartCapStr');
+  if (cC) {
+    _p3Charts.capstr = new Chart(cC.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Equity', 'Non-Current Liabilities', 'Current Liabilities'],
+        datasets: [{ data: [d.eq_c, d.ncl_c, d.cl_c],
+          backgroundColor: ['#003da5cc','#e31837aa','#f5a623aa'],
+          borderColor:     ['#003da5',  '#e31837',  '#f5a623'],
+          borderWidth: 1.5 }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false, cutout:'58%',
+        plugins: {
+          legend: { position:'right', labels:{ font:{ family:"'IBM Plex Sans',sans-serif", size:10 }, boxWidth:12, padding:6 } },
+          tooltip: { callbacks: { label: function(c) {
+            var tot = c.dataset.data.reduce(function(s,v){ return s+v; }, 0);
+            var pct = tot ? (c.raw/tot*100).toFixed(1) : 0;
+            return c.label+': '+Number(c.raw).toLocaleString()+'K ('+pct+'%)';
+          }}}
+        }
+      }
+    });
+  }
 }
 
 /* ----- BS MULTI-COL (Monthly / Quarterly) ----- */
