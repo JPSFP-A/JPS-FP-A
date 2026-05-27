@@ -7300,8 +7300,9 @@ async function _loadNotifications() {
       const moLabel  = MONS[mo - 1] + ' ' + yr;
       const ytdLabel = 'YTD ' + moLabel;
 
-      const FLOW_LINES = ['REV_TOTAL','FUEL_COST','FUEL_REV','NONFUEL','IPP_COST','OM_TOTAL','DEPN','NFC_TOTAL','CX_TOTAL','CF_EBITDA'];
-      const BS_LINES   = ['BS_CASH'];
+      // Actual line IDs as stored in fpa_facts (all lowercase)
+      const FLOW_LINES = ['fuel_rev','nonfuel','nr_cust_charge','other_r','fuel_cost','ipp_cost','opex','depn','ebitda','net_inc','cf_capex','cash'];
+      const BS_LINES   = ['cash'];
       const latestVid  = vm[latestAct]; // version_id for latest month only (for BS snapshot)
       const ytdVids    = ytdPids.map(function(p){ return vm['ACTUALS_' + yr + '_' + String(p % 100).padStart(2,'0')]; }).filter(Boolean);
 
@@ -7310,7 +7311,7 @@ async function _loadNotifications() {
           .in('version_id', ytdVids).in('line_id', FLOW_LINES); }, { silent: true }),
         _sbQ(function(sb){ return sb.from('fpa_facts').select('line_id,value')
           .eq('version_id', vm[aopKey]).in('period_id', ytdPids).in('line_id', FLOW_LINES.concat(BS_LINES)); }, { silent: true }),
-        // BS_CASH: latest month snapshot only (not YTD sum)
+        // cash: latest month snapshot only (not YTD sum)
         _sbQ(function(sb){ return sb.from('fpa_facts').select('line_id,value')
           .eq('version_id', latestVid).in('line_id', BS_LINES); }, { silent: true }),
       ]);
@@ -7320,6 +7321,10 @@ async function _loadNotifications() {
       (rA  && rA.data  || []).forEach(function(row){ aggAct[row.line_id] = (aggAct[row.line_id] || 0) + (parseFloat(row.value) || 0); });
       (rB  && rB.data  || []).forEach(function(row){ aggAop[row.line_id] = (aggAop[row.line_id] || 0) + (parseFloat(row.value) || 0); });
       (rBS && rBS.data || []).forEach(function(row){ aggBS[row.line_id]  = parseFloat(row.value) || 0; });
+
+      // Revenue = fuel_rev + nonfuel + nr_cust_charge + other_r
+      aggAct['_rev'] = (aggAct['fuel_rev']||0) + (aggAct['nonfuel']||0) + (aggAct['nr_cust_charge']||0) + (aggAct['other_r']||0);
+      aggAop['_rev'] = (aggAop['fuel_rev']||0) + (aggAop['nonfuel']||0) + (aggAop['nr_cust_charge']||0) + (aggAop['other_r']||0);
 
       function varAlert(id, lineId, label, favorable, thresholdPct, severity) {
         const act = aggAct[lineId], aop = aggAop[lineId];
@@ -7339,17 +7344,17 @@ async function _loadNotifications() {
         });
       }
 
-      // Revenue: favorable if actual > AOP
-      varAlert('live_rev',    'REV_TOTAL',  'Revenue',         true,  1, 2);
+      // Revenue: favorable if actual > AOP (uses computed _rev aggregate)
+      varAlert('live_rev',    '_rev',       'Revenue',         true,  1, 2);
       // Fuel cost: adverse if actual > AOP (cost — lower is better)
-      varAlert('live_fuel',   'FUEL_COST',  'Fuel cost',       false, 2, 3);
+      varAlert('live_fuel',   'fuel_cost',  'Fuel cost',       false, 2, 3);
       // O&M: adverse if actual > AOP
-      varAlert('live_om',     'OM_TOTAL',   'O&M costs',       false, 2, 2);
+      varAlert('live_om',     'opex',       'O&M costs',       false, 2, 2);
       // CapEx: flag either direction (under-spend may mean project delays)
-      varAlert('live_capex',  'CX_TOTAL',   'CapEx spend',     false, 5, 1);
-      // EBITDA proxy via CF_EBITDA (if loaded) or derive: REV_TOTAL - FUEL_COST - IPP_COST - OM_TOTAL
-      const eAct = aggAct['CF_EBITDA'] || ((aggAct['REV_TOTAL'] || 0) - (aggAct['FUEL_COST'] || 0) - (aggAct['IPP_COST'] || 0) - (aggAct['OM_TOTAL'] || 0) - (aggAct['DEPN'] || 0));
-      const eAop = aggAop['CF_EBITDA'] || ((aggAop['REV_TOTAL'] || 0) - (aggAop['FUEL_COST'] || 0) - (aggAop['IPP_COST'] || 0) - (aggAop['OM_TOTAL'] || 0) - (aggAop['DEPN'] || 0));
+      varAlert('live_capex',  'cf_capex',   'CapEx spend',     false, 5, 1);
+      // EBITDA: direct from fpa_facts (line_id = 'ebitda')
+      const eAct = aggAct['ebitda'];
+      const eAop = aggAop['ebitda'];
       if (eAct && eAop && eAop !== 0) {
         const varAmt = eAct - eAop, varPct = (varAmt / Math.abs(eAop)) * 100;
         if (Math.abs(varPct) >= 1) {
@@ -7365,8 +7370,8 @@ async function _loadNotifications() {
       }
 
       // 2b. Cash position alert — latest month BS snapshot (not YTD sum)
-      const cashAct = aggBS['BS_CASH'];
-      const cashAop = aggAop['BS_CASH'];
+      const cashAct = aggBS['cash'];
+      const cashAop = aggAop['cash'];
       if (cashAct && cashAop && cashAop !== 0) {
         const cashVar = ((cashAct - cashAop) / Math.abs(cashAop)) * 100;
         if (cashVar < -10) { // cash >10% below AOP plan — flag
