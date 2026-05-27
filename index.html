@@ -6,6 +6,7 @@
 <title>JPS FP&amp;A Hub — v2</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23111827'/><text x='16' y='22' font-family='Georgia,serif' font-size='16' font-weight='700' fill='%23EAB308' text-anchor='middle'>JF</text></svg>"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -466,6 +467,8 @@ button { font-family: inherit; cursor: pointer; }
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
 }
 .card-head .ch-sub { font-size: 11px; color: var(--muted); font-weight: 400; }
+.card-xbtn { display:flex; gap:4px; flex-shrink:0; margin-left:auto; }
+.card-xbtn .btn-outline { font-size:10px; padding:3px 9px; font-weight:500; }
 .tbl-wrap { overflow-x: auto; }
 table.dt { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 table.dt thead th {
@@ -2629,6 +2632,12 @@ function _normalizeAlias(f) {
     });
     if (Object.keys(net).length) f['ppe'] = net;
   }
+  // pl_fx: DB stores as loss-positive; normalize to income-positive (gain=+, loss=-)
+  // fin_cost = NFC_components + pl_fx_raw; normalizing makes + sa('pl_fx') correct in pretax
+  if (_hasFactData(f, 'pl_fx')) {
+    var _pxObj = f['pl_fx'];
+    Object.keys(_pxObj).forEach(function(p) { _pxObj[p] = -(_pxObj[p]); });
+  }
   return f;
 }
 
@@ -3371,6 +3380,25 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
   }
   function esec(lbl) { return '<tr class="rsec"><td colspan="6">' + lbl + '</td></tr>'; }
   function eblank() { return '<tr><td colspan="6" style="height:4px"></td></tr>'; }
+  function eGrp(lbl, a, b, isCost) {
+    var v = a - b, hg = !isCost, vCls = _vc(v, hg), fmt = isCost ? _fmtCost : _fmtM;
+    return '<tr class="rind" style="cursor:pointer" onclick="bsToggle(\'exec_nfc\')">'
+      + '<td><span id="bst-exec_nfc" style="font-size:10px;margin-right:4px">&#9654;</span>' + lbl + '</td>'
+      + '<td class="num">' + fmt(a) + '</td><td class="num">' + fmt(b) + '</td>'
+      + '<td class="num ' + vCls + '">' + _fmtM(v) + '</td>'
+      + '<td class="num ' + vCls + '">' + _fmtPct(a, b) + '</td>'
+      + '<td>' + _ragBadge(a, b, hg) + '</td></tr>';
+  }
+  function eSub(lbl, a, b, isCost) {
+    var v = a - b, hg = !isCost, vCls = _vc(v, hg), fmt = isCost ? _fmtCost : _fmtM;
+    return '<tr class="rind bssub-exec_nfc" style="display:none">'
+      + '<td style="padding-left:28px;font-size:11px;color:var(--muted)">' + lbl + '</td>'
+      + '<td class="num" style="font-size:11px">' + fmt(a) + '</td>'
+      + '<td class="num" style="font-size:11px">' + fmt(b) + '</td>'
+      + '<td class="num ' + vCls + '" style="font-size:11px">' + _fmtM(v) + '</td>'
+      + '<td class="num ' + vCls + '" style="font-size:11px">' + _fmtPct(a, b) + '</td>'
+      + '<td>' + _ragBadge(a, b, hg) + '</td></tr>';
+  }
 
   return '<div class="notice-bar">Executive summary view. Cost of sales (adverse) shown as (x). Adverse variances in red.</div>'
     + '<div class="card"><div class="card-head">Executive Summary — Segmented P&amp;L'
@@ -3402,7 +3430,12 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
     + er('(−) Depreciation',       dep_a,       dep_b,       'rind', true)
     + er('Operating Income (EBIT)',ebit_a,      ebit_b,      'rs',   false)
     + esec('Financing')
-    + er('Net Financing Costs',    nfc_a,       nfc_b,       'rind', true)
+    + eGrp('Net Financing Costs',  nfc_a,       nfc_b,       true)
+    + eSub('Interest Income',      int_inc_a,   int_inc_b,   false)
+    + eSub('AFUDC',                afudc_a,     afudc_b,     false)
+    + eSub('Interest Expense',     int_exp_a,   int_exp_b,   true)
+    + eSub('Preference Dividends', pref_a,      pref_b,      true)
+    + eSub('Loan Fees',            fees_a,      fees_b,      true)
     + er('Operating Profit after NFC', ebit_a - nfc_a, ebit_b - nfc_b, 'rs', false)
     + er('Other Income / (Expenses)', oth_inc_a, oth_inc_b, 'rind', false)
     + er('FX Gain / (Loss) — IAS 21', fx_a, fx_b, 'rind', false)
@@ -3474,9 +3507,9 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   const ebit_a   = ebitda_a - sa('depn');
   const ebit_b   = ebitda_b - sb('depn');
   const ebitFY   = ebitdaFY - sbFY('depn');
-  const nfc_a    = sa('nfc_int_exp') - sa('nfc_int_inc') + sa('nfc_fees');
-  const nfc_b    = sb('nfc_int_exp') - sb('nfc_int_inc') + sb('nfc_fees');
-  const nfcFY    = sbFY('nfc_int_exp') - sbFY('nfc_int_inc') + sbFY('nfc_fees');
+  const nfc_a    = sa('nfc_int_exp') - sa('nfc_int_inc') - sa('nfc_afudc') + sa('pl_pref_div') + sa('nfc_fees');
+  const nfc_b    = sb('nfc_int_exp') - sb('nfc_int_inc') - sb('nfc_afudc') + sb('pl_pref_div') + sb('nfc_fees');
+  const nfcFY    = sbFY('nfc_int_exp') - sbFY('nfc_int_inc') - sbFY('nfc_afudc') + sbFY('pl_pref_div') + sbFY('nfc_fees');
   const pretax_a = ebit_a - nfc_a + sa('other_inc') + sa('pl_fx') + (!_p2Standalone ? sa('pl_div_recv') : 0);
   const pretax_b = ebit_b - nfc_b + sb('other_inc') + sb('pl_fx') + (!_p2Standalone ? sb('pl_div_recv') : 0);
   const pretaxFY = ebitFY - nfcFY + sbFY('other_inc') + sbFY('pl_fx') + (!_p2Standalone ? sbFY('pl_div_recv') : 0);
@@ -3488,7 +3521,7 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   function _gpP(p)     { return _fVal(aF,'pl_total_sales',p) - _fVal(aF,'fuel_cost',p) - _fVal(aF,'ipp_cost',p) + _fVal(aF,'pl_other_cos',p); }
   function _ebitdaP(p) { return _gpP(p) - _fVal(aF,'opex',p); }
   function _ebitP(p)   { return _ebitdaP(p) - _fVal(aF,'depn',p); }
-  function _nfcP(p)    { return _fVal(aF,'nfc_int_exp',p) - _fVal(aF,'nfc_int_inc',p) + _fVal(aF,'nfc_fees',p); }
+  function _nfcP(p)    { return _fVal(aF,'nfc_int_exp',p) - _fVal(aF,'nfc_int_inc',p) - _fVal(aF,'nfc_afudc',p) + _fVal(aF,'pl_pref_div',p) + _fVal(aF,'nfc_fees',p); }
   function _pretaxP(p) { return _ebitP(p) - _nfcP(p) + _fVal(aF,'other_inc',p) + _fVal(aF,'pl_fx',p) + (!_p2Standalone ? _fVal(aF,'pl_div_recv',p) : 0); }
   function _niP(p)     { return _pretaxP(p) - _fVal(aF,'tax',p); }
 
@@ -5119,9 +5152,52 @@ function flashExportPDF() {
   document.title = orig;
   toast('Print dialog opened — save as PDF','ok');
 }
-function flashExportXLSX() {
-  toast('Excel export: install SheetJS library to enable','w');
+function _xlsxExport(tbl) {
+  if (typeof XLSX === 'undefined') { toast('Excel library not loaded yet — try again','w'); return; }
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.table_to_sheet(tbl, { raw: false });
+  XLSX.utils.book_append_sheet(wb, ws, 'JPS Report');
+  var mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var yr2 = _activeYear, maxMo2 = (_yearMaxMo[yr2] != null) ? _yearMaxMo[yr2] : 12;
+  var mo2 = (_activeMo > 0 && _activeMo <= maxMo2) ? _activeMo : maxMo2;
+  var fname = 'JPS_' + mons[mo2 - 1] + '_' + yr2 + '.xlsx';
+  XLSX.writeFile(wb, fname);
+  toast('Downloaded: ' + fname, 'ok');
 }
+function flashExportXLSX() {
+  var tbl = document.querySelector('.page.active .tbl-wrap table') || document.querySelector('.page.active table');
+  if (!tbl) { toast('No table on this page to export','w'); return; }
+  try { _xlsxExport(tbl); } catch(e) { toast('Export failed: ' + e.message, 'w'); }
+}
+function flashExportXLSXCard(btn) {
+  var card = btn ? btn.closest('.card') : null;
+  var tbl = (card ? card.querySelector('.tbl-wrap table') || card.querySelector('table') : null)
+    || document.querySelector('.page.active .tbl-wrap table');
+  if (!tbl) { toast('No table found to export','w'); return; }
+  try { _xlsxExport(tbl); } catch(e) { toast('Export failed: ' + e.message, 'w'); }
+}
+function _injectCardBtns() {
+  document.querySelectorAll('.card-head').forEach(function(h) {
+    if (h.querySelector('.card-xbtn')) return;
+    var d = document.createElement('div');
+    d.className = 'card-xbtn';
+    d.innerHTML = '<button class="btn-outline" onclick="flashExportPDF()">PDF</button>'
+      + '<button class="btn-outline" onclick="flashExportXLSXCard(this)">Excel</button>';
+    h.appendChild(d);
+  });
+}
+(function() {
+  var _btnTimer;
+  var mo = new MutationObserver(function() {
+    clearTimeout(_btnTimer);
+    _btnTimer = setTimeout(_injectCardBtns, 120);
+  });
+  document.addEventListener('DOMContentLoaded', function() {
+    var root = document.getElementById('main') || document.body;
+    mo.observe(root, { childList: true, subtree: true });
+    setTimeout(_injectCardBtns, 400);
+  });
+})();
 
 /* ====================================================================
    PAGE 10 — KPI SCORECARD
@@ -5527,7 +5603,7 @@ async function loadP18(){
         var gp=rev-(d['fuel_cost']||0)-(d['ipp_cost']||0)+(d['pl_other_cos']||0);
         var ebitda=gp-(d['opex']||0);
         var ebit=ebitda-(d['depn']||0);
-        var pretax=ebit+(d['nfc_afudc']||0)-(d['nfc_int_exp']||0)+(d['nfc_int_inc']||0)-(d['nfc_pref']||0)+(d['pl_fx']||0);
+        var pretax=ebit+(d['nfc_afudc']||0)-(d['nfc_int_exp']||0)+(d['nfc_int_inc']||0)-(d['nfc_pref']||0)-(d['pl_fx']||0);
         var netInc=pretax-(d['tax']||0)+(d['pl_div_recv']||0);
         d['pl_total_sales']=rev; d['pl_gross_profit']=gp; d['ebitda']=ebitda;
         d['ebit']=ebit; d['pretax']=pretax; d['net_inc']=netInc;
@@ -7315,6 +7391,16 @@ document.addEventListener('click', function(e) {
 /* ---------- Notifications (live from DB + variance alerts) ---------- */
 let _notifData = [];   // cached rows from fpa_notifications
 let _notifLoaded = false;
+function _liveAlertTime(id) {
+  var key = '_nat_' + id;
+  try {
+    var stored = sessionStorage.getItem(key);
+    if (stored) return stored;
+    var ts = new Date().toISOString();
+    sessionStorage.setItem(key, ts);
+    return ts;
+  } catch(e) { return new Date().toISOString(); }
+}
 
 function _relTime(iso) {
   if (!iso) return '';
@@ -7398,7 +7484,7 @@ async function _loadNotifications() {
         liveAlerts.push({
           id: 'missing_' + expectedKey, title: MONS[curMo - 1] + ' ' + curYr + ' actuals not loaded',
           body: 'Period is past day 20 but ' + MONS[curMo - 1] + ' actuals have not been uploaded. Data manager upload required.',
-          category: 'alert', is_read: false, created_at: now.toISOString(), _severity: 3,
+          category: 'alert', is_read: false, created_at: _liveAlertTime('missing_' + expectedKey), _severity: 3,
         });
       }
     }
@@ -7447,7 +7533,7 @@ async function _loadNotifications() {
         const dir   = varAmt > 0 ? 'above' : 'below';
         const sign  = varAmt > 0 ? '+' : '−';
         liveAlerts.push({
-          id: id, is_read: false, created_at: now.toISOString(), _severity: isFav ? 0 : severity,
+          id: id, is_read: false, created_at: _liveAlertTime(id), _severity: isFav ? 0 : severity,
           category: isFav ? 'system' : 'variance',
           title: label + ' — ' + (isFav ? 'on track' : 'adverse') + ' (' + ytdLabel + ')',
           body: sign + fmtM(Math.abs(varAmt)) + ' (' + Math.abs(varPct).toFixed(1) + '%) ' + dir + ' AOP. '
@@ -7471,7 +7557,7 @@ async function _loadNotifications() {
         if (Math.abs(varPct) >= 1) {
           const isFav = varAmt > 0;
           liveAlerts.push({
-            id: 'live_ebitda', is_read: false, created_at: now.toISOString(), _severity: isFav ? 0 : 3,
+            id: 'live_ebitda', is_read: false, created_at: _liveAlertTime('live_ebitda'), _severity: isFav ? 0 : 3,
             category: isFav ? 'system' : 'variance',
             title: 'EBITDA ' + (isFav ? 'ahead of' : 'behind') + ' AOP (' + ytdLabel + ')',
             body: (varAmt > 0 ? '+' : '−') + fmtM(Math.abs(varAmt)) + ' (' + Math.abs(varPct).toFixed(1) + '%) vs AOP. '
@@ -7487,7 +7573,7 @@ async function _loadNotifications() {
         const cashVar = ((cashAct - cashAop) / Math.abs(cashAop)) * 100;
         if (cashVar < -10) { // cash >10% below AOP plan — flag
           liveAlerts.push({
-            id: 'live_cash_var', is_read: false, created_at: now.toISOString(), _severity: 2,
+            id: 'live_cash_var', is_read: false, created_at: _liveAlertTime('live_cash_var'), _severity: 2,
             category: 'alert',
             title: 'Cash below plan — ' + moLabel,
             body: 'Cash: ' + fmtM(cashAct) + ' vs AOP ' + fmtM(cashAop) + ' (' + cashVar.toFixed(1) + '%). Review liquidity position.',
@@ -7496,7 +7582,7 @@ async function _loadNotifications() {
       }
       if (cashAct && cashAct < 500) { // absolute low — under $500M JMD
         liveAlerts.push({
-          id: 'live_cash', is_read: false, created_at: now.toISOString(), _severity: 2,
+          id: 'live_cash', is_read: false, created_at: _liveAlertTime('live_cash'), _severity: 2,
           category: 'alert',
           title: 'Cash position low — ' + moLabel,
           body: 'BS Cash: ' + fmtM(cashAct) + ' as at ' + moLabel + '. Monitor liquidity against upcoming obligations.',
