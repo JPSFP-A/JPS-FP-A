@@ -7350,8 +7350,8 @@ const _yearMaxMo = {};        // cache: year → max actual month available
 function _getCtx() {
   const yr   = _activeYear;
   const isCY = (yr === _CY);
-  // Per-month ACTUALS_YYYY_MM take priority; HIST_ACTUAL_{yr}_YTD is fallback only
-  const hasMonthly = _hasMonthly(yr);
+  // Prefer HIST_ACTUAL_{yr}_YTD over per-month ACTUALS_YYYY_MM when available
+  const hasMonthly = _hasMonthly(yr) && !( (_vMap || {})['HIST_ACTUAL_' + yr + '_YTD'] );
   const rawMaxMo = (_yearMaxMo[yr] != null) ? _yearMaxMo[yr] : (isCY ? 0 : 12);
   // When maxMo = 0 (no actuals found yet or demo mode), fall back to current calendar month
   // so pages still render — they'll just show zeros with a "no data" notice
