@@ -3685,7 +3685,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
   function mo(p) { return p % 100; }
 
   // Derived P&L helpers
-  function rev(ps)    { return cv('nr_rev',ps)+cv('nr_cust_charge',ps)+cv('fuel_rev',ps)+cv('ipp_fr',ps)+cv('other_r',ps); }
+  function rev(ps)    { return cv('nr_rev',ps)+cv('nr_cust_charge',ps)+cv('fuel_rev',ps)+cv('ipp_fr',ps)+cv('ipp_nr',ps)+cv('other_r',ps); }
   function cos(ps)    { return cv('fuel_cost',ps)+cv('ipp_cost',ps); }
   // pl_other_cos stored negative = additional cost (IFRS 16 / other COS adjustments)
   function gp(ps)     { return rev(ps)-cos(ps)+cv('pl_other_cos',ps); }
@@ -3776,6 +3776,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
       + rsec('Revenue')
       + rline('Fuel Clause (FCR)',           function(ps){ return cv('fuel_rev',ps); })
       + rline('IPP Surcharge',               function(ps){ return cv('ipp_fr',ps); })
+      + rline('IPP Non-Fuel Revenue',        function(ps){ return cv('ipp_nr',ps); })
       + rline('Non-Fuel Revenue',            function(ps){ return cv('nr_rev',ps); })
       + rline('Customer Charge',             function(ps){ return cv('nr_cust_charge',ps); })
       + rline('Other Operating Revenue',     function(ps){ return cv('other_r',ps); })
@@ -6953,8 +6954,14 @@ async function loadP8() {
   var bCustChg = sb('nr_cust_charge');
   var aOther = sa('other_r');
   var bOther = sb('other_r');
-  var aTotRev  = aFuelSurp + aPpSurp + aNfr + aCustChg + aOther;
-  var bTotRev  = bFuelSurp + bPpSurp + bNfr + bCustChg + bOther;
+  var aFuelRev  = sa('fuel_rev'),          bFuelRev  = sb('fuel_rev');
+  var aIppRev   = sa('ipp_fr') + sa('ipp_nr'), bIppRev = sb('ipp_fr') + sb('ipp_nr');
+  var aFuelCost = sa('fuel_cost'),         bFuelCost = sb('fuel_cost');
+  var aIppCost  = sa('ipp_cost'),          bIppCost  = sb('ipp_cost');
+  var aGrossRev = aFuelRev + aIppRev + aNfr + aCustChg + aOther;
+  var bGrossRev = bFuelRev + bIppRev + bNfr + bCustChg + bOther;
+  var aTotRev   = aGrossRev - aFuelCost - aIppCost;   // Gross Margin (for EBITDA calc)
+  var bTotRev   = bGrossRev - bFuelCost - bIppCost;
   var aOpex    = sa('opex');
   var bOpex    = sb('opex');
   var aEbitda  = aTotRev - aOpex;
@@ -7000,9 +7007,9 @@ async function loadP8() {
   function subRow(lbl, a, b, hg) { return vRow(lbl, a, b, 'rs', hg); }
 
   var kpis = '<div class="kpi-strip">'
-    + '<div class="kpi-card"><div class="k-lbl">Revenue — Actual</div><div class="k-val">' + _fmtM(aTotRev) + '</div><div class="k-delta ' + (aTotRev >= bTotRev ? 'k-up' : 'k-dn') + '">' + (aTotRev >= bTotRev ? '▲' : '▼') + ' vs AOP</div></div>'
+    + '<div class="kpi-card"><div class="k-lbl">Revenue — Actual</div><div class="k-val">' + _fmtM(aGrossRev) + '</div><div class="k-delta ' + (aGrossRev >= bGrossRev ? 'k-up' : 'k-dn') + '">' + (aGrossRev >= bGrossRev ? '▲' : '▼') + ' vs AOP</div></div>'
     + '<div class="kpi-card"><div class="k-lbl">EBITDA — Actual</div><div class="k-val">' + _fmtM(aEbitda) + '</div><div class="k-delta ' + (aEbitda >= bEbitda ? 'k-up' : 'k-dn') + '">' + (aEbitda >= bEbitda ? '▲' : '▼') + ' vs AOP</div></div>'
-    + '<div class="kpi-card"><div class="k-lbl">EBITDA Margin</div><div class="k-val">' + (aTotRev ? (aEbitda/aTotRev*100).toFixed(1) : '—') + '%</div><div class="k-delta neut">AOP: ' + (bTotRev ? (bEbitda/bTotRev*100).toFixed(1) : '—') + '%</div></div>'
+    + '<div class="kpi-card"><div class="k-lbl">EBITDA Margin</div><div class="k-val">' + (aGrossRev ? (aEbitda/aGrossRev*100).toFixed(1) : '—') + '%</div><div class="k-delta neut">AOP: ' + (bGrossRev ? (bEbitda/bGrossRev*100).toFixed(1) : '—') + '%</div></div>'
     + '<div class="kpi-card"><div class="k-lbl">NPAT — Actual</div><div class="k-val">' + _fmtM(aNpat) + '</div><div class="k-delta ' + (aNpat >= bNpat ? 'k-up' : 'k-dn') + '">' + (aNpat >= bNpat ? '▲' : '▼') + ' vs AOP</div></div>'
     + '</div>';
 
@@ -7012,12 +7019,16 @@ async function loadP8() {
     + '<th>Line Item</th><th class="num">Actual</th><th class="num">AOP</th><th class="num">Var $</th><th class="num">Var %</th>'
     + '</tr></thead><tbody>'
     + secRow('Revenue')
+    + vRow('Fuel Cost Recovery (FCR)', aFuelRev, bFuelRev, 'rind')
+    + vRow('IPP &amp; Purchased Power Revenues', aIppRev, bIppRev, 'rind')
     + vRow('Non-Fuel Revenue (Energy Clause)', aNfr, bNfr, 'rind')
     + vRow('Customer Charge', aCustChg, bCustChg, 'rind')
     + vRow('Other Revenue', aOther, bOther, 'rind')
-    + vRow('Fuel Cost Recovery (net)', aFuelSurp, bFuelSurp, 'rind')
-    + vRow('Purchased Power (net)', aPpSurp, bPpSurp, 'rind')
-    + subRow('Total Revenue / Gross Margin', aTotRev, bTotRev)
+    + subRow('Total Revenue', aGrossRev, bGrossRev)
+    + secRow('Cost of Sales')
+    + vRow('Fuel Cost', -aFuelCost, -bFuelCost, 'rind', false)
+    + vRow('IPP &amp; Purchased Power Costs', -aIppCost, -bIppCost, 'rind', false)
+    + subRow('Gross Margin', aTotRev, bTotRev)
     + secRow('Operating Costs')
     + vRow('O&M Expense', -aOpex, -bOpex, 'rind', false)
     + subRow('EBITDA', aEbitda, bEbitda)
@@ -7097,7 +7108,7 @@ async function loadP9() {
       function g(lid) { return gIs9(aF_raw, lid, grp); }
       function gL(lid) { return gBsLast9(aF_raw, lid, grp); }
       var nfr = _hasFactData(aF_raw,'nr_rev') ? g('nr_rev') : g('nonfuel');
-      var fS = g('fuel_rev') - g('fuel_cost'), pS = g('ipp_fr') - g('ipp_cost');
+      var fS = g('fuel_rev') - g('fuel_cost'), pS = g('ipp_fr') + g('ipp_nr') - g('ipp_cost');
       var rev = nfr + g('nr_cust_charge') + g('other_r') + fS + pS;
       var opex = g('opex'), ebitda = rev - opex, depn = g('depn'), ebit = ebitda - depn;
       var intE = g('nfc_int_exp') + g('nfc_lease');
