@@ -3440,8 +3440,12 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
       + '</tr>';
   }
   // Derived total row (computed value, not a DB lid)
-  function rowDerived(lbl, a_val, b_val, fy_val, cls, isCost) {
-    const moCells = ctx.actPeriods.map(function() { return '<td class="num">—</td>'; }).join('');
+  // pFn(p): optional function returning per-period value for monthly cells
+  function rowDerived(lbl, a_val, b_val, fy_val, cls, isCost, pFn) {
+    const moCells = ctx.actPeriods.map(function(p) {
+      const v = pFn ? pFn(p) : 0;
+      return '<td class="num">' + (pFn ? (isCost ? _fmtCost(v) : _fmtM(v)) : '—') + '</td>';
+    }).join('');
     const v$   = a_val - b_val;
     const hg   = !isCost;
     const vCls = _vc(v$, hg);
@@ -3480,6 +3484,14 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   const ni_b     = pretax_b - sb('tax');
   const niFY     = pretaxFY - sbFY('tax');
 
+  // Per-period derived helpers for monthly cells
+  function _gpP(p)     { return _fVal(aF,'pl_total_sales',p) - _fVal(aF,'fuel_cost',p) - _fVal(aF,'ipp_cost',p) + _fVal(aF,'pl_other_cos',p); }
+  function _ebitdaP(p) { return _gpP(p) - _fVal(aF,'opex',p); }
+  function _ebitP(p)   { return _ebitdaP(p) - _fVal(aF,'depn',p); }
+  function _nfcP(p)    { return _fVal(aF,'nfc_int_exp',p) - _fVal(aF,'nfc_int_inc',p) + _fVal(aF,'nfc_fees',p); }
+  function _pretaxP(p) { return _ebitP(p) - _nfcP(p) + _fVal(aF,'other_inc',p) + _fVal(aF,'pl_fx',p) + (!_p2Standalone ? _fVal(aF,'pl_div_recv',p) : 0); }
+  function _niP(p)     { return _pretaxP(p) - _fVal(aF,'tax',p); }
+
   return '<div class="notice-bar">' + ctx.viewLbl + ' = Actuals vs ' + ctx.cmpLbl + '. Adverse shown as (x).</div>'
     + '<div class="card"><div class="card-head">Income Statement (Detailed)'
     + ' <span class="ch-sub">' + ctx.viewLbl + ' &middot; vs ' + ctx.cmpLbl + '</span></div>'
@@ -3498,28 +3510,28 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
     + sec('Cost of Sales')
     + row('Fuel',                           'fuel_cost',     'rind', true)
     + row('Purchased Power (excl. fuel)',   'ipp_cost',      'rind', true)
-    + rowDerived('Gross Profit',            gp_a, gp_b, gpFY, 'rs', false)
+    + rowDerived('Gross Profit',            gp_a, gp_b, gpFY, 'rs', false, _gpP)
     + sec('Operating Expenses')
     + row('Operating Expenses',             'opex',          'rind', true)
-    + rowDerived('EBITDA',                  ebitda_a, ebitda_b, ebitdaFY, 'rs', false)
+    + rowDerived('EBITDA',                  ebitda_a, ebitda_b, ebitdaFY, 'rs', false, _ebitdaP)
     + sec('Depreciation &amp; Amortization')
     + row('Depreciation',                   'depn',          'rind', true)
-    + rowDerived('Operating Profit (EBIT)', ebit_a, ebit_b, ebitFY, 'rs', false)
+    + rowDerived('Operating Profit (EBIT)', ebit_a, ebit_b, ebitFY, 'rs', false, _ebitP)
     + sec('Net Financing Costs')
     + row('Interest Income',                'nfc_int_inc',   'rind', false)
     + row('Allowance for Funds Used (AFUDC)','nfc_afudc',   'rind', false)
     + row('Interest Expense',               'nfc_int_exp',   'rind', true)
     + row('Preference Dividend',            'pl_pref_div',   'rind', true)
     + row('Loan Arrangement Fees',          'nfc_fees',      'rind', true)
-    + rowDerived('Net Financing Costs',     nfc_a, nfc_b, nfcFY, 'rs', true)
+    + rowDerived('Net Financing Costs',     nfc_a, nfc_b, nfcFY, 'rs', true, _nfcP)
     + sec('Other Income / (Expenses)')
     + row('Other Income &amp; Dividends Received', 'other_inc', 'rind', false)
     + row('FX Gain / (Loss) — IAS 21', 'pl_fx', 'rind', false)
     + (!_p2Standalone ? row('Dividends Received (tax-free)', 'pl_div_recv', 'rind', false) : '')
     + sec('Taxation')
-    + rowDerived('Net Profit Before Tax',   pretax_a, pretax_b, pretaxFY, 'rs', false)
+    + rowDerived('Net Profit Before Tax',   pretax_a, pretax_b, pretaxFY, 'rs', false, _pretaxP)
     + row('Income Tax Expense',             'tax',           'rind', true)
-    + rowDerived('Net Profit After Tax',    ni_a, ni_b, niFY, 'rs', false)
+    + rowDerived('Net Profit After Tax',    ni_a, ni_b, niFY, 'rs', false, _niP)
     + '</tbody></table></div></div>';
 }
 
