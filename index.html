@@ -3312,7 +3312,7 @@ async function loadP2() {
     [allActF, aopF] = await Promise.all([
       ctx.hasMonthly
         ? _fetchFactsMulti(yr, _expandAliasLines(LINES), allPids)
-        : _fetchFactsN('HIST_ACTUAL_' + yr, LINES, ps + 1, ps + 12),
+        : _fetchFactsN(ctx.actCode, LINES, ps + 1, ps + 12),
       _fetchFactsN('AOP_' + yr, LINES, ps + 1, ps + 12),
     ]);
   } else {
@@ -4044,7 +4044,7 @@ async function loadP3() {
     [allActF, aopF, pF] = await Promise.all([
       ctx.hasMonthly
         ? _fetchFactsMulti(yr, _expandAliasLines(LINES), allPids)
-        : _fetchFactsN('HIST_ACTUAL_' + yr, LINES, ps + 1, ps + 12),
+        : _fetchFactsN(ctx.actCode, LINES, ps + 1, ps + 12),
       _fetchFactsN('AOP_' + yr, LINES, ps + 1, ps + 12),
       _fetchFactsN(pyCode, LINES, pyPer, pyPer),
     ]);
@@ -4456,7 +4456,7 @@ async function loadP4() {
     [allActF, aopF] = await Promise.all([
       ctx.hasMonthly
         ? _fetchFactsMulti(yr, _expandAliasLines(LINES), allPids)
-        : _fetchFactsN('HIST_ACTUAL_' + yr, LINES, ps + 1, ps + 12),
+        : _fetchFactsN(ctx.actCode, LINES, ps + 1, ps + 12),
       _fetchFactsN('AOP_' + yr, LINES, ps + 1, ps + 12),
     ]);
   } else {
@@ -6030,7 +6030,7 @@ async function loadP5() {
     [allActF, aopF, pyF] = await Promise.all([
       ctx.hasMonthly
         ? _fetchFactsMulti(yr, _expandAliasLines(LINES), allPids)
-        : _fetchFactsN('HIST_ACTUAL_' + yr, LINES, ps + 1, ps + 12),
+        : _fetchFactsN(ctx.actCode, LINES, ps + 1, ps + 12),
       _fetchFactsN('AOP_' + yr, LINES, ps + 1, ps + 12),
       _fetchFactsN(pyCode, LINES, pyDecPer, pyDecPer),
     ]);
@@ -6252,7 +6252,7 @@ async function loadP6() {
     [aF, aopF, pyF] = await Promise.all([
       ctx.hasMonthly
         ? _fetchFactsMulti(yr, _expandAliasLines(ALL_LINES), allPids)
-        : _fetchFactsN('HIST_ACTUAL_' + yr, ALL_LINES, ps + 1, ps + 12),
+        : _fetchFactsN(ctx.actCode, ALL_LINES, ps + 1, ps + 12),
       _fetchFactsN('AOP_' + yr, ALL_LINES, ps + 1, ps + 12),
       _fetchFactsN(pyCode, BS_LINES, pyDecPer, pyDecPer),
     ]);
@@ -6814,7 +6814,7 @@ async function loadP8() {
   if (_p8ColView === 'monthly' || _p8ColView === 'quarterly') {
     [aF_raw, bF] = await Promise.all([
       ctx.hasMonthly ? _fetchFactsMulti(yr8, _expandAliasLines(LINES), allPids8)
-        : _fetchFactsN('HIST_ACTUAL_' + yr8, LINES, ps8 + 1, ps8 + 12),
+        : _fetchFactsN(ctx.actCode, LINES, ps8 + 1, ps8 + 12),
       _fetchFactsN('AOP_' + yr8, LINES, ps8 + 1, ps8 + 12),
     ]);
   } else {
@@ -7033,7 +7033,7 @@ async function loadP9() {
   if (_p9ColView === 'monthly' || _p9ColView === 'quarterly') {
     [aF_raw, bF] = await Promise.all([
       ctx.hasMonthly ? _fetchFactsMulti(yr9, _expandAliasLines(ALL), allPids9)
-        : _fetchFactsN('HIST_ACTUAL_' + yr9, ALL, ps9+1, ps9+12),
+        : _fetchFactsN(ctx.actCode, ALL, ps9+1, ps9+12),
       _fetchFactsN('AOP_' + yr9, ALL, ps9+1, ps9+12),
     ]);
   } else {
@@ -7309,7 +7309,8 @@ const _yearMaxMo = {};        // cache: year → max actual month available
 function _getCtx() {
   const yr   = _activeYear;
   const isCY = (yr === _CY);
-  const hasMonthly = _hasMonthly(yr); // true for any year with ACTUALS_YYYY_MM (2014–present)
+  // Prefer HIST_ACTUAL_{yr}_YTD over per-month ACTUALS_YYYY_MM when available
+  const hasMonthly = _hasMonthly(yr) && !( (_vMap || {})['HIST_ACTUAL_' + yr + '_YTD'] );
   const rawMaxMo = (_yearMaxMo[yr] != null) ? _yearMaxMo[yr] : (isCY ? 0 : 12);
   // When maxMo = 0 (no actuals found yet or demo mode), fall back to current calendar month
   // so pages still render — they'll just show zeros with a "no data" notice
