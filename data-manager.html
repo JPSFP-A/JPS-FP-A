@@ -1414,6 +1414,307 @@ window.switchTabSet = function(prefix, el, name) {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// DEBT SCHEDULE IMPORT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// LT loan names as they appear in col B of the Debt sheet LOAN SUMMARY section
+const DEBT_LT_LOANS = [
+  'NCB J$','Sagicor J$','FCIB J$','KFW LOAN (EURO)','Expansion Plants',
+  'Capital Financing','Export Development Canada','NCB ( JMD coverted to USD )',
+  'Espirito Santo Bank','CARIBBEAN DEVELOPMENT BANK','PROPARCO',
+  'Citibank/OPIC US$30M','NEXI/Citibank Japan Ltd.','Citi/OPIC ',
+  'Sagicor Facility 2&3','OPECFund for Int\'l Development  New Loan($25M @ 7.14%)',
+  'Citi/Opic - US$120M Facility','FCIB - US$15M / US$70.625M','FCIB- US$30M',
+  'IFC #2 US$30M','Peninsula Corporation','OPEC Fund for Int\'l Development/GOJ-2026',
+  'Caribbean Devel. Bank (CDB) - US$','SCOTIABANK - US$',
+  'Scotiabank Jamaican Dollar Loan - US$','New Facility - US$ IDB US$100M Loan'
+];
+const DEBT_ST_LOANS = [
+  'Available Facility J$','Citibank N.A. US$','Citibank N.A.','Scotia BANK'
+];
+
+// Convert 0-based data col offset to period_id given model start year/month
+function debtPeriodId(col0based, startYear, startMonth) {
+  const totalMonths = startYear * 12 + (startMonth - 1) + col0based;
+  const y = Math.floor(totalMonths / 12);
+  const m = (totalMonths % 12) + 1;
+  return y * 100 + m;
+}
+
+function debtPeriodLabel(pid) {
+  const MNAMES = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return MNAMES[pid % 100] + ' ' + Math.floor(pid / 100);
+}
+
+function parseDebtSchedule(wb, startYear, startMonth) {
+  const ws = wb.Sheets['Debt'];
+  if (!ws) return { error: 'Sheet "Debt" not found. Rename the sheet to "Debt" and retry.' };
+
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: 0 });
+  const DATA_START_COL = 3; // col index 3 (D) = first monthly data col
+
+  if (!data || data.length < 5) return { error: 'Sheet appears empty.' };
+
+  const totalDataCols = (data[0] || []).length - DATA_START_COL;
+
+  // Scan col B (index 1) for section header rows
+  let drawdownRow = -1, repaymentRow = -1, closingRow = -1;
+  for (let r = 0; r < data.length; r++) {
+    const b = String(data[r][1] || '').trim();
+    if (drawdownRow  < 0 && (b === 'Draw Down (US$\'000)' || b.includes('Draw Down')))            drawdownRow  = r;
+    if (repaymentRow < 0 && (b === 'Repayment (US$\'000)' || b.includes('Repayment (US$')))       repaymentRow = r;
+    if (closingRow   < 0 && (b.includes('Closing Loan Balances') || b.includes('Closing Balance'))) closingRow = r;
+  }
+
+  if (drawdownRow < 0 || repaymentRow < 0 || closingRow < 0) {
+    return { error: `Could not find required section headers. Found: DD=${drawdownRow} REP=${repaymentRow} CL=${closingRow}. Expected "Draw Down", "Repayment (US$", "Closing Loan Balances" in col B.` };
+  }
+
+  // Extract rows under a section header until a blank or "Total" terminator
+  function extractSection(headerRow, loanType) {
+    const result = [];
+    for (let r = headerRow + 1; r < Math.min(headerRow + 60, data.length); r++) {
+      const row = data[r] || [];
+      const b = String(row[1] || '').trim();
+      if (!b) continue;
+      // Stop at next major section (all-caps header or grand total)
+      if (/^[A-Z\s]{8,}$/.test(b) && !b.includes('Ltd') && !b.includes('Inc')) break;
+      if (b.toLowerCase().startsWith('grand total')) break;
+      // Skip subtotal rows — keep loan-level rows only
+      const isTotal = /^total\s/i.test(b) || b.toLowerCase() === 'total';
+      const rowLoanType = isTotal
+        ? (/short/i.test(b) ? 'TOTAL_ST' : /long/i.test(b) ? 'TOTAL_LT' : 'TOTAL')
+        : loanType;
+      const values = [];
+      for (let c = DATA_START_COL; c < row.length; c++) {
+        values.push(Number(row[c]) || 0);
+      }
+      result.push({ loanName: b, loanType: rowLoanType, isTotal, values });
+    }
+    return result;
+  }
+
+  // Find where LT section ends and ST section begins
+  // Strategy: extract from drawdownRow, split on SHORT TERM header
+  function extractBothTypes(headerRow) {
+    const lt = [], st = [];
+    let inST = false;
+    for (let r = headerRow + 1; r < Math.min(headerRow + 80, data.length); r++) {
+      const row = data[r] || [];
+      const b = String(row[1] || '').trim();
+      if (!b) continue;
+      if (/SHORT\s*TERM/i.test(b)) { inST = true; continue; }
+      if (/^grand\s*total/i.test(b)) break;
+      // Next section header = stop
+      if (!inST && /^LONG\s*TERM/i.test(b)) continue;
+      const isTotal = /^total\s/i.test(b) || b.toLowerCase() === 'total';
+      const loanType = isTotal
+        ? (inST ? 'TOTAL_ST' : 'TOTAL_LT')
+        : (inST ? 'ST' : 'LT');
+      const values = [];
+      for (let c = DATA_START_COL; c < row.length; c++) {
+        values.push(Number(row[c]) || 0);
+      }
+      (inST ? st : lt).push({ loanName: b, loanType, isTotal, values });
+    }
+    return { lt, st };
+  }
+
+  const dd  = extractBothTypes(drawdownRow);
+  const rep = extractBothTypes(repaymentRow);
+  const cl  = extractBothTypes(closingRow);
+
+  // Merge into DB rows: one row per period × loan
+  const rows = [];
+  const numPeriods = Math.min(
+    dd.lt[0]?.values.length || totalDataCols,
+    totalDataCols
+  );
+
+  function mergeSection(ddArr, repArr, clArr) {
+    for (let li = 0; li < ddArr.length; li++) {
+      const ddEntry  = ddArr[li];
+      const repEntry = repArr.find(r => r.loanName === ddEntry.loanName) || repArr[li] || { values: [] };
+      const clEntry  = clArr.find(r => r.loanName === ddEntry.loanName)  || clArr[li]  || { values: [] };
+      for (let ci = 0; ci < numPeriods; ci++) {
+        const pid = debtPeriodId(ci, startYear, startMonth);
+        const yr  = Math.floor(pid / 100);
+        if (yr < 2010 || yr > 2040) continue;
+        const dd_v  = Number(ddEntry.values[ci])  || 0;
+        const rep_v = Number(repEntry.values[ci]) || 0;
+        const cl_v  = Number(clEntry.values[ci])  || 0;
+        if (dd_v === 0 && rep_v === 0 && cl_v === 0) continue;
+        rows.push({
+          period_id:       pid,
+          loan_name:       ddEntry.loanName,
+          loan_type:       ddEntry.loanType,
+          drawdown_usd:    dd_v,
+          repayment_usd:   rep_v,
+          closing_bal_usd: cl_v
+        });
+      }
+    }
+  }
+
+  mergeSection(dd.lt, rep.lt, cl.lt);
+  mergeSection(dd.st, rep.st, cl.st);
+
+  const ltLoans = new Set(dd.lt.filter(r => !r.isTotal).map(r => r.loanName));
+  const stLoans = new Set(dd.st.filter(r => !r.isTotal).map(r => r.loanName));
+  const firstPid = debtPeriodId(0, startYear, startMonth);
+  const lastPid  = debtPeriodId(numPeriods - 1, startYear, startMonth);
+
+  return {
+    rows,
+    summary: {
+      periods:    numPeriods,
+      ltLoans:    ltLoans.size,
+      stLoans:    stLoans.size,
+      nonZeroRows: rows.length,
+      firstPid,
+      lastPid
+    }
+  };
+}
+
+window.handleDebtDrop = function(e) {
+  e.preventDefault();
+  document.getElementById('debt-drop').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file) handleDebtFile(file);
+};
+
+window.handleDebtFile = async function(file) {
+  if (!file) return;
+  const startYear  = parseInt(document.getElementById('debt-start-year').value);
+  const startMonth = parseInt(document.getElementById('debt-start-month').value);
+
+  const commitBar = document.getElementById('commit-bar-debt');
+  const preview   = document.getElementById('debt-preview');
+  commitBar.style.display = 'none';
+  preview.style.display   = 'none';
+  preview.innerHTML = '';
+  document.getElementById('debt-commit-msg').textContent = 'Parsing…';
+
+  let buf;
+  try { buf = await file.arrayBuffer(); }
+  catch(e) { toast('Cannot read file: ' + e.message, 'err'); return; }
+
+  let wb;
+  try { wb = XLSX.read(buf, { type: 'array' }); }
+  catch(e) { toast('Cannot parse workbook: ' + e.message, 'err'); return; }
+
+  const result = parseDebtSchedule(wb, startYear, startMonth);
+
+  if (result.error) {
+    toast(result.error, 'err');
+    console.error('[DebtSchedule] parse error:', result.error);
+    return;
+  }
+
+  window._debtRows = result.rows;
+  const { periods, ltLoans, stLoans, nonZeroRows, firstPid, lastPid } = result.summary;
+
+  preview.style.display = '';
+  preview.innerHTML = `
+    <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:14px 16px">
+      <p style="margin:0 0 6px; font-size:13px; font-weight:700; color:#0369a1">Parse complete — ${file.name}</p>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px">
+        <div style="background:#fff; border:1px solid #e0f2fe; border-radius:6px; padding:8px 10px; text-align:center">
+          <div style="font-size:18px; font-weight:800; color:var(--navy)">${nonZeroRows.toLocaleString()}</div>
+          <div style="font-size:10px; color:var(--muted); text-transform:uppercase">Non-zero rows</div>
+        </div>
+        <div style="background:#fff; border:1px solid #e0f2fe; border-radius:6px; padding:8px 10px; text-align:center">
+          <div style="font-size:18px; font-weight:800; color:var(--navy)">${ltLoans} LT + ${stLoans} ST</div>
+          <div style="font-size:10px; color:var(--muted); text-transform:uppercase">Loans detected</div>
+        </div>
+        <div style="background:#fff; border:1px solid #e0f2fe; border-radius:6px; padding:8px 10px; text-align:center">
+          <div style="font-size:14px; font-weight:800; color:var(--navy)">${debtPeriodLabel(firstPid)} → ${debtPeriodLabel(lastPid)}</div>
+          <div style="font-size:10px; color:var(--muted); text-transform:uppercase">${periods} periods</div>
+        </div>
+      </div>
+      <p style="margin:0; font-size:11px; color:var(--muted)">Model start: ${document.getElementById('debt-start-month').selectedOptions[0].text} ${startYear}</p>
+    </div>`;
+
+  commitBar.style.display = 'flex';
+  document.getElementById('debt-commit-msg').textContent = `${nonZeroRows.toLocaleString()} rows ready to commit`;
+};
+
+window.commitDebtSchedule = async function() {
+  const rows = window._debtRows;
+  if (!rows || rows.length === 0) { toast('No data to commit', 'err'); return; }
+
+  const btn = document.querySelector('#commit-bar-debt button');
+  const msg = document.getElementById('debt-commit-msg');
+  btn.disabled = true;
+  btn.textContent = 'Writing…';
+
+  try {
+    // Get or create DEBT_SCHEDULE version (kind='debt', no period_id — spans all periods)
+    const vCode = 'DEBT_SCHEDULE';
+    let versionId;
+    const { data: existing, error: ve } = await sb.from('fpa_versions')
+      .select('id').eq('code', vCode).maybeSingle();
+    if (ve) throw ve;
+
+    if (!existing) {
+      const { data: created, error: ce } = await sb.from('fpa_versions').insert({
+        code: vCode,
+        name: 'Debt Schedule Model',
+        kind: 'DEBT',
+        is_active: true
+      }).select('id').single();
+      if (ce) throw ce;
+      versionId = created.id;
+    } else {
+      versionId = existing.id;
+    }
+
+    const tagged = rows.map(r => ({ ...r, version_id: versionId }));
+    const CHUNK  = 500;
+    let inserted = 0;
+
+    for (let i = 0; i < tagged.length; i += CHUNK) {
+      const chunk = tagged.slice(i, i + CHUNK);
+      const { error: ue } = await sb.from('fpa_debt_schedule')
+        .upsert(chunk, { onConflict: 'version_id,period_id,loan_name' });
+      if (ue) throw ue;
+      inserted += chunk.length;
+      msg.textContent = `Writing… ${inserted.toLocaleString()} / ${tagged.length.toLocaleString()}`;
+    }
+
+    // Audit log
+    const { error: ae } = await sb.from('fpa_audit_log').insert({
+      app:    'data-manager',
+      action: 'upload_debt_schedule',
+      user_id: dmUser(),
+      meta: { rows: inserted, version_id: versionId }
+    });
+    if (ae) console.warn('[DebtSchedule] audit log failed:', ae.message);
+
+    toast(`✓ Debt schedule committed: ${inserted.toLocaleString()} rows`, 'ok');
+    msg.textContent = `✓ ${inserted.toLocaleString()} rows in DB`;
+    btn.textContent  = '✓ Done';
+    window._debtRows = null;
+
+  } catch(e) {
+    console.error('[DebtSchedule] commit error:', e);
+    toast('Write failed: ' + e.message, 'err');
+    btn.disabled = false;
+    btn.textContent = '⬆ Commit to DB';
+    msg.textContent = '';
+  }
+};
+
+window.resetDebtUpload = function() {
+  window._debtRows = null;
+  document.getElementById('debt-preview').style.display   = 'none';
+  document.getElementById('commit-bar-debt').style.display = 'none';
+  document.getElementById('debt-file').value = '';
+  document.getElementById('debt-commit-msg').textContent  = '';
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // KPI ACTUALS
 // ═══════════════════════════════════════════════════════════════════════════════
 // KPI extraction config
