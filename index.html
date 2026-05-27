@@ -2312,6 +2312,21 @@ async function optimisticToggle(updateUiFn, revertUiFn, writeFn, errorMsg) {
   document.documentElement.dataset.theme = saved;
 })();
 
+/* ---------- One-time migration: clear stale notification timestamps ----------
+   Previous builds seeded _nat_* keys with now.toISOString() instead of the
+   data period-end date. Delete any key stored within the last 7 days so it
+   gets re-seeded with the correct anchor on next notification load. */
+(function _migrateNotifTimestamps() {
+  try {
+    var cutoff = Date.now() - 7 * 864e5;
+    Object.keys(localStorage).forEach(function(k) {
+      if (!k.startsWith('_nat_')) return;
+      var v = localStorage.getItem(k);
+      if (v && new Date(v).getTime() > cutoff) localStorage.removeItem(k);
+    });
+  } catch(e) {}
+})();
+
 function toggleTheme() {
   const current = document.documentElement.dataset.theme;
   const next = current === 'slate' ? 'light' : 'slate';
