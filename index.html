@@ -3913,9 +3913,13 @@ function _buildRERecon(ctx, actF, priF, pyPer, aopF) {
     return ebit - nfc + g('other_inc',p) + g('pl_fx',p) - g('tax',p);
   }
 
+  // Opening RE = Dec prior year closing + cumulative net income up to (but not including) this month.
+  // Using P&L-derived rollforward keeps it self-consistent — monthly BS rarely stores RE per period.
   function openRE(p) {
     var mo = p % 100;
-    return mo === 1 ? pg('bs_retained') : g('bs_retained', yr * 100 + (mo - 1));
+    var cumNI = 0;
+    for (var m = 1; m < mo; m++) cumNI += netInc(yr * 100 + m);
+    return pg('bs_retained') + cumNI;
   }
 
   var ytdNI  = 0;
