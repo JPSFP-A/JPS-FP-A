@@ -920,6 +920,33 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 .dyn-cv-btn{padding:4px 11px;border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:600;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;font-family:inherit}
 .dyn-cv-btn.active,.dyn-cv-btn:hover{background:var(--dark);color:#fff;border-color:var(--dark)}
 .dyn-empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:13px}
+/* ── In-App Report Editor ──────────────────────────────────────────────── */
+.dyn-flex{display:flex;flex:1;min-height:0;overflow:hidden}
+.rp-panel{width:370px;flex-shrink:0;border-left:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.rp-panel-head{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;background:#f0f4ff}
+.rp-panel-title{font-size:11px;font-weight:800;color:var(--blue);flex:1;text-transform:uppercase;letter-spacing:.06em}
+.rp-line-tree{flex:1;overflow-y:auto;padding:4px 0;min-height:0}
+.rp-line-row{display:flex;align-items:center;gap:5px;padding:5px 10px;border-bottom:1px solid var(--border);font-size:11px;transition:background .1s}
+.rp-line-row:hover{background:#f5f8ff}
+.rp-line-row.editing{background:#eff6ff;border-left:2px solid var(--blue)}
+.rpl-type{font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;text-transform:uppercase;flex-shrink:0;letter-spacing:.04em}
+.rt-data{background:#dbeafe;color:#1e40af}.rt-section{background:#f3f4f6;color:#6b7280}
+.rt-subtotal,.rt-total{background:#fef3c7;color:#92400e}.rt-spacer{background:#f9fafb;color:#9ca3af}
+.rpl-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.rpl-acts{display:flex;gap:2px;flex-shrink:0}
+.rp-act{background:none;border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .1s}
+.rp-act:hover{background:var(--dark);color:#fff;border-color:var(--dark)}
+.rp-act.del:hover{background:#dc2626;border-color:#dc2626;color:#fff}
+.rp-add-bar{padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0}
+.rp-edit-form{border-top:2px solid var(--blue);padding:12px;background:#f8faff;flex-shrink:0;max-height:56%;overflow-y:auto}
+.rp-field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.rp-field label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.rp-field input,.rp-field select{padding:5px 7px;border:1px solid var(--border);border-radius:4px;font-size:11px;background:var(--bg);color:var(--text);font-family:inherit;width:100%;box-sizing:border-box}
+.rp-field-row{display:flex;gap:6px;margin-bottom:7px}
+.rp-edit-hdr{font-size:11px;font-weight:800;color:var(--blue);margin-bottom:10px}
+.rp-edit-btns{display:flex;gap:6px;margin-top:10px}
+#rpEditBtn{margin-left:4px;border-color:var(--blue);color:var(--blue)}
+#rpEditBtn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
 </style>
 </head>
 <body>
@@ -2026,9 +2053,91 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
           <button class="dyn-cv-btn active" onclick="dynSetColView('ytd',this)">YTD</button>
           <button class="dyn-cv-btn" onclick="dynSetColView('monthly',this)">Monthly</button>
           <button class="dyn-cv-btn" onclick="dynSetColView('quarterly',this)">Quarterly</button>
+          <button id="rpEditBtn" class="dyn-cv-btn" onclick="_rpToggle()" style="display:none">✏ Edit</button>
         </div>
-        <div class="dyn-body" id="dynBody">
-          <div class="dyn-empty">Select a report from the sidebar.</div>
+        <div class="dyn-flex">
+          <div class="dyn-body" id="dynBody">
+            <div class="dyn-empty">Select a report from the sidebar.</div>
+          </div>
+          <!-- In-App Report Editor Panel (admin only) -->
+          <div id="rpPanel" class="rp-panel" style="display:none">
+            <div class="rp-panel-head">
+              <span class="rp-panel-title">✏ Edit Report</span>
+              <button class="rp-act" onclick="_rpClose()" style="font-size:11px">✕ Close</button>
+            </div>
+            <div class="rp-line-tree" id="rpLineTree">
+              <div style="padding:16px;font-size:11px;color:var(--muted);">Loading…</div>
+            </div>
+            <div class="rp-add-bar">
+              <button style="width:100%;padding:6px;border:1px dashed var(--blue);border-radius:4px;background:transparent;color:var(--blue);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit" onclick="_rpAddLine()">+ Add Line</button>
+            </div>
+            <div id="rpEditForm" class="rp-edit-form" style="display:none">
+              <div class="rp-edit-hdr">Edit Line</div>
+              <div class="rp-field-row">
+                <div class="rp-field" style="flex:1">
+                  <label>Row Type</label>
+                  <select id="rpRowType" onchange="_rpRowTypeChange()">
+                    <option value="data">Data (reads DB)</option>
+                    <option value="section">Section Header</option>
+                    <option value="subtotal">Subtotal</option>
+                    <option value="total">Total</option>
+                    <option value="spacer">Spacer</option>
+                  </select>
+                </div>
+                <div class="rp-field" style="flex:1" id="rpLineIdField">
+                  <label>DB Line ID</label>
+                  <select id="rpLineId"><option value="">— select —</option></select>
+                </div>
+              </div>
+              <div class="rp-field-row">
+                <div class="rp-field" style="flex:2">
+                  <label>Display Label (blank = DB name)</label>
+                  <input id="rpLabelOverride" type="text" placeholder="Override label…">
+                </div>
+              </div>
+              <div class="rp-field-row" id="rpSignRow">
+                <div class="rp-field" style="flex:1">
+                  <label>Sign</label>
+                  <select id="rpSign">
+                    <option value="1">+1 (as-is)</option>
+                    <option value="-1">−1 (flip)</option>
+                  </select>
+                </div>
+                <div class="rp-field" style="flex:1">
+                  <label>Indent</label>
+                  <select id="rpIndent">
+                    <option value="0">0 — top</option>
+                    <option value="1">1 — child</option>
+                    <option value="2">2 — grandchild</option>
+                  </select>
+                </div>
+                <div class="rp-field" style="flex:1">
+                  <label>Bold</label>
+                  <select id="rpBold">
+                    <option value="false">No</option>
+                    <option value="true">Yes</option>
+                  </select>
+                </div>
+                <div class="rp-field" style="flex:1">
+                  <label>Fav Dir</label>
+                  <select id="rpFav">
+                    <option value="1">↑ Higher</option>
+                    <option value="-1">↓ Lower</option>
+                  </select>
+                </div>
+              </div>
+              <div class="rp-field-row" id="rpCalcRow" style="display:none">
+                <div class="rp-field" style="flex:1">
+                  <label>Calculation</label>
+                  <input id="rpCalcExpr" type="text" placeholder="sum_children  OR  revenue - cos">
+                </div>
+              </div>
+              <div class="rp-edit-btns">
+                <button class="btn btn-sm btn-primary" style="flex:1;font-size:11px" onclick="_rpSaveLine()">💾 Save</button>
+                <button class="btn btn-sm btn-ghost" style="font-size:11px" onclick="_rpCancelEdit()">Cancel</button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -2447,6 +2556,7 @@ function enterPlatform() {
   document.getElementById('hubScreen').classList.remove('visible');
   document.getElementById('appShell').style.display = 'flex';
   if (_user && !document.getElementById('_onlinePill')) _initPresence(_getSB(), _user.email, 'FP&A Hub', _user.role);
+  _rpInitEditButton();
   initPlatform();
   // Load notifications silently so badge is populated on entry
   _loadNotifications().catch(function() {});
@@ -9263,6 +9373,8 @@ async function dynRender() {
     _dynInitChart(l, ctx, allActF && Object.keys(allActF).length ? allActF : aF,
                           aopF  && Object.keys(aopF).length  ? aopF  : bF);
   });
+  // Refresh edit panel tree if open
+  if (_rpPanelOpen) _rpRenderTree();
 }
 
 /* ── YTD table ──────────────────────────────────────────────────────────── */
@@ -9617,6 +9729,227 @@ function _dynInitChart(line, ctx, actF, cmpF) {
       },
     });
   } catch(e) { console.error('[dyn] chart init', line.id, e); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   IN-APP REPORT EDITOR  —  admin-only slide-in panel for Dynamic Reports
+   ═══════════════════════════════════════════════════════════════════════════ */
+var _rpDimLines  = [];
+var _rpEditingId = null;
+var _rpPanelOpen = false;
+
+function _rpIsAdmin() {
+  return _user && (_user.role === 'admin' || _user.accessRole === 'admin');
+}
+
+function _rpInitEditButton() {
+  var btn = document.getElementById('rpEditBtn');
+  if (btn) btn.style.display = _rpIsAdmin() ? '' : 'none';
+}
+
+async function _rpEnsureDimLines() {
+  if (_rpDimLines.length) return;
+  try {
+    var sb = _getSB();
+    var r = await sb.from('fpa_dim_line').select('code,name,statement').order('sort_order');
+    if (r.error) throw r.error;
+    _rpDimLines = r.data || [];
+    var sel = document.getElementById('rpLineId');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— select —</option>'
+      + _rpDimLines.map(function(d){
+          return '<option value="' + _escHtml(d.code) + '">' + _escHtml(d.code) + ' — ' + _escHtml(d.name || '') + '</option>';
+        }).join('');
+  } catch(e) { console.error('[rp] load dim lines', e); }
+}
+
+function _rpToggle() {
+  if (_rpPanelOpen) _rpClose(); else _rpOpen();
+}
+
+async function _rpOpen() {
+  if (!_dynActiveTpl) { toast('Select a report from the sidebar first', 'w'); return; }
+  _rpPanelOpen = true;
+  var panel = document.getElementById('rpPanel');
+  panel.style.display = 'flex';
+  panel.style.flexDirection = 'column';
+  var btn = document.getElementById('rpEditBtn');
+  if (btn) btn.classList.add('active');
+  await _rpEnsureDimLines();
+  _rpRenderTree();
+}
+
+function _rpClose() {
+  _rpPanelOpen = false;
+  document.getElementById('rpPanel').style.display = 'none';
+  document.getElementById('rpEditForm').style.display = 'none';
+  _rpEditingId = null;
+  var btn = document.getElementById('rpEditBtn');
+  if (btn) btn.classList.remove('active');
+}
+
+function _rpRenderTree() {
+  var el = document.getElementById('rpLineTree');
+  if (!el || !_dynActiveTpl) return;
+  var lines = _dynLineCache[_dynActiveTpl.id] || [];
+  if (!lines.length) {
+    el.innerHTML = '<div style="padding:16px;font-size:11px;color:var(--muted);">No lines yet — click "+ Add Line" to start.</div>';
+    return;
+  }
+  el.innerHTML = lines.map(function(l) {
+    var indent   = '&nbsp;'.repeat((l.indent_level || 0) * 3);
+    var dimEntry = _rpDimLines.find(function(d){ return d.code === l.line_id; });
+    var lbl      = _escHtml(l.label_override || (dimEntry ? dimEntry.name : null) || l.line_id || '(' + l.row_type + ')');
+    var editCls  = _rpEditingId === l.id ? ' editing' : '';
+    var typeAbbr = l.row_type === 'subtotal' ? 'sub' : l.row_type === 'section' ? 'sec' : l.row_type.slice(0, 3).toUpperCase();
+    return '<div class="rp-line-row' + editCls + '" data-id="' + l.id + '">'
+      + '<span class="rpl-type rt-' + l.row_type + '">' + typeAbbr + '</span>'
+      + '<span class="rpl-lbl">' + indent + lbl + '</span>'
+      + '<div class="rpl-acts">'
+      + '<button class="rp-act" onclick="_rpEditLine(\'' + l.id + '\')">Edit</button>'
+      + '<button class="rp-act" onclick="_rpMoveLine(\'' + l.id + '\',-1)" title="Move up">↑</button>'
+      + '<button class="rp-act" onclick="_rpMoveLine(\'' + l.id + '\',1)" title="Move down">↓</button>'
+      + '<button class="rp-act del" onclick="_rpDeleteLine(\'' + l.id + '\')">Del</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function _rpEditLine(id) {
+  if (!_dynActiveTpl) return;
+  var lines = _dynLineCache[_dynActiveTpl.id] || [];
+  var line  = lines.find(function(l){ return l.id === id; });
+  if (!line) return;
+  _rpEditingId = id;
+  _rpRenderTree();
+  document.getElementById('rpRowType').value       = line.row_type || 'data';
+  document.getElementById('rpLineId').value        = line.line_id || '';
+  document.getElementById('rpLabelOverride').value = line.label_override || '';
+  document.getElementById('rpSign').value          = String(line.sign != null ? line.sign : 1);
+  document.getElementById('rpIndent').value        = String(line.indent_level != null ? line.indent_level : 0);
+  document.getElementById('rpBold').value          = String(!!line.is_bold);
+  document.getElementById('rpCalcExpr').value      = line.calc_expr || '';
+  document.getElementById('rpFav').value           = String(line.fav_direction != null ? line.fav_direction : 1);
+  document.getElementById('rpEditForm').style.display = 'block';
+  _rpRowTypeChange();
+  document.getElementById('rpEditForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function _rpRowTypeChange() {
+  var rt     = document.getElementById('rpRowType').value;
+  var isCalc = rt === 'subtotal' || rt === 'total';
+  var noData = rt === 'section' || rt === 'spacer';
+  document.getElementById('rpLineIdField').style.display = (noData || isCalc) ? 'none' : '';
+  document.getElementById('rpCalcRow').style.display     = isCalc ? 'flex' : 'none';
+  document.getElementById('rpSignRow').style.display     = noData ? 'none' : 'flex';
+}
+
+async function _rpSaveLine() {
+  if (!_rpEditingId || !_dynActiveTpl) return;
+  var rt = document.getElementById('rpRowType').value;
+  var update = {
+    row_type:       rt,
+    line_id:        document.getElementById('rpLineId').value || null,
+    label_override: document.getElementById('rpLabelOverride').value.trim() || null,
+    sign:           parseInt(document.getElementById('rpSign').value),
+    indent_level:   parseInt(document.getElementById('rpIndent').value),
+    is_bold:        document.getElementById('rpBold').value === 'true',
+    is_calculated:  rt === 'subtotal' || rt === 'total',
+    calc_expr:      document.getElementById('rpCalcExpr').value.trim() || null,
+    fav_direction:  parseInt(document.getElementById('rpFav').value),
+  };
+  try {
+    var sb = _getSB();
+    var r = await sb.from('report_lines').update(update).eq('id', _rpEditingId);
+    if (r.error) throw r.error;
+    // Update local cache
+    var lines = _dynLineCache[_dynActiveTpl.id] || [];
+    var idx   = lines.findIndex(function(l){ return l.id === _rpEditingId; });
+    if (idx >= 0) Object.assign(lines[idx], update);
+    _rpEditingId = null;
+    document.getElementById('rpEditForm').style.display = 'none';
+    _rpRenderTree();
+    dynRender(); // live re-render with new values
+    toast('Line saved ✓', 's');
+  } catch(e) { toast('Save failed: ' + e.message, 'e'); }
+}
+
+function _rpCancelEdit() {
+  _rpEditingId = null;
+  document.getElementById('rpEditForm').style.display = 'none';
+  _rpRenderTree();
+}
+
+async function _rpAddLine() {
+  if (!_dynActiveTpl) return;
+  var tplId = _dynActiveTpl.id;
+  var lines = _dynLineCache[tplId] || [];
+  var maxSort = lines.length ? Math.max.apply(null, lines.map(function(l){ return l.sort_order || 0; })) : 0;
+  var newLine = {
+    template_id: tplId,
+    sort_order:  maxSort + 10,
+    row_type:    'data',
+    line_id:     null,
+    label_override: 'New Line',
+    sign:        1,
+    indent_level: 1,
+    is_bold:     false,
+    is_calculated: false,
+    fav_direction: 1,
+  };
+  try {
+    var sb = _getSB();
+    var r = await sb.from('report_lines').insert(newLine).select().single();
+    if (r.error) throw r.error;
+    if (!_dynLineCache[tplId]) _dynLineCache[tplId] = [];
+    _dynLineCache[tplId].push(r.data);
+    _rpRenderTree();
+    _rpEditLine(r.data.id); // open immediately for editing
+    toast('Line added', 's');
+  } catch(e) { toast('Add failed: ' + e.message, 'e'); }
+}
+
+async function _rpDeleteLine(id) {
+  if (!_dynActiveTpl) return;
+  var tplId = _dynActiveTpl.id;
+  try {
+    var sb = _getSB();
+    var r = await sb.from('report_lines').delete().eq('id', id);
+    if (r.error) throw r.error;
+    if (_dynLineCache[tplId]) {
+      _dynLineCache[tplId] = _dynLineCache[tplId].filter(function(l){ return l.id !== id; });
+    }
+    if (_rpEditingId === id) {
+      _rpEditingId = null;
+      document.getElementById('rpEditForm').style.display = 'none';
+    }
+    _rpRenderTree();
+    dynRender();
+    toast('Line deleted', 's');
+  } catch(e) { toast('Delete failed: ' + e.message, 'e'); }
+}
+
+async function _rpMoveLine(id, dir) {
+  if (!_dynActiveTpl) return;
+  var tplId = _dynActiveTpl.id;
+  var lines = _dynLineCache[tplId] || [];
+  var idx   = lines.findIndex(function(l){ return l.id === id; });
+  var swapIdx = idx + dir;
+  if (swapIdx < 0 || swapIdx >= lines.length) return;
+  var a = lines[idx], b = lines[swapIdx];
+  var tmpSort = a.sort_order;
+  try {
+    var sb = _getSB();
+    await Promise.all([
+      sb.from('report_lines').update({ sort_order: b.sort_order }).eq('id', a.id),
+      sb.from('report_lines').update({ sort_order: tmpSort      }).eq('id', b.id),
+    ]);
+    a.sort_order = b.sort_order;
+    b.sort_order = tmpSort;
+    _dynLineCache[tplId].sort(function(x, y){ return x.sort_order - y.sort_order; });
+    _rpRenderTree();
+    dynRender();
+  } catch(e) { toast('Move failed: ' + e.message, 'e'); }
 }
 </script>
 </body>
