@@ -2195,7 +2195,7 @@ async function _platformAudit(action, target, oldVal, newVal) {
       var _ssKey = 'jps_login_ts_' + _lk;
       try {
         var _lastTs = Number(sessionStorage.getItem(_ssKey) || 0);
-        if (Date.now() - _lastTs < 60000) return;
+        if (Date.now() - _lastTs < 300000) return;
         sessionStorage.setItem(_ssKey, String(Date.now()));
       } catch (_) {
         // sessionStorage unavailable (private mode etc.) — fall back to in-memory check
