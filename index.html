@@ -7742,8 +7742,117 @@ async function loadP8() {
     + subRow('Net Profit After Tax (NPAT)', aNpat, bNpat)
     + '</tbody></table></div></div>';
 
+  // ── EBITDA Bridge waterfall (YTD view only) ──────────────────────────────
+  var revVar  = aGrossRev - bGrossRev;
+  var cosVar  = (bFuelCost + bIppCost) - (aFuelCost + aIppCost); // +ve = lower cost = fav
+  var opexVar = bOpex - aOpex;                                     // +ve = lower opex = fav
+  var wfR0 = bEbitda;
+  var wfR1 = wfR0 + revVar;
+  var wfR2 = wfR1 + cosVar;
+  var wfR3 = wfR2 + opexVar; // should equal aEbitda
+  var wfBars = [
+    [0, bEbitda],
+    [Math.min(wfR0, wfR1), Math.max(wfR0, wfR1)],
+    [Math.min(wfR1, wfR2), Math.max(wfR1, wfR2)],
+    [Math.min(wfR2, wfR3), Math.max(wfR2, wfR3)],
+    [0, aEbitda],
+  ];
+  var wfColors = [
+    '#6fa8dc',
+    revVar  >= 0 ? '#4cae8a' : '#e05c5c',
+    cosVar  >= 0 ? '#4cae8a' : '#e05c5c',
+    opexVar >= 0 ? '#4cae8a' : '#e05c5c',
+    '#00c2a8',
+  ];
+  var wfLbls = ['AOP EBITDA', 'Revenue Var', 'Cost of Sales Var', 'Opex Var', 'Actual EBITDA'];
+  var wfFmt = function(v) { return (v >= 0 ? '+' : '') + _fmtM(v); };
+  var wfAnnotations = [
+    _fmtM(bEbitda),
+    wfFmt(revVar), wfFmt(cosVar), wfFmt(opexVar),
+    _fmtM(aEbitda),
+  ].map(function(t, i) { return '<span style="font-size:10px;color:' + wfColors[i] + '">' + _escHtml(t) + '</span>'; });
+
+  var wfCard = '<div class="card" style="margin-bottom:12px">'
+    + '<div class="card-head">EBITDA Bridge — AOP to Actual'
+    + '<span class="ch-sub">' + _escHtml(ctx.viewLbl) + ' · USD $000s · 🟢 Favourable · 🔴 Adverse</span></div>'
+    + '<div style="position:relative;height:230px"><canvas id="p8WaterfallChart"></canvas></div>'
+    + '<div style="display:flex;justify-content:space-around;padding:6px 0 2px;flex-wrap:wrap">'
+    + wfAnnotations.map(function(a, i) { return '<div style="text-align:center;font-size:10px;color:var(--muted)">' + _escHtml(wfLbls[i]) + '<br>' + a + '</div>'; }).join('')
+    + '</div></div>';
+
+  // ── Sensitivity table ─────────────────────────────────────────────────────
+  var sensPct  = [-20, -10, -5, 5, 10, 20];
+  var sensBase = {
+    'Non-Fuel Revenue':  aNfr,
+    'Fuel Cost Recovery': aFuelRev,
+    'IPP / PP Cost':      aIppCost,
+    'O&M Opex':           aOpex,
+    'Depreciation':       aDepn,
+    'Interest & Finance': aIntExp + aLease,
+  };
+  // sign: +1 = higher base → higher EBITDA; -1 = higher base → lower EBITDA
+  var sensSigns = {
+    'Non-Fuel Revenue': 1, 'Fuel Cost Recovery': 1,
+    'IPP / PP Cost': -1, 'O&M Opex': -1, 'Depreciation': -1, 'Interest & Finance': -1,
+  };
+  var sensRows = Object.keys(sensBase).map(function(drv) {
+    var base = sensBase[drv], sgn = sensSigns[drv];
+    var cells = sensPct.map(function(pct) {
+      var delta = base * pct / 100 * sgn;
+      var cls = delta >= 0 ? 'fav' : 'adv';
+      return '<td class="num ' + cls + '">' + _fmtM(delta) + '</td>';
+    }).join('');
+    return '<tr class="rind"><td>' + _escHtml(drv) + '<br><span style="font-size:10px;color:var(--muted)">Base: ' + _fmtM(base) + '</span></td>' + cells + '</tr>';
+  }).join('');
+  var sensCard = '<div class="card"><div class="card-head">EBITDA Sensitivity — Driver Impact'
+    + '<span class="ch-sub">USD $000s · shows EBITDA change if driver moves by ±%</span></div>'
+    + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+    + '<th>Driver</th>'
+    + sensPct.map(function(p){ return '<th class="num">' + (p>0?'+':'') + p + '%</th>'; }).join('')
+    + '</tr></thead><tbody>' + sensRows + '</tbody></table></div></div>';
+
   var pg = document.getElementById('p8Body');
-  if (pg) pg.innerHTML = hdr8 + kpis + tbl;
+  if (pg) pg.innerHTML = hdr8 + kpis + wfCard + tbl + sensCard;
+
+  // Init waterfall chart
+  (function(){
+    var canvas = document.getElementById('p8WaterfallChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    if (canvas._chartInst) { try { canvas._chartInst.destroy(); } catch(_){} }
+    canvas._chartInst = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: wfLbls,
+        datasets: [{
+          data: wfBars,
+          backgroundColor: wfColors,
+          borderColor: wfColors.map(function(c){ return c; }),
+          borderWidth: 1,
+          borderRadius: 3,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ci) {
+                var raw = ci.raw;
+                var val = Array.isArray(raw) ? raw[1] - raw[0] : raw;
+                return (val >= 0 ? '+' : '') + (val / 1000).toFixed(1) + 'M USD';
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#6b7280', font: { size: 11 } }, grid: { display: false } },
+          y: { ticks: { color: '#6b7280', font: { size: 10 }, callback: function(v){ return '$' + (v/1000).toFixed(0) + 'M'; } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
+      }
+    });
+  })();
 }
 
 /* ----- p9: FINANCIAL RATIOS ----- */
