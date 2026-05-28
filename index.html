@@ -9740,9 +9740,7 @@ function _dynRowYtd(line, lineVals, ctx, colspan) {
   var fmt    = isCost ? _fmtCost : _fmtM;
 
   var adjBtn = (line.row_type === 'data' && _rpIsAdmin && _rpIsAdmin())
-    ? '<button class="dyn-adj-btn" onclick="_adjShowForm(' +
-        JSON.stringify(line.line_id||'') + ',' + JSON.stringify(lbl) +
-        ')">&#177; Adj</button>'
+    ? '<button class="dyn-adj-btn" data-lid="' + _escHtml(line.line_id||'') + '" data-lbl="' + lbl + '" onclick="var b=this;_adjShowForm(b.getAttribute('data-lid'),b.getAttribute('data-lbl'))">&#177; Adj</button>'
     : '';
 
   var mainRow = '<tr class="' + rowCls + '"' + (bold ? ' style="font-weight:700"' : '') + '>' +
