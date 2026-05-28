@@ -5758,8 +5758,11 @@ async function loadP10(force) {
     // Derive financial KPIs from fpa_facts (pass kpiActuals for rev_per_kwh)
     var finDerived = _p10DeriveFinancial(finFacts, months, kpiActuals);
 
-    // Build table
-    if (body) body.innerHTML = _cvHdr('p10', _p10ColView, []) + _p10BuildTable(targets, kpiActuals, finDerived, months, ctx);
+    // Build table + charts
+    if (body) {
+      body.innerHTML = _cvHdr('p10', _p10ColView, []) + _p10BuildTable(targets, kpiActuals, finDerived, months, ctx);
+      _p10InitCharts();
+    }
 
   } catch(e) {
     console.error('[p10]', e);
@@ -6001,10 +6004,121 @@ function _p10BuildTable(targets, kpiActuals, finDerived, months, ctx) {
   if (!targets.length) {
     noDataNote = '<tr><td colspan="' + (5 + numMos) + '" style="text-align:center;color:var(--muted);padding:24px">No KPI targets configured for ' + ctx.yr + '. Add targets in <code>jps_kpi_targets</code>.</td></tr>';
   }
-  return '<div class="tw"><table class="kpi-sc-tbl">'
+
+  // ── RAG summary + progress chart data ─────────────────────────────
+  var ragCount = { g: 0, a: 0, r: 0, n: 0 };
+  var kpiProgress = []; // [{label, pct, rag}]
+  targets.forEach(function(t) {
+    var isFinancial = _KPI_FINANCIAL.indexOf(t.kpi_code) >= 0;
+    var ytdActual = isFinancial
+      ? (finDerived.ytd[t.kpi_code] !== undefined ? finDerived.ytd[t.kpi_code] : null)
+      : _p10YtdValue(t.kpi_code, kpiActuals, months, t.ytd_method);
+    var ytdTarget = isFinancial
+      ? parseFloat(t.annual_target)
+      : _p10YtdTarget(t.annual_target, months, t.ytd_method);
+    var rag = _p10Rag(ytdActual, ytdTarget, t.favorable_direction, t.amber_threshold || 0.05);
+    ragCount[rag === 'rag-g' ? 'g' : rag === 'rag-a' ? 'a' : rag === 'rag-r' ? 'r' : 'n']++;
+    if (ytdActual !== null && ytdTarget && ytdTarget !== 0) {
+      var pct = Math.round(ytdActual / ytdTarget * 100);
+      if (t.favorable_direction === 'below') pct = Math.round(ytdTarget / ytdActual * 100); // invert for "lower is better"
+      kpiProgress.push({ label: t.display_name || t.kpi_code, pct: Math.min(pct, 150), rag: rag });
+    }
+  });
+  _p10RagData = { ragCount: ragCount, kpiProgress: kpiProgress };
+
+  // RAG summary chips
+  var ragBar = '<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">'
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 18px;display:flex;align-items:center;gap:8px">'
+    + '<span style="width:10px;height:10px;border-radius:50%;background:#15803d;display:inline-block"></span>'
+    + '<span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">On Track</span>'
+    + '<span style="font-size:22px;font-weight:700;font-family:\'IBM Plex Mono\',monospace;color:#15803d">' + ragCount.g + '</span></div>'
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 18px;display:flex;align-items:center;gap:8px">'
+    + '<span style="width:10px;height:10px;border-radius:50%;background:#d97706;display:inline-block"></span>'
+    + '<span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">At Risk</span>'
+    + '<span style="font-size:22px;font-weight:700;font-family:\'IBM Plex Mono\',monospace;color:#d97706">' + ragCount.a + '</span></div>'
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 18px;display:flex;align-items:center;gap:8px">'
+    + '<span style="width:10px;height:10px;border-radius:50%;background:#c41e3a;display:inline-block"></span>'
+    + '<span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Off Track</span>'
+    + '<span style="font-size:22px;font-weight:700;font-family:\'IBM Plex Mono\',monospace;color:#c41e3a">' + ragCount.r + '</span></div>'
+    + (ragCount.n ? '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 18px;display:flex;align-items:center;gap:8px">'
+    + '<span style="width:10px;height:10px;border-radius:50%;background:var(--muted);display:inline-block"></span>'
+    + '<span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">No Data</span>'
+    + '<span style="font-size:22px;font-weight:700;font-family:\'IBM Plex Mono\',monospace;color:var(--muted)">' + ragCount.n + '</span></div>' : '')
+    + '<div style="flex:1;min-width:260px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px">'
+    + '<div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">% of KPIs On Track</div>'
+    + (function() {
+        var total = ragCount.g + ragCount.a + ragCount.r;
+        var pct = total ? Math.round(ragCount.g / total * 100) : 0;
+        var clr = pct >= 70 ? '#15803d' : pct >= 50 ? '#d97706' : '#c41e3a';
+        return '<div style="display:flex;align-items:center;gap:8px">'
+          + '<div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden">'
+          + '<div style="width:' + pct + '%;height:100%;background:' + clr + ';border-radius:4px;transition:width .4s"></div></div>'
+          + '<span style="font-size:16px;font-weight:700;color:' + clr + ';font-family:\'IBM Plex Mono\',monospace">' + pct + '%</span></div>';
+      })()
+    + '</div>'
+    + '</div>'
+    + '<div class="card chart-row" style="margin-bottom:16px"><div class="card-head">Achievement vs YTD Target <span class="ch-sub">100% = on target</span></div>'
+    + '<div class="chart-canvas-wrap" style="height:' + Math.max(180, kpiProgress.length * 28) + 'px"><canvas id="p10ChartProgress"></canvas></div></div>';
+
+  return ragBar + '<div class="tw"><table class="kpi-sc-tbl">'
     + thead
     + '<tbody>' + (noDataNote || rows) + '</tbody>'
     + '</table></div>';
+}
+
+var _p10Charts  = {};
+var _p10RagData = null;
+
+function _p10InitCharts() {
+  if (!_p10RagData || typeof Chart === 'undefined') return;
+  Object.values(_p10Charts).forEach(function(c){ try { c.destroy(); } catch(e){} });
+  _p10Charts = {};
+  var kp = _p10RagData.kpiProgress;
+  if (!kp.length) return;
+
+  var el = document.getElementById('p10ChartProgress');
+  if (!el) return;
+
+  var labels = kp.map(function(d){ return d.label; });
+  var values = kp.map(function(d){ return d.pct; });
+  var colors = kp.map(function(d){
+    return d.rag === 'rag-g' ? '#15803d99' : d.rag === 'rag-a' ? '#d9770699' : '#c41e3a99';
+  });
+  var borders = kp.map(function(d){
+    return d.rag === 'rag-g' ? '#15803d' : d.rag === 'rag-a' ? '#d97706' : '#c41e3a';
+  });
+
+  _p10Charts.progress = new Chart(el.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '% of YTD Target',
+        data: values,
+        backgroundColor: colors,
+        borderColor: borders,
+        borderWidth: 1.5,
+        borderRadius: 3
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: function(c){ return c.raw + '% of target'; } } },
+        annotation: {}
+      },
+      scales: {
+        x: {
+          min: 0, max: 130,
+          grid: { color: '#e8eef7' },
+          ticks: { font: { size: 10 }, callback: function(v){ return v + '%'; } }
+        },
+        y: { grid: { display: false }, ticks: { font: { size: 10 }, color: 'var(--text)' } }
+      }
+    }
+  });
 }
 
 /* ----- DISPATCHER ----- */
