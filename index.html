@@ -3766,10 +3766,13 @@ async function loadP2() {
   }
   _pgLoad('p2', false);
   _renderMoNav(ctx.maxMo); // keep month nav in sync regardless of active page
+  await _loadAdjustments(null, ctx.yr, 'p2');
 
   function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
   function sb(lid) { return _fSumP(bF, lid, ctx.cmpPeriods); }
   function sbFY(lid) { return _fSum(bF, lid); }
+  // adj-inclusive actuals: subtotals + totals auto-pick up adjustments
+  var saAdj = function(lid) { return sa(lid) + _adjSumFor(lid, ctx.actPeriods).jmd; };
 
   // Tab + view toggle controls
   const tabHdr = ''
@@ -3815,7 +3818,7 @@ async function loadP2() {
   } else if (_p2Tab === 'exec') {
     html += _buildP2Exec(ctx, aF, bF, sa, sb);
   } else {
-    html += _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY);
+    html += _buildP2Detailed(ctx, aF, bF, saAdj, sb, sbFY);
   }
 
   const pg = document.getElementById('p2');
@@ -4048,16 +4051,22 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   const fyHdr = _activeCmp === 'PY' ? ('FY ' + (ctx.yr - 1) + ' Act') : (ctx.cmpLbl.split(' ')[0] + ' FY');
 
   function row(lbl, lid, cls, isCost) {
+    const isData = !cls || cls === 'rind';
+    const adjBtn = (isData && _rpIsAdmin && _rpIsAdmin())
+      ? ' <button class="dyn-adj-btn" data-lid="' + _escHtml(lid||'') + '" data-lbl="' + _escHtml(lbl||'') + '" data-pid="p2" onclick="_adjShowForm(this.dataset.lid,this.dataset.lbl,this.dataset.pid)">&#177; Adj</button>'
+      : '';
     const moCells = ctx.actPeriods.map(function(p) {
       const v = _fVal(aF, lid, p);
-      return '<td class="num">' + (isCost ? _fmtCost(v) : _fmtM(v)) + '</td>';
+      const adjV = isData ? _adjSumFor(lid, [p]).jmd : 0;
+      const total = v + adjV;
+      return '<td class="num">' + (isCost ? _fmtCost(total) : _fmtM(total)) + '</td>';
     }).join('');
     const actTotal = sa(lid), cmpTotal = sb(lid), fyTotal = sbFY(lid);
     const v$   = actTotal - cmpTotal;
     const hg   = !isCost;
     const vCls = _vc(v$, hg);
     const fmt  = isCost ? _fmtCost : _fmtM;
-    return '<tr class="' + (cls || 'rind') + '"><td>' + _tl(lid, lbl) + '</td>'
+    let rowHtml = '<tr class="' + (cls || 'rind') + '"><td>' + _tl(lid, lbl) + adjBtn + '</td>'
       + moCells
       + '<td class="num">' + fmt(actTotal) + '</td>'
       + '<td class="num">' + fmt(cmpTotal) + '</td>'
@@ -4065,6 +4074,28 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
       + '<td class="num ' + vCls + '">' + _fmtPct(actTotal, cmpTotal) + '</td>'
       + (showFY ? '<td class="num">' + fmt(fyTotal) + '</td>' : '')
       + '</tr>';
+    // adj sub-rows
+    if (isData) {
+      const adjR = _adjSumFor(lid, ctx.actPeriods);
+      if (adjR.rows && adjR.rows.length) {
+        const dash = '<td class="num" style="color:var(--border)">&#8212;</td>';
+        const dashFY = showFY ? dash : '';
+        const moDashes = ctx.actPeriods.map(function(){ return dash; }).join('');
+        adjR.rows.forEach(function(ar) {
+          rowHtml += '<tr class="rind dyn-adj-row"><td>&nbsp;&nbsp;&nbsp;&nbsp;&#x21B3; ' + _escHtml(ar.note) + '</td>'
+            + moDashes
+            + '<td class="num dyn-adj-cell">' + _fmtM(ar.jmd) + '</td>'
+            + dash + dash + dash + dashFY + '</tr>';
+        });
+        if (Math.abs(adjR.fx) > 0.005) {
+          rowHtml += '<tr class="rind dyn-fx-row"><td>&nbsp;&nbsp;&nbsp;&nbsp;&#x21B3; FX impact</td>'
+            + moDashes
+            + '<td class="num dyn-adj-cell">' + _fmtM(adjR.fx) + '</td>'
+            + dash + dash + dash + dashFY + '</tr>';
+        }
+      }
+    }
+    return rowHtml;
   }
   // Derived total row (computed value, not a DB lid)
   // pFn(p): optional function returning per-period value for monthly cells
@@ -4112,14 +4143,15 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   const ni_b     = pretax_b - sb('tax');
   const niFY     = pretaxFY - sbFY('tax');
 
-  // Per-period derived helpers for monthly cells
-  function _totRevP(p) { return ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','other_r'].reduce(function(s,l){return s+(_fVal(aF,l,p)||0);},0); }
-  function _gpP(p)     { return _totRevP(p) - _fVal(aF,'fuel_cost',p) - _fVal(aF,'ipp_cost',p) + _fVal(aF,'pl_other_cos',p); }
-  function _ebitdaP(p) { return _gpP(p) - _fVal(aF,'opex',p); }
-  function _ebitP(p)   { return _ebitdaP(p) - _fVal(aF,'depn',p); }
-  function _nfcP(p)    { return _fVal(aF,'nfc_int_exp',p) - _fVal(aF,'nfc_int_inc',p) - _fVal(aF,'nfc_afudc',p) + _fVal(aF,'pl_pref_div',p) + _fVal(aF,'nfc_fees',p); }
-  function _pretaxP(p) { return _ebitP(p) - _nfcP(p) + _fVal(aF,'other_inc',p) + _fVal(aF,'pl_fx',p) + (!_p2Standalone ? _fVal(aF,'pl_div_recv',p) : 0); }
-  function _niP(p)     { return _pretaxP(p) - _fVal(aF,'tax',p); }
+  // Per-period derived helpers for monthly cells (adj-inclusive)
+  function _fVA(lid, p) { return (_fVal(aF, lid, p) || 0) + _adjSumFor(lid, [p]).jmd; }
+  function _totRevP(p) { return ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','other_r'].reduce(function(s,l){return s+_fVA(l,p);},0); }
+  function _gpP(p)     { return _totRevP(p) - _fVA('fuel_cost',p) - _fVA('ipp_cost',p) + _fVA('pl_other_cos',p); }
+  function _ebitdaP(p) { return _gpP(p) - _fVA('opex',p); }
+  function _ebitP(p)   { return _ebitdaP(p) - _fVA('depn',p); }
+  function _nfcP(p)    { return _fVA('nfc_int_exp',p) - _fVA('nfc_int_inc',p) - _fVA('nfc_afudc',p) + _fVA('pl_pref_div',p) + _fVA('nfc_fees',p); }
+  function _pretaxP(p) { return _ebitP(p) - _nfcP(p) + _fVA('other_inc',p) + _fVA('pl_fx',p) + (!_p2Standalone ? _fVA('pl_div_recv',p) : 0); }
+  function _niP(p)     { return _pretaxP(p) - _fVA('tax',p); }
 
   return '<div class="notice-bar">' + ctx.viewLbl + ' = Actuals vs ' + ctx.cmpLbl + '. Adverse shown as (x).</div>'
     + '<div class="card"><div class="card-head">Income Statement (Detailed)'
@@ -9322,6 +9354,7 @@ let _adjModalLineId   = null;
 let _adjModalLineName = null;
 let _adjModalFy       = null;
 let _adjModalTplId    = null;
+let _adjModalPageId   = 'dyn'; // 'dyn' for templates, 'p2' etc. for static pages
 let _dynColView   = 'ytd';
 var _dynCharts    = {};   // Chart.js instances keyed by chart line id
 
@@ -9378,11 +9411,14 @@ function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn, getAdjFn) {
 
 /* ── ADJUSTMENT HELPERS ───────────────────────────────────────────────────── */
 
-async function _loadAdjustments(templateId, fy) {
+async function _loadAdjustments(templateId, fy, pageId) {
   _dynAdjMap = {};
   var sb = _getSB(); if (!sb) return;
   try {
-    var r = await sb.from('fpa_adjustments').select('*').eq('template_id', templateId).eq('fy', fy);
+    var q = sb.from('fpa_adjustments').select('*').eq('fy', fy);
+    if (pageId) { q = q.eq('page_id', pageId); }
+    else        { q = q.eq('template_id', templateId).eq('page_id', 'dyn'); }
+    var r = await q;
     if (r.error) throw r.error;
     (r.data || []).forEach(function(adj) {
       var jmd = adj.value_usd * adj.rate_used;
@@ -9407,12 +9443,13 @@ function _adjSumFor(lineId, periods) {
 
 /* ── ADJ MODAL ────────────────────────────────────────────────────────────── */
 
-async function _adjShowForm(lineId, lineName) {
+async function _adjShowForm(lineId, lineName, pageId) {
   _adjModalLineId   = lineId;
   _adjModalLineName = lineName;
   _adjModalFy       = _activeYear || new Date().getFullYear();
-  _adjModalTplId    = _dynActiveTpl ? _dynActiveTpl.id : null;
-  if (!_adjModalTplId) return;
+  _adjModalPageId   = pageId || 'dyn';
+  _adjModalTplId    = pageId ? null : (_dynActiveTpl ? _dynActiveTpl.id : null);
+  if (!pageId && !_adjModalTplId) return; // dynamic path requires active template
   var lbl = document.getElementById('adjLineLabel');
   if (lbl) lbl.textContent = lineId + ' — ' + lineName;
   document.getElementById('adjValueUsd').value = '';
@@ -9454,11 +9491,12 @@ async function _adjFetchRate() {
 }
 
 async function _adjLoadExisting() {
-  if (!_adjModalLineId || !_adjModalTplId) return;
+  if (!_adjModalLineId) return;
   var sb = _getSB(); if (!sb) return;
-  var r = await sb.from('fpa_adjustments').select('*')
-    .eq('template_id', _adjModalTplId).eq('line_id', _adjModalLineId)
-    .eq('fy', _adjModalFy).order('period');
+  var q = sb.from('fpa_adjustments').select('*')
+    .eq('line_id', _adjModalLineId).eq('fy', _adjModalFy).eq('page_id', _adjModalPageId);
+  if (_adjModalPageId === 'dyn' && _adjModalTplId) q = q.eq('template_id', _adjModalTplId);
+  var r = await q.order('period');
   var wrap = document.getElementById('adjExistingWrap');
   var list = document.getElementById('adjExistingList');
   if (!r.data || !r.data.length) { if(wrap) wrap.style.display='none'; return; }
@@ -9501,14 +9539,16 @@ async function _adjSave() {
   var sb = _getSB(); if (!sb) return;
   try {
     var r = await sb.from('fpa_adjustments').insert({
-      template_id: tplId, line_id: lineId, period: period, fy: fy,
+      template_id: _adjModalPageId === 'dyn' ? tplId : null,
+      page_id: _adjModalPageId,
+      line_id: lineId, period: period, fy: fy,
       value_usd: usd, rate_used: rate, base_rate: base, note: note,
       created_by: _user ? _user.id : null,
     });
     if (r.error) throw r.error;
     toast('Adjustment saved','s');
     _adjModalClose();
-    dynRender();
+    if (_adjModalPageId === 'dyn') dynRender(); else _adjReloadPage(_adjModalPageId);
   } catch(e) { toast('Save failed: ' + e.message,'e'); console.error('[adj]',e); }
 }
 
@@ -9519,8 +9559,13 @@ async function _adjDelete(id) {
     if (r.error) throw r.error;
     toast('Adjustment removed','s');
     _adjLoadExisting();
-    dynRender();
+    if (_adjModalPageId === 'dyn') dynRender(); else _adjReloadPage(_adjModalPageId);
   } catch(e) { toast('Delete failed: ' + e.message,'e'); }
+}
+
+function _adjReloadPage(pageId) {
+  _loadedPages.delete(pageId);
+  if (pageId === 'p2') loadP2();
 }
 
 // Load active hub templates and populate sidebar nav
