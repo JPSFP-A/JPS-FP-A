@@ -9394,7 +9394,8 @@ async function _loadAdjustments(templateId, fy) {
 }
 
 function _adjSumFor(lineId, periods) {
-  var entries = (_dynAdjMap[lineId] || []).filter(function(a){ return periods.indexOf(a.period) >= 0; });
+  var moPeriods = periods.map(function(p){ return p > 100 ? p % 100 : p; }); // normalize YYYYMM → MM
+  var entries = (_dynAdjMap[lineId] || []).filter(function(a){ return moPeriods.indexOf(a.period) >= 0; });
   var jmd = 0, fx = 0, byNote = {};
   entries.forEach(function(a) {
     jmd += a.value_jmd; fx += a.fx_delta;
