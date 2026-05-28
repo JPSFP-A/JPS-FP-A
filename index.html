@@ -2588,14 +2588,7 @@ async function doLogin() {
     };
     afterLogin();
   } catch (e) {
-    // Demo mode fallback — allow exploration without a live account.
-    _user = {
-      id: 'demo',
-      name: email.split('@')[0] || 'Demo User',
-      email: email,
-      role: _selectedRole,
-    };
-    afterLogin();
+    errEl.textContent = e.message || 'Sign-in failed. Check credentials.';
   } finally {
     btn.textContent = 'Sign In →';
     btn.disabled = false;
@@ -9555,7 +9548,7 @@ function _dynBuildNav() {
   if (!_dynTpls.length) { sec.style.display = 'none'; wrap.innerHTML = ''; return; }
   sec.style.display = '';
   wrap.innerHTML = _dynTpls.map(function(t){
-    return '<div class="ni" data-p="p-dyn" onclick="dynShowReport(' + JSON.stringify(t.id) + ',this)">' +
+    return '<div class="ni" data-p="p-dyn" onclick="dynShowReport(\'' + t.id + '\',this)">' +
            '<span class="ni-ic">&#128202;</span> ' + _escHtml(t.name) + '</div>';
   }).join('');
 }
