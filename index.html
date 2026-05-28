@@ -9063,18 +9063,23 @@ function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn) {
   if (line.row_type === 'subtotal' || line.row_type === 'total') {
     if (!line.calc_expr) return { a: 0, b: 0 };
     if (line.calc_expr === 'sum_children') {
-      // Sum all report_lines rows whose parent_id points to this row
-      var children = lines.filter(function(l){ return l.parent_id === line.id; });
-      return {
-        a: children.reduce(function(s, cl) {
-          var cv = lineVals[cl.id];
-          return s + (cv ? cv.a * (cl.sign != null ? cl.sign : 1) : 0);
-        }, 0),
-        b: children.reduce(function(s, cl) {
-          var cv = lineVals[cl.id];
-          return s + (cv ? cv.b * (cl.sign != null ? cl.sign : 1) : 0);
-        }, 0),
-      };
+      // Positional accumulator: sum data rows since last subtotal/total (same algorithm as _computeRptLines)
+      var myIdx = lines.indexOf(line);
+      var sumA = 0, sumB = 0;
+      for (var i = myIdx - 1; i >= 0; i--) {
+        var pl = lines[i];
+        if (pl.row_type === 'section' || pl.row_type === 'spacer' || pl.row_type === 'chart') continue;
+        if (pl.row_type === 'subtotal' || pl.row_type === 'total') {
+          var pv = lineVals[pl.id];
+          if (pv) { sumA += pv.a; sumB += pv.b; }
+          break;
+        }
+        if (pl.row_type === 'data') {
+          var pv2 = lineVals[pl.id];
+          if (pv2) { var sc = (pl.sign != null ? pl.sign : 1); sumA += pv2.a * sc; sumB += pv2.b * sc; }
+        }
+      }
+      return { a: sumA, b: sumB };
     }
     // Arithmetic calc_expr: substitute line_id tokens with their DB values
     var toks = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
@@ -9097,7 +9102,7 @@ async function dynInitTemplates() {
   try {
     const { data, error } = await sb.from('report_templates')
       .select('id,slug,name,report_type')
-      .filter('app_targets', 'cs', '["hub"]')
+      .contains('app_targets', ['hub'])
       .eq('is_active', true)
       .order('name');
     if (error) throw error;
@@ -9330,21 +9335,26 @@ function _dynBuildMonthly(lines, ctx, allActF, aopF, lineValsYtd) {
     if (line.row_type === 'subtotal' || line.row_type === 'total') {
       if (!line.calc_expr) return { moA: months.map(function(){return 0;}), moB: months.map(function(){return 0;}) };
       if (line.calc_expr === 'sum_children') {
-        var children = lines.filter(function(l){ return l.parent_id === line.id; });
-        return {
-          moA: months.map(function(m, mi){
-            return children.reduce(function(s, cl){
-              var v = moMap[cl.id];
-              return s + (v ? v.moA[mi] * (cl.sign != null ? cl.sign : 1) : 0);
-            }, 0);
-          }),
-          moB: months.map(function(m, mi){
-            return children.reduce(function(s, cl){
-              var v = moMap[cl.id];
-              return s + (v ? v.moB[mi] * (cl.sign != null ? cl.sign : 1) : 0);
-            }, 0);
-          }),
-        };
+        var myIdx = lines.indexOf(line);
+        var sumMoA = months.map(function(){ return 0; });
+        var sumMoB = months.map(function(){ return 0; });
+        for (var i = myIdx - 1; i >= 0; i--) {
+          var pl = lines[i];
+          if (pl.row_type === 'section' || pl.row_type === 'spacer' || pl.row_type === 'chart') continue;
+          if (pl.row_type === 'subtotal' || pl.row_type === 'total') {
+            var pv = moMap[pl.id];
+            if (pv) { months.forEach(function(m, mi){ sumMoA[mi] += pv.moA[mi]; sumMoB[mi] += pv.moB[mi]; }); }
+            break;
+          }
+          if (pl.row_type === 'data') {
+            var pv2 = moMap[pl.id];
+            if (pv2) {
+              var sc = (pl.sign != null ? pl.sign : 1);
+              months.forEach(function(m, mi){ sumMoA[mi] += pv2.moA[mi] * sc; sumMoB[mi] += pv2.moB[mi] * sc; });
+            }
+          }
+        }
+        return { moA: sumMoA, moB: sumMoB };
       }
       // Arithmetic calc_expr — per-month substitution
       var toks = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
@@ -9444,21 +9454,25 @@ function _dynBuildQuarterly(lines, ctx, allActF, aopF, lineValsYtd) {
     if (line.row_type === 'subtotal' || line.row_type === 'total') {
       if (!line.calc_expr) return { qA:[0,0,0,0], qB:[0,0,0,0] };
       if (line.calc_expr === 'sum_children') {
-        var children = lines.filter(function(l){ return l.parent_id === line.id; });
-        return {
-          qA: qtrs.map(function(qt, qi){
-            return children.reduce(function(s, cl){
-              var v = qMap[cl.id];
-              return s + (v ? v.qA[qi] * (cl.sign != null ? cl.sign : 1) : 0);
-            }, 0);
-          }),
-          qB: qtrs.map(function(qt, qi){
-            return children.reduce(function(s, cl){
-              var v = qMap[cl.id];
-              return s + (v ? v.qB[qi] * (cl.sign != null ? cl.sign : 1) : 0);
-            }, 0);
-          }),
-        };
+        var myIdx = lines.indexOf(line);
+        var sumQA = [0,0,0,0], sumQB = [0,0,0,0];
+        for (var i = myIdx - 1; i >= 0; i--) {
+          var pl = lines[i];
+          if (pl.row_type === 'section' || pl.row_type === 'spacer' || pl.row_type === 'chart') continue;
+          if (pl.row_type === 'subtotal' || pl.row_type === 'total') {
+            var pv = qMap[pl.id];
+            if (pv) { qtrs.forEach(function(qt, qi){ sumQA[qi] += pv.qA[qi]; sumQB[qi] += pv.qB[qi]; }); }
+            break;
+          }
+          if (pl.row_type === 'data') {
+            var pv2 = qMap[pl.id];
+            if (pv2) {
+              var sc = (pl.sign != null ? pl.sign : 1);
+              qtrs.forEach(function(qt, qi){ sumQA[qi] += pv2.qA[qi] * sc; sumQB[qi] += pv2.qB[qi] * sc; });
+            }
+          }
+        }
+        return { qA: sumQA, qB: sumQB };
       }
       var toks = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
       return {
