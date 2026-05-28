@@ -940,6 +940,20 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 .rp-add-bar{padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0}
 .rp-edit-form{border-top:2px solid var(--blue);padding:12px;background:#f8faff;flex-shrink:0;max-height:56%;overflow-y:auto}
 .rp-field{display:flex;flex-direction:column;gap:3px;min-width:0}
+/* ── Adjustment rows ── */
+.dyn-adj-row td{color:#d97706;font-style:italic;font-size:10.5px}
+.dyn-fx-row  td{color:#0d9488;font-style:italic;font-size:10.5px}
+.dyn-adj-btn{font-size:9px;padding:1px 5px;border-radius:3px;border:1px solid #d97706;color:#d97706;background:none;cursor:pointer;margin-left:6px;opacity:0;transition:opacity .15s;vertical-align:middle}
+tr:hover .dyn-adj-btn{opacity:1}
+/* ── Adjustment modal ── */
+#adjModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9900;align-items:center;justify-content:center}
+#adjModal.open{display:flex}
+#adjModalBox{background:var(--card,#fff);border-radius:10px;padding:24px;width:500px;max-width:92vw;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.adj-field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.adj-field label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.adj-field input,.adj-field select{padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:var(--bg);color:var(--text)}
+#adjFxPreview{font-size:11px;padding:8px 10px;background:#f0fdf4;border-radius:5px;color:#065f46;margin-bottom:12px;display:none;border:1px solid #bbf7d0}
+.adj-existing-row{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#fef3c7;border-radius:5px;margin-bottom:4px;font-size:11px;border:1px solid #fde68a}
 .rp-field label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .rp-field input,.rp-field select{padding:5px 7px;border:1px solid var(--border);border-radius:4px;font-size:11px;background:var(--bg);color:var(--text);font-family:inherit;width:100%;box-sizing:border-box}
 .rp-field-row{display:flex;gap:6px;margin-bottom:7px}
@@ -2142,6 +2156,53 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
       </section>
 
     </main>
+  </div>
+</div>
+
+<!-- ── Adjustment Entry Modal ─────────────────────────────── -->
+<div id="adjModal">
+  <div id="adjModalBox">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="font-size:13px;font-weight:800;color:var(--dark)">Add Adjustment</span>
+      <button onclick="_adjModalClose()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);line-height:1">×</button>
+    </div>
+    <div id="adjLineLabel" style="font-size:11px;color:var(--muted);margin-bottom:14px;padding:7px 10px;background:var(--surface,#f8faff);border-radius:5px;border:1px solid var(--border)"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="adj-field">
+        <label>Period</label>
+        <select id="adjPeriod" onchange="_adjFetchRate()">
+          <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+          <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+          <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+          <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+        </select>
+      </div>
+      <div class="adj-field">
+        <label>USD Amount ($000s) &mdash; negative = deduction</label>
+        <input id="adjValueUsd" type="number" step="1" placeholder="e.g. 10 000" oninput="_adjPreviewFx()">
+      </div>
+      <div class="adj-field">
+        <label>Rate Used (JMD/USD) <span id="adjRateHint" style="color:var(--teal,#0d9488);font-weight:400;text-transform:none"></span></label>
+        <input id="adjRateUsed" type="number" step="0.01" placeholder="e.g. 155.50" oninput="_adjPreviewFx()">
+      </div>
+      <div class="adj-field">
+        <label>Base Rate (JMD/USD) <span style="color:var(--muted);font-weight:400;text-transform:none">budget / reference</span></label>
+        <input id="adjBaseRate" type="number" step="0.01" placeholder="e.g. 150.00" oninput="_adjPreviewFx()">
+      </div>
+    </div>
+    <div class="adj-field">
+      <label>Note <span style="color:var(--muted);font-weight:400;text-transform:none">shown inline on report</span></label>
+      <input id="adjNote" type="text" placeholder="e.g. Tariff adjustment Q1 2026" maxlength="80">
+    </div>
+    <div id="adjFxPreview"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="_adjSave()" style="font-size:11px;flex:1">Save Adjustment</button>
+      <button class="btn btn-ghost" onclick="_adjModalClose()" style="font-size:11px">Cancel</button>
+    </div>
+    <div id="adjExistingWrap" style="margin-top:16px;display:none">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Existing — this line &amp; year</div>
+      <div id="adjExistingList"></div>
+    </div>
   </div>
 </div>
 
@@ -9263,6 +9324,11 @@ function _initPresence(client, email, appLabel, role) {
 let _dynTpls      = [];   // active hub templates loaded at login
 let _dynActiveTpl = null; // template currently on screen
 let _dynLineCache = {};   // tplId → report_lines[] (cached after first fetch)
+let _dynAdjMap    = {};   // line_id → [{id,period,fy,value_usd,rate_used,base_rate,value_jmd,fx_delta,note}]
+let _adjModalLineId   = null;
+let _adjModalLineName = null;
+let _adjModalFy       = null;
+let _adjModalTplId    = null;
 let _dynColView   = 'ytd';
 var _dynCharts    = {};   // Chart.js instances keyed by chart line id
 
@@ -9275,12 +9341,12 @@ function _dynSafeEval(expr) {
 }
 
 // Compute { a, b } for a single report line given YTD accessor functions and existing lineVals
-function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn) {
+function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn, getAdjFn) {
   if (line.row_type === 'data') {
-    return {
-      a: line.line_id ? getActFn(line.line_id) : 0,
-      b: line.line_id ? getCmpFn(line.line_id) : 0,
-    };
+    var rawA = line.line_id ? getActFn(line.line_id) : 0;
+    var rawB = line.line_id ? getCmpFn(line.line_id) : 0;
+    var adj  = getAdjFn ? getAdjFn(line.line_id || '') : {jmd:0, fx:0, rows:[]};
+    return { a: rawA + adj.jmd, b: rawB, adjRows: adj.rows, fx: adj.fx };
   }
   if (line.row_type === 'subtotal' || line.row_type === 'total') {
     if (!line.calc_expr) return { a: 0, b: 0 };
@@ -9315,6 +9381,152 @@ function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn) {
     return { a: evalWith(getActFn), b: evalWith(getCmpFn) };
   }
   return { a: 0, b: 0 };
+}
+
+/* ── ADJUSTMENT HELPERS ───────────────────────────────────────────────────── */
+
+async function _loadAdjustments(templateId, fy) {
+  _dynAdjMap = {};
+  var sb = _getSB(); if (!sb) return;
+  try {
+    var r = await sb.from('fpa_adjustments').select('*').eq('template_id', templateId).eq('fy', fy);
+    if (r.error) throw r.error;
+    (r.data || []).forEach(function(adj) {
+      var jmd = adj.value_usd * adj.rate_used;
+      var fx  = adj.value_usd * (adj.rate_used - adj.base_rate);
+      if (!_dynAdjMap[adj.line_id]) _dynAdjMap[adj.line_id] = [];
+      _dynAdjMap[adj.line_id].push(Object.assign({}, adj, { value_jmd: jmd, fx_delta: fx }));
+    });
+  } catch(e) { console.error('[adj] load', e); }
+}
+
+function _adjSumFor(lineId, periods) {
+  var entries = (_dynAdjMap[lineId] || []).filter(function(a){ return periods.indexOf(a.period) >= 0; });
+  var jmd = 0, fx = 0, byNote = {};
+  entries.forEach(function(a) {
+    jmd += a.value_jmd; fx += a.fx_delta;
+    if (!byNote[a.note]) byNote[a.note] = 0;
+    byNote[a.note] += a.value_jmd;
+  });
+  return { jmd: jmd, fx: fx, rows: Object.keys(byNote).map(function(n){ return {note:n, jmd:byNote[n]}; }) };
+}
+
+/* ── ADJ MODAL ────────────────────────────────────────────────────────────── */
+
+async function _adjShowForm(lineId, lineName) {
+  _adjModalLineId   = lineId;
+  _adjModalLineName = lineName;
+  _adjModalFy       = _activeYear || new Date().getFullYear();
+  _adjModalTplId    = _dynActiveTpl ? _dynActiveTpl.id : null;
+  if (!_adjModalTplId) return;
+  var lbl = document.getElementById('adjLineLabel');
+  if (lbl) lbl.textContent = lineId + ' — ' + lineName;
+  document.getElementById('adjValueUsd').value = '';
+  document.getElementById('adjBaseRate').value = '';
+  document.getElementById('adjNote').value = '';
+  document.getElementById('adjFxPreview').style.display = 'none';
+  // default period = current max month
+  var ctx = _getCtx ? _getCtx() : null;
+  var mo = ctx ? ctx.maxMo : new Date().getMonth() + 1;
+  document.getElementById('adjPeriod').value = String(mo);
+  await _adjFetchRate();
+  await _adjLoadExisting();
+  document.getElementById('adjModal').classList.add('open');
+}
+
+function _adjModalClose() {
+  document.getElementById('adjModal').classList.remove('open');
+  _adjModalLineId = _adjModalLineName = _adjModalTplId = null;
+}
+
+async function _adjFetchRate() {
+  var fy = _adjModalFy || new Date().getFullYear();
+  var period = parseInt(document.getElementById('adjPeriod').value) || 1;
+  var d = new Date(fy, period, 0); // last day of period month
+  var dateStr = d.toISOString().split('T')[0];
+  var sb = _getSB(); if (!sb) return;
+  try {
+    var r = await sb.from('fx_rates').select('sell_rate,rate_date')
+      .eq('currency','USD').lte('rate_date', dateStr)
+      .order('rate_date',{ascending:false}).limit(1);
+    var row = r.data && r.data[0];
+    if (row) {
+      document.getElementById('adjRateUsed').value = row.sell_rate;
+      var hint = document.getElementById('adjRateHint');
+      if (hint) hint.textContent = '(BOJ ' + row.rate_date + ')';
+      _adjPreviewFx();
+    }
+  } catch(e) {}
+}
+
+async function _adjLoadExisting() {
+  if (!_adjModalLineId || !_adjModalTplId) return;
+  var sb = _getSB(); if (!sb) return;
+  var r = await sb.from('fpa_adjustments').select('*')
+    .eq('template_id', _adjModalTplId).eq('line_id', _adjModalLineId)
+    .eq('fy', _adjModalFy).order('period');
+  var wrap = document.getElementById('adjExistingWrap');
+  var list = document.getElementById('adjExistingList');
+  if (!r.data || !r.data.length) { if(wrap) wrap.style.display='none'; return; }
+  if(wrap) wrap.style.display='block';
+  if(list) list.innerHTML = (r.data||[]).map(function(a){
+    var jmd = a.value_usd * a.rate_used;
+    return '<div class="adj-existing-row">' +
+      '<span style="font-weight:700;min-width:28px">' + (_MONS[a.period-1]||'') + '</span>' +
+      '<span style="flex:1">' + _escHtml(a.note) + '</span>' +
+      '<span style="white-space:nowrap">USD&nbsp;' + a.value_usd.toLocaleString() + ' &rarr; JMD&nbsp;' + _fmtM(jmd) + '</span>' +
+      '<button onclick="_adjDelete(\'' + a.id + '\')" style="border:none;background:none;cursor:pointer;color:#ef4444;font-size:13px;padding:0 2px" title="Delete">🗑</button>' +
+      '</div>';
+  }).join('');
+}
+
+function _adjPreviewFx() {
+  var usd  = parseFloat(document.getElementById('adjValueUsd').value) || 0;
+  var rate = parseFloat(document.getElementById('adjRateUsed').value) || 0;
+  var base = parseFloat(document.getElementById('adjBaseRate').value) || 0;
+  var el   = document.getElementById('adjFxPreview');
+  if (!el) return;
+  if (!usd || !rate) { el.style.display='none'; return; }
+  var jmd = usd * rate;
+  var fx  = base ? usd * (rate - base) : null;
+  el.style.display = 'block';
+  el.innerHTML = 'JMD value: <strong>' + _fmtM(jmd) + '</strong>' +
+    (fx !== null ? '&nbsp;&nbsp;|&nbsp;&nbsp;FX impact vs base: <strong style="color:#0d9488">' + _fmtM(fx) + '</strong>' : '');
+}
+
+async function _adjSave() {
+  var lineId = _adjModalLineId, tplId = _adjModalTplId, fy = _adjModalFy;
+  var period = parseInt(document.getElementById('adjPeriod').value);
+  var usd    = parseFloat(document.getElementById('adjValueUsd').value);
+  var rate   = parseFloat(document.getElementById('adjRateUsed').value);
+  var base   = parseFloat(document.getElementById('adjBaseRate').value) || rate;
+  var note   = (document.getElementById('adjNote').value || '').trim();
+  if (!usd || isNaN(usd)) { toast('Enter a USD amount','w'); return; }
+  if (!rate || isNaN(rate)) { toast('Enter the JMD/USD rate','w'); return; }
+  if (!note) { toast('Note is required — shown on the report','w'); return; }
+  var sb = _getSB(); if (!sb) return;
+  try {
+    var r = await sb.from('fpa_adjustments').insert({
+      template_id: tplId, line_id: lineId, period: period, fy: fy,
+      value_usd: usd, rate_used: rate, base_rate: base, note: note,
+      created_by: _cu ? _cu.id : null,
+    });
+    if (r.error) throw r.error;
+    toast('Adjustment saved','s');
+    _adjModalClose();
+    dynRender();
+  } catch(e) { toast('Save failed: ' + e.message,'e'); console.error('[adj]',e); }
+}
+
+async function _adjDelete(id) {
+  var sb = _getSB(); if (!sb) return;
+  try {
+    var r = await sb.from('fpa_adjustments').delete().eq('id', id);
+    if (r.error) throw r.error;
+    toast('Adjustment removed','s');
+    _adjLoadExisting();
+    dynRender();
+  } catch(e) { toast('Delete failed: ' + e.message,'e'); }
 }
 
 // Load active hub templates and populate sidebar nav
@@ -9414,6 +9626,9 @@ async function dynRender() {
   var ctx = _getCtx();
   if (!ctx) { body.innerHTML = '<div class="dyn-empty">No context — select a year.</div>'; return; }
 
+  // Load adjustments for this template + year
+  await _loadAdjustments(tplId, ctx.yr);
+
   // Collect unique line_ids from data rows + calc_expr tokens
   var allLids = [];
   lines.forEach(function(l) {
@@ -9456,15 +9671,16 @@ async function dynRender() {
   }
 
   // ── Precompute YTD line values (actual + comparison) ─────────────────────
-  var getA = function(lid){ return _fSumP(aF,  lid, ctx.actPeriods); };
-  var getB = function(lid){ return _fSumP(bF,  lid, ctx.cmpPeriods); };
-  var lineVals = {}; // line.id → { a, b }
+  var getA   = function(lid){ return _fSumP(aF, lid, ctx.actPeriods); };
+  var getB   = function(lid){ return _fSumP(bF, lid, ctx.cmpPeriods); };
+  var getAdj = function(lid){ return _adjSumFor(lid, ctx.actPeriods); };
+  var lineVals = {}; // line.id → { a, b, adjRows, fx }
 
   // 3 passes to resolve nested subtotals (data → subtotals → totals)
   for (var pass = 0; pass < 3; pass++) {
     lines.forEach(function(line) {
       if (line.row_type === 'section' || line.row_type === 'spacer' || line.row_type === 'chart') return;
-      lineVals[line.id] = _dynComputeBoth(line, lines, lineVals, getA, getB);
+      lineVals[line.id] = _dynComputeBoth(line, lines, lineVals, getA, getB, getAdj);
     });
   }
 
@@ -9530,13 +9746,44 @@ function _dynRowYtd(line, lineVals, ctx, colspan) {
   var varCls = _vc(diff, hg);
   var fmt    = isCost ? _fmtCost : _fmtM;
 
-  return '<tr class="' + rowCls + '"' + (bold ? ' style="font-weight:700"' : '') + '>' +
-    '<td>' + indent + lbl + '</td>' +
+  var adjBtn = (line.row_type === 'data' && _rpIsAdmin && _rpIsAdmin())
+    ? '<button class="dyn-adj-btn" onclick="_adjShowForm(' +
+        JSON.stringify(line.line_id||'') + ',' + JSON.stringify(lbl) +
+        ')">&#177; Adj</button>'
+    : '';
+
+  var mainRow = '<tr class="' + rowCls + '"' + (bold ? ' style="font-weight:700"' : '') + '>' +
+    '<td>' + indent + lbl + adjBtn + '</td>' +
     '<td class="num">' + fmt(va)   + '</td>' +
     '<td class="num">' + fmt(vb)   + '</td>' +
     '<td class="num ' + varCls + '">' + _fmtM(diff) + '</td>' +
     '<td class="num ' + varCls + '">' + _fmtPct(va, vb) + '</td>' +
     '</tr>';
+
+  var subRows = '';
+  if (line.row_type === 'data' && vals.adjRows && vals.adjRows.length) {
+    var ind2 = (new Array((line.indent_level || 0) * 4 + 5)).join(' ');
+    vals.adjRows.forEach(function(ar) {
+      subRows += '<tr class="rind dyn-adj-row">' +
+        '<td>' + ind2 + '&#x21B3; ' + _escHtml(ar.note) + '</td>' +
+        '<td class="num">' + _fmtM(ar.jmd) + '</td>' +
+        '<td class="num" style="color:var(--border)">&#8212;</td>' +
+        '<td class="num" style="color:var(--border)">&#8212;</td>' +
+        '<td class="num" style="color:var(--border)">&#8212;</td>' +
+        '</tr>';
+    });
+    if (vals.fx && Math.abs(vals.fx) > 0.005) {
+      subRows += '<tr class="rind dyn-fx-row">' +
+        '<td>' + ind2 + '&#x21B3; FX impact</td>' +
+        '<td class="num">' + _fmtM(vals.fx) + '</td>' +
+        '<td class="num" style="color:var(--border)">&#8212;</td>' +
+        '<td class="num" style="color:var(--border)">&#8212;</td>' +
+        '<td class="num" style="color:var(--border)">&#8212;</td>' +
+        '</tr>';
+    }
+  }
+
+  return mainRow + subRows;
 }
 
 /* ── Monthly table ──────────────────────────────────────────────────────── */
@@ -9551,9 +9798,23 @@ function _dynBuildMonthly(lines, ctx, allActF, aopF, lineValsYtd) {
 
   function _buildMoEntry(line) {
     if (line.row_type === 'data' && line.line_id) {
+      var adjEntries = _dynAdjMap[line.line_id] || [];
+      var moAdj = months.map(function(m){
+        return adjEntries.filter(function(a){ return a.period === m; }).reduce(function(s,a){ return s + a.value_jmd; }, 0);
+      });
+      var moFx = months.map(function(m){
+        return adjEntries.filter(function(a){ return a.period === m; }).reduce(function(s,a){ return s + a.fx_delta; }, 0);
+      });
+      var byNote = {};
+      adjEntries.forEach(function(a){
+        if (!byNote[a.note]) byNote[a.note] = months.map(function(){ return 0; });
+        byNote[a.note][a.period - 1] += a.value_jmd;
+      });
       return {
-        moA: months.map(function(m){ return getMoA(line.line_id, m); }),
+        moA: months.map(function(m, mi){ return getMoA(line.line_id, m) + moAdj[mi]; }),
         moB: months.map(function(m){ return getMoB(line.line_id, m); }),
+        moAdjRows: Object.keys(byNote).map(function(n){ return {note:n, vals:byNote[n]}; }),
+        moFx: moFx,
       };
     }
     if (line.row_type === 'subtotal' || line.row_type === 'total') {
@@ -9640,13 +9901,50 @@ function _dynBuildMonthly(lines, ctx, allActF, aopF, lineValsYtd) {
       return '<td class="num">' + fmt(mv.moA[mi]) + '</td>';
     }).join('');
 
+    // Adj sub-rows for monthly view
+    var moSubRows = '';
+    if (line.row_type === 'data' && mv.moAdjRows && mv.moAdjRows.length) {
+      var ind2m = (new Array((line.indent_level || 0) * 4 + 5)).join(' ');
+      mv.moAdjRows.forEach(function(ar) {
+        var adjCells = months.map(function(m, mi){
+          return Math.abs(ar.vals[mi]) > 0.005
+            ? '<td class="num">' + _fmtM(ar.vals[mi]) + '</td>'
+            : '<td class="num" style="color:var(--border)">—</td>';
+        }).join('');
+        var adjYtd = ar.vals.reduce(function(s,v){ return s+v; }, 0);
+        moSubRows += '<tr class="rind dyn-adj-row">' +
+          '<td>' + ind2m + '&#x21B3; ' + _escHtml(ar.note) + '</td>' +
+          adjCells +
+          '<td class="num">' + _fmtM(adjYtd) + '</td>' +
+          '<td class="num" style="color:var(--border)">&#8212;</td>' +
+          '<td class="num" style="color:var(--border)">&#8212;</td>' +
+          '</tr>';
+      });
+      var hasFx = mv.moFx && mv.moFx.some(function(v){ return Math.abs(v) > 0.005; });
+      if (hasFx) {
+        var fxCells = months.map(function(m, mi){
+          return Math.abs(mv.moFx[mi]) > 0.005
+            ? '<td class="num">' + _fmtM(mv.moFx[mi]) + '</td>'
+            : '<td class="num" style="color:var(--border)">—</td>';
+        }).join('');
+        var fxYtd = mv.moFx.reduce(function(s,v){ return s+v; }, 0);
+        moSubRows += '<tr class="rind dyn-fx-row">' +
+          '<td>' + ind2m + '&#x21B3; FX impact</td>' +
+          fxCells +
+          '<td class="num">' + _fmtM(fxYtd) + '</td>' +
+          '<td class="num" style="color:var(--border)">&#8212;</td>' +
+          '<td class="num" style="color:var(--border)">&#8212;</td>' +
+          '</tr>';
+      }
+    }
+
     return '<tr class="' + rowCls + '"' + (bold ? ' style="font-weight:700"' : '') + '>' +
       '<td>' + indent + lbl + '</td>' +
       moCells +
       '<td class="num">' + fmt(ytdV.a) + '</td>' +
       '<td class="num">' + fmt(ytdV.b) + '</td>' +
       '<td class="num ' + varCls + '">' + _fmtPct(ytdV.a, ytdV.b) + '</td>' +
-      '</tr>';
+      '</tr>' + moSubRows;
   }).join('');
 
   var name = _escHtml((_dynActiveTpl || {}).name || 'Report');
@@ -9670,9 +9968,23 @@ function _dynBuildQuarterly(lines, ctx, allActF, aopF, lineValsYtd) {
 
   function _buildQEntry(line) {
     if (line.row_type === 'data' && line.line_id) {
+      var adjEntries = _dynAdjMap[line.line_id] || [];
+      var qAdj = qtrs.map(function(qt){
+        return adjEntries.filter(function(a){ return qt.mo.indexOf(a.period) >= 0; }).reduce(function(s,a){ return s + a.value_jmd; }, 0);
+      });
+      var qFx = qtrs.map(function(qt){
+        return adjEntries.filter(function(a){ return qt.mo.indexOf(a.period) >= 0; }).reduce(function(s,a){ return s + a.fx_delta; }, 0);
+      });
+      var byNote = {};
+      adjEntries.forEach(function(a){
+        if (!byNote[a.note]) byNote[a.note] = [0,0,0,0];
+        qtrs.forEach(function(qt, qi){ if (qt.mo.indexOf(a.period) >= 0) byNote[a.note][qi] += a.value_jmd; });
+      });
       return {
-        qA: qtrs.map(function(qt){ return sumQ(line.line_id, qt.mo, getMoA); }),
+        qA: qtrs.map(function(qt, qi){ return sumQ(line.line_id, qt.mo, getMoA) + qAdj[qi]; }),
         qB: qtrs.map(function(qt){ return sumQ(line.line_id, qt.mo, getMoB); }),
+        qAdjRows: Object.keys(byNote).map(function(n){ return {note:n, vals:byNote[n]}; }),
+        qFx: qFx,
       };
     }
     if (line.row_type === 'subtotal' || line.row_type === 'total') {
@@ -9762,12 +10074,51 @@ function _dynBuildQuarterly(lines, ctx, allActF, aopF, lineValsYtd) {
       return '<td class="num"' + (qPartial[qi] ? ' title="Partial quarter"' : '') + '>' + fmt(qv.qA[qi]) + '</td>';
     }).join('');
 
+    // Adj sub-rows for quarterly view
+    var qSubRows = '';
+    if (line.row_type === 'data' && qv.qAdjRows && qv.qAdjRows.length) {
+      var ind2q = (new Array((line.indent_level || 0) * 4 + 5)).join(' ');
+      qv.qAdjRows.forEach(function(ar) {
+        var adjQCells = qtrs.map(function(qt, qi){
+          if (!qComplete[qi] && !qPartial[qi]) return '<td class="num" style="color:var(--border)">—</td>';
+          return Math.abs(ar.vals[qi]) > 0.005
+            ? '<td class="num">' + _fmtM(ar.vals[qi]) + '</td>'
+            : '<td class="num" style="color:var(--border)">—</td>';
+        }).join('');
+        var adjYtdQ = ar.vals.reduce(function(s,v){ return s+v; }, 0);
+        qSubRows += '<tr class="rind dyn-adj-row">' +
+          '<td>' + ind2q + '&#x21B3; ' + _escHtml(ar.note) + '</td>' +
+          adjQCells +
+          '<td class="num">' + _fmtM(adjYtdQ) + '</td>' +
+          '<td class="num" style="color:var(--border)">&#8212;</td>' +
+          '<td class="num" style="color:var(--border)">&#8212;</td>' +
+          '</tr>';
+      });
+      var hasFxQ = qv.qFx && qv.qFx.some(function(v){ return Math.abs(v) > 0.005; });
+      if (hasFxQ) {
+        var fxQCells = qtrs.map(function(qt, qi){
+          if (!qComplete[qi] && !qPartial[qi]) return '<td class="num" style="color:var(--border)">—</td>';
+          return Math.abs(qv.qFx[qi]) > 0.005
+            ? '<td class="num">' + _fmtM(qv.qFx[qi]) + '</td>'
+            : '<td class="num" style="color:var(--border)">—</td>';
+        }).join('');
+        var fxYtdQ = qv.qFx.reduce(function(s,v){ return s+v; }, 0);
+        qSubRows += '<tr class="rind dyn-fx-row">' +
+          '<td>' + ind2q + '&#x21B3; FX impact</td>' +
+          fxQCells +
+          '<td class="num">' + _fmtM(fxYtdQ) + '</td>' +
+          '<td class="num" style="color:var(--border)">&#8212;</td>' +
+          '<td class="num" style="color:var(--border)">&#8212;</td>' +
+          '</tr>';
+      }
+    }
+
     return '<tr class="' + rowCls + '"' + (bold ? ' style="font-weight:700"' : '') + '>' +
       '<td>' + indent + lbl + '</td>' + qCells +
       '<td class="num">' + fmt(ytdV.a) + '</td>' +
       '<td class="num">' + fmt(ytdV.b) + '</td>' +
       '<td class="num ' + varCls + '">' + _fmtPct(ytdV.a, ytdV.b) + '</td>' +
-      '</tr>';
+      '</tr>' + qSubRows;
   }).join('');
 
   var name = _escHtml((_dynActiveTpl || {}).name || 'Report');
