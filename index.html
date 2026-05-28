@@ -9030,6 +9030,580 @@ function _initPresence(client, email, appLabel, role) {
     if (s === 'SUBSCRIBED') await _presenceCh.track({ email, app: appLabel, role: role || 'viewer', since: new Date().toISOString() });
   });
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REPORT BUILDER RENDERER
+   Reads report_templates (app_targets ⊇ ['hub'], is_active=true) + report_lines.
+   Renders YTD / Monthly / Quarterly views with sign conventions, calc_expr,
+   and Chart.js charts — all driven by DataManager Report Builder config.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+let _dynTpls      = [];   // active hub templates loaded at login
+let _dynActiveTpl = null; // template currently on screen
+let _dynLineCache = {};   // tplId → report_lines[] (cached after first fetch)
+let _dynColView   = 'ytd';
+var _dynCharts    = {};   // Chart.js instances keyed by chart line id
+
+// Safe arithmetic expression evaluator — only alphanumeric/operator tokens allowed
+function _dynSafeEval(expr) {
+  if (typeof expr !== 'string') return 0;
+  if (!/^[\w\s\+\-\*\/\(\)\.]+$/.test(expr)) return 0;
+  try { return +Function('"use strict";return(' + expr + ')')() || 0; }
+  catch(e) { return 0; }
+}
+
+// Compute { a, b } for a single report line given YTD accessor functions and existing lineVals
+function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn) {
+  if (line.row_type === 'data') {
+    return {
+      a: line.line_id ? getActFn(line.line_id) : 0,
+      b: line.line_id ? getCmpFn(line.line_id) : 0,
+    };
+  }
+  if (line.row_type === 'subtotal' || line.row_type === 'total') {
+    if (!line.calc_expr) return { a: 0, b: 0 };
+    if (line.calc_expr === 'sum_children') {
+      // Sum all report_lines rows whose parent_id points to this row
+      var children = lines.filter(function(l){ return l.parent_id === line.id; });
+      return {
+        a: children.reduce(function(s, cl) {
+          var cv = lineVals[cl.id];
+          return s + (cv ? cv.a * (cl.sign != null ? cl.sign : 1) : 0);
+        }, 0),
+        b: children.reduce(function(s, cl) {
+          var cv = lineVals[cl.id];
+          return s + (cv ? cv.b * (cl.sign != null ? cl.sign : 1) : 0);
+        }, 0),
+      };
+    }
+    // Arithmetic calc_expr: substitute line_id tokens with their DB values
+    var toks = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
+    var evalWith = function(getFn) {
+      var expr = line.calc_expr;
+      toks.forEach(function(tok){
+        expr = expr.replace(new RegExp('\\b' + tok + '\\b', 'g'), String(getFn(tok)));
+      });
+      return _dynSafeEval(expr);
+    };
+    return { a: evalWith(getActFn), b: evalWith(getCmpFn) };
+  }
+  return { a: 0, b: 0 };
+}
+
+// Load active hub templates and populate sidebar nav
+async function dynInitTemplates() {
+  const sb = _getSB();
+  if (!sb) return;
+  try {
+    const { data, error } = await sb.from('report_templates')
+      .select('id,slug,name,report_type')
+      .filter('app_targets', 'cs', '["hub"]')
+      .eq('is_active', true)
+      .order('name');
+    if (error) throw error;
+    _dynTpls = data || [];
+  } catch(e) {
+    console.error('[dyn] init templates', e);
+    _dynTpls = [];
+  }
+  _dynBuildNav();
+}
+
+function _dynBuildNav() {
+  var sec  = document.getElementById('dynNavSec');
+  var wrap = document.getElementById('dynNavItems');
+  if (!sec || !wrap) return;
+  if (!_dynTpls.length) { sec.style.display = 'none'; wrap.innerHTML = ''; return; }
+  sec.style.display = '';
+  wrap.innerHTML = _dynTpls.map(function(t){
+    return '<div class="ni" data-p="p-dyn" onclick="dynShowReport(' + JSON.stringify(t.id) + ',this)">' +
+           '<span class="ni-ic">&#128202;</span> ' + _escHtml(t.name) + '</div>';
+  }).join('');
+}
+
+async function dynShowReport(tplId, el) {
+  document.querySelectorAll('.ni').forEach(function(n){ n.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  _dynActiveTpl = _dynTpls.find(function(t){ return t.id === tplId; }) || null;
+  var lbl = document.getElementById('dynTplLabel');
+  if (lbl) lbl.textContent = _dynActiveTpl ? _dynActiveTpl.name : '—';
+  // Reset col view to YTD on template change
+  _dynColView = 'ytd';
+  document.querySelectorAll('.dyn-cv-btn').forEach(function(b){ b.classList.remove('active'); });
+  var first = document.querySelector('.dyn-cv-btn');
+  if (first) first.classList.add('active');
+  // Force reload (clear from _loadedPages so navTo triggers loadPage → dynRender)
+  _loadedPages.delete('p-dyn');
+  navTo('p-dyn');
+}
+
+function dynSetColView(v, el) {
+  _dynColView = v;
+  document.querySelectorAll('.dyn-cv-btn').forEach(function(b){ b.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  dynRender();
+}
+
+// Call after publishing a template from DataManager to refresh the renderer cache
+function dynInvalidateCache(tplId) {
+  if (tplId) delete _dynLineCache[tplId];
+  else { _dynLineCache = {}; dynInitTemplates(); }
+}
+
+async function dynRender() {
+  if (!_dynActiveTpl) return;
+  var body = document.getElementById('dynBody');
+  if (!body) return;
+
+  // Destroy previous Chart.js instances
+  Object.values(_dynCharts).forEach(function(c){ try { c.destroy(); } catch(e){} });
+  _dynCharts = {};
+
+  body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Loading&hellip;</div>';
+
+  var tplId = _dynActiveTpl.id;
+  var sb    = _getSB();
+  if (!sb) return;
+
+  // Load + cache report lines
+  if (!_dynLineCache[tplId]) {
+    try {
+      var r = await sb.from('report_lines').select('*').eq('template_id', tplId).order('sort_order');
+      if (r.error) throw r.error;
+      _dynLineCache[tplId] = r.data || [];
+    } catch(e) {
+      body.innerHTML = '<div class="dyn-empty">&#9888; Failed to load report lines: ' + _escHtml(e.message) + '</div>';
+      return;
+    }
+  }
+
+  var lines = _dynLineCache[tplId];
+  if (!lines.length) {
+    body.innerHTML = '<div class="dyn-empty">No lines defined yet.<br>Open <strong>DataManager &rarr; Report Builder</strong> to add lines to this template.</div>';
+    return;
+  }
+
+  await _ensureMaxMo(_activeYear);
+  var ctx = _getCtx();
+  if (!ctx) { body.innerHTML = '<div class="dyn-empty">No context — select a year.</div>'; return; }
+
+  // Collect unique line_ids from data rows + calc_expr tokens
+  var allLids = [];
+  lines.forEach(function(l) {
+    if (l.row_type === 'data' && l.line_id && allLids.indexOf(l.line_id) < 0) allLids.push(l.line_id);
+    if (l.calc_expr && l.calc_expr !== 'sum_children') {
+      var toks = l.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || [];
+      toks.forEach(function(t){ if (allLids.indexOf(t) < 0) allLids.push(t); });
+    }
+    // Chart series line_ids
+    if (l.row_type === 'chart' && l.chart_config && l.chart_config.series) {
+      l.chart_config.series.forEach(function(s){
+        if (s.line_id && allLids.indexOf(s.line_id) < 0) allLids.push(s.line_id);
+      });
+    }
+  });
+
+  var aF = {}, bF = {}, allActF = {}, aopF = {};
+  try {
+    if (_dynColView === 'ytd') {
+      var res = await Promise.all([
+        _fetchFactsAct(ctx, allLids),
+        _fetchFactsN(ctx.cmpCode, allLids, ctx.cmpStart, ctx.cmpEnd),
+      ]);
+      aF = res[0]; bF = res[1];
+    } else {
+      var yr    = ctx.yr;
+      var allPids = []; for (var _m = 1; _m <= 12; _m++) allPids.push(yr * 100 + _m);
+      var res2 = await Promise.all([
+        ctx.hasMonthly
+          ? _fetchFactsMulti(yr, allLids, allPids)
+          : _fetchFactsN(ctx.actCode, allLids, yr * 100 + 1, yr * 100 + 12),
+        _fetchFactsN('AOP_' + yr, allLids, yr * 100 + 1, yr * 100 + 12),
+      ]);
+      allActF = res2[0]; aopF = res2[1];
+      aF = allActF; bF = aopF; // used for YTD sub-totals in monthly/quarterly
+    }
+  } catch(e) {
+    body.innerHTML = '<div class="dyn-empty">&#9888; Data fetch failed: ' + _escHtml(e.message) + '</div>';
+    return;
+  }
+
+  // ── Precompute YTD line values (actual + comparison) ─────────────────────
+  var getA = function(lid){ return _fSumP(aF,  lid, ctx.actPeriods); };
+  var getB = function(lid){ return _fSumP(bF,  lid, ctx.cmpPeriods); };
+  var lineVals = {}; // line.id → { a, b }
+
+  // 3 passes to resolve nested subtotals (data → subtotals → totals)
+  for (var pass = 0; pass < 3; pass++) {
+    lines.forEach(function(line) {
+      if (line.row_type === 'section' || line.row_type === 'spacer' || line.row_type === 'chart') return;
+      lineVals[line.id] = _dynComputeBoth(line, lines, lineVals, getA, getB);
+    });
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  var html = '';
+  if (_dynColView === 'ytd') {
+    html = _dynBuildYtd(lines, lineVals, ctx);
+  } else if (_dynColView === 'monthly') {
+    html = _dynBuildMonthly(lines, ctx, allActF, aopF, lineVals);
+  } else {
+    html = _dynBuildQuarterly(lines, ctx, allActF, aopF, lineVals);
+  }
+
+  body.innerHTML = html;
+
+  // Initialise charts after HTML is in the DOM
+  lines.filter(function(l){ return l.row_type === 'chart' && l.chart_config; }).forEach(function(l){
+    _dynInitChart(l, ctx, allActF && Object.keys(allActF).length ? allActF : aF,
+                          aopF  && Object.keys(aopF).length  ? aopF  : bF);
+  });
+}
+
+/* ── YTD table ──────────────────────────────────────────────────────────── */
+function _dynBuildYtd(lines, lineVals, ctx) {
+  var cmpLbl = _escHtml(ctx.cmpLbl);
+  var thead = '<thead><tr>' +
+    '<th style="text-align:left;min-width:220px">Description</th>' +
+    '<th>Actual</th><th>' + cmpLbl + '</th><th>Variance</th><th>Var %</th>' +
+    '</tr></thead>';
+
+  var rows = lines.map(function(l){ return _dynRowYtd(l, lineVals, ctx, 5); }).join('');
+  var name = _escHtml((_dynActiveTpl || {}).name || 'Report');
+
+  return '<div class="page-head"><h1>' + name + '</h1>' +
+    '<div class="ph-sub">' + _escHtml(ctx.viewLbl) + ' &middot; vs ' + cmpLbl + ' &middot; JMD $000s</div></div>' +
+    '<div class="card"><div class="card-head">' + name +
+    '<span class="ch-sub"> ' + _escHtml(ctx.viewLbl) + '</span></div>' +
+    '<div class="tbl-wrap"><table class="dt">' + thead + '<tbody>' + rows + '</tbody></table></div></div>';
+}
+
+function _dynRowYtd(line, lineVals, ctx, colspan) {
+  if (line.row_type === 'section') {
+    return '<tr class="rsec"><td colspan="' + colspan + '">' + _escHtml(line.label_override || '—') + '</td></tr>';
+  }
+  if (line.row_type === 'spacer') {
+    return '<tr style="height:8px"><td colspan="' + colspan + '"></td></tr>';
+  }
+  if (line.row_type === 'chart') {
+    var h = (line.chart_config && line.chart_config.height) || 260;
+    return '<tr><td colspan="' + colspan + '" style="padding:12px 0">' +
+      '<div style="height:' + h + 'px"><canvas id="dyn-chart-' + line.id + '"></canvas></div></td></tr>';
+  }
+  var vals = lineVals[line.id] || { a: 0, b: 0 };
+  var va = vals.a, vb = vals.b, diff = va - vb;
+  var isCost = (line.sign != null ? line.sign : 1) === -1;
+  var hg     = (line.fav_direction != null ? line.fav_direction : 1) === 1;
+  var bold   = line.is_bold || line.row_type === 'total' || line.row_type === 'subtotal';
+  var indent = (new Array((line.indent_level || 0) * 4 + 1)).join(' ');
+  var lbl    = _escHtml(line.label_override || line.line_id || '—');
+  var rowCls = (line.row_type === 'total' || line.row_type === 'subtotal') ? 'rs' : 'rind';
+  var varCls = _vc(diff, hg);
+  var fmt    = isCost ? _fmtCost : _fmtM;
+
+  return '<tr class="' + rowCls + '"' + (bold ? ' style="font-weight:700"' : '') + '>' +
+    '<td>' + indent + lbl + '</td>' +
+    '<td class="num">' + fmt(va)   + '</td>' +
+    '<td class="num">' + fmt(vb)   + '</td>' +
+    '<td class="num ' + varCls + '">' + _fmtM(diff) + '</td>' +
+    '<td class="num ' + varCls + '">' + _fmtPct(va, vb) + '</td>' +
+    '</tr>';
+}
+
+/* ── Monthly table ──────────────────────────────────────────────────────── */
+function _dynBuildMonthly(lines, ctx, allActF, aopF, lineValsYtd) {
+  var yr = ctx.yr, maxMo = ctx.maxMo;
+  var months = [1,2,3,4,5,6,7,8,9,10,11,12];
+  var getMoA = function(lid, m){ return _fVal(allActF, lid, yr * 100 + m); };
+  var getMoB = function(lid, m){ return _fVal(aopF,   lid, yr * 100 + m); };
+
+  // Precompute monthly values per line (moA[12], moB[12])
+  var moMap = {};
+
+  function _buildMoEntry(line) {
+    if (line.row_type === 'data' && line.line_id) {
+      return {
+        moA: months.map(function(m){ return getMoA(line.line_id, m); }),
+        moB: months.map(function(m){ return getMoB(line.line_id, m); }),
+      };
+    }
+    if (line.row_type === 'subtotal' || line.row_type === 'total') {
+      if (!line.calc_expr) return { moA: months.map(function(){return 0;}), moB: months.map(function(){return 0;}) };
+      if (line.calc_expr === 'sum_children') {
+        var children = lines.filter(function(l){ return l.parent_id === line.id; });
+        return {
+          moA: months.map(function(m, mi){
+            return children.reduce(function(s, cl){
+              var v = moMap[cl.id];
+              return s + (v ? v.moA[mi] * (cl.sign != null ? cl.sign : 1) : 0);
+            }, 0);
+          }),
+          moB: months.map(function(m, mi){
+            return children.reduce(function(s, cl){
+              var v = moMap[cl.id];
+              return s + (v ? v.moB[mi] * (cl.sign != null ? cl.sign : 1) : 0);
+            }, 0);
+          }),
+        };
+      }
+      // Arithmetic calc_expr — per-month substitution
+      var toks = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
+      return {
+        moA: months.map(function(m){
+          var expr = line.calc_expr;
+          toks.forEach(function(tok){ expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(getMoA(tok,m))); });
+          return _dynSafeEval(expr);
+        }),
+        moB: months.map(function(m){
+          var expr = line.calc_expr;
+          toks.forEach(function(tok){ expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(getMoB(tok,m))); });
+          return _dynSafeEval(expr);
+        }),
+      };
+    }
+    return { moA: months.map(function(){return 0;}), moB: months.map(function(){return 0;}) };
+  }
+
+  // 3-pass computation for nested subtotals
+  for (var pass = 0; pass < 3; pass++) {
+    lines.forEach(function(line){
+      if (line.row_type === 'section' || line.row_type === 'spacer' || line.row_type === 'chart') return;
+      moMap[line.id] = _buildMoEntry(line);
+    });
+  }
+
+  var moHdr   = months.map(function(m){ return '<th style="font-size:10px">' + _MONS[m-1] + '</th>'; }).join('');
+  var colspan = 1 + 12 + 3;
+  var thead   = '<thead><tr>' +
+    '<th style="text-align:left;min-width:180px">Description</th>' +
+    moHdr + '<th>YTD Act</th><th>AOP YTD</th><th>Var&nbsp;%</th>' +
+    '</tr></thead>';
+
+  var rows = lines.map(function(line){
+    if (line.row_type === 'section') {
+      return '<tr class="rsec"><td colspan="' + colspan + '">' + _escHtml(line.label_override || '—') + '</td></tr>';
+    }
+    if (line.row_type === 'spacer') return '<tr style="height:6px"><td colspan="' + colspan + '"></td></tr>';
+    if (line.row_type === 'chart') {
+      var h = (line.chart_config && line.chart_config.height) || 260;
+      return '<tr><td colspan="' + colspan + '" style="padding:12px 0">' +
+        '<div style="height:' + h + 'px"><canvas id="dyn-chart-' + line.id + '"></canvas></div></td></tr>';
+    }
+    var mv   = moMap[line.id];
+    var ytdV = lineValsYtd[line.id] || { a: 0, b: 0 };
+    if (!mv) return '';
+    var isCost = (line.sign != null ? line.sign : 1) === -1;
+    var hg     = (line.fav_direction != null ? line.fav_direction : 1) === 1;
+    var bold   = line.is_bold || line.row_type === 'total' || line.row_type === 'subtotal';
+    var indent = (new Array((line.indent_level || 0) * 4 + 1)).join(' ');
+    var lbl    = _escHtml(line.label_override || line.line_id || '—');
+    var rowCls = (line.row_type === 'total' || line.row_type === 'subtotal') ? 'rs' : 'rind';
+    var fmt    = isCost ? _fmtCost : _fmtM;
+    var varCls = _vc(ytdV.a - ytdV.b, hg);
+
+    var moCells = months.map(function(m, mi){
+      if (m > maxMo) return '<td class="num" style="color:var(--border)">—</td>';
+      return '<td class="num">' + fmt(mv.moA[mi]) + '</td>';
+    }).join('');
+
+    return '<tr class="' + rowCls + '"' + (bold ? ' style="font-weight:700"' : '') + '>' +
+      '<td>' + indent + lbl + '</td>' +
+      moCells +
+      '<td class="num">' + fmt(ytdV.a) + '</td>' +
+      '<td class="num">' + fmt(ytdV.b) + '</td>' +
+      '<td class="num ' + varCls + '">' + _fmtPct(ytdV.a, ytdV.b) + '</td>' +
+      '</tr>';
+  }).join('');
+
+  var name = _escHtml((_dynActiveTpl || {}).name || 'Report');
+  return '<div class="page-head"><h1>' + name + '</h1>' +
+    '<div class="ph-sub">Monthly ' + ctx.yr + ' &middot; JMD $000s</div></div>' +
+    '<div class="card"><div class="card-head">' + name +
+    '<span class="ch-sub"> Monthly ' + ctx.yr + '</span></div>' +
+    '<div class="tbl-wrap" style="overflow-x:auto">' +
+    '<table class="dt">' + thead + '<tbody>' + rows + '</tbody></table></div></div>';
+}
+
+/* ── Quarterly table ────────────────────────────────────────────────────── */
+function _dynBuildQuarterly(lines, ctx, allActF, aopF, lineValsYtd) {
+  var yr = ctx.yr, maxMo = ctx.maxMo;
+  var qtrs = [{q:'Q1',mo:[1,2,3]},{q:'Q2',mo:[4,5,6]},{q:'Q3',mo:[7,8,9]},{q:'Q4',mo:[10,11,12]}];
+  var getMoA = function(lid, m){ return _fVal(allActF, lid, yr * 100 + m); };
+  var getMoB = function(lid, m){ return _fVal(aopF,   lid, yr * 100 + m); };
+  var sumQ   = function(lid, qMo, getFn){ return qMo.reduce(function(s,m){ return s+getFn(lid,m); }, 0); };
+
+  var qMap = {}; // line.id → { qA[4], qB[4] }
+
+  function _buildQEntry(line) {
+    if (line.row_type === 'data' && line.line_id) {
+      return {
+        qA: qtrs.map(function(qt){ return sumQ(line.line_id, qt.mo, getMoA); }),
+        qB: qtrs.map(function(qt){ return sumQ(line.line_id, qt.mo, getMoB); }),
+      };
+    }
+    if (line.row_type === 'subtotal' || line.row_type === 'total') {
+      if (!line.calc_expr) return { qA:[0,0,0,0], qB:[0,0,0,0] };
+      if (line.calc_expr === 'sum_children') {
+        var children = lines.filter(function(l){ return l.parent_id === line.id; });
+        return {
+          qA: qtrs.map(function(qt, qi){
+            return children.reduce(function(s, cl){
+              var v = qMap[cl.id];
+              return s + (v ? v.qA[qi] * (cl.sign != null ? cl.sign : 1) : 0);
+            }, 0);
+          }),
+          qB: qtrs.map(function(qt, qi){
+            return children.reduce(function(s, cl){
+              var v = qMap[cl.id];
+              return s + (v ? v.qB[qi] * (cl.sign != null ? cl.sign : 1) : 0);
+            }, 0);
+          }),
+        };
+      }
+      var toks = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
+      return {
+        qA: qtrs.map(function(qt){
+          var expr = line.calc_expr;
+          toks.forEach(function(tok){ var v = sumQ(tok, qt.mo, getMoA); expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(v)); });
+          return _dynSafeEval(expr);
+        }),
+        qB: qtrs.map(function(qt){
+          var expr = line.calc_expr;
+          toks.forEach(function(tok){ var v = sumQ(tok, qt.mo, getMoB); expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(v)); });
+          return _dynSafeEval(expr);
+        }),
+      };
+    }
+    return { qA:[0,0,0,0], qB:[0,0,0,0] };
+  }
+
+  for (var pass = 0; pass < 3; pass++) {
+    lines.forEach(function(line){
+      if (line.row_type === 'section' || line.row_type === 'spacer' || line.row_type === 'chart') return;
+      qMap[line.id] = _buildQEntry(line);
+    });
+  }
+
+  // Quarter is "complete" if maxMo >= last month of that quarter
+  var qComplete = qtrs.map(function(qt){ return maxMo >= qt.mo[2]; });
+  var qPartial  = qtrs.map(function(qt){ return maxMo >= qt.mo[0] && maxMo < qt.mo[2]; });
+
+  var colspan = 1 + 4 + 3;
+  var thead   = '<thead><tr>' +
+    '<th style="text-align:left;min-width:200px">Description</th>' +
+    qtrs.map(function(qt){ return '<th>' + qt.q + '</th>'; }).join('') +
+    '<th>YTD Act</th><th>AOP YTD</th><th>Var&nbsp;%</th>' +
+    '</tr></thead>';
+
+  var rows = lines.map(function(line){
+    if (line.row_type === 'section') {
+      return '<tr class="rsec"><td colspan="' + colspan + '">' + _escHtml(line.label_override || '—') + '</td></tr>';
+    }
+    if (line.row_type === 'spacer') return '<tr style="height:6px"><td colspan="' + colspan + '"></td></tr>';
+    if (line.row_type === 'chart') {
+      var h = (line.chart_config && line.chart_config.height) || 260;
+      return '<tr><td colspan="' + colspan + '" style="padding:12px 0">' +
+        '<div style="height:' + h + 'px"><canvas id="dyn-chart-' + line.id + '"></canvas></div></td></tr>';
+    }
+    var qv   = qMap[line.id];
+    var ytdV = lineValsYtd[line.id] || { a: 0, b: 0 };
+    if (!qv) return '';
+    var isCost = (line.sign != null ? line.sign : 1) === -1;
+    var hg     = (line.fav_direction != null ? line.fav_direction : 1) === 1;
+    var bold   = line.is_bold || line.row_type === 'total' || line.row_type === 'subtotal';
+    var indent = (new Array((line.indent_level || 0) * 4 + 1)).join(' ');
+    var lbl    = _escHtml(line.label_override || line.line_id || '—');
+    var rowCls = (line.row_type === 'total' || line.row_type === 'subtotal') ? 'rs' : 'rind';
+    var fmt    = isCost ? _fmtCost : _fmtM;
+    var varCls = _vc(ytdV.a - ytdV.b, hg);
+
+    var qCells = qtrs.map(function(qt, qi){
+      if (!qComplete[qi] && !qPartial[qi]) {
+        return '<td class="num" style="color:var(--border)">—</td>';
+      }
+      return '<td class="num"' + (qPartial[qi] ? ' title="Partial quarter"' : '') + '>' + fmt(qv.qA[qi]) + '</td>';
+    }).join('');
+
+    return '<tr class="' + rowCls + '"' + (bold ? ' style="font-weight:700"' : '') + '>' +
+      '<td>' + indent + lbl + '</td>' + qCells +
+      '<td class="num">' + fmt(ytdV.a) + '</td>' +
+      '<td class="num">' + fmt(ytdV.b) + '</td>' +
+      '<td class="num ' + varCls + '">' + _fmtPct(ytdV.a, ytdV.b) + '</td>' +
+      '</tr>';
+  }).join('');
+
+  var name = _escHtml((_dynActiveTpl || {}).name || 'Report');
+  return '<div class="page-head"><h1>' + name + '</h1>' +
+    '<div class="ph-sub">Quarterly ' + ctx.yr + ' &middot; JMD $000s</div></div>' +
+    '<div class="card"><div class="card-head">' + name +
+    '<span class="ch-sub"> Quarterly ' + ctx.yr + '</span></div>' +
+    '<div class="tbl-wrap"><table class="dt">' + thead + '<tbody>' + rows + '</tbody></table></div></div>';
+}
+
+/* ── Chart row renderer ─────────────────────────────────────────────────── */
+function _dynInitChart(line, ctx, actF, cmpF) {
+  if (typeof Chart === 'undefined') return;
+  var cfg = line.chart_config || {};
+  var el  = document.getElementById('dyn-chart-' + line.id);
+  if (!el) return;
+
+  var labels, datasets;
+
+  if (cfg.trend) {
+    // Trend: x-axis = months, each series = one line_id
+    var usedM = []; for (var m = 1; m <= ctx.maxMo; m++) usedM.push(m);
+    labels   = usedM.map(function(m){ return _pLabel(ctx.yr * 100 + m); });
+    datasets = (cfg.series || []).map(function(s){
+      return {
+        label: s.label || s.line_id,
+        type:  s.chartType || 'bar',
+        data:  usedM.map(function(m){ return _fVal(actF, s.line_id, ctx.yr * 100 + m); }),
+        backgroundColor: (s.color || '#003da5') + '99',
+        borderColor: s.color || '#003da5',
+        borderWidth: 1.5, borderRadius: 3, tension: 0.3,
+      };
+    });
+  } else {
+    // Comparison: labels = series names, bars = Actual vs Comparison
+    labels   = (cfg.series || []).map(function(s){ return s.label || s.line_id; });
+    datasets = [
+      {
+        label: 'Actual',
+        data:  (cfg.series || []).map(function(s){ return _fSumP(actF, s.line_id, ctx.actPeriods); }),
+        backgroundColor: '#003da599', borderColor: '#003da5', borderWidth: 1.5, borderRadius: 4,
+      },
+      {
+        label: ctx.cmpLbl,
+        data:  (cfg.series || []).map(function(s){ return _fSumP(cmpF, s.line_id, ctx.cmpPeriods); }),
+        backgroundColor: '#00aeef44', borderColor: '#00aeef', borderWidth: 1.5, borderRadius: 4,
+      },
+    ];
+  }
+
+  try {
+    _dynCharts['c-' + line.id] = new Chart(el.getContext('2d'), {
+      type: cfg.type || 'bar',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: cfg.showLegend !== false, position: 'top',
+            labels: { font: { size: 10, family: "'IBM Plex Sans',sans-serif" }, boxWidth: 12 } },
+          title: cfg.title
+            ? { display: true, text: cfg.title, font: { size: 12 } }
+            : { display: false },
+        },
+        scales: {
+          x: { stacked: !!cfg.stacked, grid: { display: false }, ticks: { font: { size: 10 } } },
+          y: { stacked: !!cfg.stacked, grid: { color: '#e8eef7' },
+               ticks: { font: { size: 10 }, callback: function(v){
+                 return v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : String(v);
+               } } },
+        },
+      },
+    });
+  } catch(e) { console.error('[dyn] chart init', line.id, e); }
+}
 </script>
 </body>
 </html>
