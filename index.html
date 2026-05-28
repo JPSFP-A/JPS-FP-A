@@ -7780,36 +7780,39 @@ async function loadP8() {
     + wfAnnotations.map(function(a, i) { return '<div style="text-align:center;font-size:10px;color:var(--muted)">' + _escHtml(wfLbls[i]) + '<br>' + a + '</div>'; }).join('')
     + '</div></div>';
 
-  // ── Sensitivity table ─────────────────────────────────────────────────────
-  var sensPct  = [-20, -10, -5, 5, 10, 20];
-  var sensBase = {
-    'Non-Fuel Revenue':  aNfr,
-    'Fuel Cost Recovery': aFuelRev,
-    'IPP / PP Cost':      aIppCost,
-    'O&M Opex':           aOpex,
-    'Depreciation':       aDepn,
-    'Interest & Finance': aIntExp + aLease,
-  };
-  // sign: +1 = higher base → higher EBITDA; -1 = higher base → lower EBITDA
-  var sensSigns = {
-    'Non-Fuel Revenue': 1, 'Fuel Cost Recovery': 1,
-    'IPP / PP Cost': -1, 'O&M Opex': -1, 'Depreciation': -1, 'Interest & Finance': -1,
-  };
-  var sensRows = Object.keys(sensBase).map(function(drv) {
-    var base = sensBase[drv], sgn = sensSigns[drv];
+  // ── Sensitivity tables ────────────────────────────────────────────────────
+  var sensPct = [-20, -10, -5, 5, 10, 20];
+  function _sensRow(drv, base, sgn) {
     var cells = sensPct.map(function(pct) {
       var delta = base * pct / 100 * sgn;
       var cls = delta >= 0 ? 'fav' : 'adv';
       return '<td class="num ' + cls + '">' + _fmtM(delta) + '</td>';
     }).join('');
     return '<tr class="rind"><td>' + _escHtml(drv) + '<br><span style="font-size:10px;color:var(--muted)">Base: ' + _fmtM(base) + '</span></td>' + cells + '</tr>';
-  }).join('');
-  var sensCard = '<div class="card"><div class="card-head">EBITDA Sensitivity — Driver Impact'
-    + '<span class="ch-sub">USD $000s · shows EBITDA change if driver moves by ±%</span></div>'
-    + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
-    + '<th>Driver</th>'
+  }
+  var sensHdr = '<div class="tbl-wrap"><table class="dt"><thead><tr><th>Driver</th>'
     + sensPct.map(function(p){ return '<th class="num">' + (p>0?'+':'') + p + '%</th>'; }).join('')
-    + '</tr></thead><tbody>' + sensRows + '</tbody></table></div></div>';
+    + '</tr></thead><tbody>';
+  // EBITDA drivers only — FCR excluded (pure pass-through, net EBITDA impact ≈ 0)
+  var sensCardEbitda = '<div class="card" style="margin-bottom:12px">'
+    + '<div class="card-head">EBITDA Sensitivity — Driver Impact'
+    + '<span class="ch-sub">USD $000s · FCR excluded — pass-through, net impact ≈ 0</span></div>'
+    + sensHdr
+    + _sensRow('Non-Fuel Revenue (Energy Clause)', aNfr, 1)
+    + _sensRow('IPP / PP Cost', aIppCost, -1)
+    + _sensRow('O&amp;M Opex', aOpex, -1)
+    + '</tbody></table></div></div>';
+  // NPAT drivers — below EBITDA line (Depreciation, Interest)
+  var sensCardNpat = '<div class="card">'
+    + '<div class="card-head">NPAT Sensitivity — Below EBITDA Drivers'
+    + '<span class="ch-sub">USD $000s · impact is on NPAT not EBITDA</span></div>'
+    + sensHdr
+    + _sensRow('Depreciation', aDepn, -1)
+    + _sensRow('Interest Expense', aIntExp, -1)
+    + _sensRow('Lease Interest (IFRS 16)', aLease, -1)
+    + _sensRow('Income Tax', aTax, -1)
+    + '</tbody></table></div></div>';
+  var sensCard = sensCardEbitda + sensCardNpat;
 
   var pg = document.getElementById('p8Body');
   if (pg) pg.innerHTML = hdr8 + kpis + wfCard + tbl + sensCard;
