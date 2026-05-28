@@ -911,6 +911,15 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 .tip:hover::after { opacity: 1; }
+/* ── DYNAMIC REPORT RENDERER ─────────────────────────────── */
+#p-dyn{padding:0;overflow:hidden}
+#p-dyn.active{display:flex;flex-direction:column}
+.dyn-ctrl{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.dyn-tpl-label{font-size:14px;font-weight:700;color:var(--text)}
+.dyn-body{flex:1;overflow-y:auto;padding:20px;min-height:0}
+.dyn-cv-btn{padding:4px 11px;border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:600;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;font-family:inherit}
+.dyn-cv-btn.active,.dyn-cv-btn:hover{background:var(--dark);color:#fff;border-color:var(--dark)}
+.dyn-empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:13px}
 </style>
 </head>
 <body>
@@ -1192,6 +1201,9 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 
       <div class="nav-sec">Assumptions</div>
       <div class="ni" data-p="p16" onclick="nav(this)"><span class="ni-ic">&#9881;</span> Model Assumptions</div>
+
+      <div class="nav-sec" id="dynNavSec" style="display:none">Dynamic Reports</div>
+      <div id="dynNavItems"></div>
     </nav>
 
     <!-- ===================== MAIN ===================== -->
@@ -2003,6 +2015,20 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
           <div id="wb-body">
             <div style="padding:40px;text-align:center;color:var(--muted);font-size:12px">Loading&hellip;</div>
           </div>
+        </div>
+      </section>
+
+      <!-- ============ PAGE: DYNAMIC REPORT RENDERER ============ -->
+      <section class="page" id="p-dyn">
+        <div class="dyn-ctrl">
+          <span class="dyn-tpl-label" id="dynTplLabel">—</span>
+          <div style="flex:1"></div>
+          <button class="dyn-cv-btn active" onclick="dynSetColView('ytd',this)">YTD</button>
+          <button class="dyn-cv-btn" onclick="dynSetColView('monthly',this)">Monthly</button>
+          <button class="dyn-cv-btn" onclick="dynSetColView('quarterly',this)">Quarterly</button>
+        </div>
+        <div class="dyn-body" id="dynBody">
+          <div class="dyn-empty">Select a report from the sidebar.</div>
         </div>
       </section>
 
@@ -2945,6 +2971,126 @@ function _cmCancel(cell) {
   cell.innerHTML = _cmSpan(_cmCache[lid + '|' + pid + '|' + vt] || '');
 }
 
+// ── REPORT RENDERER ──────────────────────────────────────────────────────────
+// Driven by report_templates + report_lines (DataManager Report Builder).
+// Change a template in DB → FP&A Hub reflects it on next page load.
+// _rptCache: slug → { template, lines } (session-scoped).
+var _rptCache = {};
+
+async function _loadRptTemplate(slug) {
+  if (_rptCache[slug]) return _rptCache[slug];
+  const { data: tpl, error: te } = await _sb.from('report_templates')
+    .select('*').eq('slug', slug).eq('is_active', true).maybeSingle();
+  if (te || !tpl) return null;
+  const { data: lines, error: le } = await _sb.from('report_lines')
+    .select('*').eq('template_id', tpl.id).order('sort_order');
+  if (le) return null;
+  const r = { template: tpl, lines: lines || [] };
+  _rptCache[slug] = r;
+  return r;
+}
+
+function _rptEvalExpr(expr, byId) {
+  // Substitute known line_id identifiers with numeric values, then eval.
+  let code = expr;
+  Object.keys(byId).forEach(function(k) {
+    code = code.replace(new RegExp('\\b' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g'), String(byId[k]));
+  });
+  try { return Function('"use strict";return(' + code + ')')(); }
+  catch(e) { return 0; }
+}
+
+function _computeRptLines(lines, saFn, sbFn) {
+  // sum_children: each data row contributes rawValue*sign to the running bucket.
+  // At a subtotal/total: value = lastSubtotalValue + bucket; then reset bucket.
+  var computedAct = {}, computedBud = {};
+  var runAct = 0, runBud = 0, lastSubAct = 0, lastSubBud = 0;
+  return lines.map(function(line) {
+    var rt = line.row_type;
+    var act = null, bud = null;
+    if (rt === 'section' || rt === 'spacer') return Object.assign({}, line, { act: null, bud: null });
+    var s = (line.sign != null ? line.sign : 1);
+    if (rt === 'data') {
+      var rawA = line.line_id ? saFn(line.line_id) : 0;
+      var rawB = line.line_id ? sbFn(line.line_id) : 0;
+      act = rawA * s; bud = rawB * s;
+      runAct += act; runBud += bud;
+    }
+    if (rt === 'subtotal' || rt === 'total') {
+      var expr = line.calc_expr || '';
+      if (expr === 'sum_children') {
+        act = lastSubAct + runAct; bud = lastSubBud + runBud;
+      } else if (expr) {
+        act = _rptEvalExpr(expr, computedAct); bud = _rptEvalExpr(expr, computedBud);
+      } else if (line.line_id) {
+        act = saFn(line.line_id) * s; bud = sbFn(line.line_id) * s;
+      } else {
+        act = lastSubAct + runAct; bud = lastSubBud + runBud;
+      }
+      lastSubAct = act != null ? act : 0; lastSubBud = bud != null ? bud : 0;
+      runAct = 0; runBud = 0;
+    }
+    if (line.line_id && act !== null) {
+      computedAct[line.line_id] = act; computedBud[line.line_id] = bud;
+    }
+    return Object.assign({}, line, { act: act != null ? act : 0, bud: bud != null ? bud : 0 });
+  });
+}
+
+function _rptRowHtml(line) {
+  var rt = line.row_type;
+  if (rt === 'spacer') return '<tr><td colspan="4" style="height:6px;border:none"></td></tr>';
+  if (rt === 'section') return '<tr class="rsec"><td colspan="4">' + _escHtml(line.label_override || '') + '</td></tr>';
+  var label  = _escHtml(line.label_override || line.line_id || '');
+  var bold   = line.is_bold ? 'font-weight:700;' : '';
+  var padL   = 12 + (line.indent_level || 0) * 16;
+  var isData = rt === 'data';
+  var s      = (line.sign != null ? line.sign : 1);
+  var isCost = isData && s === -1;
+  var rowCls = (rt === 'total' || rt === 'subtotal') ? 'rs' : 'rind';
+  var act = line.act, bud = line.bud;
+  var actStr = isData ? (isCost ? _fmtCost(Math.abs(act)) : _fmtM(act)) : _fmtM(act);
+  var budStr = isData ? (isCost ? _fmtCost(Math.abs(bud)) : _fmtM(bud)) : _fmtM(bud);
+  var varPct = _fmtPct(act, bud);
+  var favDir = (line.fav_direction != null ? line.fav_direction : 1) === 1;
+  var varCls = _vc(act - bud, favDir);
+  return '<tr class="' + rowCls + '">'
+    + '<td style="padding-left:' + padL + 'px;' + bold + '">' + label + '</td>'
+    + '<td class="num">' + actStr + '</td>'
+    + '<td class="num">' + budStr + '</td>'
+    + '<td class="num ' + varCls + '">' + varPct + '</td>'
+    + '</tr>';
+}
+
+async function _renderReport(slug, ctx) {
+  try {
+    var rpt = await _loadRptTemplate(slug);
+    if (!rpt || !rpt.lines.length) return null;
+    var allIds = rpt.lines.filter(function(l){ return !!l.line_id; }).map(function(l){ return l.line_id; });
+    var lineIds = allIds.filter(function(v, i, a){ return a.indexOf(v) === i; });
+    var pair = await Promise.all([
+      _fetchFactsAct(ctx, lineIds),
+      _fetchFactsN(ctx.cmpCode, lineIds, ctx.cmpStart, ctx.cmpEnd),
+    ]);
+    var aF = pair[0], bF = pair[1];
+    var saFn = function(lid){ return _fSumP(aF, lid, ctx.actPeriods); };
+    var sbFn = function(lid){ return _fSumP(bF, lid, ctx.cmpPeriods); };
+    var linesV = _computeRptLines(rpt.lines, saFn, sbFn);
+    var rows = linesV.map(function(l){ return _rptRowHtml(l); }).join('');
+    return '<div class="card">'
+      + '<div class="card-head">' + _escHtml(rpt.template.name)
+      + ' <span class="ch-sub">JMD $000s &middot; ' + _escHtml(ctx.viewLbl || '') + '</span></div>'
+      + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+      + '<th>Line</th><th>Actual</th><th>' + _escHtml(ctx.cmpLbl || '') + '</th><th>Var %</th>'
+      + '</tr></thead><tbody>' + rows + '</tbody></table></div>'
+      + '</div>';
+  } catch(e) {
+    console.error('[renderer] _renderReport', slug, e);
+    return null;
+  }
+}
+// ── END REPORT RENDERER ───────────────────────────────────────────────────────
+
 /* ----- p1: OVERVIEW ----- */
 async function loadP1() {
   _pgLoad('p1', true);
@@ -2993,10 +3139,11 @@ async function loadP1() {
     'pl_pref_div','nfc_fees','other_inc','tax','pl_div_recv','cf_capex','stat_billed_gwh','cf_ops_net',
     'bd_rev','vpp_rev','bd_cos','bd_opex','vpp_opex'];
   const CM_LINES = ['pl_total_sales','ebitda','net_inc','ebitda_margin','cf_capex','stat_billed_gwh','cf_ops_net'];
-  const [aF, bF] = await Promise.all([
+  const [aF, bF,, _p1PlHtml] = await Promise.all([
     _fetchFactsAct(ctx, LINES),
     _fetchFactsN(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
     _loadCommentary(CM_LINES, ctx.actEnd, _activeView),
+    _renderReport('pl_flash', ctx),
   ]);
   _pgLoad('p1', false);
 
@@ -3156,7 +3303,7 @@ async function loadP1() {
         + '</div>'
       : '')
     + '<div class="grid-2">'
-    + '<div class="card"><div class="card-head">Income Summary'
+    + (_p1PlHtml || '<div class="card"><div class="card-head">Income Summary'
     + ' <span class="ch-sub">JMD $000s</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
     + '<th>Line</th><th>Actual</th><th>' + ctx.cmpLbl + '</th><th>Var %</th>'
@@ -3191,7 +3338,7 @@ async function loadP1() {
     + plRow('NPBT',                pretax_a, pretax_b, 'rs',   false)
     + plRow('Tax',                 tax_a,    tax_b,    'rind', true)
     + plRow('NPAT',                ni_a,     ni_b,     'rs',   false)
-    + '</tbody></table></div></div>'
+    + '</tbody></table></div></div>')
     + '<div class="card"><div class="card-head">Efficiency Metrics'
     + ' <span class="ch-sub">' + ctx.viewLbl + '</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
@@ -7774,6 +7921,7 @@ function loadPage(id) {
   else if (id === 'p11') loadP11();
   else if (id === 'p15') loadAuditFromDB();
   else if (id === 'p18') loadP18();
+  else if (id === 'p-dyn') dynRender();
   // p14, p16: static HTML retained
 }
 
@@ -8846,6 +8994,8 @@ function initPlatform() {
       }
     })
   ]).catch(function(e) { console.error('[FPA] init warmup failed:', e); });
+  // Load dynamic report templates (sidebar nav items)
+  dynInitTemplates().catch(function(e){ console.error('[FPA] dynInitTemplates:', e); });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
