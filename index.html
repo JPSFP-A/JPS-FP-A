@@ -9394,12 +9394,14 @@ function _initPresence(client, email, appLabel, role) {
 let _dynTpls      = [];   // active hub templates loaded at login
 let _dynActiveTpl = null; // template currently on screen
 let _dynLineCache = {};   // tplId → report_lines[] (cached after first fetch)
-let _dynAdjMap    = {};   // line_id → [{id,period,fy,value_usd,rate_used,base_rate,value_jmd,fx_delta,note}]
+let _dynAdjMap        = {};   // line_id → [adj rows from get_adjustments RPC]
 let _adjModalLineId   = null;
 let _adjModalLineName = null;
 let _adjModalFy       = null;
 let _adjModalTplId    = null;
-let _adjModalPageId   = 'dyn'; // 'dyn' for templates, 'p2' etc. for static pages
+let _adjModalPageId   = 'p2';
+let _adjActiveVersionId = null;
+let _adjScope           = 'single';
 let _dynColView   = 'ytd';
 var _dynCharts    = {};   // Chart.js instances keyed by chart line id
 
@@ -9457,11 +9459,6 @@ function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn, getAdjFn) {
 /* ── ADJUSTMENT HELPERS ───────────────────────────────────────────────────── */
 
 /* ── ADJ ENGINE v2 — post_manual_adjustment RPC + fpa_adjustments ─────────── */
-
-var _adjActiveVersionId = null;
-var _adjScope = 'single';
-var _adjModalLineId = null, _adjModalLineName = null, _adjModalFy = null;
-var _adjModalPageId = null, _adjModalTplId = null;
 
 async function _loadAdjustments(versionId, yr, pageId) {
   _dynAdjMap = {};
