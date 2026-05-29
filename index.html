@@ -1014,9 +1014,9 @@ tr:hover .dyn-adj-btn{opacity:1}
         <div class="ws-role-info"><div class="ws-role-name">DataManager</div><div class="ws-role-desc">Data uploads · imports · actuals management · audit</div></div>
         <div class="ws-role-arr">›</div>
       </div>
-      <div class="ws-role-card" onclick="window.open('https://admin.jmfinancelab.com','_blank')" style="--rc:#f472b6">
-        <div class="ws-role-icon" style="font-size:9px">ADM</div>
-        <div class="ws-role-info"><div class="ws-role-name">Admin Portal</div><div class="ws-role-desc">Users · roles · permissions · system settings</div></div>
+      <div class="ws-role-card" onclick="wsSelectRole(this,'Cash Workbench');_postLoginTarget='p18'" style="--rc:#f472b6">
+        <div class="ws-role-icon">&#128167;</div>
+        <div class="ws-role-info"><div class="ws-role-name">Cash Workbench</div><div class="ws-role-desc">Cash bridge · opening/closing · direct CF · free cash</div></div>
         <div class="ws-role-arr">›</div>
       </div>
       <div class="ws-col-hint">Or sign in below for full FP&amp;A Hub access</div>
@@ -1109,7 +1109,7 @@ tr:hover .dyn-adj-btn{opacity:1}
         <g class="hf-node" onclick="window.open('https://capex.jmfinancelab.com','_blank')"><rect x="5" y="175" width="235" height="70" rx="10" class="hf-rect-role" stroke="#a78bfa"/><rect x="5" y="175" width="5" height="70" rx="3" fill="#a78bfa" opacity=".9"/><circle cx="33" cy="210" r="14" fill="rgba(167,139,250,.18)" stroke="#a78bfa" stroke-width="1"/><text x="33" y="210" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#a78bfa" font-family="IBM Plex Sans,sans-serif" font-weight="800">C</text><text x="58" y="207" class="hf-role-label">CapEx Platform</text><text x="58" y="222" class="hf-role-sub">Capital projects · asset register · depreciation · CWIP</text></g>
         <g class="hf-node" onclick="window.open('https://treasury.jmfinancelab.com','_blank')"><rect x="5" y="258" width="235" height="70" rx="10" class="hf-rect-role" stroke="#34d399"/><rect x="5" y="258" width="5" height="70" rx="3" fill="#34d399" opacity=".9"/><circle cx="33" cy="293" r="14" fill="rgba(52,211,153,.18)" stroke="#34d399" stroke-width="1"/><text x="33" y="293" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#34d399" font-family="IBM Plex Sans,sans-serif" font-weight="800">T</text><text x="58" y="290" class="hf-role-label">Treasury Platform</text><text x="58" y="305" class="hf-role-sub">Loans · leases · interest · covenant ratios · cash</text></g>
         <g class="hf-node" onclick="window.open('https://datamanager.jmfinancelab.com','_blank')"><rect x="5" y="341" width="235" height="70" rx="10" class="hf-rect-role" stroke="#f59e0b"/><rect x="5" y="341" width="5" height="70" rx="3" fill="#f59e0b" opacity=".9"/><circle cx="33" cy="376" r="14" fill="rgba(245,158,11,.18)" stroke="#f59e0b" stroke-width="1"/><text x="33" y="376" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#f59e0b" font-family="IBM Plex Sans,sans-serif" font-weight="800">D</text><text x="58" y="373" class="hf-role-label">DataManager</text><text x="58" y="388" class="hf-role-sub">Data uploads · actuals import · management · audit</text></g>
-        <g class="hf-node" onclick="window.open('https://admin.jmfinancelab.com','_blank')"><rect x="5" y="424" width="235" height="70" rx="10" class="hf-rect-role" stroke="#f472b6"/><rect x="5" y="424" width="5" height="70" rx="3" fill="#f472b6" opacity=".9"/><circle cx="33" cy="459" r="14" fill="rgba(244,114,182,.18)" stroke="#f472b6" stroke-width="1"/><text x="33" y="459" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#f472b6" font-family="IBM Plex Sans,sans-serif" font-weight="800">ADM</text><text x="58" y="456" class="hf-role-label">Admin Portal</text><text x="58" y="471" class="hf-role-sub">Users · roles · permissions · system settings</text></g>
+        <g class="hf-node" onclick="wsSelectRole(this,'Cash Workbench');_postLoginTarget='p18'"><rect x="5" y="424" width="235" height="70" rx="10" class="hf-rect-role" stroke="#f472b6"/><rect x="5" y="424" width="5" height="70" rx="3" fill="#f472b6" opacity=".9"/><circle cx="33" cy="459" r="14" fill="rgba(244,114,182,.18)" stroke="#f472b6" stroke-width="1"/><text x="33" y="459" text-anchor="middle" dominant-baseline="middle" font-size="13" fill="#f472b6" font-family="IBM Plex Sans,sans-serif" font-weight="800">💧</text><text x="58" y="456" class="hf-role-label">Cash Workbench</text><text x="58" y="471" class="hf-role-sub">Cash bridge · opening/closing · direct CF · free cash</text></g>
         <!-- Engine nodes -->
         <g class="hf-node" onclick="hubNav('p2')"><rect x="392" y="80"  width="206" height="190" rx="12" class="hf-rect-eng"/><text x="495" y="120" class="hf-eng-label">P&amp;L Engine</text><text x="495" y="142" class="hf-eng-sub">Revenue · COGS</text><text x="495" y="158" class="hf-eng-sub">EBITDA · Depreciation</text><text x="495" y="174" class="hf-eng-sub">Tax · Net Income</text><text x="495" y="193" class="hf-eng-sub" style="fill:rgba(0,174,239,.5);font-size:8px">Consolidated P&amp;L</text><text x="495" y="250" font-size="9" fill="rgba(255,255,255,.3)" text-anchor="middle" font-family="IBM Plex Sans,sans-serif">click to view report</text></g>
         <g class="hf-node" onclick="hubNav('p4')"><rect x="392" y="290" width="206" height="160" rx="12" class="hf-rect-eng"/><text x="495" y="330" class="hf-eng-label">Cash Flow Model</text><text x="495" y="352" class="hf-eng-sub">Operating · Investing</text><text x="495" y="368" class="hf-eng-sub">Financing · Net Cash</text><text x="495" y="420" font-size="9" fill="rgba(255,255,255,.3)" text-anchor="middle" font-family="IBM Plex Sans,sans-serif">click to view report</text></g>
@@ -2602,7 +2602,8 @@ function toggleTheme() {
 
 /* ---------- Auth flow ---------- */
 let _user = null;
-let _selectedRole = 'Revenue Analyst';
+let _selectedRole    = 'Revenue Analyst';
+let _postLoginTarget = null;
 
 function wsSelectRole(el, role) {
   document.querySelectorAll('.ws-role-card').forEach(function (c) {
@@ -2673,7 +2674,9 @@ function enterPlatform() {
   initPlatform();
   // Load notifications silently so badge is populated on entry
   _loadNotifications().catch(function() {});
-  navTo('p1');
+  var _startPage = _postLoginTarget || 'p1';
+  _postLoginTarget = null;
+  navTo(_startPage);
   document.querySelectorAll('.ni').forEach(function(n){ n.classList.remove('active'); });
   const ni = document.querySelector('.ni[data-p="p1"]');
   if (ni) ni.classList.add('active');
