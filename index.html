@@ -3816,7 +3816,7 @@ async function loadP2() {
   } else if (_p2ColView !== 'ytd') {
     html += _buildP2MultiCol(ctx, allActF, aopF, _p2ColView, _p2Tab);
   } else if (_p2Tab === 'exec') {
-    html += _buildP2Exec(ctx, aF, bF, sa, sb);
+    html += _buildP2Exec(ctx, aF, bF, saAdj, sb);
   } else {
     html += _buildP2Detailed(ctx, aF, bF, saAdj, sb, sbFY);
   }
@@ -4239,20 +4239,31 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
     return sum;
   }
   function mo(p) { return p % 100; }
-
-  // Derived P&L helpers
-  function rev(ps)    { return cv('nr_rev',ps)+cv('nr_cust_charge',ps)+cv('fuel_rev',ps)+cv('ipp_fr',ps)+cv('other_r',ps); }
-  function cos(ps)    { return cv('fuel_cost',ps)+cv('ipp_cost',ps); }
-  // pl_other_cos stored negative = additional cost (IFRS 16 / other COS adjustments)
-  function gp(ps)     { return rev(ps)-cos(ps)+cv('pl_other_cos',ps); }
-  function ebitda(ps) { return gp(ps)-cv('opex',ps); }
-  function ebit(ps)   { return ebitda(ps)-cv('depn',ps); }
-  function pretax(ps) {
-    return ebit(ps) - cv('nfc_int_exp',ps) + cv('nfc_int_inc',ps) + cv('nfc_afudc',ps)
-      - cv('pl_pref_div',ps) - cv('nfc_fees',ps) + cv('other_inc',ps) + cv('pl_fx',ps)
-      + (!_p2Standalone ? cv('pl_div_recv',ps) : 0);
+  // adj-inclusive: adds adjustments for actual periods only
+  function cvA(lid, pids) {
+    var sum = 0;
+    pids.forEach(function(p) {
+      const useAct = mo(p) <= maxMo;
+      const f = useAct ? actF : aopF;
+      sum += (f[lid] && f[lid][p] != null) ? f[lid][p] : 0;
+      if (useAct) sum += _adjSumFor(lid, [p]).jmd;
+    });
+    return sum;
   }
-  function npat(ps)   { return pretax(ps) - cv('tax',ps); }
+
+  // Derived P&L helpers (adj-inclusive for actuals)
+  function rev(ps)    { return cvA('nr_rev',ps)+cvA('nr_cust_charge',ps)+cvA('fuel_rev',ps)+cvA('ipp_fr',ps)+cvA('other_r',ps); }
+  function cos(ps)    { return cvA('fuel_cost',ps)+cvA('ipp_cost',ps); }
+  // pl_other_cos stored negative = additional cost (IFRS 16 / other COS adjustments)
+  function gp(ps)     { return rev(ps)-cos(ps)+cvA('pl_other_cos',ps); }
+  function ebitda(ps) { return gp(ps)-cvA('opex',ps); }
+  function ebit(ps)   { return ebitda(ps)-cvA('depn',ps); }
+  function pretax(ps) {
+    return ebit(ps) - cvA('nfc_int_exp',ps) + cvA('nfc_int_inc',ps) + cvA('nfc_afudc',ps)
+      - cvA('pl_pref_div',ps) - cvA('nfc_fees',ps) + cvA('other_inc',ps) + cvA('pl_fx',ps)
+      + (!_p2Standalone ? cvA('pl_div_recv',ps) : 0);
+  }
+  function npat(ps)   { return pretax(ps) - cvA('tax',ps); }
 
   // Header
   var thead = '<thead><tr><th style="text-align:left;min-width:200px">Line Item</th>';
@@ -4266,8 +4277,11 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
   thead += '</tr></thead>';
 
   // Row builders
-  function rline(lbl, fn, cls, isCost) {
-    var r = '<tr class="' + (cls||'rind') + '"><td>' + lbl + '</td>';
+  function rline(lbl, fn, cls, isCost, lid) {
+    const adjBtn = (lid && _rpIsAdmin && _rpIsAdmin())
+      ? ' <button class="dyn-adj-btn" data-lid="' + _escHtml(lid) + '" data-lbl="' + _escHtml(lbl||'') + '" data-pid="p2" onclick="_adjShowForm(this.dataset.lid,this.dataset.lbl,this.dataset.pid)">&#177; Adj</button>'
+      : '';
+    var r = '<tr class="' + (cls||'rind') + '"><td>' + lbl + adjBtn + '</td>';
     allCols.forEach(function(c) {
       var v = fn(c.pids);
       r += '<td style="text-align:right;white-space:nowrap">' + (isCost ? _fmtCost(v) : _fmtM(v)) + '</td>';
@@ -4286,10 +4300,10 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
   }
 
   // Exec-specific derived helpers (same logic as _buildP2Exec)
-  function fuel_surplus(ps) { return cv('fuel_rev',ps) - cv('fuel_cost',ps); }
-  function reg_ebitda(ps)   { return fuel_surplus(ps) + cv('nr_rev',ps) + cv('nr_cust_charge',ps) + cv('other_r',ps) - cv('opex',ps); }
-  function pp_surplus(ps)   { return cv('ipp_fr',ps) - cv('ipp_cost',ps); }
-  function nfc_net(ps)      { return cv('nfc_int_exp',ps) - cv('nfc_int_inc',ps) - cv('nfc_afudc',ps) + cv('pl_pref_div',ps) + cv('nfc_fees',ps); }
+  function fuel_surplus(ps) { return cvA('fuel_rev',ps) - cvA('fuel_cost',ps); }
+  function reg_ebitda(ps)   { return fuel_surplus(ps) + cvA('nr_rev',ps) + cvA('nr_cust_charge',ps) + cvA('other_r',ps) - cvA('opex',ps); }
+  function pp_surplus(ps)   { return cvA('ipp_fr',ps) - cvA('ipp_cost',ps); }
+  function nfc_net(ps)      { return cvA('nfc_int_exp',ps) - cvA('nfc_int_inc',ps) - cvA('nfc_afudc',ps) + cvA('pl_pref_div',ps) + cvA('nfc_fees',ps); }
   function after_nfc(ps)    { return ebit(ps) - nfc_net(ps); }
 
   var tbody;
@@ -4297,67 +4311,67 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
     // Mirror _buildP2Exec row structure exactly — only columns differ
     tbody = ''
       + rsec('Regulated Business')
-      + rline('Fuel Revenues',                    function(ps){ return cv('fuel_rev',ps); })
-      + rline('(&#8722;) Fuel Costs',             function(ps){ return cv('fuel_cost',ps); }, 'rind', true)
+      + rline('Fuel Revenues',                    function(ps){ return cvA('fuel_rev',ps); }, undefined, false, 'fuel_rev')
+      + rline('(&#8722;) Fuel Costs',             function(ps){ return cvA('fuel_cost',ps); }, 'rind', true, 'fuel_cost')
       + rsub('Fuel Surplus / (Penalty)',           fuel_surplus, 'rs')
-      + rline('Non-Fuel Revenues',                function(ps){ return cv('nr_rev',ps); })
-      + rline('Customer Charge',                  function(ps){ return cv('nr_cust_charge',ps); })
-      + rline('Other Operating Revenue',          function(ps){ return cv('other_r',ps); })
-      + rline('(&#8722;) Operating Expenses',     function(ps){ return cv('opex',ps); }, 'rind', true)
+      + rline('Non-Fuel Revenues',                function(ps){ return cvA('nr_rev',ps); }, undefined, false, 'nr_rev')
+      + rline('Customer Charge',                  function(ps){ return cvA('nr_cust_charge',ps); }, undefined, false, 'nr_cust_charge')
+      + rline('Other Operating Revenue',          function(ps){ return cvA('other_r',ps); }, undefined, false, 'other_r')
+      + rline('(&#8722;) Operating Expenses',     function(ps){ return cvA('opex',ps); }, 'rind', true, 'opex')
       + rsub('Regulated Business EBITDA',         reg_ebitda, 'rs')
       + rsec('Purchased Power')
-      + rline('IPP Fuel Recovery',                function(ps){ return cv('ipp_fr',ps); })
-      + rline('(&#8722;) IPP &amp; Purchased Power Costs', function(ps){ return cv('ipp_cost',ps); }, 'rind', true)
+      + rline('IPP Fuel Recovery',                function(ps){ return cvA('ipp_fr',ps); }, undefined, false, 'ipp_fr')
+      + rline('(&#8722;) IPP &amp; Purchased Power Costs', function(ps){ return cvA('ipp_cost',ps); }, 'rind', true, 'ipp_cost')
       + rsub('Purchased Power Surplus / (Deficit)', pp_surplus, 'rs')
       + rsec('Non-Regulated Business')
-      + rline('Non-Reg Revenue',                  function(ps){ return cv('nr_rev_unreg',ps) || 0; })
-      + rline('(&#8722;) Non-Reg Costs',          function(ps){ return cv('nr_cost',ps); }, 'rind', true)
+      + rline('Non-Reg Revenue',                  function(ps){ return cvA('nr_rev_unreg',ps) || 0; })
+      + rline('(&#8722;) Non-Reg Costs',          function(ps){ return cvA('nr_cost',ps); }, 'rind', true, 'nr_cost')
       + rsec('Total')
       + rsub('EBITDA',                            ebitda, 'rt')
-      + rline('(&#8722;) Depreciation',           function(ps){ return cv('depn',ps); }, 'rind', true)
+      + rline('(&#8722;) Depreciation',           function(ps){ return cvA('depn',ps); }, 'rind', true, 'depn')
       + rsub('Operating Income (EBIT)',            ebit, 'rs')
       + rsec('Financing')
       + rline('Net Financing Costs',              nfc_net, 'rind', true)
       + rsub('Operating Profit after NFC',         after_nfc, 'rs')
-      + rline('Other Income / (Expenses)', function(ps){ return cv('other_inc',ps); })
-      + rline('FX Gain / (Loss) — IAS 21', function(ps){ return cv('pl_fx',ps); })
-      + (!_p2Standalone ? rline('Dividends Received (tax-free)', function(ps){ return cv('pl_div_recv',ps); }) : '')
+      + rline('Other Income / (Expenses)', function(ps){ return cvA('other_inc',ps); }, undefined, false, 'other_inc')
+      + rline('FX Gain / (Loss) — IAS 21', function(ps){ return cvA('pl_fx',ps); }, undefined, false, 'pl_fx')
+      + (!_p2Standalone ? rline('Dividends Received (tax-free)', function(ps){ return cvA('pl_div_recv',ps); }, undefined, false, 'pl_div_recv') : '')
       + rsec('Taxation')
       + rsub('Net Profit Before Tax',              pretax, 'rs')
-      + rline('Income Tax Expense',               function(ps){ return cv('tax',ps); }, 'rind', true)
+      + rline('Income Tax Expense',               function(ps){ return cvA('tax',ps); }, 'rind', true, 'tax')
       + rsub('Net Profit After Tax (NPAT)',        npat, 'rt');
   } else {
     tbody = ''
       + rsec('Revenue')
-      + rline('Fuel Clause (FCR)',           function(ps){ return cv('fuel_rev',ps); })
-      + rline('IPP Fuel Recovery',            function(ps){ return cv('ipp_fr',ps); })
-      + rline('Non-Fuel Revenue',            function(ps){ return cv('nr_rev',ps); })
-      + rline('Customer Charge',             function(ps){ return cv('nr_cust_charge',ps); })
-      + rline('Other Operating Revenue',     function(ps){ return cv('other_r',ps); })
+      + rline('Fuel Clause (FCR)',           function(ps){ return cvA('fuel_rev',ps); }, undefined, false, 'fuel_rev')
+      + rline('IPP Fuel Recovery',            function(ps){ return cvA('ipp_fr',ps); }, undefined, false, 'ipp_fr')
+      + rline('Non-Fuel Revenue',            function(ps){ return cvA('nr_rev',ps); }, undefined, false, 'nr_rev')
+      + rline('Customer Charge',             function(ps){ return cvA('nr_cust_charge',ps); }, undefined, false, 'nr_cust_charge')
+      + rline('Other Operating Revenue',     function(ps){ return cvA('other_r',ps); }, undefined, false, 'other_r')
       + rsub('Total Revenue',                rev, 'rs')
       + rsec('Cost of Sales')
-      + rline('Fuel Cost',                   function(ps){ return cv('fuel_cost',ps); }, 'rind', true)
-      + rline('Purchased Power (excl. fuel)',function(ps){ return cv('ipp_cost',ps); }, 'rind', true)
+      + rline('Fuel Cost',                   function(ps){ return cvA('fuel_cost',ps); }, 'rind', true, 'fuel_cost')
+      + rline('Purchased Power (excl. fuel)',function(ps){ return cvA('ipp_cost',ps); }, 'rind', true, 'ipp_cost')
       + rsub('Gross Profit',                 gp,  'rs')
       + rsec('Operating Expenses')
-      + rline('Operating Expenses',          function(ps){ return cv('opex',ps); }, 'rind', true)
+      + rline('Operating Expenses',          function(ps){ return cvA('opex',ps); }, 'rind', true, 'opex')
       + rsub('EBITDA',                       ebitda, 'rt')
       + rsec('Below EBITDA')
-      + rline('Depreciation',               function(ps){ return cv('depn',ps); }, 'rind', true)
+      + rline('Depreciation',               function(ps){ return cvA('depn',ps); }, 'rind', true, 'depn')
       + rsub('EBIT',                         ebit, 'rs')
       + rsec('Net Financing Costs')
-      + rline('Interest Income',            function(ps){ return cv('nfc_int_inc',ps); })
-      + rline('AFUDC',                      function(ps){ return cv('nfc_afudc',ps); })
-      + rline('Interest Expense',           function(ps){ return cv('nfc_int_exp',ps); }, 'rind', true)
-      + rline('Preference Dividends',       function(ps){ return cv('pl_pref_div',ps); }, 'rind', true)
-      + rline('Loan Arrangement Fees',      function(ps){ return cv('nfc_fees',ps); }, 'rind', true)
+      + rline('Interest Income',            function(ps){ return cvA('nfc_int_inc',ps); }, undefined, false, 'nfc_int_inc')
+      + rline('AFUDC',                      function(ps){ return cvA('nfc_afudc',ps); }, undefined, false, 'nfc_afudc')
+      + rline('Interest Expense',           function(ps){ return cvA('nfc_int_exp',ps); }, 'rind', true, 'nfc_int_exp')
+      + rline('Preference Dividends',       function(ps){ return cvA('pl_pref_div',ps); }, 'rind', true, 'pl_pref_div')
+      + rline('Loan Arrangement Fees',      function(ps){ return cvA('nfc_fees',ps); }, 'rind', true, 'nfc_fees')
       + rsec('Other Income / (Expenses)')
-      + rline('Other Income &amp; Dividends',function(ps){ return cv('other_inc',ps); })
-      + rline('FX Gain / (Loss) — IAS 21', function(ps){ return cv('pl_fx',ps); })
-      + (!_p2Standalone ? rline('Dividends Received (tax-free)', function(ps){ return cv('pl_div_recv',ps); }) : '')
+      + rline('Other Income &amp; Dividends',function(ps){ return cvA('other_inc',ps); }, undefined, false, 'other_inc')
+      + rline('FX Gain / (Loss) — IAS 21', function(ps){ return cvA('pl_fx',ps); }, undefined, false, 'pl_fx')
+      + (!_p2Standalone ? rline('Dividends Received (tax-free)', function(ps){ return cvA('pl_div_recv',ps); }, undefined, false, 'pl_div_recv') : '')
       + rsec('Taxation')
       + rsub('Net Profit Before Tax',        pretax, 'rs')
-      + rline('Income Tax Expense',         function(ps){ return cv('tax',ps); }, 'rind', true)
+      + rline('Income Tax Expense',         function(ps){ return cvA('tax',ps); }, 'rind', true, 'tax')
       + rsub('Net Profit After Tax (NPAT)', npat, 'rt');
   }
 
