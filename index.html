@@ -7476,6 +7476,10 @@ async function loadP7() {
   ]);
   _pgLoad('p7', false);
 
+  // Build month list first (used in FX check below)
+  var months = [];
+  for (var m = 1; m <= maxMo; m++) months.push(m);
+
   // Build FX map: month → avg jmd_usd rate
   var fxMap = {};
   (fxRows || []).forEach(function(r) {
@@ -7504,8 +7508,6 @@ async function loadP7() {
   var RATE_CLASSES = ['RT10','RT20','RT40','RT50','RT60-ST','RT70'];
   var RC_DESC = { RT10:'General Service (LV)',RT20:'Residential',RT40:'Small Commercial',
                   RT50:'Large Commercial / Industrial',RT60:'Street Lighting','RT60-ST':'Street Lighting',RT70:'Bulk / Special' };
-  var months = [];
-  for (var m = 1; m <= maxMo; m++) months.push(m);
   var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   // Build data cube: rcData[rc][month] = { revJmd, kwh }
