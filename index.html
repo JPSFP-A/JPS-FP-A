@@ -2101,6 +2101,7 @@ tr:hover .dyn-adj-btn{opacity:1}
           <button class="dyn-cv-btn active" onclick="dynSetColView('ytd',this)">YTD</button>
           <button class="dyn-cv-btn" onclick="dynSetColView('monthly',this)">Monthly</button>
           <button class="dyn-cv-btn" onclick="dynSetColView('quarterly',this)">Quarterly</button>
+          <button id="dynInspectBtn" class="dyn-cv-btn" onclick="_dynToggleInspect(this)" title="Show DB line_id + data coverage for each row">&#128269; Inspect</button>
           <button id="rpEditBtn" class="dyn-cv-btn" onclick="_rpToggle()" style="display:none">✏ Edit</button>
         </div>
         <div class="dyn-flex">
@@ -9569,7 +9570,28 @@ let _adjModalPageId   = 'p2';
 let _adjActiveVersionId = null;
 let _adjScope           = 'single';
 let _dynColView   = 'ytd';
+let _dynInspect   = false; // inspect mode: show line_id + coverage badge per row
 var _dynCharts    = {};   // Chart.js instances keyed by chart line id
+var _dynFactsRef  = {};   // last-fetched actuals facts map (for coverage check in inspect mode)
+
+function _dynToggleInspect(btn) {
+  _dynInspect = !_dynInspect;
+  if (btn) btn.classList.toggle('active', _dynInspect);
+  dynRender();
+}
+
+// Coverage badge for a data row's line_id, computed from already-fetched facts (no extra query).
+// Accounts for alias resolution (e.g. nr_rev served from nonfuel).
+function _dynCoverage(lineId) {
+  if (!lineId) return '';
+  var m = _dynFactsRef[lineId];
+  var hasData = m && Object.keys(m).some(function(p){ return m[p] !== 0 && m[p] != null; });
+  if (hasData) {
+    var n = Object.keys(m).filter(function(p){ return m[p] !== 0 && m[p] != null; }).length;
+    return '<span style="color:#16a34a;font-size:9px;margin-left:6px" title="' + n + ' period(s) with data">&#9679; ' + n + 'mo</span>';
+  }
+  return '<span style="color:#dc2626;font-size:9px;margin-left:6px" title="No non-zero data for this line in the selected version">&#9888; no data</span>';
+}
 
 // Safe arithmetic expression evaluator — only alphanumeric/operator tokens allowed
 function _dynSafeEval(expr) {
@@ -9985,6 +10007,8 @@ async function dynRender() {
     return;
   }
 
+  _dynFactsRef = aF; // expose actuals map for inspect-mode coverage badges
+
   // ── Precompute YTD line values (actual + comparison) ─────────────────────
   var getA   = function(lid){ return _fSumP(aF, lid, ctx.actPeriods); };
   var getB   = function(lid){ return _fSumP(bF, lid, ctx.cmpPeriods); };
@@ -10093,8 +10117,20 @@ function _dynRowYtd(line, lineVals, ctx, colspan) {
     ? ' <button data-drill-toggle="' + _escHtml(line.id) + '" data-drill-open="0" onclick="_dynToggleDrill(\'' + _escHtml(line.id) + '\')" style="font-size:9px;padding:0 4px;border:1px solid var(--border);border-radius:3px;background:none;cursor:pointer;color:var(--muted);margin-left:4px" title="Expand breakdown">►</button>'
     : '';
 
+  // Inspect mode: show the DB line_id + coverage badge so mappings are verifiable
+  var inspectTag = '';
+  if (_dynInspect) {
+    if (line.row_type === 'data' && line.line_id) {
+      inspectTag = ' <code style="font-size:9px;color:#2563eb;background:rgba(37,99,235,.08);padding:0 4px;border-radius:3px">' + _escHtml(line.line_id) + '</code>' + _dynCoverage(line.line_id);
+    } else if ((line.row_type === 'subtotal' || line.row_type === 'total') && line.calc_expr) {
+      inspectTag = ' <code style="font-size:9px;color:#7c3aed;background:rgba(124,58,237,.08);padding:0 4px;border-radius:3px" title="calculation">' + _escHtml(line.calc_expr) + '</code>';
+    } else if (line.row_type === 'formula' && line.calc_expr) {
+      inspectTag = ' <code style="font-size:9px;color:#7c3aed;background:rgba(124,58,237,.08);padding:0 4px;border-radius:3px" title="formula">' + _escHtml(line.calc_expr) + '</code>';
+    }
+  }
+
   var mainRow = '<tr class="' + rowCls + '"' + (bold ? ' style="font-weight:700"' : '') + '>' +
-    '<td>' + indent + lbl + drillBtn + adjBtn + '</td>' +
+    '<td>' + indent + lbl + drillBtn + adjBtn + inspectTag + '</td>' +
     '<td class="num">' + fmt(va)   + '</td>' +
     '<td class="num">' + fmt(vb)   + '</td>' +
     '<td class="num ' + varCls + '">' + _fmtM(diff) + '</td>' +
