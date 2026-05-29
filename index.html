@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8" />
@@ -9602,6 +9602,7 @@ function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn, getAdjFn) {
           break;
         }
         if (pl.row_type === 'data') {
+          if (pl.parent_id) continue; // drill-down child — parent row already holds the total, skip to avoid double-count
           var pv2 = lineVals[pl.id];
           if (pv2) { var sc = (pl.sign != null ? pl.sign : 1); sumA += pv2.a * sc; sumB += pv2.b * sc; }
         }
@@ -10023,8 +10024,32 @@ function _dynBuildYtd(lines, lineVals, ctx) {
     '<div class="tbl-wrap"><table class="dt">' + thead + '<tbody>' + rows + '</tbody></table></div></div>';
 }
 
+function _dynToggleDrill(parentId) {
+  var rows = document.querySelectorAll('[data-drill-parent="' + parentId + '"]');
+  var btn  = document.querySelector('[data-drill-toggle="' + parentId + '"]');
+  var open = btn && btn.getAttribute('data-drill-open') === '1';
+  rows.forEach(function(r){ r.style.display = open ? 'none' : ''; });
+  if (btn) { btn.textContent = open ? '►' : '▼'; btn.setAttribute('data-drill-open', open ? '0' : '1'); }
+}
+
 function _dynRowYtd(line, lineVals, ctx, colspan) {
-  if (line.row_type === 'section') {
+  if (line.parent_id) {
+    var vals = lineVals[line.id] || { a: 0, b: 0 };
+    var va = vals.a, vb = vals.b, diff = va - vb;
+    var isCost = (line.sign != null ? line.sign : 1) === -1;
+    var hg     = (line.fav_direction != null ? line.fav_direction : 1) === 1;
+    var fmt    = isCost ? _fmtCost : _fmtM;
+    var varCls = _vc(diff, hg);
+    var indent = (new Array(((line.indent_level || 1)) * 4 + 1)).join(' ');
+    var lbl    = _escHtml(line.label_override || line.line_id || '—');
+    return '<tr class="rind" data-drill-parent="' + _escHtml(line.parent_id) + '" style="display:none;color:var(--muted);font-size:10.5px;">' +
+      '<td>' + indent + '↳ ' + lbl + '</td>' +
+      '<td class="num">' + fmt(va) + '</td>' +
+      '<td class="num">' + fmt(vb) + '</td>' +
+      '<td class="num ' + varCls + '">' + _fmtM(diff) + '</td>' +
+      '<td class="num ' + varCls + '">' + _fmtPct(va, vb) + '</td>' +
+      '</tr>';
+  }  if (line.row_type === 'section') {
     return '<tr class="rsec"><td colspan="' + colspan + '">' + _escHtml(line.label_override || '—') + '</td></tr>';
   }
   if (line.row_type === 'spacer') {
@@ -10050,8 +10075,12 @@ function _dynRowYtd(line, lineVals, ctx, colspan) {
     ? '<button class="dyn-adj-btn" data-lid="' + _escHtml(line.line_id||'') + '" data-lbl="' + lbl + '" onclick="_adjShowForm(this.dataset.lid,this.dataset.lbl)">&#177; Adj</button>'
     : '';
 
+  var drillBtn = line.is_drilldown
+    ? ' <button data-drill-toggle="' + _escHtml(line.id) + '" data-drill-open="0" onclick="_dynToggleDrill(\'' + _escHtml(line.id) + '\')" style="font-size:9px;padding:0 4px;border:1px solid var(--border);border-radius:3px;background:none;cursor:pointer;color:var(--muted);margin-left:4px" title="Expand breakdown">►</button>'
+    : '';
+
   var mainRow = '<tr class="' + rowCls + '"' + (bold ? ' style="font-weight:700"' : '') + '>' +
-    '<td>' + indent + lbl + adjBtn + '</td>' +
+    '<td>' + indent + lbl + drillBtn + adjBtn + '</td>' +
     '<td class="num">' + fmt(va)   + '</td>' +
     '<td class="num">' + fmt(vb)   + '</td>' +
     '<td class="num ' + varCls + '">' + _fmtM(diff) + '</td>' +
