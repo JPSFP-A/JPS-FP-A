@@ -1242,7 +1242,8 @@ tr:hover .dyn-adj-btn{opacity:1}
       <div class="ni" data-p="p14" onclick="nav(this)"><span class="ni-ic">&#129302;</span> AI Commentary</div>
 
       <div class="nav-sec">Audit</div>
-      <div class="ni" data-p="p15" onclick="nav(this)"><span class="ni-ic">&#128269;</span> Audit Trail</div>
+      <div class="ni" data-p="p15"  onclick="nav(this)"><span class="ni-ic">&#128269;</span> Audit Trail</div>
+      <div class="ni" data-p="p-adj" onclick="nav(this)"><span class="ni-ic">&#9997;</span> Adjustments</div>
 
       <div class="nav-sec">Assumptions</div>
       <div class="ni" data-p="p16" onclick="nav(this)"><span class="ni-ic">&#9881;</span> Model Assumptions</div>
@@ -2060,6 +2061,35 @@ tr:hover .dyn-adj-btn{opacity:1}
           <div id="wb-body">
             <div style="padding:40px;text-align:center;color:var(--muted);font-size:12px">Loading&hellip;</div>
           </div>
+        </div>
+      </section>
+
+      <!-- ============ PAGE: ADJUSTMENTS LOG ============ -->
+      <section class="page" id="p-adj">
+        <div class="page-head">
+          <h1>&#9997; Adjustments Log</h1>
+          <div class="ph-sub" id="adjLogSub">LE version &middot; all periods &middot; USD $000s</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <div class="adj-field" style="margin:0;flex-direction:row;align-items:center;gap:6px">
+            <label style="white-space:nowrap;margin:0">Period</label>
+            <select id="adjLogPeriodFilter" onchange="loadPAdj()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text)">
+              <option value="">All periods</option>
+            </select>
+          </div>
+          <div class="adj-field" style="margin:0;flex-direction:row;align-items:center;gap:6px">
+            <label style="white-space:nowrap;margin:0">Status</label>
+            <select id="adjLogStatusFilter" onchange="loadPAdj()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text)">
+              <option value="">All</option>
+              <option value="active">Active</option>
+              <option value="reversed">Reversed</option>
+            </select>
+          </div>
+          <button class="btn btn-ghost" onclick="loadPAdj(true)" style="font-size:11px;margin-left:auto">&#8635; Refresh</button>
+        </div>
+        <div id="adjLogSummary" style="display:none;font-size:11px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;margin-bottom:12px"></div>
+        <div id="adjLogBody">
+          <div style="padding:40px;text-align:center;color:var(--muted);font-size:12px">Loading&hellip;</div>
         </div>
       </section>
 
@@ -8257,25 +8287,160 @@ async function loadP9() {
 
 function loadPage(id) {
   console.log('[FPA] load:', id);
-  if      (id === 'p1')  loadP1();
-  else if (id === 'p2')  loadP2();
-  else if (id === 'p3')  loadP3();
-  else if (id === 'p4')  loadP4();
-  else if (id === 'p5')  loadP5();
-  else if (id === 'p6')  loadP6();
-  else if (id === 'p7')  loadP7();
-  else if (id === 'p8')  loadP8();
-  else if (id === 'p12') loadP12();
-  else if (id === 'p14') loadP14();
-  else if (id === 'p9')  loadP9();
-  else if (id === 'p10') loadP10();
-  else if (id === 'p13') loadP13();
-  else if (id === 'p17') loadP17();
-  else if (id === 'p11') loadP11();
-  else if (id === 'p15') loadAuditFromDB();
-  else if (id === 'p18') loadP18();
+  if      (id === 'p1')    loadP1();
+  else if (id === 'p2')    loadP2();
+  else if (id === 'p3')    loadP3();
+  else if (id === 'p4')    loadP4();
+  else if (id === 'p5')    loadP5();
+  else if (id === 'p6')    loadP6();
+  else if (id === 'p7')    loadP7();
+  else if (id === 'p8')    loadP8();
+  else if (id === 'p12')   loadP12();
+  else if (id === 'p14')   loadP14();
+  else if (id === 'p9')    loadP9();
+  else if (id === 'p10')   loadP10();
+  else if (id === 'p13')   loadP13();
+  else if (id === 'p17')   loadP17();
+  else if (id === 'p11')   loadP11();
+  else if (id === 'p15')   loadAuditFromDB();
+  else if (id === 'p18')   loadP18();
+  else if (id === 'p-adj') loadPAdj();
   else if (id === 'p-dyn') dynRender();
   // p14, p16: static HTML retained
+}
+
+/* ── ADJUSTMENTS LOG PAGE ─────────────────────────────────────────────────── */
+
+async function loadPAdj(forceRefresh) {
+  var sb = _getSB(); if (!sb) return;
+  var ctx = _getCtx ? _getCtx() : null;
+  var yr  = ctx ? ctx.yr : (_activeYear || new Date().getFullYear());
+
+  await _ensureVMap();
+  var vid = (_vMap || {})['LE_' + yr + '_02'];
+  if (!vid) {
+    document.getElementById('adjLogBody').innerHTML =
+      '<div style="padding:40px;text-align:center;color:var(--muted);font-size:12px">No LE version found for ' + yr + '</div>';
+    return;
+  }
+
+  var sub = document.getElementById('adjLogSub');
+  if (sub) sub.textContent = 'LE_' + yr + '_02 · USD $000s';
+
+  // Populate period filter if empty
+  var pf = document.getElementById('adjLogPeriodFilter');
+  if (pf && pf.options.length === 1) {
+    for (var m = 1; m <= 12; m++) {
+      var opt = document.createElement('option');
+      opt.value = yr * 100 + m;
+      opt.textContent = (_MONS ? _MONS[m - 1] : m) + ' ' + yr;
+      pf.appendChild(opt);
+    }
+  }
+
+  var pidFilter  = pf ? (parseInt(pf.value) || null) : null;
+  var stFilter   = (document.getElementById('adjLogStatusFilter') || {}).value || '';
+  var body       = document.getElementById('adjLogBody');
+  if (body) body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:12px">Loading…</div>';
+
+  try {
+    var r = await sb.rpc('get_adjustments', { p_version_id: vid, p_period_id: pidFilter });
+    if (r.error) throw r.error;
+    var rows = (r.data || []).filter(function(a) {
+      return !stFilter || a.status === stFilter;
+    });
+
+    // Summary
+    var active   = rows.filter(function(a) { return a.status === 'active'; });
+    var totalDelta = active.reduce(function(s, a) { return s + Number(a.delta); }, 0);
+    var sumEl = document.getElementById('adjLogSummary');
+    if (sumEl) {
+      sumEl.style.display = rows.length ? 'block' : 'none';
+      var sign = totalDelta >= 0 ? '+' : '';
+      sumEl.innerHTML = '<strong>' + active.length + '</strong> active adj &nbsp;|&nbsp; Net delta: <strong>'
+        + sign + _fmtM(totalDelta, 1) + ' USD$000</strong>'
+        + ' &nbsp;|&nbsp; ' + (rows.length - active.length) + ' reversed';
+    }
+
+    if (!rows.length) {
+      body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:12px">No adjustments found.</div>';
+      return;
+    }
+
+    // Group by period
+    var byPeriod = {};
+    rows.forEach(function(a) {
+      var k = a.period_id;
+      if (!byPeriod[k]) byPeriod[k] = { label: a.period_label || String(k), closed: a.is_closed, rows: [] };
+      byPeriod[k].rows.push(a);
+    });
+
+    var html = '<table class="data-tbl" style="width:100%;font-size:11px;border-collapse:collapse">'
+      + '<thead><tr>'
+      + '<th style="text-align:left;padding:5px 8px">Period</th>'
+      + '<th style="text-align:left;padding:5px 8px">Statement</th>'
+      + '<th style="text-align:left;padding:5px 8px">Line</th>'
+      + '<th style="text-align:right;padding:5px 8px">Delta (USD$000)</th>'
+      + '<th style="text-align:left;padding:5px 8px">Justification</th>'
+      + '<th style="text-align:left;padding:5px 8px">Posted by</th>'
+      + '<th style="text-align:left;padding:5px 8px">Date</th>'
+      + '<th style="text-align:left;padding:5px 8px">Status</th>'
+      + '<th style="padding:5px 8px"></th>'
+      + '</tr></thead><tbody>';
+
+    var sortedPeriods = Object.keys(byPeriod).map(Number).sort();
+    sortedPeriods.forEach(function(pid) {
+      var grp = byPeriod[pid];
+      var lockIcon = grp.closed ? ' <span style="color:#ef4444;font-size:10px" title="Period closed">&#128274;</span>' : '';
+      grp.rows.forEach(function(a, i) {
+        var isRev   = a.status === 'reversed';
+        var rowStyle = isRev ? 'opacity:.55;' : '';
+        var sign    = a.delta >= 0 ? '+' : '';
+        var deltaStyle = a.delta >= 0 ? 'color:#16a34a' : 'color:#dc2626';
+        var canRev  = !isRev && !grp.closed;
+        var revBtn  = canRev
+          ? '<button class="adj-rev-btn" onclick="_adjReverseFromLog(\'' + _escHtml(a.adj_id) + '\')">Reverse</button>'
+          : (isRev ? '<span style="font-size:9px;color:#9ca3af">REVERSED</span>'
+                   : '<span style="font-size:9px;color:#ef4444" title="Period closed">&#128274; Locked</span>');
+        var dateStr = a.created_at ? a.created_at.substring(0, 10) : '';
+        html += '<tr style="border-top:1px solid var(--border);' + rowStyle + '">'
+          + '<td style="padding:5px 8px;white-space:nowrap">'
+            + (i === 0 ? '<strong>' + _escHtml(grp.label) + '</strong>' + lockIcon : '') + '</td>'
+          + '<td style="padding:5px 8px;color:var(--muted)">' + _escHtml(a.statement || '') + '</td>'
+          + '<td style="padding:5px 8px">' + _escHtml(a.line_name || a.line_id) + '</td>'
+          + '<td style="padding:5px 8px;text-align:right;font-family:monospace;' + deltaStyle + '">'
+            + sign + _fmtM(a.delta, 1) + '</td>'
+          + '<td style="padding:5px 8px;max-width:280px">' + _escHtml(a.justification) + '</td>'
+          + '<td style="padding:5px 8px;color:var(--muted)">' + _escHtml(a.created_by_name || '') + '</td>'
+          + '<td style="padding:5px 8px;color:var(--muted);white-space:nowrap">' + _escHtml(dateStr) + '</td>'
+          + '<td style="padding:5px 8px">'
+            + (isRev ? '<span style="font-size:9px;background:#f3f4f6;padding:2px 6px;border-radius:3px">reversed</span>'
+                     : '<span style="font-size:9px;background:#dcfce7;color:#16a34a;padding:2px 6px;border-radius:3px">active</span>') + '</td>'
+          + '<td style="padding:5px 8px">' + revBtn + '</td>'
+          + '</tr>';
+      });
+    });
+
+    html += '</tbody></table>';
+    body.innerHTML = html;
+
+  } catch(e) {
+    body.innerHTML = '<div style="padding:24px;color:#ef4444;font-size:12px">Error: ' + _escHtml(e.message || String(e)) + '</div>';
+    console.error('[adj log]', e);
+  }
+}
+
+async function _adjReverseFromLog(adjId) {
+  if (!confirm('Reverse this adjustment? A reversing entry will be posted.')) return;
+  var sb = _getSB(); if (!sb) return;
+  var userId = _user ? _user.id : null;
+  if (!userId) { toast('Not logged in', 'w'); return; }
+  try {
+    var r = await sb.rpc('reverse_adjustment', { p_adj_id: adjId, p_user_id: userId });
+    if (r.error) throw r.error;
+    toast('Adjustment reversed', 's');
+    loadPAdj(true);
+  } catch(e) { toast('Reversal failed: ' + (e.message || e), 'e'); console.error('[adj]', e); }
 }
 
 /* ====================================================================
@@ -9647,10 +9812,11 @@ async function _adjReverse(adjId) {
 function _adjReloadPage(pageId) {
   if (!pageId) return;
   _loadedPages.delete(pageId);
-  if (pageId === 'p2')  { loadP2();    return; }
-  if (pageId === 'p3')  { loadP3();    return; }
-  if (pageId === 'p4')  { loadP4();    return; }
-  if (pageId === 'dyn') { dynRender(); return; }
+  if (pageId === 'p2')    { loadP2();    return; }
+  if (pageId === 'p3')    { loadP3();    return; }
+  if (pageId === 'p4')    { loadP4();    return; }
+  if (pageId === 'p-adj') { loadPAdj();  return; }
+  if (pageId === 'dyn')   { dynRender(); return; }
 }
 
 function _uuid4() {
