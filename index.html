@@ -9864,6 +9864,8 @@ async function dynShowReport(tplId, el) {
   _dynActiveTpl = _dynTpls.find(function(t){ return t.id === tplId; }) || null;
   var lbl = document.getElementById('dynTplLabel');
   if (lbl) lbl.textContent = _dynActiveTpl ? _dynActiveTpl.name : '—';
+  // Always re-fetch lines so DataManager edits show immediately
+  delete _dynLineCache[tplId];
   // Reset col view to YTD on template change
   _dynColView = 'ytd';
   document.querySelectorAll('.dyn-cv-btn').forEach(function(b){ b.classList.remove('active'); });
@@ -9956,7 +9958,7 @@ async function dynRender() {
       var allPids = []; for (var _m = 1; _m <= 12; _m++) allPids.push(yr * 100 + _m);
       var res2 = await Promise.all([
         ctx.hasMonthly
-          ? _fetchFactsMulti(yr, allLids, allPids)
+          ? _fetchFactsMulti(yr, _expandAliasLines(allLids), allPids)
           : _fetchFactsN(ctx.actCode, allLids, yr * 100 + 1, yr * 100 + 12),
         _fetchFactsN('AOP_' + yr, allLids, yr * 100 + 1, yr * 100 + 12),
       ]);
