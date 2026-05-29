@@ -954,6 +954,10 @@ tr:hover .dyn-adj-btn{opacity:1}
 .adj-field input,.adj-field select{padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:var(--bg);color:var(--text)}
 #adjFxPreview{font-size:11px;padding:8px 10px;background:#f0fdf4;border-radius:5px;color:#065f46;margin-bottom:12px;display:none;border:1px solid #bbf7d0}
 .adj-existing-row{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#fef3c7;border-radius:5px;margin-bottom:4px;font-size:11px;border:1px solid #fde68a}
+.adj-scope-btn{font-size:11px;padding:4px 12px;border-radius:5px;border:1px solid var(--border);background:none;cursor:pointer;color:var(--muted);transition:all .15s}
+.adj-scope-btn.active{background:var(--blue,#2563eb);color:#fff;border-color:var(--blue,#2563eb)}
+#adjImpactPreview{font-size:11px;padding:8px 10px;background:#f0fdf4;border-radius:5px;color:#065f46;margin-bottom:12px;border:1px solid #bbf7d0}
+.adj-rev-btn{border:none;background:none;cursor:pointer;color:#ef4444;font-size:10px;padding:0 4px;border-radius:3px;border:1px solid #fca5a5;white-space:nowrap}
 .rp-field label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .rp-field input,.rp-field select{padding:5px 7px;border:1px solid var(--border);border-radius:4px;font-size:11px;background:var(--bg);color:var(--text);font-family:inherit;width:100%;box-sizing:border-box}
 .rp-field-row{display:flex;gap:6px;margin-bottom:7px}
@@ -2167,40 +2171,65 @@ tr:hover .dyn-adj-btn{opacity:1}
       <button onclick="_adjModalClose()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);line-height:1">×</button>
     </div>
     <div id="adjLineLabel" style="font-size:11px;color:var(--muted);margin-bottom:14px;padding:7px 10px;background:var(--surface,#f8faff);border-radius:5px;border:1px solid var(--border)"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="adj-field">
-        <label>Period</label>
-        <select id="adjPeriod" onchange="_adjFetchRate()">
-          <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
-          <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
-          <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
-          <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
-        </select>
-      </div>
-      <div class="adj-field">
-        <label>USD Amount ($000s) &mdash; negative = deduction</label>
-        <input id="adjValueUsd" type="number" step="1" placeholder="e.g. 10 000" oninput="_adjPreviewFx()">
-      </div>
-      <div class="adj-field">
-        <label>Rate Used (JMD/USD) <span id="adjRateHint" style="color:var(--teal,#0d9488);font-weight:400;text-transform:none"></span></label>
-        <input id="adjRateUsed" type="number" step="0.01" placeholder="e.g. 155.50" oninput="_adjPreviewFx()">
-      </div>
-      <div class="adj-field">
-        <label>Base Rate (JMD/USD) <span style="color:var(--muted);font-weight:400;text-transform:none">budget / reference</span></label>
-        <input id="adjBaseRate" type="number" step="0.01" placeholder="e.g. 150.00" oninput="_adjPreviewFx()">
-      </div>
-    </div>
+    <!-- Scope toggle -->
     <div class="adj-field">
-      <label>Note <span style="color:var(--muted);font-weight:400;text-transform:none">shown inline on report</span></label>
-      <input id="adjNote" type="text" placeholder="e.g. Tariff adjustment Q1 2026" maxlength="80">
+      <label>Scope</label>
+      <div style="display:flex;gap:6px">
+        <button id="adjScopeSingle" class="adj-scope-btn active" onclick="_adjSetScope('single')">Single Period</button>
+        <button id="adjScopeSpread" class="adj-scope-btn" onclick="_adjSetScope('spread')">Even Spread</button>
+      </div>
     </div>
-    <div id="adjFxPreview"></div>
+    <!-- Single period -->
+    <div id="adjPeriodSingleWrap" class="adj-field">
+      <label>Period</label>
+      <select id="adjPeriod">
+        <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+        <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+        <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+        <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+      </select>
+    </div>
+    <!-- Spread range -->
+    <div id="adjPeriodSpreadWrap" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="adj-field">
+          <label>From</label>
+          <select id="adjPeriodStart">
+            <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+            <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+            <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+            <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+          </select>
+        </div>
+        <div class="adj-field">
+          <label>To</label>
+          <select id="adjPeriodEnd">
+            <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+            <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+            <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+            <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <!-- Amount -->
+    <div class="adj-field">
+      <label>Amount (USD $000) &mdash; positive = inflow&#8593;, negative = outflow&#8593;</label>
+      <input id="adjAmount" type="number" step="0.1" placeholder="e.g. +1000 or -500" oninput="_adjShowImpact()">
+    </div>
+    <!-- Justification -->
+    <div class="adj-field">
+      <label>Justification <span style="color:var(--muted);font-weight:400;text-transform:none">required &mdash; min 10 chars</span></label>
+      <input id="adjJustification" type="text" placeholder="e.g. Rate case revision — non-fuel tariff uplift Q1" maxlength="200">
+    </div>
+    <!-- Impact preview -->
+    <div id="adjImpactPreview" style="display:none;font-size:11px;padding:8px 10px;background:#f0fdf4;border-radius:5px;color:#065f46;margin-bottom:12px;border:1px solid #bbf7d0"></div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" onclick="_adjSave()" style="font-size:11px;flex:1">Save Adjustment</button>
+      <button class="btn btn-primary" onclick="_adjSave()" style="font-size:11px;flex:1">Post Adjustment</button>
       <button class="btn btn-ghost" onclick="_adjModalClose()" style="font-size:11px">Cancel</button>
     </div>
     <div id="adjExistingWrap" style="margin-top:16px;display:none">
-      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Existing — this line &amp; year</div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Existing — this line</div>
       <div id="adjExistingList"></div>
     </div>
   </div>
@@ -3772,7 +3801,7 @@ async function loadP2() {
   function sb(lid) { return _fSumP(bF, lid, ctx.cmpPeriods); }
   function sbFY(lid) { return _fSum(bF, lid); }
   // adj-inclusive actuals: subtotals + totals auto-pick up adjustments
-  var saAdj = function(lid) { return sa(lid) + _adjSumFor(lid, ctx.actPeriods).jmd; };
+  var saAdj = sa; // adj baked into fpa_facts — no additive overlay needed
 
   // Tab + view toggle controls
   const tabHdr = ''
@@ -4057,7 +4086,7 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
       : '';
     const moCells = ctx.actPeriods.map(function(p) {
       const v = _fVal(aF, lid, p);
-      const adjV = isData ? _adjSumFor(lid, [p]).jmd : 0;
+      const adjV = 0; // adj baked into fpa_facts
       const total = v + adjV;
       return '<td class="num">' + (isCost ? _fmtCost(total) : _fmtM(total)) + '</td>';
     }).join('');
@@ -4144,7 +4173,7 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   const niFY     = pretaxFY - sbFY('tax');
 
   // Per-period derived helpers for monthly cells (adj-inclusive)
-  function _fVA(lid, p) { return (_fVal(aF, lid, p) || 0) + _adjSumFor(lid, [p]).jmd; }
+  function _fVA(lid, p) { return (_fVal(aF, lid, p) || 0); } // adj baked into fpa_facts
   function _totRevP(p) { return ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','other_r'].reduce(function(s,l){return s+_fVA(l,p);},0); }
   function _gpP(p)     { return _totRevP(p) - _fVA('fuel_cost',p) - _fVA('ipp_cost',p) + _fVA('pl_other_cos',p); }
   function _ebitdaP(p) { return _gpP(p) - _fVA('opex',p); }
@@ -4246,7 +4275,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
       const useAct = mo(p) <= maxMo;
       const f = useAct ? actF : aopF;
       sum += (f[lid] && f[lid][p] != null) ? f[lid][p] : 0;
-      if (useAct) sum += _adjSumFor(lid, [p]).jmd;
+      // adj baked into fpa_facts — no additive overlay
     });
     return sum;
   }
@@ -9427,58 +9456,82 @@ function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn, getAdjFn) {
 
 /* ── ADJUSTMENT HELPERS ───────────────────────────────────────────────────── */
 
-async function _loadAdjustments(templateId, fy, pageId) {
+/* ── ADJ ENGINE v2 — post_manual_adjustment RPC + fpa_adjustments ─────────── */
+
+var _adjActiveVersionId = null;
+var _adjScope = 'single';
+var _adjModalLineId = null, _adjModalLineName = null, _adjModalFy = null;
+var _adjModalPageId = null, _adjModalTplId = null;
+
+async function _loadAdjustments(versionId, yr, pageId) {
   _dynAdjMap = {};
   var sb = _getSB(); if (!sb) return;
+  var vid = versionId;
+  if (!vid && yr) {
+    await _ensureVMap();
+    vid = (_vMap || {})['LE_' + yr + '_02'];
+  }
+  if (!vid) return;
+  _adjActiveVersionId = vid;
   try {
-    var q = sb.from('fpa_adjustments').select('*').eq('fy', fy);
-    if (pageId) { q = q.eq('page_id', pageId); }
-    else        { q = q.eq('template_id', templateId).eq('page_id', 'dyn'); }
-    var r = await q;
+    var r = await sb.rpc('get_adjustments', { p_version_id: vid });
     if (r.error) throw r.error;
     (r.data || []).forEach(function(adj) {
-      var jmd = adj.value_usd * adj.rate_used;
-      var fx  = adj.value_usd * (adj.rate_used - adj.base_rate);
       if (!_dynAdjMap[adj.line_id]) _dynAdjMap[adj.line_id] = [];
-      _dynAdjMap[adj.line_id].push(Object.assign({}, adj, { value_jmd: jmd, fx_delta: fx }));
+      _dynAdjMap[adj.line_id].push(adj);
     });
   } catch(e) { console.error('[adj] load', e); }
 }
 
+// Adj is baked into fpa_facts — delta contribution to sums = 0.
+// Returns rows array for inline display only.
 function _adjSumFor(lineId, periods) {
-  var moPeriods = periods.map(function(p){ return p > 100 ? p % 100 : p; }); // normalize YYYYMM → MM
-  var entries = (_dynAdjMap[lineId] || []).filter(function(a){ return moPeriods.indexOf(a.period) >= 0; });
-  var jmd = 0, fx = 0, byNote = {};
-  entries.forEach(function(a) {
-    jmd += a.value_jmd; fx += a.fx_delta;
-    if (!byNote[a.note]) byNote[a.note] = 0;
-    byNote[a.note] += a.value_jmd;
+  var entries = (_dynAdjMap[lineId] || []).filter(function(a) {
+    return a.status === 'active' && periods.indexOf(a.period_id) >= 0;
   });
-  return { jmd: jmd, fx: fx, rows: Object.keys(byNote).map(function(n){ return {note:n, jmd:byNote[n]}; }) };
+  return {
+    jmd: 0,
+    fx:  0,
+    rows: entries.map(function(a) { return { note: a.justification, jmd: a.delta }; })
+  };
 }
 
-/* ── ADJ MODAL ────────────────────────────────────────────────────────────── */
+/* ── MODAL ────────────────────────────────────────────────────────────────── */
 
 async function _adjShowForm(lineId, lineName, pageId) {
   _adjModalLineId   = lineId;
   _adjModalLineName = lineName;
   _adjModalFy       = _activeYear || new Date().getFullYear();
-  _adjModalPageId   = pageId || 'dyn';
+  _adjModalPageId   = pageId || 'p2';
   _adjModalTplId    = pageId ? null : (_dynActiveTpl ? _dynActiveTpl.id : null);
-  if (!pageId && !_adjModalTplId) return; // dynamic path requires active template
+  await _ensureVMap();
+  _adjActiveVersionId = (_vMap || {})['LE_' + _adjModalFy + '_02'];
+  if (!_adjActiveVersionId) {
+    toast('No active LE version for ' + _adjModalFy + ' — cannot add adjustment', 'w');
+    return;
+  }
   var lbl = document.getElementById('adjLineLabel');
   if (lbl) lbl.textContent = lineId + ' — ' + lineName;
-  document.getElementById('adjValueUsd').value = '';
-  document.getElementById('adjBaseRate').value = '';
-  document.getElementById('adjNote').value = '';
-  document.getElementById('adjFxPreview').style.display = 'none';
-  // default period = current max month
+  document.getElementById('adjAmount').value = '';
+  document.getElementById('adjJustification').value = '';
+  document.getElementById('adjImpactPreview').style.display = 'none';
   var ctx = _getCtx ? _getCtx() : null;
   var mo = ctx ? ctx.maxMo : new Date().getMonth() + 1;
   document.getElementById('adjPeriod').value = String(mo);
-  await _adjFetchRate();
+  document.getElementById('adjPeriodStart').value = String(mo);
+  document.getElementById('adjPeriodEnd').value = String(Math.min(mo + 2, 12));
+  _adjSetScope('single');
   await _adjLoadExisting();
   document.getElementById('adjModal').classList.add('open');
+}
+
+function _adjSetScope(scope) {
+  _adjScope = scope;
+  document.getElementById('adjScopeSingle').classList.toggle('active', scope === 'single');
+  document.getElementById('adjScopeSpread').classList.toggle('active', scope === 'spread');
+  document.getElementById('adjPeriodSingleWrap').style.display = scope === 'single' ? '' : 'none';
+  document.getElementById('adjPeriodSpreadWrap').style.display = scope === 'spread' ? '' : 'none';
+  _adjShowImpact();
 }
 
 function _adjModalClose() {
@@ -9486,102 +9539,128 @@ function _adjModalClose() {
   _adjModalLineId = _adjModalLineName = _adjModalTplId = null;
 }
 
-async function _adjFetchRate() {
-  var fy = _adjModalFy || new Date().getFullYear();
-  var period = parseInt(document.getElementById('adjPeriod').value) || 1;
-  var d = new Date(fy, period, 0); // last day of period month
-  var dateStr = d.toISOString().split('T')[0];
-  var sb = _getSB(); if (!sb) return;
-  try {
-    var r = await sb.from('fx_rates').select('sell_rate,rate_date')
-      .eq('currency','USD').lte('rate_date', dateStr)
-      .order('rate_date',{ascending:false}).limit(1);
-    var row = r.data && r.data[0];
-    if (row) {
-      document.getElementById('adjRateUsed').value = row.sell_rate;
-      var hint = document.getElementById('adjRateHint');
-      if (hint) hint.textContent = '(BOJ ' + row.rate_date + ')';
-      _adjPreviewFx();
-    }
-  } catch(e) {}
+function _adjShowImpact() {
+  var amt = parseFloat(document.getElementById('adjAmount').value);
+  var el  = document.getElementById('adjImpactPreview');
+  if (!el) return;
+  if (!amt || isNaN(amt)) { el.style.display = 'none'; return; }
+  var txt = '';
+  if (_adjScope === 'spread') {
+    var s = parseInt(document.getElementById('adjPeriodStart').value) || 1;
+    var e = parseInt(document.getElementById('adjPeriodEnd').value)   || 12;
+    var n = Math.max(1, e - s + 1);
+    txt = 'Spread: ' + _fmtM(amt / n, 1) + ' USD$000/mo × ' + n + ' months = ' + _fmtM(amt, 1) + ' USD$000 total';
+  } else {
+    txt = (amt >= 0 ? '+' : '') + _fmtM(amt, 1) + ' USD$000';
+  }
+  el.textContent = txt;
+  el.style.display = 'block';
 }
 
 async function _adjLoadExisting() {
-  if (!_adjModalLineId) return;
+  if (!_adjModalLineId || !_adjActiveVersionId) return;
   var sb = _getSB(); if (!sb) return;
-  var q = sb.from('fpa_adjustments').select('*')
-    .eq('line_id', _adjModalLineId).eq('fy', _adjModalFy).eq('page_id', _adjModalPageId);
-  if (_adjModalPageId === 'dyn' && _adjModalTplId) q = q.eq('template_id', _adjModalTplId);
-  var r = await q.order('period');
-  var wrap = document.getElementById('adjExistingWrap');
-  var list = document.getElementById('adjExistingList');
-  if (!r.data || !r.data.length) { if(wrap) wrap.style.display='none'; return; }
-  if(wrap) wrap.style.display='block';
-  if(list) list.innerHTML = (r.data||[]).map(function(a){
-    var jmd = a.value_usd * a.rate_used;
-    return '<div class="adj-existing-row">' +
-      '<span style="font-weight:700;min-width:28px">' + (_MONS[a.period-1]||'') + '</span>' +
-      '<span style="flex:1">' + _escHtml(a.note) + '</span>' +
-      '<span style="white-space:nowrap">USD&nbsp;' + a.value_usd.toLocaleString() + ' &rarr; JMD&nbsp;' + _fmtM(jmd) + '</span>' +
-      '<button onclick="_adjDelete(\'' + a.id + '\')" style="border:none;background:none;cursor:pointer;color:#ef4444;font-size:13px;padding:0 2px" title="Delete">🗑</button>' +
-      '</div>';
-  }).join('');
-}
-
-function _adjPreviewFx() {
-  var usd  = parseFloat(document.getElementById('adjValueUsd').value) || 0;
-  var rate = parseFloat(document.getElementById('adjRateUsed').value) || 0;
-  var base = parseFloat(document.getElementById('adjBaseRate').value) || 0;
-  var el   = document.getElementById('adjFxPreview');
-  if (!el) return;
-  if (!usd || !rate) { el.style.display='none'; return; }
-  var jmd = usd * rate;
-  var fx  = base ? usd * (rate - base) : null;
-  el.style.display = 'block';
-  el.innerHTML = 'JMD value: <strong>' + _fmtM(jmd) + '</strong>' +
-    (fx !== null ? '&nbsp;&nbsp;|&nbsp;&nbsp;FX impact vs base: <strong style="color:#0d9488">' + _fmtM(fx) + '</strong>' : '');
+  try {
+    var r = await sb.rpc('get_adjustments', { p_version_id: _adjActiveVersionId });
+    if (r.error) throw r.error;
+    var rows = (r.data || []).filter(function(a) { return a.line_id === _adjModalLineId; });
+    var wrap = document.getElementById('adjExistingWrap');
+    var list = document.getElementById('adjExistingList');
+    if (!rows.length) { if (wrap) wrap.style.display = 'none'; return; }
+    if (wrap) wrap.style.display = 'block';
+    if (list) list.innerHTML = rows.map(function(a) {
+      var mo  = _MONS ? (_MONS[(a.period_id % 100) - 1] || '') : String(a.period_id);
+      var sign = a.delta >= 0 ? '+' : '';
+      var badge = a.status === 'reversed'
+        ? '<span style="color:#9ca3af;font-size:9px;margin-left:4px">REVERSED</span>' : '';
+      var revBtn = a.status === 'active'
+        ? '<button class="adj-rev-btn" onclick="_adjReverse(\'' + _escHtml(a.adj_id) + '\')">Reverse</button>' : '';
+      return '<div class="adj-existing-row">'
+        + '<span style="font-weight:700;min-width:28px">' + _escHtml(mo) + '</span>'
+        + '<span style="flex:1">' + _escHtml(a.justification) + badge + '</span>'
+        + '<span style="white-space:nowrap;font-family:monospace">' + sign + _fmtM(a.delta, 1) + '</span>'
+        + revBtn + '</div>';
+    }).join('');
+  } catch(e) { console.error('[adj] loadExisting', e); }
 }
 
 async function _adjSave() {
-  var lineId = _adjModalLineId, tplId = _adjModalTplId, fy = _adjModalFy;
-  var period = parseInt(document.getElementById('adjPeriod').value);
-  var usd    = parseFloat(document.getElementById('adjValueUsd').value);
-  var rate   = parseFloat(document.getElementById('adjRateUsed').value);
-  var base   = parseFloat(document.getElementById('adjBaseRate').value) || rate;
-  var note   = (document.getElementById('adjNote').value || '').trim();
-  if (!usd || isNaN(usd)) { toast('Enter a USD amount','w'); return; }
-  if (!rate || isNaN(rate)) { toast('Enter the JMD/USD rate','w'); return; }
-  if (!note) { toast('Note is required — shown on the report','w'); return; }
-  var sb = _getSB(); if (!sb) return;
+  var lineId = _adjModalLineId, fy = _adjModalFy;
+  var amt    = parseFloat(document.getElementById('adjAmount').value);
+  var just   = (document.getElementById('adjJustification').value || '').trim();
+  var sb     = _getSB(); if (!sb) return;
+  if (!_adjActiveVersionId) { toast('No LE version active', 'w'); return; }
+  if (!amt || isNaN(amt))   { toast('Enter an amount (USD $000)', 'w'); return; }
+  if (just.length < 10)     { toast('Justification must be at least 10 characters', 'w'); return; }
+  var userId = _user ? _user.id : null;
+  if (!userId) { toast('Not logged in', 'w'); return; }
   try {
-    var r = await sb.from('fpa_adjustments').insert({
-      template_id: _adjModalPageId === 'dyn' ? tplId : null,
-      page_id: _adjModalPageId,
-      line_id: lineId, period: period, fy: fy,
-      value_usd: usd, rate_used: rate, base_rate: base, note: note,
-      created_by: _user ? _user.id : null,
-    });
-    if (r.error) throw r.error;
-    toast('Adjustment saved','s');
+    if (_adjScope === 'spread') {
+      var s = parseInt(document.getElementById('adjPeriodStart').value) || 1;
+      var e = parseInt(document.getElementById('adjPeriodEnd').value)   || 12;
+      if (e < s) { toast('End month must be ≥ start month', 'w'); return; }
+      var n = e - s + 1;
+      var perAmt = amt / n;
+      var groupId = _uuid4();
+      for (var m = s; m <= e; m++) {
+        var r = await sb.rpc('post_manual_adjustment', {
+          p_version_id:    _adjActiveVersionId,
+          p_line_id:       lineId,
+          p_period_id:     fy * 100 + m,
+          p_delta:         perAmt,
+          p_justification: just + ' [' + (m - s + 1) + '/' + n + ']',
+          p_user_id:       userId,
+          p_group_id:      groupId
+        });
+        if (r.error) throw r.error;
+      }
+      toast('Spread posted (' + n + ' periods)', 's');
+    } else {
+      var period = parseInt(document.getElementById('adjPeriod').value);
+      var r = await sb.rpc('post_manual_adjustment', {
+        p_version_id:    _adjActiveVersionId,
+        p_line_id:       lineId,
+        p_period_id:     fy * 100 + period,
+        p_delta:         amt,
+        p_justification: just,
+        p_user_id:       userId
+      });
+      if (r.error) throw r.error;
+      toast('Adjustment posted', 's');
+    }
     _adjModalClose();
-    if (_adjModalPageId === 'dyn') dynRender(); else _adjReloadPage(_adjModalPageId);
-  } catch(e) { toast('Save failed: ' + e.message,'e'); console.error('[adj]',e); }
+    _adjReloadPage(_adjModalPageId);
+  } catch(e) { toast('Post failed: ' + (e.message || e), 'e'); console.error('[adj]', e); }
 }
 
-async function _adjDelete(id) {
+async function _adjReverse(adjId) {
+  if (!confirm('Reverse this adjustment? A reversing entry will be posted.')) return;
   var sb = _getSB(); if (!sb) return;
+  var userId = _user ? _user.id : null;
+  if (!userId) { toast('Not logged in', 'w'); return; }
   try {
-    var r = await sb.from('fpa_adjustments').delete().eq('id', id);
+    var r = await sb.rpc('reverse_adjustment', { p_adj_id: adjId, p_user_id: userId });
     if (r.error) throw r.error;
-    toast('Adjustment removed','s');
-    _adjLoadExisting();
-    if (_adjModalPageId === 'dyn') dynRender(); else _adjReloadPage(_adjModalPageId);
-  } catch(e) { toast('Delete failed: ' + e.message,'e'); }
+    toast('Adjustment reversed', 's');
+    await _adjLoadExisting();
+    _adjReloadPage(_adjModalPageId);
+  } catch(e) { toast('Reversal failed: ' + (e.message || e), 'e'); console.error('[adj]', e); }
 }
 
 function _adjReloadPage(pageId) {
+  if (!pageId) return;
   _loadedPages.delete(pageId);
-  if (pageId === 'p2') loadP2();
+  if (pageId === 'p2')  { loadP2();    return; }
+  if (pageId === 'p3')  { loadP3();    return; }
+  if (pageId === 'p4')  { loadP4();    return; }
+  if (pageId === 'dyn') { dynRender(); return; }
+}
+
+function _uuid4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
 }
 
 // Load active hub templates and populate sidebar nav
