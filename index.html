@@ -9587,6 +9587,19 @@ function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn, getAdjFn) {
     var adj  = getAdjFn ? getAdjFn(line.line_id || '') : {jmd:0, fx:0, rows:[]};
     return { a: rawA + adj.jmd, b: rawB, adjRows: adj.rows, fx: adj.fx };
   }
+  // 'formula' rows compute via calc_expr but are TRANSPARENT to sum_children
+  // (they don't stop the backward walk, so subtotals above them still see earlier anchor points)
+  if (line.row_type === 'formula') {
+    if (!line.calc_expr) return { a: 0, b: 0 };
+    var toks2 = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
+    var evalF = function(getFn) {
+      var expr = line.calc_expr;
+      toks2.forEach(function(tok){ expr = expr.replace(new RegExp('\\b' + tok + '\\b', 'g'), String(getFn(tok))); });
+      return _dynSafeEval(expr);
+    };
+    return { a: evalF(getActFn), b: evalF(getCmpFn) };
+  }
+
   if (line.row_type === 'subtotal' || line.row_type === 'total') {
     if (!line.calc_expr) return { a: 0, b: 0 };
     if (line.calc_expr === 'sum_children') {
@@ -9596,6 +9609,7 @@ function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn, getAdjFn) {
       for (var i = myIdx - 1; i >= 0; i--) {
         var pl = lines[i];
         if (pl.row_type === 'section' || pl.row_type === 'spacer' || pl.row_type === 'chart') continue;
+        if (pl.row_type === 'formula') continue;   // transparent — doesn't stop the walk
         if (pl.row_type === 'subtotal' || pl.row_type === 'total') {
           var pv = lineVals[pl.id];
           if (pv) { sumA += pv.a; sumB += pv.b; }
@@ -10064,10 +10078,10 @@ function _dynRowYtd(line, lineVals, ctx, colspan) {
   var va = vals.a, vb = vals.b, diff = va - vb;
   var isCost = (line.sign != null ? line.sign : 1) === -1;
   var hg     = (line.fav_direction != null ? line.fav_direction : 1) === 1;
-  var bold   = line.is_bold || line.row_type === 'total' || line.row_type === 'subtotal';
+  var bold   = line.is_bold || line.row_type === 'total' || line.row_type === 'subtotal' || line.row_type === 'formula';
   var indent = (new Array((line.indent_level || 0) * 4 + 1)).join(' ');
   var lbl    = _escHtml(line.label_override || line.line_id || '—');
-  var rowCls = (line.row_type === 'total' || line.row_type === 'subtotal') ? 'rs' : 'rind';
+  var rowCls = (line.row_type === 'total' || line.row_type === 'subtotal' || line.row_type === 'formula') ? 'rs' : 'rind';
   var varCls = _vc(diff, hg);
   var fmt    = isCost ? _fmtCost : _fmtM;
 
@@ -10216,10 +10230,10 @@ function _dynBuildMonthly(lines, ctx, allActF, aopF, lineValsYtd) {
     if (!mv) return '';
     var isCost = (line.sign != null ? line.sign : 1) === -1;
     var hg     = (line.fav_direction != null ? line.fav_direction : 1) === 1;
-    var bold   = line.is_bold || line.row_type === 'total' || line.row_type === 'subtotal';
+    var bold   = line.is_bold || line.row_type === 'total' || line.row_type === 'subtotal' || line.row_type === 'formula';
     var indent = (new Array((line.indent_level || 0) * 4 + 1)).join(' ');
     var lbl    = _escHtml(line.label_override || line.line_id || '—');
-    var rowCls = (line.row_type === 'total' || line.row_type === 'subtotal') ? 'rs' : 'rind';
+    var rowCls = (line.row_type === 'total' || line.row_type === 'subtotal' || line.row_type === 'formula') ? 'rs' : 'rind';
     var fmt    = isCost ? _fmtCost : _fmtM;
     var varCls = _vc(ytdV.a - ytdV.b, hg);
 
@@ -10387,10 +10401,10 @@ function _dynBuildQuarterly(lines, ctx, allActF, aopF, lineValsYtd) {
     if (!qv) return '';
     var isCost = (line.sign != null ? line.sign : 1) === -1;
     var hg     = (line.fav_direction != null ? line.fav_direction : 1) === 1;
-    var bold   = line.is_bold || line.row_type === 'total' || line.row_type === 'subtotal';
+    var bold   = line.is_bold || line.row_type === 'total' || line.row_type === 'subtotal' || line.row_type === 'formula';
     var indent = (new Array((line.indent_level || 0) * 4 + 1)).join(' ');
     var lbl    = _escHtml(line.label_override || line.line_id || '—');
-    var rowCls = (line.row_type === 'total' || line.row_type === 'subtotal') ? 'rs' : 'rind';
+    var rowCls = (line.row_type === 'total' || line.row_type === 'subtotal' || line.row_type === 'formula') ? 'rs' : 'rind';
     var fmt    = isCost ? _fmtCost : _fmtM;
     var varCls = _vc(ytdV.a - ytdV.b, hg);
 
