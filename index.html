@@ -4411,7 +4411,7 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
 
   // Per-period derived helpers for monthly cells (adj-inclusive)
   function _fVA(lid, p) { return (_fVal(aF, lid, p) || 0); } // adj baked into fpa_facts
-  function _totRevP(p) { return ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','other_r'].reduce(function(s,l){return s+_fVA(l,p);},0); }
+  function _totRevP(p) { return _fVA('nr_rev',p)+_fVA('nr_cust_charge',p)+_fVA('fuel_rev',p)+_fVA('ipp_fr',p)+_fVA('vpp_rev',p)+_fVA('other_r',p); }
   function _gpP(p)     { return _totRevP(p) - _fVA('fuel_cost',p) - _fVA('ipp_cost',p) + _fVA('pl_other_cos',p); }
   function _ebitdaP(p) { return _gpP(p) - _fVA('opex',p); }
   function _ebitP(p)   { return _ebitdaP(p) - _fVA('depn',p); }
@@ -4545,7 +4545,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
   }
 
   // Derived P&L helpers (adj-inclusive for actuals)
-  function rev(ps)    { return cvA('nr_rev',ps)+cvA('nr_cust_charge',ps)+cvA('fuel_rev',ps)+cvA('ipp_fr',ps)+cvA('other_r',ps); }
+  function rev(ps)    { return cvA('nr_rev',ps)+cvA('nr_cust_charge',ps)+cvA('fuel_rev',ps)+cvA('ipp_fr',ps)+cvA('vpp_rev',ps)+cvA('other_r',ps); }
   function cos(ps)    { return cvA('fuel_cost',ps)+cvA('ipp_cost',ps); }
   // pl_other_cos stored negative = additional cost (IFRS 16 / other COS adjustments)
   function gp(ps)     { return rev(ps)-cos(ps)+cvA('pl_other_cos',ps); }
@@ -4635,7 +4635,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
       + rline('(&#8722;) Operating Expenses',     function(ps){ return cvA('opex',ps); }, 'rind', true, 'opex')
       + rsub('Regulated Business EBITDA',         reg_ebitda, 'rs')
       + rsec('Purchased Power')
-      + rline('IPP Fuel Recovery',                function(ps){ return cvA('ipp_fr',ps); }, undefined, false, 'ipp_fr')
+      + rline('IPP Revenue (incl. VPP)',           function(ps){ return cvA('ipp_fr',ps)+cvA('vpp_rev',ps); }, undefined, false, 'ipp_fr')
       + rline('(&#8722;) IPP &amp; Purchased Power Costs', function(ps){ return cvA('ipp_cost',ps); }, 'rind', true, 'ipp_cost')
       + rsub('Purchased Power Surplus / (Deficit)', pp_surplus, 'rs')
       + rsec('Non-Regulated Business')
