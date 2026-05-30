@@ -6,7 +6,7 @@
 <title>JPS FP&amp;A Hub — v2</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23111827'/><text x='16' y='22' font-family='Georgia,serif' font-size='16' font-weight='700' fill='%23EAB308' text-anchor='middle'>JF</text></svg>"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3745,6 +3745,44 @@ let _p3ColView    = 'ytd';
 let _p4ColView    = 'ytd';      // 'ytd' | 'monthly' | 'quarterly' | 'ytg'
 let _cfMethod     = 'indirect'; // 'indirect' | 'direct'
 
+// ── Consolidated P&L: data-driven line definitions (Option B) ──────────────────
+// loadP2's renderers read their line list/labels/accounts from the 'pl_consol'
+// template when it's loaded, so the report is editable in Report Builder while its
+// rendering code (Exec/Detail, Standalone, chart, all views) stays untouched.
+// If the template can't be loaded, every renderer falls back to its hardcoded layout.
+var _p2TplLines   = null;       // report_lines[] for pl_consol (null = use hardcoded fallback)
+var _p2SAHidden   = null;       // Set of line_ids hidden/zeroed in Standalone mode
+
+async function _ensureP2Tpl() {
+  if (_p2TplLines) return;
+  var sb = _getSB(); if (!sb) return;
+  try {
+    var t = await sb.from('report_templates').select('id').eq('slug', 'pl_consol').eq('is_active', true).maybeSingle();
+    if (t.error || !t.data) return;
+    var r = await sb.from('report_lines').select('*').eq('template_id', t.data.id).order('sort_order');
+    if (r.error || !r.data || !r.data.length) return;
+    _p2TplLines = r.data;
+    _p2SAHidden = new Set(r.data.filter(function(l){ return l.standalone_hidden; }).map(function(l){ return l.line_id; }));
+  } catch(e) { console.warn('[p2] template load failed — using hardcoded layout', e); }
+}
+
+// Inline +/- evaluator for a calc_expr of line_id tokens. valFn(lid) → number.
+// Mirrors the dynamic engine's parser (no Function(), no parentheses).
+function _p2EvalExpr(expr, valFn) {
+  if (!expr) return 0;
+  var toks = [...new Set((expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
+  var s = expr;
+  toks.forEach(function(tok){ s = s.replace(new RegExp('\\b' + tok + '\\b', 'g'), String(valFn(tok) || 0)); });
+  s = s.replace(/\s+/g, '');
+  // Collapse chained signs from negative substitutions ("x - -50" → "x + 50") so subtraction
+  // of a negative value is correct.
+  var prev;
+  do { prev = s; s = s.replace(/--/g, '+').replace(/\+-/g, '-').replace(/-\+/g, '-').replace(/\+\+/g, '+'); } while (s !== prev);
+  if (s[0] !== '-' && s[0] !== '+') s = '+' + s;
+  var parts = s.match(/[+\-][0-9.]+/g) || [];
+  return parts.reduce(function(a, p){ return a + (+p); }, 0);
+}
+
 function p2SetTab(t)        { _p2Tab = t;        _loadedPages.delete('p2'); loadP2(); }
 function p2ToggleStandalone(){ _p2Standalone = !_p2Standalone; _loadedPages.delete('p2'); loadP2(); }
 function p2SetColView(v, el) {
@@ -3846,6 +3884,7 @@ async function loadP2() {
   _pgLoad('p2', false);
   _renderMoNav(ctx.maxMo); // keep month nav in sync regardless of active page
   await _loadAdjustments(null, ctx.yr, 'p2');
+  await _ensureP2Tpl(); // load editable line definitions (falls back to hardcoded if absent)
 
   function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
   function sb(lid) { return _fSumP(bF, lid, ctx.cmpPeriods); }
@@ -4232,6 +4271,64 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   function _pretaxP(p) { return _ebitP(p) - _nfcP(p) + _fVA('other_inc',p) + _fVA('pl_fx',p) + (!_p2Standalone ? _fVA('pl_div_recv',p) : 0); }
   function _niP(p)     { return _pretaxP(p) - _fVA('tax',p); }
 
+  // Template-driven body (Option B): render rows from the pl_consol template when loaded.
+  // Standalone mode zeroes/hides flagged lines, matching the hardcoded pl_div_recv handling.
+  function _tplBody() {
+    var _saSA = function(l){ return (_p2Standalone && _p2SAHidden && _p2SAHidden.has(l)) ? 0 : sa(l); };
+    var _sbSA = function(l){ return (_p2Standalone && _p2SAHidden && _p2SAHidden.has(l)) ? 0 : sb(l); };
+    var _fySA = function(l){ return (_p2Standalone && _p2SAHidden && _p2SAHidden.has(l)) ? 0 : sbFY(l); };
+    var b = '';
+    _p2TplLines.forEach(function(L) {
+      if (_p2Standalone && L.standalone_hidden) return;                       // hidden row in standalone
+      if (L.row_type === 'section') { b += sec(L.label_override); return; }
+      if (L.row_type === 'spacer')  { return; }                               // detailed view has no spacers
+      if (L.row_type === 'data')    { b += row(L.label_override, L.line_id, 'rind', L.sign === -1); return; }
+      if (L.row_type === 'subtotal' || L.row_type === 'total') {
+        var aV  = _p2EvalExpr(L.calc_expr, _saSA);
+        var bV  = _p2EvalExpr(L.calc_expr, _sbSA);
+        var fyV = _p2EvalExpr(L.calc_expr, _fySA);
+        var pFn = function(p) { return _p2EvalExpr(L.calc_expr, function(l){ return (_p2Standalone && _p2SAHidden && _p2SAHidden.has(l)) ? 0 : _fVA(l, p); }); };
+        b += rowDerived(L.label_override, aV, bV, fyV, 'rs', L.sign === -1, pFn);
+      }
+    });
+    return b;
+  }
+
+  var _bodyHtml = (_p2TplLines && _p2TplLines.length)
+    ? _tplBody()
+    : ( sec('Revenue')
+      + row('Fuel Clause (FCR)',              'fuel_rev',      'rind', false)
+      + row('IPP Fuel Recovery',               'ipp_fr',        'rind', false)
+      + row('Non-Fuel Revenue',               'nr_rev',        'rind', false)
+      + row('Customer Charge',                'nr_cust_charge','rind', false)
+      + row('Other Operating Revenue',        'other_r',       'rind', false)
+      + rowDerived('Operating Revenue', _totRev(sa), _totRev(sb), _totRev(sbFY), 'rs', false, _totRevP)
+      + sec('Cost of Sales')
+      + row('Fuel',                           'fuel_cost',     'rind', true)
+      + row('Purchased Power (excl. fuel)',   'ipp_cost',      'rind', true)
+      + rowDerived('Gross Profit',            gp_a, gp_b, gpFY, 'rs', false, _gpP)
+      + sec('Operating Expenses')
+      + row('Operating Expenses',             'opex',          'rind', true)
+      + rowDerived('EBITDA',                  ebitda_a, ebitda_b, ebitdaFY, 'rs', false, _ebitdaP)
+      + sec('Depreciation &amp; Amortization')
+      + row('Depreciation',                   'depn',          'rind', true)
+      + rowDerived('Operating Profit (EBIT)', ebit_a, ebit_b, ebitFY, 'rs', false, _ebitP)
+      + sec('Net Financing Costs')
+      + row('Interest Income',                'nfc_int_inc',   'rind', false)
+      + row('Allowance for Funds Used (AFUDC)','nfc_afudc',   'rind', false)
+      + row('Interest Expense',               'nfc_int_exp',   'rind', true)
+      + row('Preference Dividend',            'pl_pref_div',   'rind', true)
+      + row('Loan Arrangement Fees',          'nfc_fees',      'rind', true)
+      + rowDerived('Net Financing Costs',     nfc_a, nfc_b, nfcFY, 'rs', true, _nfcP)
+      + sec('Other Income / (Expenses)')
+      + row('Other Income &amp; Dividends Received', 'other_inc', 'rind', false)
+      + row('FX Gain / (Loss) — IAS 21', 'pl_fx', 'rind', false)
+      + (!_p2Standalone ? row('Dividends Received (tax-free)', 'pl_div_recv', 'rind', false) : '')
+      + sec('Taxation')
+      + rowDerived('Net Profit Before Tax',   pretax_a, pretax_b, pretaxFY, 'rs', false, _pretaxP)
+      + row('Income Tax Expense',             'tax',           'rind', true)
+      + rowDerived('Net Profit After Tax',    ni_a, ni_b, niFY, 'rs', false, _niP) );
+
   return '<div class="notice-bar">' + ctx.viewLbl + ' = Actuals vs ' + ctx.cmpLbl + '. Adverse shown as (x).</div>'
     + '<div class="card"><div class="card-head">Income Statement (Detailed)'
     + ' <span class="ch-sub">' + ctx.viewLbl + ' &middot; vs ' + ctx.cmpLbl + '</span></div>'
@@ -4240,38 +4337,7 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
     + '<th>Actual</th><th>' + ctx.cmpLbl + '</th><th>Var $</th><th>Var %</th>'
     + (showFY ? '<th>' + fyHdr + '</th>' : '')
     + '</tr></thead><tbody>'
-    + sec('Revenue')
-    + row('Fuel Clause (FCR)',              'fuel_rev',      'rind', false)
-    + row('IPP Fuel Recovery',               'ipp_fr',        'rind', false)
-    + row('Non-Fuel Revenue',               'nr_rev',        'rind', false)
-    + row('Customer Charge',                'nr_cust_charge','rind', false)
-    + row('Other Operating Revenue',        'other_r',       'rind', false)
-    + rowDerived('Operating Revenue', _totRev(sa), _totRev(sb), _totRev(sbFY), 'rs', false, _totRevP)
-    + sec('Cost of Sales')
-    + row('Fuel',                           'fuel_cost',     'rind', true)
-    + row('Purchased Power (excl. fuel)',   'ipp_cost',      'rind', true)
-    + rowDerived('Gross Profit',            gp_a, gp_b, gpFY, 'rs', false, _gpP)
-    + sec('Operating Expenses')
-    + row('Operating Expenses',             'opex',          'rind', true)
-    + rowDerived('EBITDA',                  ebitda_a, ebitda_b, ebitdaFY, 'rs', false, _ebitdaP)
-    + sec('Depreciation &amp; Amortization')
-    + row('Depreciation',                   'depn',          'rind', true)
-    + rowDerived('Operating Profit (EBIT)', ebit_a, ebit_b, ebitFY, 'rs', false, _ebitP)
-    + sec('Net Financing Costs')
-    + row('Interest Income',                'nfc_int_inc',   'rind', false)
-    + row('Allowance for Funds Used (AFUDC)','nfc_afudc',   'rind', false)
-    + row('Interest Expense',               'nfc_int_exp',   'rind', true)
-    + row('Preference Dividend',            'pl_pref_div',   'rind', true)
-    + row('Loan Arrangement Fees',          'nfc_fees',      'rind', true)
-    + rowDerived('Net Financing Costs',     nfc_a, nfc_b, nfcFY, 'rs', true, _nfcP)
-    + sec('Other Income / (Expenses)')
-    + row('Other Income &amp; Dividends Received', 'other_inc', 'rind', false)
-    + row('FX Gain / (Loss) — IAS 21', 'pl_fx', 'rind', false)
-    + (!_p2Standalone ? row('Dividends Received (tax-free)', 'pl_div_recv', 'rind', false) : '')
-    + sec('Taxation')
-    + rowDerived('Net Profit Before Tax',   pretax_a, pretax_b, pretaxFY, 'rs', false, _pretaxP)
-    + row('Income Tax Expense',             'tax',           'rind', true)
-    + rowDerived('Net Profit After Tax',    ni_a, ni_b, niFY, 'rs', false, _niP)
+    + _bodyHtml
     + '</tbody></table></div></div>';
 }
 
@@ -10136,19 +10202,17 @@ async function dynRender() {
   var sb    = _getSB();
   if (!sb) return;
 
-  // Load + cache report lines
-  if (!_dynLineCache[tplId]) {
-    try {
-      var r = await sb.from('report_lines').select('*').eq('template_id', tplId).order('sort_order');
-      if (r.error) throw r.error;
-      _dynLineCache[tplId] = r.data || [];
-    } catch(e) {
-      body.innerHTML = '<div class="dyn-empty">&#9888; Failed to load report lines: ' + _escHtml(e.message) + '</div>';
-      return;
-    }
+  // Always fetch report lines fresh from DB — no session cache
+  var lines;
+  try {
+    var r = await sb.from('report_lines').select('*').eq('template_id', tplId).order('sort_order');
+    if (r.error) throw r.error;
+    lines = r.data || [];
+    _dynLineCache[tplId] = lines;
+  } catch(e) {
+    body.innerHTML = '<div class="dyn-empty">&#9888; Failed to load report lines: ' + _escHtml(e.message) + '</div>';
+    return;
   }
-
-  var lines = _dynLineCache[tplId];
   if (!lines.length) {
     body.innerHTML = '<div class="dyn-empty">No lines defined yet.<br>Open <strong>DataManager &rarr; Report Builder</strong> to add lines to this template.</div>';
     return;
@@ -11085,14 +11149,14 @@ async function _rpEnsureDimLines() {
   if (_rpDimLines.length) return;
   try {
     var sb = _getSB();
-    var r = await sb.from('fpa_dim_line').select('code,name,statement').order('sort_order');
+    var r = await sb.from('fpa_dim_line').select('id,code,name,statement').order('sort_order');
     if (r.error) throw r.error;
     _rpDimLines = r.data || [];
     var sel = document.getElementById('rpLineId');
     if (!sel) return;
     sel.innerHTML = '<option value="">— select —</option>'
       + _rpDimLines.map(function(d){
-          return '<option value="' + _escHtml(d.code) + '">' + _escHtml(d.code) + ' — ' + _escHtml(d.name || '') + '</option>';
+          return '<option value="' + _escHtml(d.id) + '">' + _escHtml(d.id) + ' — ' + _escHtml(d.name || '') + '</option>';
         }).join('');
   } catch(e) { console.error('[rp] load dim lines', e); }
 }
@@ -11132,7 +11196,7 @@ function _rpRenderTree() {
   }
   el.innerHTML = lines.map(function(l) {
     var indent   = '&nbsp;'.repeat((l.indent_level || 0) * 3);
-    var dimEntry = _rpDimLines.find(function(d){ return d.code === l.line_id; });
+    var dimEntry = _rpDimLines.find(function(d){ return d.id === l.line_id; });
     var lbl      = _escHtml(l.label_override || (dimEntry ? dimEntry.name : null) || l.line_id || '(' + l.row_type + ')');
     var editCls  = _rpEditingId === l.id ? ' editing' : '';
     var typeAbbr = l.row_type === 'subtotal' ? 'sub' : l.row_type === 'section' ? 'sec' : l.row_type.slice(0, 3).toUpperCase();
