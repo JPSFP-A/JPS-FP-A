@@ -2884,6 +2884,17 @@ function _normalizeAlias(f) {
   if (!_hasFactData(f, 'nr_rev') && _hasFactData(f, 'nonfuel')) {
     f['nr_rev'] = f['nonfuel'];
   }
+  // ipp_fr display = ipp_fr (pure IPP capacity) + vpp_rev (Virtual PP, reported separately in non-reg)
+  // This makes every template/row reading 'ipp_fr' show the combined 13,991 total
+  {
+    const ippMap = f['ipp_fr'] || {}, vppMap = f['vpp_rev'] || {};
+    const allP = new Set([...Object.keys(ippMap), ...Object.keys(vppMap)]);
+    if (allP.size) {
+      const combined = {};
+      allP.forEach(function(p) { combined[p] = (ippMap[p] || 0) + (vppMap[p] || 0); });
+      f['ipp_fr'] = combined;
+    }
+  }
   // pl_total_sales: always compute from components — never use stored DB value
   {
     const srcs = ['nr_rev', 'nonfuel', 'fuel_rev', 'ipp_fr', 'other_r', 'nr_cust_charge'];
