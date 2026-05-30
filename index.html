@@ -4477,6 +4477,28 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
   function nfc_net(ps)      { return cvA('nfc_int_exp',ps) - cvA('nfc_int_inc',ps) - cvA('nfc_afudc',ps) + cvA('pl_pref_div',ps) + cvA('nfc_fees',ps); }
   function after_nfc(ps)    { return ebit(ps) - nfc_net(ps); }
 
+  // Template-driven detailed body (Option B): same pl_consol lines as the YTD Detailed view,
+  // so an edit in Report Builder shows in Monthly/Quarterly too. Unifies labels across views.
+  function _tplMultiColBody() {
+    var b = '';
+    _p2TplLines.forEach(function(L) {
+      if (_p2Standalone && L.standalone_hidden) return;
+      if (L.row_type === 'section') { b += rsec(L.label_override); return; }
+      if (L.row_type === 'spacer') return;
+      if (L.row_type === 'data') {
+        var lid = L.line_id, isCost = L.sign === -1;
+        b += rline(L.label_override, function(ps){ return cvA(lid, ps); }, 'rind', isCost, lid);
+        return;
+      }
+      if (L.row_type === 'subtotal' || L.row_type === 'total') {
+        var expr = L.calc_expr;
+        var fn = function(ps){ return _p2EvalExpr(expr, function(l){ return (_p2Standalone && _p2SAHidden && _p2SAHidden.has(l)) ? 0 : cvA(l, ps); }); };
+        b += rsub(L.label_override, fn, L.row_type === 'total' ? 'rt' : 'rs');
+      }
+    });
+    return b;
+  }
+
   var tbody;
   if (tab === 'exec') {
     // Mirror _buildP2Exec row structure exactly — only columns differ
@@ -4511,6 +4533,8 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
       + rsub('Net Profit Before Tax',              pretax, 'rs')
       + rline('Income Tax Expense',               function(ps){ return cvA('tax',ps); }, 'rind', true, 'tax')
       + rsub('Net Profit After Tax (NPAT)',        npat, 'rt');
+  } else if (_p2TplLines && _p2TplLines.length) {
+    tbody = _tplMultiColBody();
   } else {
     tbody = ''
       + rsec('Revenue')
@@ -4628,7 +4652,24 @@ function _buildP2YearToGo(ctx, ytdF, leF, aopF) {
   }
   function deriveFn(fn) { return fn; }
 
-  var tbody = ''
+  // Template-driven body (Option B) — same pl_consol lines, columns = YTD + LE months + FY Proj.
+  function _tplYtgBody() {
+    var b = '';
+    _p2TplLines.forEach(function(L) {
+      if (_p2Standalone && L.standalone_hidden) return;
+      if (L.row_type === 'section') { b += rsec(L.label_override); return; }
+      if (L.row_type === 'spacer') return;
+      if (L.row_type === 'data') { b += rline(L.label_override, L.line_id, 'rind', L.sign === -1); return; }
+      if (L.row_type === 'subtotal' || L.row_type === 'total') {
+        var expr = L.calc_expr;
+        var fn = function(c){ return _p2EvalExpr(expr, function(l){ return (_p2Standalone && _p2SAHidden && _p2SAHidden.has(l)) ? 0 : getColVal(l, c); }); };
+        b += rsub(L.label_override, fn, L.row_type === 'total' ? 'rt' : 'rs');
+      }
+    });
+    return b;
+  }
+
+  var tbody = (_p2TplLines && _p2TplLines.length) ? _tplYtgBody() : (''
     + rsec('Revenue')
     + rline('Fuel Clause (FCR)',           'fuel_rev')
     + rline('IPP Fuel Recovery',           'ipp_fr')
@@ -4666,7 +4707,7 @@ function _buildP2YearToGo(ctx, ytdF, leF, aopF) {
         var ebit=ebd-getColVal('depn',c);
         var pretax=ebit-getColVal('nfc_int_exp',c)+getColVal('nfc_int_inc',c)+getColVal('nfc_afudc',c)-getColVal('pl_pref_div',c)-getColVal('nfc_fees',c)+getColVal('other_inc',c)+getColVal('pl_fx',c)+(!_p2Standalone?getColVal('pl_div_recv',c):0);
         return pretax-getColVal('tax',c);
-      }), 'rt');
+      }), 'rt'));
 
   const leLabel = leCols.length > 0
     ? _MONS[cutoffMo] + '–Dec ' + yr + ' from ' + forecastSrc
