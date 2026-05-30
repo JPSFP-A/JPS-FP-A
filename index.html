@@ -8,6 +8,24 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+<script>
+/* JpsMonitor — lightweight heartbeat + event logger.
+   Heartbeat → record_heartbeat RPC → fpa_audit_log (read by the platform audit).
+   Set JpsMonitor._clientFn = () => <supabaseClient> once the client exists. */
+(function(){
+  var APP='fpa';
+  var M={
+    _app:APP,_uid:null,_email:null,_clientFn:null,
+    setUser:function(id,email){this._uid=id;this._email=email;this._beat();},
+    _beat:function(){try{var c=this._clientFn&&this._clientFn();if(c&&c.rpc){c.rpc('record_heartbeat',{p_app:this._app}).then(function(){},function(){});}}catch(e){}},
+    info:function(ev,msg){try{console.debug('[JpsMonitor]',APP,ev||'',msg||'');}catch(e){}},
+    warning:function(ev,msg){try{console.warn('[JpsMonitor]',APP,ev||'',msg||'');}catch(e){}},
+    error:function(ev,msg){try{console.error('[JpsMonitor]',APP,ev||'',msg||'');}catch(e){}}
+  };
+  window.JpsMonitor=M;
+  setInterval(function(){M._beat();},300000); // 5-min heartbeat
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -2680,7 +2698,7 @@ function afterLogin() {
   document.getElementById('hubUserName').textContent = _user.name;
   document.getElementById('hubRoleDisp').textContent = _user.role;
   if (window.JpsMonitor && JpsMonitor.setUser) {
-    try { JpsMonitor.setUser(_user.id, _user.email); } catch (e) { console.error('[FPA] JpsMonitor.setUser failed:', e); }
+    try { JpsMonitor._clientFn = _getSB; JpsMonitor.setUser(_user.id, _user.email); } catch (e) { console.error('[FPA] JpsMonitor.setUser failed:', e); }
   }
   _platformAudit('login', 'session', null, { email: _user.email });
 }
@@ -2973,6 +2991,9 @@ async function _fetchFactsMulti(yr, lines, periods) {
         if (!o[row.line_id]) o[row.line_id] = {};
         o[row.line_id][p] = Number(row.value) || 0;
       });
+      const oc = r.data.filter(function(row){ return row.line_id === 'pl_other_cos'; });
+      if (oc.length) console.log('[pl_other_cos] rows returned:', oc);
+      else console.warn('[pl_other_cos] NOT in DB response. lines queried:', lines.includes('pl_other_cos'), 'total rows:', r.data.length);
       return _normalizeAlias(o);
     });
   }, 120_000);
@@ -10201,6 +10222,9 @@ async function dynRender() {
   var tplId = _dynActiveTpl.id;
   var sb    = _getSB();
   if (!sb) return;
+
+  // Bust facts cache so line_id changes are always reflected immediately
+  _cacheInvalidate('fpa_multi');
 
   // Always fetch report lines fresh from DB — no session cache
   var lines;
