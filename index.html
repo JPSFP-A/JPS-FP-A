@@ -10028,6 +10028,14 @@ async function dynInitTemplates() {
     _dynTpls = data || [];
     _tplByPage = {};
     _dynTpls.forEach(function(t){ if (t.replaces_page) _tplByPage[t.replaces_page] = t; });
+    // Templates load async — a page navigated BEFORE this resolved was rendered hardcoded
+    // and cached in _loadedPages. Invalidate any now-overridden page so the template wins,
+    // and live-swap it if it's the page currently on screen.
+    Object.keys(_tplByPage).forEach(function(pid){
+      _loadedPages.delete(pid);
+      var el = document.getElementById(pid);
+      if (el && el.classList.contains('active')) loadPage(pid);
+    });
   } catch(e) {
     console.error('[dyn] init templates', e);
     _dynTpls = [];
