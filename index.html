@@ -2780,11 +2780,14 @@ function _patchYrLabels(el) {
    =================================================================== */
 
 function _verCode(uiVer) {
+  const latestActuals = Object.keys(_vMap || {})
+    .filter(function(k) { return /^ACTUALS_\d{4}_\d{2}$/.test(k); })
+    .sort().pop() || ('ACTUALS_' + _CY + '_01');
   const m = {
-    'Budget':  'AOP_'         + _CY,
-    'LE1':     'LE_'          + _CY + '_01',
-    'LE2':     'LE_'          + _CY + '_02',
-    'Actuals': 'HIST_ACTUAL_' + _CY + '_YTD',
+    'Budget':  'AOP_' + _CY,
+    'LE1':     'LE_'  + _CY + '_01',
+    'LE2':     'LE_'  + _CY + '_02',
+    'Actuals': latestActuals,
   };
   return m[uiVer] || ('AOP_' + _CY);
 }
@@ -2949,11 +2952,100 @@ function _normalizeAlias(f) {
     var _pxObj = f['pl_fx'];
     Object.keys(_pxObj).forEach(function(p) { _pxObj[p] = -(_pxObj[p]); });
   }
+  // Apply derived formula engine — always authoritative for formula lines
+  _computeDerived(f);
+  return f;
+}
+
+// ── Derived formula engine ────────────────────────────────────────────────────
+let _derivedFormulas = [];
+let _derivedFormulasLoaded = false;
+
+async function _ensureDerivedFormulas() {
+  if (_derivedFormulasLoaded) return;
+  const sb = _getSB(); if (!sb) return;
+  try {
+    const { data, error } = await sb
+      .from('fpa_derived_formulas')
+      .select('line_id,calc_expr,sort_order')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+    if (error) throw error;
+    _derivedFormulas = data || [];
+    _derivedFormulasLoaded = true;
+    console.log('[FPA] derived formulas loaded:', _derivedFormulas.length);
+  } catch(e) {
+    console.error('[FPA] _ensureDerivedFormulas:', e);
+    JpsMonitor.error('derived_formulas_load', e.message || String(e));
+  }
+}
+
+// CSP-safe arithmetic evaluator — replaces Function()/eval (blocked by CSP, no 'unsafe-eval').
+// After identifier substitution the string is pure arithmetic; this parses + - * / ( ) with
+// precedence + unary signs. Any leftover non-numeric token (e.g. an unsubstituted id) → returns 0,
+// matching the old try/catch→0 behaviour.
+function _arithEval(code) {
+  if (typeof code !== 'string') return 0;
+  var toks = [], re = /\s*([0-9]*\.?[0-9]+(?:[eE][+\-]?[0-9]+)?|[+\-*/()])\s*/g, last = 0, mm;
+  while ((mm = re.exec(code)) !== null) {
+    if (mm.index !== last) return 0;        // gap = illegal character
+    toks.push(mm[1]); last = re.lastIndex;
+  }
+  if (last !== code.length || !toks.length) return 0;
+  var p = 0;
+  function peek(){ return toks[p]; }
+  function expr(){ var v = term(); while (peek()==='+'||peek()==='-'){ var o=toks[p++]; var t=term(); v = (o==='+') ? v+t : v-t; } return v; }
+  function term(){ var v = factor(); while (peek()==='*'||peek()==='/'){ var o=toks[p++]; var f=factor(); v = (o==='*') ? v*f : v/f; } return v; }
+  function factor(){ var t = peek();
+    if (t==='(') { p++; var v = expr(); if (peek()===')') p++; return v; }
+    if (t==='+') { p++; return factor(); }
+    if (t==='-') { p++; return -factor(); }
+    if (t === undefined) return 0;
+    p++; var n = parseFloat(t); return isNaN(n) ? 0 : n;
+  }
+  try { var r = expr(); return (typeof r === 'number' && isFinite(r)) ? r : 0; }
+  catch(e) { return 0; }
+}
+
+// Substitute line_ids in expr with per-period numeric snapshot, then eval
+function _evalDerivedExpr(expr, snap) {
+  let code = expr;
+  // Sort keys longest-first to avoid partial substring replacements
+  const keys = Object.keys(snap).sort(function(a, b) { return b.length - a.length; });
+  keys.forEach(function(k) {
+    code = code.replace(new RegExp('\\b' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g'), String(snap[k] ?? 0));
+  });
+  return _arithEval(code);
+}
+
+// _computeDerived — evaluate all active formulas against a facts object.
+// Iterates in sort_order (topological) so later formulas can use earlier results.
+// Formula results always overwrite stored fpa_facts values for derived lines.
+function _computeDerived(f) {
+  if (!_derivedFormulas.length) return f;
+  // Union of all period keys across all lines
+  const allPeriods = new Set();
+  Object.values(f).forEach(function(pm) {
+    if (pm && typeof pm === 'object') {
+      Object.keys(pm).forEach(function(p) { allPeriods.add(p); });
+    }
+  });
+  _derivedFormulas.forEach(function(formula) {
+    const result = {};
+    allPeriods.forEach(function(p) {
+      // Per-period snapshot — includes already-computed derived lines from earlier sort_orders
+      const snap = {};
+      Object.keys(f).forEach(function(lid) { snap[lid] = (f[lid] && f[lid][p] != null) ? f[lid][p] : 0; });
+      result[p] = _evalDerivedExpr(formula.calc_expr, snap);
+    });
+    f[formula.line_id] = result;
+  });
   return f;
 }
 
 // _fetchFactsN — drop-in for _fetchFacts with alias normalization
 async function _fetchFactsN(vCode, lines, pStart, pEnd) {
+  await _ensureDerivedFormulas();
   const f = await _fetchFacts(vCode, _expandAliasLines(lines), pStart, pEnd);
   return _normalizeAlias(f);
 }
@@ -2982,7 +3074,7 @@ async function _fetchFactsMulti(yr, lines, periods) {
     return _sbQ(function(sb) {
       return sb.from('fpa_facts').select('version_id,line_id,value')
         .in('version_id', activeVids).in('line_id', lines);
-    }).then(function(r) {
+    }).then(async function(r) {
       if (!r || !r.data) return {};
       const o = {};
       r.data.forEach(function(row) {
@@ -2994,6 +3086,7 @@ async function _fetchFactsMulti(yr, lines, periods) {
       const oc = r.data.filter(function(row){ return row.line_id === 'pl_other_cos'; });
       if (oc.length) console.log('[pl_other_cos] rows returned:', oc);
       else console.warn('[pl_other_cos] NOT in DB response. lines queried:', lines.includes('pl_other_cos'), 'total rows:', r.data.length);
+      await _ensureDerivedFormulas();
       return _normalizeAlias(o);
     });
   }, 120_000);
@@ -3255,13 +3348,12 @@ async function _loadRptTemplate(slug) {
 }
 
 function _rptEvalExpr(expr, byId) {
-  // Substitute known line_id identifiers with numeric values, then eval.
+  // Substitute known line_id identifiers with numeric values, then eval (CSP-safe).
   let code = expr;
   Object.keys(byId).forEach(function(k) {
     code = code.replace(new RegExp('\\b' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g'), String(byId[k]));
   });
-  try { return Function('"use strict";return(' + code + ')')(); }
-  catch(e) { return 0; }
+  return _arithEval(code);
 }
 
 function _computeRptLines(lines, saFn, sbFn) {
@@ -5859,11 +5951,9 @@ function _flashGetGlobalCtx() {
   // Map global view → flash view
   var fView = { Month:'month', YTD:'ytd', FY:'annual' }[_activeView] || 'month';
 
-  // Version A = best actuals for yr/mo — prefer HIST_ACTUAL_{yr}_YTD (consolidated) over per-month
+  // Version A = best actuals for yr/mo — always use per-month ACTUALS_yr_MM (never YTD snapshot)
   var verACode = null;
-  if (vm['HIST_ACTUAL_' + yr + '_YTD']) {
-    verACode = 'HIST_ACTUAL_' + yr + '_YTD';
-  } else if (_hasMonthly(yr)) {
+  if (_hasMonthly(yr)) {
     for (var m2 = mo; m2 >= 1; m2--) {
       var ak = 'ACTUALS_' + yr + '_' + (m2 < 10 ? '0'+m2 : m2);
       if (vm[ak]) { verACode = ak; break; }
@@ -8693,8 +8783,8 @@ function _getCtx() {
     ? actPeriods.map(function(p) { return p - 100; })
     : actPeriods.slice();
 
-  // Version codes
-  const actCode = isCY ? ('HIST_ACTUAL_' + yr + '_YTD') : ('HIST_ACTUAL_' + yr);
+  // Version codes — fallback when hasMonthly=false; never reference deleted YTD snapshots
+  const actCode = 'HIST_ACTUAL_' + yr;
   let cmpCode = _activeCmp === 'PY'  ? ('HIST_ACTUAL_' + (yr - 1))
               : _activeCmp === 'LE1' ? ('LE_' + yr + '_01')
               : _activeCmp === 'LE2' ? ('LE_' + yr + '_02')
@@ -9714,11 +9804,12 @@ function initPlatform() {
   setTimeout(function(){ if (!_dynTplsLoaded) { console.warn('[FPA] templates gate watchdog fired'); _dynTplsReady(); } }, 4000);
   const sb = _getSB();
   if (!sb) { _dynTplsReady(); return; }
-  // Warm up vMap + load DB-backed planning years in parallel
+  // Warm up vMap, derived formulas, and DB-backed planning years in parallel
   Promise.all([
     _ensureVMap().then(function() {
       console.log('[FPA v2] vMap ready, versions:', Object.keys(_vMap || {}).length);
     }),
+    _ensureDerivedFormulas(),
     _loadOpenYears().then(function() {
       if (_openYears.length) {
         console.log('[FPA v2] Open planning years from DB:', _openYears);
