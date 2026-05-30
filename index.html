@@ -3779,17 +3779,25 @@ var _p2SAHidden   = null;       // Set of line_ids hidden/zeroed in Standalone m
 // only exposes is_active=true rows — and that flag is ALSO the Report Builder Draft/Published
 // toggle. Reading lines by id (report_lines is anon-readable) lets the live report stay driven
 // by the editable template whether it is Draft or Published. Falls back to hardcoded if absent.
-var _PL_CONSOL_TPL_ID = '8800a314-7c54-4d95-aace-9698d2e70250';
+var _PL_CONSOL_TPL_ID      = '8800a314-7c54-4d95-aace-9698d2e70250';
+var _PL_CONSOL_EXEC_TPL_ID = 'b86712bd-a3b3-49cd-a3b4-06232209b9ad';
+var _p2ExecTplLines = null;  // report_lines[] for the segmented Exec view (null = hardcoded)
 
 async function _ensureP2Tpl() {
-  if (_p2TplLines) return;
+  if (_p2TplLines && _p2ExecTplLines) return;
   var sb = _getSB(); if (!sb) return;
   try {
-    var r = await sb.from('report_lines').select('*').eq('template_id', _PL_CONSOL_TPL_ID).order('sort_order');
-    if (r.error || !r.data || !r.data.length) return;
-    _p2TplLines = r.data;
-    _p2SAHidden = new Set(r.data.filter(function(l){ return l.standalone_hidden; }).map(function(l){ return l.line_id; }));
-  } catch(e) { console.warn('[p2] template load failed — using hardcoded layout', e); }
+    var res = await Promise.all([
+      _p2TplLines     ? Promise.resolve({ data: _p2TplLines })     : sb.from('report_lines').select('*').eq('template_id', _PL_CONSOL_TPL_ID).order('sort_order'),
+      _p2ExecTplLines ? Promise.resolve({ data: _p2ExecTplLines }) : sb.from('report_lines').select('*').eq('template_id', _PL_CONSOL_EXEC_TPL_ID).order('sort_order'),
+    ]);
+    var r = res[0], e = res[1];
+    if (!r.error && r.data && r.data.length) {
+      _p2TplLines = r.data;
+      _p2SAHidden = new Set(r.data.filter(function(l){ return l.standalone_hidden; }).map(function(l){ return l.line_id; }));
+    }
+    if (!e.error && e.data && e.data.length) _p2ExecTplLines = e.data;
+  } catch(ex) { console.warn('[p2] template load failed — using hardcoded layout', ex); }
 }
 
 // Inline +/- evaluator for a calc_expr of line_id tokens. valFn(lid) → number.
@@ -4130,6 +4138,30 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
     ebd_a, ebd_b, ni_a, ni_b, cmpLbl: ctx.cmpLbl, viewLbl: ctx.viewLbl
   };
 
+  // Template-driven Exec body (Option B): segmented rows from pl_consol_exec, via the same
+  // er()/esec()/eGrp()/eSub() helpers so RAG badges + the NFC drill-down still render.
+  function _execTplBody() {
+    var saSA = function(l){ return (_p2Standalone && _p2SAHidden && _p2SAHidden.has(l)) ? 0 : sa(l); };
+    var sbSA = function(l){ return (_p2Standalone && _p2SAHidden && _p2SAHidden.has(l)) ? 0 : sb(l); };
+    var b = '';
+    _p2ExecTplLines.forEach(function(L) {
+      if (_p2Standalone && L.standalone_hidden) return;
+      if (L.row_type === 'section') { b += esec(L.label_override); return; }
+      if (L.row_type === 'spacer')  { b += eblank(); return; }
+      var isCost = L.sign === -1;
+      if (L.row_type === 'data') {
+        var av = saSA(L.line_id), bv = sbSA(L.line_id);
+        b += L.parent_id ? eSub(L.label_override, av, bv, isCost) : er(L.label_override, av, bv, 'rind', isCost);
+        return;
+      }
+      if (L.row_type === 'subtotal' || L.row_type === 'total') {
+        var a2 = _p2EvalExpr(L.calc_expr, saSA), b2 = _p2EvalExpr(L.calc_expr, sbSA);
+        b += L.is_drilldown ? eGrp(L.label_override, a2, b2, isCost) : er(L.label_override, a2, b2, 'rs', isCost);
+      }
+    });
+    return b;
+  }
+
   return '<div class="chart-row wide" style="margin-bottom:0">'
     + '<div class="card" style="margin-bottom:12px"><div class="card-head">Actual vs ' + ctx.cmpLbl
     + ' <span class="ch-sub">' + ctx.viewLbl + ' · JMD $000s</span></div>'
@@ -4145,7 +4177,7 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
     + '<th>Description</th><th>Actual</th><th>' + ctx.cmpLbl + '</th>'
     + '<th>Var $</th><th>Var %</th><th>RAG</th>'
     + '</tr></thead><tbody>'
-    + esec('Regulated Business')
+    + ((_p2ExecTplLines && _p2ExecTplLines.length) ? _execTplBody() : ('' + esec('Regulated Business')
     + er('Fuel Revenues',          fuel_rev_a,  fuel_rev_b,  'rind', false)
     + er('(−) Fuel Costs',         fuel_cost_a, fuel_cost_b, 'rind', true)
     + er('Fuel Surplus / (Penalty)',fuel_sur_a,  fuel_sur_b,  'rs',   false)
@@ -4184,7 +4216,7 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
     + esec('Taxation')
     + er('Net Profit Before Tax',  pretax_a,    pretax_b,    'rs',   false)
     + er('Income Tax (Expense) / Income', tax_a, tax_b,     'rind', true)
-    + er('Net Profit After Tax',   ni_a,        ni_b,        'rs',   false, true)
+    + er('Net Profit After Tax',   ni_a,        ni_b,        'rs',   false, true)))
     + '</tbody></table></div></div>';
 }
 
