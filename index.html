@@ -3774,13 +3774,18 @@ let _cfMethod     = 'indirect'; // 'indirect' | 'direct'
 var _p2TplLines   = null;       // report_lines[] for pl_consol (null = use hardcoded fallback)
 var _p2SAHidden   = null;       // Set of line_ids hidden/zeroed in Standalone mode
 
+// Stable id of the seeded 'pl_consol' (Consolidated P&L) template. We read its lines by id
+// rather than looking the template up by slug, because the report_templates anon RLS policy
+// only exposes is_active=true rows — and that flag is ALSO the Report Builder Draft/Published
+// toggle. Reading lines by id (report_lines is anon-readable) lets the live report stay driven
+// by the editable template whether it is Draft or Published. Falls back to hardcoded if absent.
+var _PL_CONSOL_TPL_ID = '8800a314-7c54-4d95-aace-9698d2e70250';
+
 async function _ensureP2Tpl() {
   if (_p2TplLines) return;
   var sb = _getSB(); if (!sb) return;
   try {
-    var t = await sb.from('report_templates').select('id').eq('slug', 'pl_consol').eq('is_active', true).maybeSingle();
-    if (t.error || !t.data) return;
-    var r = await sb.from('report_lines').select('*').eq('template_id', t.data.id).order('sort_order');
+    var r = await sb.from('report_lines').select('*').eq('template_id', _PL_CONSOL_TPL_ID).order('sort_order');
     if (r.error || !r.data || !r.data.length) return;
     _p2TplLines = r.data;
     _p2SAHidden = new Set(r.data.filter(function(l){ return l.standalone_hidden; }).map(function(l){ return l.line_id; }));
