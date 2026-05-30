@@ -5993,9 +5993,28 @@ function flashBuildKpisV2(fA, fB, lA, lB) {
 }
 
 // ── P&L table ─────────────────────────────────────────────────────────────────
+// Editable income-statement definition for the Management Report. Loaded by id from the
+// 'pl_mgmt' template (report_lines is anon-readable regardless of Draft/Published); falls
+// back to the hardcoded defs in flashBuildPLV2 if absent. Subtotal line_ids (pl_total_sales,
+// ebitda, ebit, pretax, net_inc) are pre-derived in flashFetchFacts, so the renderer just
+// reads fA[id] for every row.
+var _flashPLTpl = null;
+var _FLASH_PL_TPL_ID = '0f558f60-115d-4d10-845a-f6b9f03c3260';
+async function _ensureFlashPLTpl() {
+  if (_flashPLTpl) return;
+  var r = await _sbQ(function(sb){ return sb.from('report_lines').select('*').eq('template_id', _FLASH_PL_TPL_ID).order('sort_order'); }, { silent: true });
+  if (r && r.data && r.data.length) {
+    _flashPLTpl = r.data.map(function(l){
+      if (l.row_type === 'section') return { section: l.label_override };
+      return { id: l.line_id, name: l.label_override, fav: l.fav_direction === 1, indent: (l.indent_level || 0) > 0,
+               subtotal: l.row_type === 'subtotal', total: l.row_type === 'total' };
+    });
+  }
+}
+
 function flashBuildPLV2(fA, fB, lA, lB) {
   var tbl=document.getElementById('flashPLTable'); if(!tbl) return;
-  var defs=[
+  var defs = _flashPLTpl || [
     {section:'Revenue'},
     {id:'fuel_rev',  name:'Fuel Clause Revenue',     fav:true,  indent:true},
     {id:'ipp_fr',    name:'IPP Fuel Recovery',         fav:true,  indent:true},
@@ -6109,6 +6128,7 @@ async function flashRefresh() {
   var results = await Promise.all([
     flashFetchFacts(g.verAId, periodIds),
     flashFetchFacts(g.verBId, periodIdsB),
+    _ensureFlashPLTpl(),
   ]);
   var factsA = results[0], factsB = results[1];
 
@@ -8649,8 +8669,8 @@ const _yearMaxMo = {};        // cache: year → max actual month available
 function _getCtx() {
   const yr   = _activeYear;
   const isCY = (yr === _CY);
-  // Prefer HIST_ACTUAL_{yr}_YTD over per-month ACTUALS_YYYY_MM when available
-  const hasMonthly = _hasMonthly(yr) && !( (_vMap || {})['HIST_ACTUAL_' + yr + '_YTD'] );
+  // Always prefer per-month ACTUALS_YYYY_MM when they exist — YTD snapshots are never used for CY actuals
+  const hasMonthly = _hasMonthly(yr);
   const rawMaxMo = (_yearMaxMo[yr] != null) ? _yearMaxMo[yr] : (isCY ? 0 : 12);
   // When maxMo = 0 (no actuals found yet or demo mode), fall back to current calendar month
   // so pages still render — they'll just show zeros with a "no data" notice
