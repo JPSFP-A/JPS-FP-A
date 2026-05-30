@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8" />
@@ -3083,9 +3083,6 @@ async function _fetchFactsMulti(yr, lines, periods) {
         if (!o[row.line_id]) o[row.line_id] = {};
         o[row.line_id][p] = Number(row.value) || 0;
       });
-      const oc = r.data.filter(function(row){ return row.line_id === 'pl_other_cos'; });
-      if (oc.length) console.log('[pl_other_cos] rows returned:', oc);
-      else console.warn('[pl_other_cos] NOT in DB response. lines queried:', lines.includes('pl_other_cos'), 'total rows:', r.data.length);
       await _ensureDerivedFormulas();
       return _normalizeAlias(o);
     });
@@ -3426,7 +3423,7 @@ async function _renderReport(slug, ctx) {
     var lineIds = allIds.filter(function(v, i, a){ return a.indexOf(v) === i; });
     var pair = await Promise.all([
       _fetchFactsAct(ctx, lineIds),
-      _fetchFactsN(ctx.cmpCode, lineIds, ctx.cmpStart, ctx.cmpEnd),
+      _fetchFactsCmp(ctx, lineIds, ctx.cmpStart, ctx.cmpEnd),
     ]);
     var aF = pair[0], bF = pair[1];
     var saFn = function(lid){ return _fSumP(aF, lid, ctx.actPeriods); };
@@ -3464,7 +3461,7 @@ async function loadP1() {
     _pgLoad('p1', false);
     _renderYrNav(); _renderMoNav(0);
     const priYr = ctx.yr - 1, priPer = priYr * 100 + 12;
-    const priCode = _hasMonthly(priYr) ? ('ACTUALS_' + priYr + '_12') : ('HIST_ACTUAL_' + priYr);
+    const priCode = 'ACTUALS_' + priYr + '_12';
     const priF = await _fetchFactsN(priCode,
       ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','ipp_nr','other_r','fuel_cost','ipp_cost','pl_other_cos','opex','depn','nfc_int_exp','tax','pl_div_recv','cash','recv','ppe'],
       priPer, priPer);
@@ -3497,7 +3494,7 @@ async function loadP1() {
   const CM_LINES = ['pl_total_sales','ebitda','net_inc','ebitda_margin','cf_capex','stat_billed_gwh','cf_ops_net'];
   const [aF, bF,, _p1PlHtml] = await Promise.all([
     _fetchFactsAct(ctx, LINES),
-    _fetchFactsN(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
+    _fetchFactsCmp(ctx, LINES, ctx.cmpStart, ctx.cmpEnd),
     _loadCommentary(CM_LINES, ctx.actEnd, _activeView),
     _renderReport('pl_flash', ctx),
   ]);
@@ -4004,7 +4001,7 @@ async function loadP2() {
   } else {
     [aF, bF] = await Promise.all([
       _fetchFactsAct(ctx, LINES),
-      _fetchFactsN(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
+      _fetchFactsCmp(ctx, LINES, ctx.cmpStart, ctx.cmpEnd),
     ]);
   }
   _pgLoad('p2', false);
@@ -4390,8 +4387,9 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   const moHdr = ctx.actPeriods.map(function(p) { return '<th>' + _pLabel(p) + '</th>'; }).join('');
 
   // Derived subtotals — never read ebitda/ebit from DB
-  // pl_other_cos is negative (additional cost) — IFRS 16 / other COS adjustments
-  function _totRev(f) { return f('nr_rev')+f('nr_cust_charge')+f('fuel_rev')+f('ipp_fr')+f('other_r'); }
+  // IPP Revenue = ipp_fr (pure IPP capacity) + vpp_rev (Virtual PP — non-reg, separate report)
+  function _totRev(f) { return f('nr_rev')+f('nr_cust_charge')+f('fuel_rev')+f('ipp_fr')+f('vpp_rev')+f('other_r'); }
+  function _ippRev(f) { return f('ipp_fr') + f('vpp_rev'); }
   const gp_a     = _totRev(sa) - sa('fuel_cost') - sa('ipp_cost') + sa('pl_other_cos');
   const gp_b     = _totRev(sb) - sb('fuel_cost') - sb('ipp_cost') + sb('pl_other_cos');
   const gpFY     = _totRev(sbFY) - sbFY('fuel_cost') - sbFY('ipp_cost') + sbFY('pl_other_cos');
@@ -4448,7 +4446,7 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
     ? _tplBody()
     : ( sec('Revenue')
       + row('Fuel Clause (FCR)',              'fuel_rev',      'rind', false)
-      + row('IPP Fuel Recovery',               'ipp_fr',        'rind', false)
+      + rowDerived('IPP Revenue (incl. VPP)', _ippRev(sa), _ippRev(sb), _ippRev(sbFY), 'rind', false, function(ps){ return cvA('ipp_fr',ps)+cvA('vpp_rev',ps); })
       + row('Non-Fuel Revenue',               'nr_rev',        'rind', false)
       + row('Customer Charge',                'nr_cust_charge','rind', false)
       + row('Other Operating Revenue',        'other_r',       'rind', false)
@@ -4968,7 +4966,7 @@ async function loadP3() {
   const pyYr   = ctx.yr - 1;
   const pyPer  = pyYr * 100 + 12;
   // Use per-month ACTUALS_YYYY_12 for prior Dec when available (has full BS data)
-  const pyCode = _hasMonthly(pyYr) ? ('ACTUALS_' + pyYr + '_12') : ('HIST_ACTUAL_' + pyYr);
+  const pyCode = 'ACTUALS_' + pyYr + '_12';
 
   let cF, pF, allActF, aopF;
   if (_p3ColView !== 'ytd') {
@@ -5505,7 +5503,7 @@ async function loadP4() {
     let rawAF;
     [rawAF, bF] = await Promise.all([
       _fetchFactsAct(ctx, LINES),
-      _fetchFactsN(ctx.cmpCode, LINES, ctx.cmpStart, ctx.cmpEnd),
+      _fetchFactsCmp(ctx, LINES, ctx.cmpStart, ctx.cmpEnd),
     ]);
     // Fallback to budget when no actuals at all
     const aEmpty = !rawAF || Object.keys(rawAF).length === 0;
@@ -5951,7 +5949,7 @@ function _flashGetGlobalCtx() {
   // Map global view → flash view
   var fView = { Month:'month', YTD:'ytd', FY:'annual' }[_activeView] || 'month';
 
-  // Version A = best actuals for yr/mo — always use per-month ACTUALS_yr_MM (never YTD snapshot)
+  // Version A: always use monthly ACTUALS_YYYY_MM, walk backward from latest available month
   var verACode = null;
   if (_hasMonthly(yr)) {
     for (var m2 = mo; m2 >= 1; m2--) {
@@ -5959,16 +5957,11 @@ function _flashGetGlobalCtx() {
       if (vm[ak]) { verACode = ak; break; }
     }
   }
-  if (!verACode && vm['HIST_ACTUAL_' + yr]) verACode = 'HIST_ACTUAL_' + yr;
-  if (!verACode) {
-    var hk = Object.keys(vm).filter(function(c){ return /^HIST_ACTUAL_\d{4}$/.test(c); }).sort();
-    verACode = hk.length ? hk[hk.length - 1] : null;
-  }
 
   // Version B = comparison per global _activeCmp
   var verBCode = null;
   var cmp = _activeCmp;
-  if      (cmp === 'PY')  verBCode = 'HIST_ACTUAL_' + (yr - 1);
+  if      (cmp === 'PY')  { for (var m4=mo;m4>=1;m4--){ var bk='ACTUALS_'+(yr-1)+'_'+(m4<10?'0'+m4:m4); if(vm[bk]){verBCode=bk;break;} } }
   else if (cmp === 'LE1') verBCode = 'LE_' + yr + '_01';
   else if (cmp === 'LE2') verBCode = 'LE_' + yr + '_02';
   else                    verBCode = 'AOP_' + yr;
@@ -6892,9 +6885,8 @@ async function loadP18(){
         });
       }
     }
-    // Load P&L + Indirect CF from HIST ACTUALS for reconciliation
-    // Resolved dynamically: HIST_ACTUAL_{yr} via _vMap (no hardcoded UUIDs)
-    var histVerId=(_vMap||{})['HIST_ACTUAL_'+yr]||null;
+    // Load P&L + Indirect CF from Dec actuals for reconciliation
+    var histVerId=(_vMap||{})['ACTUALS_'+yr+'_12']||null;
     if(histVerId){
       var r2=await _sbQ(function(sb){
         return sb.from('fpa_facts').select('line_id,period_id,value')
@@ -7195,7 +7187,7 @@ async function loadP5() {
   if (sub) sub.textContent = 'Capital expenditure & work in progress · ' + ctx.viewLbl + ' · USD $000s';
 
   const LINES = ['cf_capex','cwip','bs_fa_cost','bs_accum_depn','depn'];
-  const pyCode = 'HIST_ACTUAL_' + (ctx.yr - 1);
+  const pyCode = 'ACTUALS_' + (ctx.yr - 1) + '_12';
   const pyDecPer = (ctx.yr - 1) * 100 + 12;
   var yr = ctx.yr, ps = yr * 100;
   var allPids = []; for (var mi = 1; mi <= 12; mi++) allPids.push(ps + mi);
@@ -7419,7 +7411,7 @@ async function loadP6() {
   const IS_LINES  = ['nfc_int_inc','pl_fx','pl_afudc','nfc_pref','nfc_fees','oth_inc','other_inc'];
   const BS_LINES  = ['leases','lease_cl','rou_asset'];
   const ALL_LINES = IS_LINES.concat(BS_LINES);
-  const pyCode    = 'HIST_ACTUAL_' + (ctx.yr - 1);
+  const pyCode = 'ACTUALS_' + (ctx.yr - 1) + '_12';
   const pyDecPer  = (ctx.yr - 1) * 100 + 12;
   var yr = ctx.yr, ps = yr * 100;
   var allPids = []; for (var mi6 = 1; mi6 <= 12; mi6++) allPids.push(ps + mi6);
@@ -8759,11 +8751,9 @@ const _yearMaxMo = {};        // cache: year → max actual month available
 function _getCtx() {
   const yr   = _activeYear;
   const isCY = (yr === _CY);
-  // Always prefer per-month ACTUALS_YYYY_MM when they exist — YTD snapshots are never used for CY actuals
+  // Always use monthly ACTUALS_YYYY_MM — no HIST_ACTUAL for any year
   const hasMonthly = _hasMonthly(yr);
   const rawMaxMo = (_yearMaxMo[yr] != null) ? _yearMaxMo[yr] : (isCY ? 0 : 12);
-  // When maxMo = 0 (no actuals found yet or demo mode), fall back to current calendar month
-  // so pages still render — they'll just show zeros with a "no data" notice
   const maxMo = rawMaxMo || (new Date().getMonth() + 1);
   const mo = (_activeMo > 0 && _activeMo <= maxMo) ? _activeMo : maxMo;
   const yrB = yr * 100;
@@ -8783,15 +8773,18 @@ function _getCtx() {
     ? actPeriods.map(function(p) { return p - 100; })
     : actPeriods.slice();
 
-  // Version codes — fallback when hasMonthly=false; never reference deleted YTD snapshots
-  const actCode = 'HIST_ACTUAL_' + yr;
-  let cmpCode = _activeCmp === 'PY'  ? ('HIST_ACTUAL_' + (yr - 1))
+  // Version codes — single-version fallback only used when hasMonthly=false
+  const actCode = 'ACTUALS_' + yr + '_12';
+  const cmpYr   = (_activeCmp === 'PY') ? (yr - 1) : yr;
+  const cmpHasMonthly = (_activeCmp === 'PY') && _hasMonthly(cmpYr);
+
+  let cmpCode = _activeCmp === 'PY'  ? ('ACTUALS_' + (yr - 1) + '_12')
               : _activeCmp === 'LE1' ? ('LE_' + yr + '_01')
               : _activeCmp === 'LE2' ? ('LE_' + yr + '_02')
               :                        ('AOP_' + yr);
-  // Auto-fallback: if AOP requested but doesn't exist for this year, fall back to PY actuals
+  // Auto-fallback: if AOP requested but doesn't exist, fall back to PY Dec actuals
   const _aopMissing = (_activeCmp === 'Budget') && !(_vMap || {})[cmpCode];
-  if (_aopMissing) cmpCode = _hasMonthly(yr - 1) ? ('ACTUALS_' + (yr-1) + '_12') : ('HIST_ACTUAL_' + (yr - 1));
+  if (_aopMissing) cmpCode = 'ACTUALS_' + (yr - 1) + '_12';
 
   // Display labels
   const moLbl  = _MONS[mo - 1] + ' ' + yr;
@@ -8799,19 +8792,26 @@ function _getCtx() {
   const fyLbl  = 'FY ' + yr;
   const viewLbl = _activeView === 'Month' ? moLbl : (_activeView === 'YTD' ? ytdLbl : fyLbl);
 
-  const cmpYr  = (_activeCmp === 'PY' || _aopMissing) ? (yr - 1) : yr;
   const cmpLbl = _activeCmp === 'PY'     ? (_activeView === 'Month' ? _MONS[mo-1]+' '+(yr-1) : _activeView === 'FY' ? 'FY '+(yr-1) : ytdLbl.replace(yr, yr-1))
                : _activeCmp === 'Budget' ? (_aopMissing ? 'PY ' + (yr-1) : 'AOP ' + yr)
                : (_activeCmp + ' ' + yr);
 
   return {
     yr, mo, maxMo, isCY, hasMonthly,
-    actPeriods, cmpPeriods,
+    actPeriods, cmpPeriods, cmpYr, cmpHasMonthly,
     actCode, cmpCode,
     actStart: actPeriods[0], actEnd: actPeriods[actPeriods.length - 1],
     cmpStart: cmpPeriods[0], cmpEnd: cmpPeriods[cmpPeriods.length - 1],
     viewLbl, cmpLbl, moLbl, ytdLbl, fyLbl
   };
+}
+
+// _fetchFactsCmp — fetch comparison data; uses monthly multi-version for PY, single version otherwise
+async function _fetchFactsCmp(ctx, lines) {
+  if (ctx.cmpHasMonthly) {
+    return _fetchFactsMulti(ctx.cmpYr, _expandAliasLines(lines), ctx.cmpPeriods);
+  }
+  return _fetchFactsN(ctx.cmpCode, lines, ctx.cmpStart, ctx.cmpEnd);
 }
 
 // --- State setters (each reloads active page) ---
@@ -8863,18 +8863,13 @@ function setActiveCmp(c) {
   _reloadActive();
 }
 
-// Render year pills from available HIST_ACTUAL_YYYY versions
+// Render year pills from available ACTUALS_YYYY_MM versions
 async function _renderYrNav() {
   await _ensureVMap();
   // Build year list from ACTUALS_YYYY_MM per-month versions (most complete data source, 2014–present)
   const yearSet = new Set();
   Object.keys(_vMap || {}).forEach(function(k) {
     const m = k.match(/^ACTUALS_(\d{4})_\d{2}$/);
-    if (m) yearSet.add(parseInt(m[1]));
-  });
-  // Also include any HIST_ACTUAL_YYYY years not covered above
-  Object.keys(_vMap || {}).forEach(function(k) {
-    const m = k.match(/^HIST_ACTUAL_(\d{4})$/);
     if (m) yearSet.add(parseInt(m[1]));
   });
   // Add any user-opened planning years (future years without actuals)
@@ -10459,7 +10454,7 @@ async function dynRender() {
     if (_dynColView === 'ytd') {
       var res = await Promise.all([
         _fetchFactsAct(ctx, allLids),
-        _fetchFactsN(ctx.cmpCode, allLids, ctx.cmpStart, ctx.cmpEnd),
+        _fetchFactsCmp(ctx, allLids, ctx.cmpStart, ctx.cmpEnd),
       ]);
       aF = res[0]; bF = res[1];
     } else if (_dynColView === 'ytg') {
