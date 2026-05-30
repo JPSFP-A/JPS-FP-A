@@ -9759,14 +9759,16 @@ function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn, getAdjFn) {
       }
       return { a: sumA, b: sumB };
     }
-    // Arithmetic calc_expr: substitute line_id tokens with their DB values
+    // Arithmetic calc_expr: substitute line_id tokens with their DB values.
+    // Inline +/- parser (NOT _dynSafeEval) — Function() is CSP-blocked in the async
+    // render context and silently returns 0. Same approach as the formula path above.
     var toks = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
     var evalWith = function(getFn) {
-      var expr = line.calc_expr;
-      toks.forEach(function(tok){
-        expr = expr.replace(new RegExp('\\b' + tok + '\\b', 'g'), String(getFn(tok)));
-      });
-      return _dynSafeEval(expr);
+      var cleaned = line.calc_expr.replace(/\s+/g, '');
+      toks.forEach(function(tok){ cleaned = cleaned.replace(new RegExp('\\b' + tok + '\\b', 'g'), String(getFn(tok) || 0)); });
+      if (cleaned[0] !== '-') cleaned = '+' + cleaned;
+      var parts = cleaned.match(/[+\-][0-9.]+/g) || [];
+      return parts.reduce(function(s, p){ return s + (+p); }, 0);
     };
     return { a: evalWith(getActFn), b: evalWith(getCmpFn) };
   }
