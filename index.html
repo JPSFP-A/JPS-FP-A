@@ -945,6 +945,18 @@ table.dt .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: t
 .dyn-fx-row  td{color:#0d9488;font-style:italic;font-size:10.5px}
 .dyn-adj-btn{font-size:9px;padding:1px 5px;border-radius:3px;border:1px solid #d97706;color:#d97706;background:none;cursor:pointer;margin-left:6px;opacity:0;transition:opacity .15s;vertical-align:middle}
 tr:hover .dyn-adj-btn{opacity:1}
+/* Cell-click breakdown popover */
+#dynCellPopover{position:fixed;z-index:9999;background:#fff;border:1px solid #d4dce8;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:14px 16px 12px;min-width:220px;max-width:320px;font-size:11px;font-family:var(--sans);display:none}
+#dynCellPopover .dcp-close{position:absolute;top:7px;right:10px;border:none;background:none;cursor:pointer;color:var(--muted);font-size:16px;line-height:1;padding:0}
+#dynCellPopover .dcp-head{font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;padding-right:16px}
+#dynCellPopover .dcp-row{display:flex;justify-content:space-between;gap:12px;padding:2px 0;line-height:1.5}
+#dynCellPopover .dcp-lbl{color:var(--muted)}
+#dynCellPopover .dcp-val{font-weight:600;font-family:var(--mono);font-size:11px}
+#dynCellPopover .dcp-sep{border:none;border-top:1px solid var(--border);margin:8px 0 6px}
+#dynCellPopover .dcp-sub-lbl{font-size:10px;font-weight:700;color:var(--muted);margin-bottom:3px}
+#dynCellPopover .dcp-comp{display:flex;justify-content:space-between;gap:8px;padding:2px 0;color:var(--muted);font-size:10.5px}
+td.dyn-click{cursor:pointer}
+td.dyn-click:hover{background:rgba(0,61,165,.04)}
 /* ── Adjustment modal ── */
 #adjModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9900;align-items:center;justify-content:center}
 #adjModal.open{display:flex}
@@ -9585,6 +9597,7 @@ let _dynTab       = 'detail';   // 'exec' | 'detail'
 let _dynInspect   = false; // inspect mode: show line_id + coverage badge per row
 var _dynCharts    = {};   // Chart.js instances keyed by chart line id
 var _dynFactsRef  = {};   // last-fetched actuals facts map (for coverage check in inspect mode)
+var _dynCmpRef    = {};   // last-fetched comparison (AOP/LE) facts map for cell breakdown popover
 
 function _dynToggleInspect(btn) {
   _dynInspect = !_dynInspect;
@@ -9604,6 +9617,92 @@ function _dynCoverage(lineId) {
   }
   return '<span style="color:#dc2626;font-size:9px;margin-left:6px" title="No non-zero data for this line in the selected version">&#9888; no data</span>';
 }
+
+// Cell-click breakdown popover — shows line_id, period value, AOP, variance + subtotal components
+function _dynCellClick(evt, td) {
+  evt.stopPropagation();
+  var lid = td.dataset.lid;  // report_line.id (UUID)
+  var pid = parseInt(td.dataset.pid, 10);
+  if (!lid || !pid || !_dynActiveTpl) return;
+
+  var tplId = _dynActiveTpl.id;
+  var lines = _dynLineCache[tplId] || [];
+  var line = lines.find(function(l){ return l.id === lid; });
+  if (!line) return;
+
+  var lbl    = _escHtml(line.label_override || line.line_id || '—');
+  var moName = (_MONS[(pid % 100) - 1] || '') + ' ' + Math.floor(pid / 100);
+  var isCost = (line.sign != null ? line.sign : 1) === -1;
+  var hg     = (line.fav_direction != null ? line.fav_direction : 1) === 1;
+  var sc     = (line.row_type === 'data' && isCost) ? -1 : 1;
+  var fmtFn  = isCost ? _fmtCost : _fmtM;
+
+  var actRaw = (line.line_id && _dynFactsRef[line.line_id]) ? (_dynFactsRef[line.line_id][pid] || 0) : 0;
+  var cmpRaw = (line.line_id && _dynCmpRef[line.line_id])   ? (_dynCmpRef[line.line_id][pid]   || 0) : 0;
+
+  var html = '<button class="dcp-close" onclick="document.getElementById(\'dynCellPopover\').style.display=\'none\'">&#215;</button>';
+  html += '<div class="dcp-head">' + lbl + '</div>';
+  html += '<div class="dcp-row"><span class="dcp-lbl">Period</span><span class="dcp-val">' + _escHtml(moName) + '</span></div>';
+  html += '<div class="dcp-row"><span class="dcp-lbl">Actual</span><span class="dcp-val">' + fmtFn(actRaw * sc) + '</span></div>';
+  if (cmpRaw !== 0) {
+    var diff   = actRaw - cmpRaw;
+    var pct    = cmpRaw !== 0 ? Math.round(diff / Math.abs(cmpRaw) * 1000) / 10 : null;
+    var varCls = _vc(diff, hg);
+    html += '<div class="dcp-row"><span class="dcp-lbl">AOP</span><span class="dcp-val">' + fmtFn(cmpRaw * sc) + '</span></div>';
+    html += '<div class="dcp-row"><span class="dcp-lbl">Variance</span>'
+      + '<span class="dcp-val ' + varCls + '">' + _fmtM(diff * sc)
+      + (pct !== null ? ' (' + pct + '%)' : '') + '</span></div>';
+  }
+  // Always show line_id for traceability
+  if (line.line_id) {
+    html += '<hr class="dcp-sep"><div class="dcp-row"><span class="dcp-lbl">line_id</span>'
+      + '<code style="font-size:9px;color:#2563eb;background:rgba(37,99,235,.08);padding:0 4px;border-radius:3px">'
+      + _escHtml(line.line_id) + '</code></div>';
+  }
+  // Subtotal component breakdown
+  if ((line.row_type === 'subtotal' || line.row_type === 'total') && line.calc_expr === 'sum_children') {
+    var myIdx  = lines.indexOf(line);
+    var comps  = [];
+    for (var i = myIdx - 1; i >= 0; i--) {
+      var pl = lines[i];
+      if (pl.row_type === 'section' || pl.row_type === 'spacer') continue;
+      if (pl.row_type === 'subtotal' || pl.row_type === 'total') break;
+      if (pl.row_type === 'data' && !pl.parent_id && pl.line_id) {
+        var pRaw = (_dynFactsRef[pl.line_id] && _dynFactsRef[pl.line_id][pid]) || 0;
+        var pSc  = (pl.sign != null ? pl.sign : 1) === -1 ? -1 : 1;
+        comps.unshift({ lbl: _escHtml(pl.label_override || pl.line_id), val: pRaw * pSc,
+                        fmtFn: pSc < 0 ? _fmtCost : _fmtM, lid: _escHtml(pl.line_id) });
+      }
+    }
+    if (comps.length) {
+      html += '<hr class="dcp-sep"><div class="dcp-sub-lbl">Components (' + moName + ')</div>';
+      comps.forEach(function(c) {
+        html += '<div class="dcp-comp"><span>' + c.lbl + '</span>'
+          + '<span style="font-family:var(--mono)">' + c.fmtFn(c.val) + '</span></div>';
+      });
+    }
+  }
+
+  var pop = document.getElementById('dynCellPopover');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'dynCellPopover';
+    document.body.appendChild(pop);
+  }
+  pop.innerHTML = html;
+  pop.style.display = 'block';
+  // Position near click, flip if near edge
+  var x = evt.clientX + 12, y = evt.clientY - 8;
+  pop.style.left = x + 'px'; pop.style.top = y + 'px';
+  var r = pop.getBoundingClientRect();
+  if (r.right  > window.innerWidth  - 8) pop.style.left = (evt.clientX - r.width  - 12) + 'px';
+  if (r.bottom > window.innerHeight - 8) pop.style.top  = (evt.clientY - r.height +  8) + 'px';
+}
+// Close popover on outside click
+document.addEventListener('click', function(e) {
+  var p = document.getElementById('dynCellPopover');
+  if (p && p.style.display !== 'none' && !p.contains(e.target)) p.style.display = 'none';
+});
 
 // Safe arithmetic expression evaluator — only alphanumeric/operator tokens allowed
 function _dynSafeEval(expr) {
@@ -10095,6 +10194,7 @@ async function dynRender() {
   }
 
   _dynFactsRef = aF; // expose actuals map for inspect-mode coverage badges
+  _dynCmpRef   = bF; // expose comparison map for cell-click popover
 
   // ── Precompute YTD line values (actual + comparison) ─────────────────────
   // Stock statements (BS) use last-period value; flow statements (P&L, CF) sum periods.
@@ -10231,8 +10331,17 @@ function _dynBuildYtg(lines, ctx, allActF, leF, aopF) {
     var fyC = entry.moC.reduce(function(s,v){ return s+v; }, 0);
     var fyB = entry.moB.reduce(function(s,v){ return s+v; }, 0);
     var varD = fyC - fyB, varCls = _vc(varD, hg);
+    var lbl = _escHtml(line.label_override||line.line_id||'—');
+    var inspectTagYtg = '';
+    if (_dynInspect) {
+      if (line.row_type === 'data' && line.line_id) {
+        inspectTagYtg = ' <code style="font-size:9px;color:#2563eb;background:rgba(37,99,235,.08);padding:0 4px;border-radius:3px">' + _escHtml(line.line_id) + '</code>' + _dynCoverage(line.line_id);
+      } else if ((line.row_type === 'subtotal' || line.row_type === 'total' || line.row_type === 'formula') && line.calc_expr) {
+        inspectTagYtg = ' <code style="font-size:9px;color:#7c3aed;background:rgba(124,58,237,.08);padding:0 4px;border-radius:3px">' + _escHtml(line.calc_expr) + '</code>';
+      }
+    }
     return '<tr class="' + (bold ? 'rs' : 'rind') + '">' +
-      '<td style="' + (bold ? 'font-weight:700' : '') + '">' + _escHtml(line.label_override||line.line_id||'—') + '</td>' +
+      '<td style="' + (bold ? 'font-weight:700' : '') + '">' + lbl + inspectTagYtg + '</td>' +
       moCells +
       '<td class="num">' + fmt(fyC * sc) + '</td>' +
       '<td class="num">' + fmt(fyB * sc) + '</td>' +
@@ -10347,12 +10456,23 @@ function _dynBuildDetailed(lines, ctx, allActF, aopF) {
     var ytdB = _detIsStock ? _lastNZ(entry.moB) : entry.moB.reduce(function(s,v){ return s+v; }, 0);
     // Apply sign for display of monthly values (same as moMap — already unsigned per-period for subtotals/totals)
     var sc = (line.row_type === 'data') ? (isCost ? -1 : 1) : 1;
-    var moCells = entry.moA.map(function(v){ return '<td class="num">' + fmt(v * sc) + '</td>'; }).join('');
+    var moCells = entry.moA.map(function(v, mi){
+      var pid = actPids[mi];
+      return '<td class="num dyn-click" data-lid="' + _escHtml(line.id) + '" data-pid="' + pid + '" onclick="_dynCellClick(event,this)">' + fmt(v * sc) + '</td>';
+    }).join('');
     var varD = ytdA - ytdB;
     var varCls = _vc(varD, hg);
 
+    var inspectTag = '';
+    if (_dynInspect) {
+      if (line.row_type === 'data' && line.line_id) {
+        inspectTag = ' <code style="font-size:9px;color:#2563eb;background:rgba(37,99,235,.08);padding:0 4px;border-radius:3px">' + _escHtml(line.line_id) + '</code>' + _dynCoverage(line.line_id);
+      } else if ((line.row_type === 'subtotal' || line.row_type === 'total' || line.row_type === 'formula') && line.calc_expr) {
+        inspectTag = ' <code style="font-size:9px;color:#7c3aed;background:rgba(124,58,237,.08);padding:0 4px;border-radius:3px">' + _escHtml(line.calc_expr) + '</code>';
+      }
+    }
     return '<tr class="' + rowCls + '">' +
-      '<td style="' + (bold ? 'font-weight:700' : '') + '">' + indent + lbl + '</td>' +
+      '<td style="' + (bold ? 'font-weight:700' : '') + '">' + indent + lbl + inspectTag + '</td>' +
       moCells +
       '<td class="num">' + fmt(ytdA * sc) + '</td>' +
       '<td class="num">' + fmt(ytdB * sc) + '</td>' +
@@ -10641,8 +10761,16 @@ function _dynBuildMonthly(lines, ctx, allActF, aopF, lineValsYtd) {
       }
     }
 
+    var inspectTagMo = '';
+    if (_dynInspect) {
+      if (line.row_type === 'data' && line.line_id) {
+        inspectTagMo = ' <code style="font-size:9px;color:#2563eb;background:rgba(37,99,235,.08);padding:0 4px;border-radius:3px">' + _escHtml(line.line_id) + '</code>' + _dynCoverage(line.line_id);
+      } else if ((line.row_type === 'subtotal' || line.row_type === 'total' || line.row_type === 'formula') && line.calc_expr) {
+        inspectTagMo = ' <code style="font-size:9px;color:#7c3aed;background:rgba(124,58,237,.08);padding:0 4px;border-radius:3px">' + _escHtml(line.calc_expr) + '</code>';
+      }
+    }
     return '<tr class="' + rowCls + '"' + (bold ? ' style="font-weight:700"' : '') + '>' +
-      '<td>' + indent + lbl + '</td>' +
+      '<td>' + indent + lbl + inspectTagMo + '</td>' +
       moCells +
       '<td class="num">' + fmt(ytdV.a) + '</td>' +
       '<td class="num">' + fmt(ytdV.b) + '</td>' +
@@ -10821,8 +10949,16 @@ function _dynBuildQuarterly(lines, ctx, allActF, aopF, lineValsYtd) {
       }
     }
 
+    var inspectTagQ = '';
+    if (_dynInspect) {
+      if (line.row_type === 'data' && line.line_id) {
+        inspectTagQ = ' <code style="font-size:9px;color:#2563eb;background:rgba(37,99,235,.08);padding:0 4px;border-radius:3px">' + _escHtml(line.line_id) + '</code>' + _dynCoverage(line.line_id);
+      } else if ((line.row_type === 'subtotal' || line.row_type === 'total' || line.row_type === 'formula') && line.calc_expr) {
+        inspectTagQ = ' <code style="font-size:9px;color:#7c3aed;background:rgba(124,58,237,.08);padding:0 4px;border-radius:3px">' + _escHtml(line.calc_expr) + '</code>';
+      }
+    }
     return '<tr class="' + rowCls + '"' + (bold ? ' style="font-weight:700"' : '') + '>' +
-      '<td>' + indent + lbl + '</td>' + qCells +
+      '<td>' + indent + lbl + inspectTagQ + '</td>' + qCells +
       '<td class="num">' + fmt(ytdV.a) + '</td>' +
       '<td class="num">' + fmt(ytdV.b) + '</td>' +
       '<td class="num ' + varCls + '">' + _fmtPct(ytdV.a, ytdV.b) + '</td>' +
