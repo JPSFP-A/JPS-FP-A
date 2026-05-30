@@ -10340,8 +10340,11 @@ function _dynBuildDetailed(lines, ctx, allActF, aopF) {
     var lbl    = _escHtml(line.label_override || line.line_id || '—');
     var indent = (new Array((line.indent_level || 0) * 4 + 1)).join(' ');
 
-    var ytdA = entry.moA.reduce(function(s,v){ return s+v; }, 0);
-    var ytdB = entry.moB.reduce(function(s,v){ return s+v; }, 0);
+    // Stock (BS): YTD = last period's balance; flow: sum of periods
+    var _detIsStock = _dynActiveTpl && _dynActiveTpl.statement_type === 'stock';
+    var _lastNZ = function(arr){ for (var _i=arr.length-1;_i>=0;_i--){ if(arr[_i]!==0&&arr[_i]!=null) return arr[_i]; } return arr[arr.length-1]||0; };
+    var ytdA = _detIsStock ? _lastNZ(entry.moA) : entry.moA.reduce(function(s,v){ return s+v; }, 0);
+    var ytdB = _detIsStock ? _lastNZ(entry.moB) : entry.moB.reduce(function(s,v){ return s+v; }, 0);
     // Apply sign for display of monthly values (same as moMap — already unsigned per-period for subtotals/totals)
     var sc = (line.row_type === 'data') ? (isCost ? -1 : 1) : 1;
     var moCells = entry.moA.map(function(v){ return '<td class="num">' + fmt(v * sc) + '</td>'; }).join('');
