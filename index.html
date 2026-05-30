@@ -8308,6 +8308,10 @@ async function loadP9() {
 function loadPage(id) {
   console.log('[FPA] load:', id);
   _dynPageBody = null; // clear any page-override render target on every page transition
+  // Templates load async. If a page is navigated before they resolve, defer the render
+  // rather than running (and caching) the hardcoded loader — a template may own this page.
+  // dynInitTemplates re-invokes loadPage for the active page once _dynTplsLoaded flips.
+  if (!_dynTplsLoaded) { return; }
   var _tplOverride = _tplByPage[id];
   if (_tplOverride) { _dynLoadIntoPage(id, _tplOverride); return; }
   if      (id === 'p1')    loadP1();
@@ -9521,8 +9525,10 @@ function _aiGetContext() {
    Init
    ============================================================ */
 function initPlatform() {
+  // Watchdog: never leave pages blocked behind the templates gate if init fails or hangs.
+  setTimeout(function(){ if (!_dynTplsLoaded) { console.warn('[FPA] templates gate watchdog fired'); _dynTplsReady(); } }, 4000);
   const sb = _getSB();
-  if (!sb) return;
+  if (!sb) { _dynTplsReady(); return; }
   // Warm up vMap + load DB-backed planning years in parallel
   Promise.all([
     _ensureVMap().then(function() {
@@ -9583,7 +9589,20 @@ let _dynTpls      = [];   // active hub templates loaded at login
 let _dynActiveTpl = null; // template currently on screen
 let _dynLineCache = {};   // tplId → report_lines[] (cached after first fetch)
 var _tplByPage    = {};   // pageId → template that replaces it (e.g. 'p2' → tpl obj)
+var _dynTplsLoaded = false; // true once dynInitTemplates has resolved (gates loadPage override)
 var _dynPageBody  = null; // override render target for dynRender; null = use #dynBody
+
+// Flip the templates-loaded gate and (re)render whatever page is on screen. Idempotent —
+// safe to call from dynInitTemplates' finally and from a watchdog. Pages navigated while the
+// gate was closed returned early from loadPage without caching, so clearing _loadedPages and
+// re-rendering the active page makes the template (or hardcoded fallback) appear.
+function _dynTplsReady() {
+  if (_dynTplsLoaded) return;
+  _dynTplsLoaded = true;
+  _loadedPages.clear();
+  var active = document.querySelector('.page.active');
+  if (active) { loadPage(active.id); _loadedPages.add(active.id); }
+}
 let _dynAdjMap        = {};   // line_id → [adj rows from get_adjustments RPC]
 let _adjModalLineId   = null;
 let _adjModalLineName = null;
@@ -10028,17 +10047,11 @@ async function dynInitTemplates() {
     _dynTpls = data || [];
     _tplByPage = {};
     _dynTpls.forEach(function(t){ if (t.replaces_page) _tplByPage[t.replaces_page] = t; });
-    // Templates load async — a page navigated BEFORE this resolved was rendered hardcoded
-    // and cached in _loadedPages. Invalidate any now-overridden page so the template wins,
-    // and live-swap it if it's the page currently on screen.
-    Object.keys(_tplByPage).forEach(function(pid){
-      _loadedPages.delete(pid);
-      var el = document.getElementById(pid);
-      if (el && el.classList.contains('active')) loadPage(pid);
-    });
   } catch(e) {
     console.error('[dyn] init templates', e);
     _dynTpls = [];
+  } finally {
+    _dynTplsReady();
   }
   _dynBuildNav();
 }
