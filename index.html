@@ -9704,12 +9704,17 @@ document.addEventListener('click', function(e) {
   if (p && p.style.display !== 'none' && !p.contains(e.target)) p.style.display = 'none';
 });
 
-// Safe arithmetic expression evaluator — only alphanumeric/operator tokens allowed
+// Safe arithmetic evaluator for a fully-substituted numeric expression (e.g. "127083 + 46155 - 2055508").
+// Inline +/- tokenizer instead of Function(): the strict numeric guard means a calc_expr with an
+// unsubstituted token (left as a bare identifier) returns 0 deterministically rather than being
+// silently eval'd to NaN. All template calc_exprs are +/- only (no * or /), so this covers every caller.
 function _dynSafeEval(expr) {
   if (typeof expr !== 'string') return 0;
-  if (!/^[\w\s\+\-\*\/\(\)\.]+$/.test(expr)) return 0;
-  try { return +Function('"use strict";return(' + expr + ')')() || 0; }
-  catch(e) { return 0; }
+  var cleaned = expr.replace(/\s+/g, '');
+  if (!/^[-+0-9.]+$/.test(cleaned)) return 0;   // only signed numbers + operators after substitution
+  if (cleaned[0] !== '-') cleaned = '+' + cleaned;
+  var parts = cleaned.match(/[+\-][0-9.]+/g) || [];
+  return parts.reduce(function(s, p){ return s + (+p); }, 0) || 0;
 }
 
 // Compute { a, b } for a single report line given YTD accessor functions and existing lineVals
@@ -9759,16 +9764,13 @@ function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn, getAdjFn) {
       }
       return { a: sumA, b: sumB };
     }
-    // Arithmetic calc_expr: substitute line_id tokens with their DB values.
-    // Inline +/- parser (NOT _dynSafeEval) — Function() is CSP-blocked in the async
-    // render context and silently returns 0. Same approach as the formula path above.
+    // Arithmetic calc_expr: substitute line_id tokens with their DB values, then evaluate
+    // via _dynSafeEval (inline +/- parser — Function() is CSP-blocked in async render).
     var toks = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
     var evalWith = function(getFn) {
-      var cleaned = line.calc_expr.replace(/\s+/g, '');
-      toks.forEach(function(tok){ cleaned = cleaned.replace(new RegExp('\\b' + tok + '\\b', 'g'), String(getFn(tok) || 0)); });
-      if (cleaned[0] !== '-') cleaned = '+' + cleaned;
-      var parts = cleaned.match(/[+\-][0-9.]+/g) || [];
-      return parts.reduce(function(s, p){ return s + (+p); }, 0);
+      var expr = line.calc_expr;
+      toks.forEach(function(tok){ expr = expr.replace(new RegExp('\\b' + tok + '\\b', 'g'), String(getFn(tok) || 0)); });
+      return _dynSafeEval(expr);
     };
     return { a: evalWith(getActFn), b: evalWith(getCmpFn) };
   }
@@ -10642,7 +10644,7 @@ function _dynBuildMonthly(lines, ctx, allActF, aopF, lineValsYtd) {
         moFx: moFx,
       };
     }
-    if (line.row_type === 'subtotal' || line.row_type === 'total') {
+    if (line.row_type === 'subtotal' || line.row_type === 'total' || line.row_type === 'formula') {
       if (!line.calc_expr) return { moA: months.map(function(){return 0;}), moB: months.map(function(){return 0;}) };
       if (line.calc_expr === 'sum_children') {
         var myIdx = lines.indexOf(line);
@@ -10651,6 +10653,7 @@ function _dynBuildMonthly(lines, ctx, allActF, aopF, lineValsYtd) {
         for (var i = myIdx - 1; i >= 0; i--) {
           var pl = lines[i];
           if (pl.row_type === 'section' || pl.row_type === 'spacer' || pl.row_type === 'chart') continue;
+          if (pl.row_type === 'formula') continue;   // transparent — doesn't stop the walk
           if (pl.row_type === 'subtotal' || pl.row_type === 'total') {
             var pv = moMap[pl.id];
             if (pv) { months.forEach(function(m, mi){ sumMoA[mi] += pv.moA[mi]; sumMoB[mi] += pv.moB[mi]; }); }
@@ -10671,12 +10674,12 @@ function _dynBuildMonthly(lines, ctx, allActF, aopF, lineValsYtd) {
       return {
         moA: months.map(function(m){
           var expr = line.calc_expr;
-          toks.forEach(function(tok){ expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(getMoA(tok,m))); });
+          toks.forEach(function(tok){ expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(getMoA(tok,m) || 0)); });
           return _dynSafeEval(expr);
         }),
         moB: months.map(function(m){
           var expr = line.calc_expr;
-          toks.forEach(function(tok){ expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(getMoB(tok,m))); });
+          toks.forEach(function(tok){ expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(getMoB(tok,m) || 0)); });
           return _dynSafeEval(expr);
         }),
       };
@@ -10825,7 +10828,7 @@ function _dynBuildQuarterly(lines, ctx, allActF, aopF, lineValsYtd) {
         qFx: qFx,
       };
     }
-    if (line.row_type === 'subtotal' || line.row_type === 'total') {
+    if (line.row_type === 'subtotal' || line.row_type === 'total' || line.row_type === 'formula') {
       if (!line.calc_expr) return { qA:[0,0,0,0], qB:[0,0,0,0] };
       if (line.calc_expr === 'sum_children') {
         var myIdx = lines.indexOf(line);
@@ -10833,6 +10836,7 @@ function _dynBuildQuarterly(lines, ctx, allActF, aopF, lineValsYtd) {
         for (var i = myIdx - 1; i >= 0; i--) {
           var pl = lines[i];
           if (pl.row_type === 'section' || pl.row_type === 'spacer' || pl.row_type === 'chart') continue;
+          if (pl.row_type === 'formula') continue;   // transparent — doesn't stop the walk
           if (pl.row_type === 'subtotal' || pl.row_type === 'total') {
             var pv = qMap[pl.id];
             if (pv) { qtrs.forEach(function(qt, qi){ sumQA[qi] += pv.qA[qi]; sumQB[qi] += pv.qB[qi]; }); }
@@ -10852,12 +10856,12 @@ function _dynBuildQuarterly(lines, ctx, allActF, aopF, lineValsYtd) {
       return {
         qA: qtrs.map(function(qt){
           var expr = line.calc_expr;
-          toks.forEach(function(tok){ var v = sumQ(tok, qt.mo, getMoA); expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(v)); });
+          toks.forEach(function(tok){ var v = sumQ(tok, qt.mo, getMoA); expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(v || 0)); });
           return _dynSafeEval(expr);
         }),
         qB: qtrs.map(function(qt){
           var expr = line.calc_expr;
-          toks.forEach(function(tok){ var v = sumQ(tok, qt.mo, getMoB); expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(v)); });
+          toks.forEach(function(tok){ var v = sumQ(tok, qt.mo, getMoB); expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(v || 0)); });
           return _dynSafeEval(expr);
         }),
       };
