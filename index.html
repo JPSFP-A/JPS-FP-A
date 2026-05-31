@@ -7934,8 +7934,79 @@ async function loadP7() {
     + (showYtdCol ? '<td class="num">' + _fmtM(totRevUsd) + '</td>' : '')
     + '<td class="num">' + totGwh.toFixed(1) + '</td></tr>'
     + '</tbody></table></div>'
-    + '<p style="color:var(--muted);font-size:11px;padding:6px 12px 10px">Note: JMD revenue converted to USD using monthly billing FX rate from fpa_fx_rates. Generation mix not in jps_actuals — upload via DataManager when available.</p>'
+    + '<p style="color:var(--muted);font-size:11px;padding:6px 12px 10px">JMD revenue converted to USD at billing FX rate from fpa_fx_rates.</p>'
     + '</div>';
+
+  // ── Generation Mix (from fpa_facts kpi_gen_* lines) ──────────────────────
+  var genLineIds = ['kpi_gen_gross_gwh','kpi_gen_hfo_gwh','kpi_gen_lng_gwh','kpi_gen_renew_gwh','kpi_tdl_pct'];
+  var genActVid  = (_vMap || {})['ACTUALS_' + yr + '_' + (maxMo < 10 ? '0'+maxMo : maxMo)];
+  var genAopVid  = (_vMap || {})['AOP_' + yr];
+  var genVid     = genActVid || genAopVid || null;
+
+  var genData = {};
+  if (genVid) {
+    try {
+      var genRes = await _getSB().from('fpa_facts').select('line_id,period_id,value')
+        .eq('version_id', genVid).in('line_id', genLineIds);
+      (genRes.data || []).forEach(function(r) {
+        var m = r.period_id % 100;
+        if (!genData[r.line_id]) genData[r.line_id] = {};
+        genData[r.line_id][m] = parseFloat(r.value ?? 0);
+      });
+    } catch(e) { /* gen data unavailable — show stub */ }
+  }
+
+  var genYtdGross  = months.reduce(function(s,m){ return s + (genData['kpi_gen_gross_gwh']?.[m] ?? 0); }, 0);
+  var genYtdHfo    = months.reduce(function(s,m){ return s + (genData['kpi_gen_hfo_gwh']?.[m]   ?? 0); }, 0);
+  var genYtdLng    = months.reduce(function(s,m){ return s + (genData['kpi_gen_lng_gwh']?.[m]   ?? 0); }, 0);
+  var genYtdRenew  = months.reduce(function(s,m){ return s + (genData['kpi_gen_renew_gwh']?.[m] ?? 0); }, 0);
+  var tdlLatest    = genData['kpi_tdl_pct']?.[maxMo] ?? null;
+  var tdlComputed  = genYtdGross > 0 ? ((genYtdGross - totGwh) / genYtdGross * 100) : null;
+  var tdlShow      = tdlLatest ?? tdlComputed;
+
+  var genMixHtml;
+  if (genYtdGross === 0) {
+    genMixHtml = '<div class="card" style="border-style:dashed;display:flex;align-items:center;justify-content:center;min-height:120px;color:var(--muted);font-size:13px;text-align:center;padding:20px">'
+      + '<div>⚡ <strong>Generation Mix</strong><br>No data for ' + yr + '.<br>'
+      + '<span style="font-size:11px">Upload via DataManager → Generation &amp; KPIs</span></div></div>';
+  } else {
+    var pctHfo   = genYtdGross > 0 ? (genYtdHfo   / genYtdGross * 100) : 0;
+    var pctLng   = genYtdGross > 0 ? (genYtdLng   / genYtdGross * 100) : 0;
+    var pctRenew = genYtdGross > 0 ? (genYtdRenew / genYtdGross * 100) : 0;
+    var pctOther = Math.max(0, 100 - pctHfo - pctLng - pctRenew);
+    var mixRows = [
+      { label:'HFO',       pct:pctHfo,   gwh:genYtdHfo,   color:'#f59e0b' },
+      { label:'LNG',       pct:pctLng,   gwh:genYtdLng,   color:'#3b82f6' },
+      { label:'Renewable', pct:pctRenew, gwh:genYtdRenew, color:'#22c55e' },
+      { label:'Other/IPP', pct:pctOther, gwh:Math.max(0, genYtdGross-genYtdHfo-genYtdLng-genYtdRenew), color:'#94a3b8' },
+    ].filter(function(r){ return r.pct > 0.01; });
+
+    genMixHtml = '<div class="card"><div class="card-head">Generation Mix — Fuel Type'
+      + '<span class="ch-sub">YTD Jan–' + MON[maxMo-1] + ' · GWh</span></div>'
+      + '<div style="padding:14px 16px">'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px">'
+      + '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px">'
+      + '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Gross Generation</div>'
+      + '<div style="font-size:18px;font-weight:700">' + genYtdGross.toFixed(1) + ' GWh</div></div>'
+      + '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px">'
+      + '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Billed (Sales)</div>'
+      + '<div style="font-size:18px;font-weight:700">' + totGwh.toFixed(1) + ' GWh</div></div>'
+      + '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px">'
+      + '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">T&amp;D Loss %</div>'
+      + '<div style="font-size:18px;font-weight:700;color:' + (tdlShow && tdlShow > 10 ? 'var(--red)' : 'var(--teal)') + '">'
+      + (tdlShow !== null ? tdlShow.toFixed(1) + '%' : '—') + '</div></div>'
+      + '</div>'
+      + mixRows.map(function(r) {
+        return '<div class="genmix-row" style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+          + '<span class="genmix-lbl" style="min-width:80px">' + r.label + '</span>'
+          + '<div class="genmix-bar-track" style="flex:1;height:14px;background:rgba(255,255,255,.06);border-radius:4px">'
+          + '<div class="genmix-bar-fill" style="width:' + Math.min(r.pct,100).toFixed(1) + '%;background:' + r.color + ';height:100%;border-radius:4px"></div></div>'
+          + '<span class="genmix-val" style="min-width:48px;text-align:right;font-weight:600">' + r.pct.toFixed(1) + '%</span>'
+          + '<span style="min-width:60px;text-align:right;color:var(--muted);font-size:10px">' + r.gwh.toFixed(1) + ' GWh</span>'
+          + '</div>';
+      }).join('')
+      + '</div></div>';
+  }
 
   var gwhRows7 = RATE_CLASSES.map(function(rc) {
     var cells = colGroups7.map(function(g){ return '<td class="num">' + g7GwhUsd(rc,g).toFixed(2) + '</td>'; }).join('');
@@ -7955,7 +8026,7 @@ async function loadP7() {
     + '</tr></tbody></table></div></div>';
 
   var pg = document.getElementById('p7Body');
-  if (pg) pg.innerHTML = hdr7 + kpis + revTable + gwhTable;
+  if (pg) pg.innerHTML = hdr7 + kpis + revTable + gwhTable + genMixHtml;
 }
 
 /* ----- p8: VARIANCE ANALYSIS ----- */
@@ -8339,7 +8410,61 @@ async function loadP9() {
     ]);
   }
   _normalizeAlias(aF_raw);
+
+  // Fetch gen/KPI operational data
+  var _genOps = {};
+  try {
+    var _genVid9 = (_vMap||{})['ACTUALS_'+yr9+'_'+(ctx.maxMo<10?'0'+ctx.maxMo:ctx.maxMo)]
+                || (_vMap||{})['AOP_'+yr9];
+    if (_genVid9) {
+      var _genR9 = await _getSB().from('fpa_facts').select('line_id,period_id,value')
+        .eq('version_id', _genVid9)
+        .in('line_id', ['kpi_gen_gross_gwh','kpi_gen_hfo_gwh','kpi_gen_lng_gwh','kpi_gen_renew_gwh','kpi_tdl_pct',
+                        'kpi_sales_mwh','stat_billed_gwh','nonfuel','nr_cust_charge','fuel_rev']);
+      (_genR9.data||[]).forEach(function(r){
+        if (!_genOps[r.line_id]) _genOps[r.line_id] = {};
+        _genOps[r.line_id][r.period_id % 100] = parseFloat(r.value??0);
+      });
+    }
+  } catch(_e9) { /* gen data unavailable */ }
   _pgLoad('p9', false);
+
+  // Pre-compute operational ratios card
+  var _genMos9 = []; for (var _mi=1;_mi<=ctx.maxMo;_mi++) _genMos9.push(_mi);
+  function _genSum9(lid) { return _genMos9.reduce(function(s,m){ return s+(_genOps[lid]?.[m]??0); },0); }
+  var _gross9  = _genSum9('kpi_gen_gross_gwh');
+  var _hfo9    = _genSum9('kpi_gen_hfo_gwh');
+  var _lng9    = _genSum9('kpi_gen_lng_gwh');
+  var _renew9  = _genSum9('kpi_gen_renew_gwh');
+  var _tdl9    = _genOps['kpi_tdl_pct']?.[ctx.maxMo] ?? null;
+  // Compute billed GWh from kpi_sales_mwh (MWh → GWh)
+  var _billedGwh9 = _genSum9('kpi_sales_mwh') / 1000 || _genSum9('stat_billed_gwh');
+  if (!_tdl9 && _gross9 > 0 && _billedGwh9 > 0) _tdl9 = (_gross9 - _billedGwh9) / _gross9 * 100;
+  // Revenue per kWh: (nonfuel + nr_cust_charge + fuel_rev in USD $K) / (billed_mwh / 1000 GWh * 1e6 kWh)
+  var _rev9   = (aF_raw['nonfuel']  ? Object.values(aF_raw['nonfuel']).reduce(function(s,v){return s+v;},0) : 0)
+              + (aF_raw['nr_cust_charge'] ? Object.values(aF_raw['nr_cust_charge']).reduce(function(s,v){return s+v;},0) : 0)
+              + (aF_raw['fuel_rev'] ? Object.values(aF_raw['fuel_rev']).reduce(function(s,v){return s+v;},0) : 0);
+  var _revPkwh9 = _billedGwh9 > 0 && _rev9 > 0 ? (_rev9 * 1000 / (_billedGwh9 * 1e6)) * 1e5 : null; // US cents/kWh
+
+  var opsCard;
+  if (!_gross9 && _tdl9 === null && _revPkwh9 === null) {
+    opsCard = '<div class="card" style="background:var(--bg);border-style:dashed;display:flex;align-items:center;justify-content:center;min-height:140px;color:var(--muted);font-size:13px;text-align:center;padding:20px">'
+      + '<div><strong>Operational Ratios</strong><br>T&amp;D loss %, revenue/kWh, generation mix<br>'
+      + '<span style="font-size:11px">Upload via DataManager → Generation &amp; KPIs</span></div></div>';
+  } else {
+    var _opRows9 = '';
+    if (_tdl9 !== null) _opRows9 += '<tr><td>T&amp;D Loss %</td><td class="num" style="font-weight:700;color:'+(_tdl9>10?'var(--red)':'var(--teal)')+'">'+_tdl9.toFixed(1)+'%</td><td class="num" style="color:var(--muted)">—</td></tr>';
+    if (_revPkwh9 !== null) _opRows9 += '<tr><td>Revenue / kWh</td><td class="num" style="font-weight:700">'+_revPkwh9.toFixed(2)+'¢ US</td><td class="num" style="color:var(--muted)">—</td></tr>';
+    if (_gross9 > 0) {
+      _opRows9 += '<tr><td>HFO Share</td><td class="num">'+(_hfo9/_gross9*100).toFixed(1)+'%</td><td class="num" style="color:var(--muted)">—</td></tr>';
+      _opRows9 += '<tr><td>LNG Share</td><td class="num">'+(_lng9/_gross9*100).toFixed(1)+'%</td><td class="num" style="color:var(--muted)">—</td></tr>';
+      _opRows9 += '<tr><td>Renewable Share</td><td class="num" style="color:var(--green)">'+(_renew9/_gross9*100).toFixed(1)+'%</td><td class="num" style="color:var(--muted)">—</td></tr>';
+    }
+    _opRows9 += '<tr style="color:var(--muted)"><td>SAIDI / SAIFI</td><td class="num">—</td><td class="num" style="font-size:10px">Not in DB</td></tr>';
+    opsCard = '<div class="card"><div class="card-head">Operational Ratios<span class="ch-sub">YTD Jan–'+_MONS[ctx.maxMo-1]+'</span></div>'
+      + '<div class="tbl-wrap"><table class="dt"><thead><tr><th>Ratio</th><th class="num">Actual YTD</th><th class="num">AOP</th></tr></thead><tbody>'
+      + _opRows9 + '</tbody></table></div></div>';
+  }
 
   var hdr9 = _cvHdr('p9', _p9ColView, []);
 
@@ -8558,9 +8683,7 @@ async function loadP9() {
     + ratioCard('Profitability', profRows)
     + ratioCard('Liquidity', liqRows)
     + ratioCard('Leverage', levRows)
-    + '<div class="card" style="background:var(--bg);border-style:dashed;display:flex;align-items:center;justify-content:center;min-height:140px;color:var(--muted);font-size:13px;text-align:center;padding:20px">'
-    + '<div><strong>Operational Ratios</strong><br>SAIDI, SAIFI, T&amp;D loss %, revenue/kWh<br><span style="font-size:11px">Upload KPI data via DataManager to enable</span></div>'
-    + '</div>'
+    + opsCard
     + '</div>';
 
   var pg = document.getElementById('p9Body');
