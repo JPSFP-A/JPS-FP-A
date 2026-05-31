@@ -3545,8 +3545,9 @@ async function loadP1() {
   const div_a = sa('pl_div_recv'),    div_b = sb('pl_div_recv');   // tax-free dividend received
   const oi_a  = sa('other_inc'),      oi_b  = sb('other_inc');
   const fx_a  = sa('pl_fx'),          fx_b  = sb('pl_fx');
-  const nfc_a = sa('nfc_int_exp') - sa('nfc_int_inc') - sa('nfc_afudc') + sa('pl_pref_div') + sa('nfc_fees');
-  const nfc_b = sb('nfc_int_exp') - sb('nfc_int_inc') - sb('nfc_afudc') + sb('pl_pref_div') + sb('nfc_fees');
+  // Read fin_cost from DB (fpa_derived_formulas single source of truth: nfc_int_exp + pl_pref_div + nfc_fees - pl_fx)
+  const nfc_a = sa('fin_cost');
+  const nfc_b = sb('fin_cost');
   const gm_a  = rev_a - fc_a - ic_a - bdc_a + oco_a, gm_b = rev_b - fc_b - ic_b - bdc_b + oco_b;
   const ebd_a = gm_a - opx_a - bdo_a - vpo_a,        ebd_b = gm_b - opx_b - bdo_b - vpo_b;
   const ebit_a = ebd_a - dep_a,              ebit_b = ebd_b - dep_b;
@@ -4188,10 +4189,11 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
   const nr_ebd_a    = -nr_cost_a,                       nr_ebd_b = -nr_cost_b;  // non-reg EBITDA (rev=0 until uploaded)
   const ebd_a       = reg_ebd_a + pp_sur_a + oco_a,  ebd_b    = reg_ebd_b + pp_sur_b + oco_b;
   const ebit_a      = ebd_a - dep_a,         ebit_b   = ebd_b - dep_b;
-  const nfc_a       = int_exp_a - int_inc_a - afudc_a + pref_a + fees_a;
-  const nfc_b       = int_exp_b - int_inc_b - afudc_b + pref_b + fees_b;
-  const pretax_a    = ebit_a - nfc_a + oth_inc_a + fx_a + (!_p2Standalone ? div_a : 0);
-  const pretax_b    = ebit_b - nfc_b + oth_inc_b + fx_b + (!_p2Standalone ? div_b : 0);
+  // Read fin_cost from DB — single source of truth (includes pl_fx effect; do NOT add fx_a again)
+  const nfc_a       = sa('fin_cost');
+  const nfc_b       = sb('fin_cost');
+  const pretax_a    = ebit_a - nfc_a + oth_inc_a + (!_p2Standalone ? div_a : 0);
+  const pretax_b    = ebit_b - nfc_b + oth_inc_b + (!_p2Standalone ? div_b : 0);
   const ni_a        = pretax_a - tax_a,  ni_b = pretax_b - tax_b;
 
   function er(lbl, a, b, cls, isCost, higherGood) {
@@ -4407,12 +4409,13 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   const ebit_a   = ebitda_a - sa('depn');
   const ebit_b   = ebitda_b - sb('depn');
   const ebitFY   = ebitdaFY - sbFY('depn');
-  const nfc_a    = sa('nfc_int_exp') - sa('nfc_int_inc') - sa('nfc_afudc') + sa('pl_pref_div') + sa('nfc_fees');
-  const nfc_b    = sb('nfc_int_exp') - sb('nfc_int_inc') - sb('nfc_afudc') + sb('pl_pref_div') + sb('nfc_fees');
-  const nfcFY    = sbFY('nfc_int_exp') - sbFY('nfc_int_inc') - sbFY('nfc_afudc') + sbFY('pl_pref_div') + sbFY('nfc_fees');
-  const pretax_a = ebit_a - nfc_a + sa('other_inc') + sa('pl_fx') + (!_p2Standalone ? sa('pl_div_recv') : 0);
-  const pretax_b = ebit_b - nfc_b + sb('other_inc') + sb('pl_fx') + (!_p2Standalone ? sb('pl_div_recv') : 0);
-  const pretaxFY = ebitFY - nfcFY + sbFY('other_inc') + sbFY('pl_fx') + (!_p2Standalone ? sbFY('pl_div_recv') : 0);
+  // Read fin_cost from DB — single source of truth (includes pl_fx; do NOT add pl_fx again at pretax)
+  const nfc_a    = sa('fin_cost');
+  const nfc_b    = sb('fin_cost');
+  const nfcFY    = sbFY('fin_cost');
+  const pretax_a = ebit_a - nfc_a + sa('other_inc') + (!_p2Standalone ? sa('pl_div_recv') : 0);
+  const pretax_b = ebit_b - nfc_b + sb('other_inc') + (!_p2Standalone ? sb('pl_div_recv') : 0);
+  const pretaxFY = ebitFY - nfcFY + sbFY('other_inc') + (!_p2Standalone ? sbFY('pl_div_recv') : 0);
   const ni_a     = pretax_a - sa('tax');
   const ni_b     = pretax_b - sb('tax');
   const niFY     = pretaxFY - sbFY('tax');
@@ -4423,8 +4426,8 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   function _gpP(p)     { return _totRevP(p) - _fVA('fuel_cost',p) - _fVA('ipp_cost',p) - _fVA('bd_cos',p); }
   function _ebitdaP(p) { return _gpP(p) - _fVA('opex_total',p); }
   function _ebitP(p)   { return _ebitdaP(p) - _fVA('depn',p); }
-  function _nfcP(p)    { return _fVA('nfc_int_exp',p) - _fVA('nfc_int_inc',p) - _fVA('nfc_afudc',p) + _fVA('pl_pref_div',p) + _fVA('nfc_fees',p); }
-  function _pretaxP(p) { return _ebitP(p) - _nfcP(p) + _fVA('other_inc',p) + _fVA('pl_fx',p) + (!_p2Standalone ? _fVA('pl_div_recv',p) : 0); }
+  function _nfcP(p)    { return _fVA('fin_cost',p); } // reads derived value — single source of truth
+  function _pretaxP(p) { return _ebitP(p) - _nfcP(p) + _fVA('other_inc',p) + (!_p2Standalone ? _fVA('pl_div_recv',p) : 0); } // pl_fx already in fin_cost
   function _niP(p)     { return _pretaxP(p) - _fVA('tax',p); }
 
   // Template-driven body (Option B): render rows from the pl_consol template when loaded.
