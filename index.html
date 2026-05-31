@@ -11668,9 +11668,11 @@ async function _rpSaveLine() {
     _rpEditingId = null;
     document.getElementById('rpEditForm').style.display = 'none';
     _rpRenderTree();
-    // Invalidate fact caches so dynRender re-fetches with any newly added line_id tokens
+    // Invalidate both fact caches AND template line cache so dynRender
+    // re-fetches everything with updated line_id tokens and calc_expr values
     _cacheInvalidate('fpa_facts_');
     _cacheInvalidate('fpa_multi_');
+    if (_dynActiveTpl) delete _dynLineCache[_dynActiveTpl.id];
     dynRender(); // live re-render with new values
     toast('Line saved ✓', 's');
   } catch(e) { toast('Save failed: ' + e.message, 'e'); }
