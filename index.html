@@ -2884,20 +2884,10 @@ function _normalizeAlias(f) {
   if (!_hasFactData(f, 'nr_rev') && _hasFactData(f, 'nonfuel')) {
     f['nr_rev'] = f['nonfuel'];
   }
-  // ipp_fr display = ipp_fr (pure IPP capacity) + vpp_rev (Virtual PP, reported separately in non-reg)
-  // This makes every template/row reading 'ipp_fr' show the combined 13,991 total
-  {
-    const ippMap = f['ipp_fr'] || {}, vppMap = f['vpp_rev'] || {};
-    const allP = new Set([...Object.keys(ippMap), ...Object.keys(vppMap)]);
-    if (allP.size) {
-      const combined = {};
-      allP.forEach(function(p) { combined[p] = (ippMap[p] || 0) + (vppMap[p] || 0); });
-      f['ipp_fr'] = combined;
-    }
-  }
+  // ipp_total derived (ipp_fr + vpp_rev) is computed by _computeDerived from fpa_derived_formulas
   // pl_total_sales: always compute from components — never use stored DB value
   {
-    const srcs = ['nr_rev', 'nonfuel', 'fuel_rev', 'ipp_fr', 'other_r', 'nr_cust_charge'];
+    const srcs = ['nr_rev', 'nonfuel', 'fuel_rev', 'ipp_total', 'other_r', 'nr_cust_charge'];
     const merged = {};
     srcs.forEach(function(lid) {
       const src = f[lid] || {};
@@ -3477,7 +3467,7 @@ async function loadP1() {
       ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','ipp_nr','other_r','fuel_cost','ipp_cost','pl_other_cos','opex','depn','nfc_int_exp','tax','pl_div_recv','cash','recv','ppe'],
       priPer, priPer);
     function pv(l) {
-      if (l === 'pl_total_sales') return (_fVal(priF,'nr_rev',priPer)||0)+(_fVal(priF,'nr_cust_charge',priPer)||0)+(_fVal(priF,'fuel_rev',priPer)||0)+(_fVal(priF,'ipp_fr',priPer)||0)+(_fVal(priF,'other_r',priPer)||0);
+      if (l === 'pl_total_sales') return (_fVal(priF,'nr_rev',priPer)||0)+(_fVal(priF,'nr_cust_charge',priPer)||0)+(_fVal(priF,'fuel_rev',priPer)||0)+(_fVal(priF,'ipp_total',priPer)||0)+(_fVal(priF,'other_r',priPer)||0);
       if (l === 'ebitda') { var rev=pv('pl_total_sales'); return rev-(_fVal(priF,'fuel_cost',priPer)||0)-(_fVal(priF,'ipp_cost',priPer)||0)+(_fVal(priF,'pl_other_cos',priPer)||0)-(_fVal(priF,'opex',priPer)||0); }
       if (l === 'net_inc') { var eb=pv('ebitda'); return eb-(_fVal(priF,'depn',priPer)||0)-(_fVal(priF,'nfc_int_exp',priPer)||0)-(_fVal(priF,'tax',priPer)||0)+(_fVal(priF,'pl_div_recv',priPer)||0); }
       return _fVal(priF, l, priPer);
@@ -3522,7 +3512,7 @@ async function loadP1() {
   const nfr_a = sa('nr_rev'),          nfr_b = sb('nr_rev');
   const cust_a = sa('nr_cust_charge'), cust_b = sb('nr_cust_charge');
   const frl_a = sa('fuel_rev'),        frl_b = sb('fuel_rev');
-  const ipr_a = sa('ipp_fr'),          ipr_b = sb('ipp_fr');
+  const ipr_a = sa('ipp_total'),        ipr_b = sb('ipp_total');
   // ipp_nr removed — not included in revenue calculations
   const otr_a = sa('other_r'),         otr_b = sb('other_r');
   const fc_a  = sa('fuel_cost'), fc_b = sb('fuel_cost');
@@ -3747,7 +3737,7 @@ function _p1InitCharts(ctx, aF, fc_a, ic_a, opx_a, ebd_a, rev_a) {
   var moNFR=[], moFR=[], moEbdMg=[];
   periods.forEach(function(p) {
     var nfr = _fVal(aF,'nr_rev',p) + _fVal(aF,'nr_cust_charge',p);
-    var fr  = _fVal(aF,'fuel_rev',p) + _fVal(aF,'ipp_fr',p);
+    var fr  = _fVal(aF,'fuel_rev',p) + _fVal(aF,'ipp_total',p);
     var oth = _fVal(aF,'other_r',p);
     var tot = nfr + fr + oth;
     var fc  = _fVal(aF,'fuel_cost',p);
@@ -4398,9 +4388,9 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   const moHdr = ctx.actPeriods.map(function(p) { return '<th>' + _pLabel(p) + '</th>'; }).join('');
 
   // Derived subtotals — never read ebitda/ebit from DB
-  // IPP Revenue = ipp_fr (pure IPP capacity) + vpp_rev (Virtual PP — non-reg, separate report)
-  function _totRev(f) { return f('nr_rev')+f('nr_cust_charge')+f('fuel_rev')+f('ipp_fr')+f('vpp_rev')+f('other_r'); }
-  function _ippRev(f) { return f('ipp_fr') + f('vpp_rev'); }
+  // ipp_total = ipp_fr + vpp_rev (computed by _computeDerived — transparent in Report Builder)
+  function _totRev(f) { return f('nr_rev')+f('nr_cust_charge')+f('fuel_rev')+f('ipp_total')+f('other_r'); }
+  function _ippRev(f) { return f('ipp_total'); }
   const gp_a     = _totRev(sa) - sa('fuel_cost') - sa('ipp_cost') + sa('pl_other_cos');
   const gp_b     = _totRev(sb) - sb('fuel_cost') - sb('ipp_cost') + sb('pl_other_cos');
   const gpFY     = _totRev(sbFY) - sbFY('fuel_cost') - sbFY('ipp_cost') + sbFY('pl_other_cos');
@@ -4556,7 +4546,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
   }
 
   // Derived P&L helpers (adj-inclusive for actuals)
-  function rev(ps)    { return cvA('nr_rev',ps)+cvA('nr_cust_charge',ps)+cvA('fuel_rev',ps)+cvA('ipp_fr',ps)+cvA('vpp_rev',ps)+cvA('other_r',ps); }
+  function rev(ps)    { return cvA('nr_rev',ps)+cvA('nr_cust_charge',ps)+cvA('fuel_rev',ps)+cvA('ipp_total',ps)+cvA('other_r',ps); }
   function cos(ps)    { return cvA('fuel_cost',ps)+cvA('ipp_cost',ps); }
   // pl_other_cos stored negative = additional cost (IFRS 16 / other COS adjustments)
   function gp(ps)     { return rev(ps)-cos(ps)+cvA('pl_other_cos',ps); }
@@ -4646,7 +4636,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
       + rline('(&#8722;) Operating Expenses',     function(ps){ return cvA('opex',ps); }, 'rind', true, 'opex')
       + rsub('Regulated Business EBITDA',         reg_ebitda, 'rs')
       + rsec('Purchased Power')
-      + rline('IPP Revenue (incl. VPP)',           function(ps){ return cvA('ipp_fr',ps)+cvA('vpp_rev',ps); }, undefined, false, 'ipp_fr')
+      + rline('IPP Revenue (incl. VPP)',             function(ps){ return cvA('ipp_total',ps); }, undefined, false, 'ipp_total')
       + rline('(&#8722;) IPP &amp; Purchased Power Costs', function(ps){ return cvA('ipp_cost',ps); }, 'rind', true, 'ipp_cost')
       + rsub('Purchased Power Surplus / (Deficit)', pp_surplus, 'rs')
       + rsec('Non-Regulated Business')
