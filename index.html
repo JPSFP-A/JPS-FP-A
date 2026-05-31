@@ -3497,7 +3497,8 @@ async function loadP1() {
   const LINES = ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','ipp_nr','other_r','fuel_cost','ipp_cost',
     'pl_other_cos','opex','depn','nfc_int_exp','nfc_int_inc','nfc_afudc','pl_fx','nfc_pref',
     'pl_pref_div','nfc_fees','other_inc','tax','pl_div_recv','cf_capex','stat_billed_gwh','cf_ops_net',
-    'bd_rev','vpp_rev','bd_cos','bd_opex','vpp_opex'];
+    'bd_rev','vpp_rev','bd_cos','bd_opex','vpp_opex',
+    'ipp_total','pl_total_sales','pl_gross_profit','opex_total','ebitda','ebit','fin_cost','pretax','net_inc'];
   const CM_LINES = ['pl_total_sales','ebitda','net_inc','ebitda_margin','cf_capex','stat_billed_gwh','cf_ops_net'];
   const [aF, bF,, _p1PlHtml] = await Promise.all([
     _fetchFactsAct(ctx, LINES),
@@ -3987,7 +3988,7 @@ async function loadP2() {
     'bd_rev','vpp_rev','bd_cos','bd_opex','vpp_opex',
     'opex_payroll','opex_contract','opex_materials','opex_other','opex_billdlvr','opex_tech','opex_transport','opex_insurance','opex_baddebt','opex_int_pp',
     'nfc_int_exp','nfc_int_inc','nfc_afudc','nfc_fees','pl_pref_div','other_inc','pl_fx',
-    'fin_cost','pretax','net_inc',
+    'ipp_total','pl_gross_profit','opex_total','ebitda','ebit','fin_cost','pretax','net_inc',
     'tax','pl_div_recv','nr_cost'];
 
   let aF, bF, allActF, aopF, leF;
@@ -6421,6 +6422,8 @@ var _KPI_FINANCIAL = ['ebitda_margin', 'npat_margin', 'net_debt_ebitda', 'rev_pe
 var _KPI_FIN_LINES = ['nonfuel', 'nr_cust_charge', 'fuel_rev', 'ipp_fr', 'ipp_nr', 'other_r', 'nr_rev',
                       'fuel_cost', 'ipp_cost', 'pl_other_cos', 'opex', 'depn',
                       'nfc_int_exp', 'nfc_int_inc', 'nfc_afudc', 'pl_fx', 'nfc_pref',
+                      'pl_total_sales', 'pl_gross_profit', 'opex_total', 'ebitda', 'ebit',
+                      'fin_cost', 'pretax', 'net_inc',
                       'tax', 'pl_div_recv', 'total_debt', 'cash'];
 
 async function loadP10(force) {
@@ -7603,7 +7606,8 @@ async function loadP14() {
   const ctx = _getCtx();
   if (!ctx) return;
   const LINES = ['fuel_rev','fuel_cost','nonfuel','ipp_fr','ipp_nr','ipp_cost','other_r','nr_cust_charge',
-                 'opex','depn','nfc_int_exp','stat_billed_gwh'];
+                 'opex','depn','nfc_int_exp','stat_billed_gwh',
+                 'ipp_total','pl_total_sales','pl_gross_profit','opex_total','ebitda','ebit','fin_cost','pretax','net_inc'];
   const aF = await _fetchFactsAct(ctx, LINES);
   _normalizeAlias(aF);
   function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
@@ -7975,7 +7979,8 @@ async function loadP8() {
     'fuel_rev','fuel_cost','nonfuel','ipp_fr','ipp_nr','ipp_cost','other_r','nr_cust_charge',
     'bd_rev','vpp_rev','bd_cos','bd_opex','vpp_opex',
     'opex','depn','nfc_int_exp','nfc_lease','nfc_int_inc','nfc_afudc','pl_afudc',
-    'nfc_pref','nfc_fees','pl_fx','oth_inc','other_inc','tax'
+    'nfc_pref','nfc_fees','pl_fx','oth_inc','other_inc','tax',
+    'ipp_total','pl_total_sales','pl_gross_profit','opex_total','ebitda','ebit','fin_cost','pretax','net_inc'
   ];
   var yr8 = ctx.yr, ps8 = yr8 * 100;
   var allPids8 = []; for (var mi8 = 1; mi8 <= 12; mi8++) allPids8.push(ps8 + mi8);
@@ -8316,7 +8321,8 @@ async function loadP9() {
 
   const IS_LINES = ['fuel_rev','fuel_cost','nonfuel','ipp_fr','ipp_nr','ipp_cost','other_r','nr_cust_charge',
                     'bd_rev','vpp_rev','bd_cos','bd_opex','vpp_opex',
-                    'opex','depn','nfc_int_exp','nfc_lease','pl_afudc','nfc_afudc','oth_inc','other_inc','tax'];
+                    'opex','depn','nfc_int_exp','nfc_lease','pl_afudc','nfc_afudc','oth_inc','other_inc','tax',
+                    'ipp_total','pl_total_sales','pl_gross_profit','opex_total','ebitda','ebit','fin_cost','pretax','net_inc'];
   const BS_LINES = ['cash','rcash','recv','unbill','finv','matls','bs_prepaid',
                     'ap','bs_int_acc','bs_corp_tax','bs_bank_od','lease_cl','bs_curr_ltd',
                     'bs_cust_dep','bs_payroll_tax','bs_std','bs_emp_ben','bs_due_to',
