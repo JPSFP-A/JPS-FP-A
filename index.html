@@ -3470,13 +3470,11 @@ async function loadP1() {
     const priYr = ctx.yr - 1, priPer = priYr * 100 + 12;
     const priCode = 'ACTUALS_' + priYr + '_12';
     const priF = await _fetchFactsN(priCode,
-      ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','ipp_nr','other_r','fuel_cost','ipp_cost','pl_other_cos','opex','depn','nfc_int_exp','tax','pl_div_recv','cash','recv','ppe'],
+      ['nr_rev','nr_cust_charge','fuel_rev','ipp_fr','ipp_nr','other_r','fuel_cost','ipp_cost','pl_other_cos','opex','depn','nfc_int_exp','tax','pl_div_recv','cash','recv','ppe','pl_total_sales','ebitda','ebit','fin_cost','pretax','net_inc'],
       priPer, priPer);
     function pv(l) {
       if (l === 'pl_total_sales') return (_fVal(priF,'nr_rev',priPer)||0)+(_fVal(priF,'nr_cust_charge',priPer)||0)+(_fVal(priF,'fuel_rev',priPer)||0)+(_fVal(priF,'ipp_total',priPer)||0)+(_fVal(priF,'other_r',priPer)||0);
-      if (l === 'ebitda') { var rev=pv('pl_total_sales'); return rev-(_fVal(priF,'fuel_cost',priPer)||0)-(_fVal(priF,'ipp_cost',priPer)||0)+(_fVal(priF,'pl_other_cos',priPer)||0)-(_fVal(priF,'opex',priPer)||0); }
-      if (l === 'net_inc') { var eb=pv('ebitda'); return eb-(_fVal(priF,'depn',priPer)||0)-(_fVal(priF,'nfc_int_exp',priPer)||0)-(_fVal(priF,'tax',priPer)||0)+(_fVal(priF,'pl_div_recv',priPer)||0); }
-      return _fVal(priF, l, priPer);
+      return _fVal(priF, l, priPer); // all derived lines (ebitda, net_inc etc.) now stored in fpa_facts
     }
     const pg = document.getElementById('p1');
     if (pg) pg.innerHTML = '<div class="page-head"><h1>Overview — FY ' + ctx.yr + '</h1>'
@@ -3549,12 +3547,11 @@ async function loadP1() {
   // Read fin_cost from DB (fpa_derived_formulas single source of truth: nfc_int_exp + pl_pref_div + nfc_fees - pl_fx)
   const nfc_a = sa('fin_cost');
   const nfc_b = sb('fin_cost');
-  const gm_a  = rev_a - fc_a - ic_a - bdc_a + oco_a, gm_b = rev_b - fc_b - ic_b - bdc_b + oco_b;
-  const ebd_a = gm_a - opx_a - bdo_a - vpo_a,        ebd_b = gm_b - opx_b - bdo_b - vpo_b;
-  const ebit_a = ebd_a - dep_a,              ebit_b = ebd_b - dep_b;
-  const btl_a = oi_a + fx_a + div_a,         btl_b = oi_b + fx_b + div_b;  // below-the-line items
-  const pretax_a = ebit_a - nfc_a + btl_a,   pretax_b = ebit_b - nfc_b + btl_b;
-  const ni_a  = pretax_a - tax_a,            ni_b  = pretax_b - tax_b;
+  // Read all derived IS lines from DB — single source of truth
+  const ebd_a   = sa('ebitda'),    ebd_b   = sb('ebitda');
+  const ebit_a  = sa('ebit'),      ebit_b  = sb('ebit');
+  const pretax_a= sa('pretax'),    pretax_b= sb('pretax');
+  const ni_a    = sa('net_inc'),   ni_b    = sb('net_inc');
   const ebdMg_a = rev_a ? (ebd_a / rev_a * 100) : 0;
   const ebdMg_b = rev_b ? (ebd_b / rev_b * 100) : 0;
 
@@ -4189,14 +4186,12 @@ function _buildP2Exec(ctx, aF, bF, sa, sb) {
   const reg_ebd_b   = fuel_sur_b + nfr_b + cust_chg_b + oth_b - opx_b;
   const pp_sur_a    = ipp_fr_a - ipp_cost_a, pp_sur_b = ipp_fr_b - ipp_cost_b;
   const nr_ebd_a    = -nr_cost_a,                       nr_ebd_b = -nr_cost_b;  // non-reg EBITDA (rev=0 until uploaded)
-  const ebd_a       = reg_ebd_a + pp_sur_a + oco_a,  ebd_b    = reg_ebd_b + pp_sur_b + oco_b;
-  const ebit_a      = ebd_a - dep_a,         ebit_b   = ebd_b - dep_b;
-  // Read fin_cost from DB — single source of truth (includes pl_fx effect; do NOT add fx_a again)
-  const nfc_a       = sa('fin_cost');
-  const nfc_b       = sb('fin_cost');
-  const pretax_a    = ebit_a - nfc_a + oth_inc_a + (!_p2Standalone ? div_a : 0);
-  const pretax_b    = ebit_b - nfc_b + oth_inc_b + (!_p2Standalone ? div_b : 0);
-  const ni_a        = pretax_a - tax_a,  ni_b = pretax_b - tax_b;
+  // Read all derived IS lines from DB — single source of truth
+  const ebd_a       = sa('ebitda'),    ebd_b    = sb('ebitda');
+  const ebit_a      = sa('ebit'),      ebit_b   = sb('ebit');
+  const nfc_a       = sa('fin_cost'),  nfc_b    = sb('fin_cost');
+  const pretax_a    = sa('pretax'),    pretax_b = sb('pretax');
+  const ni_a        = sa('net_inc'),   ni_b     = sb('net_inc');
 
   function er(lbl, a, b, cls, isCost, higherGood) {
     const v = a - b;
@@ -4398,19 +4393,18 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
 
   const moHdr = ctx.actPeriods.map(function(p) { return '<th>' + _pLabel(p) + '</th>'; }).join('');
 
-  // Derived subtotals — never read ebitda/ebit from DB
-  // ipp_total = ipp_fr + vpp_rev (computed by _computeDerived — transparent in Report Builder)
+  // All derived IS lines read from DB — single source of truth
   function _totRev(f) { return f('nr_rev')+f('nr_cust_charge')+f('fuel_rev')+f('ipp_total')+f('bd_rev')+f('other_r'); }
   function _ippRev(f) { return f('ipp_total'); }
-  const gp_a     = _totRev(sa)   - sa('fuel_cost')   - sa('ipp_cost')   - sa('bd_cos');
-  const gp_b     = _totRev(sb)   - sb('fuel_cost')   - sb('ipp_cost')   - sb('bd_cos');
-  const gpFY     = _totRev(sbFY) - sbFY('fuel_cost') - sbFY('ipp_cost') - sbFY('bd_cos');
-  const ebitda_a = gp_a   - sa('opex_total');
-  const ebitda_b = gp_b   - sb('opex_total');
-  const ebitdaFY = gpFY   - sbFY('opex_total');
-  const ebit_a   = ebitda_a - sa('depn');
-  const ebit_b   = ebitda_b - sb('depn');
-  const ebitFY   = ebitdaFY - sbFY('depn');
+  const gp_a     = sa('pl_gross_profit');
+  const gp_b     = sb('pl_gross_profit');
+  const gpFY     = sbFY('pl_gross_profit');
+  const ebitda_a = sa('ebitda');
+  const ebitda_b = sb('ebitda');
+  const ebitdaFY = sbFY('ebitda');
+  const ebit_a   = sa('ebit');
+  const ebit_b   = sb('ebit');
+  const ebitFY   = sbFY('ebit');
   // Read fin_cost from DB — single source of truth (includes pl_fx; do NOT add pl_fx again at pretax)
   const nfc_a    = sa('fin_cost');
   const nfc_b    = sb('fin_cost');
@@ -4426,11 +4420,12 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   function _fVA(lid, p) { return (_fVal(aF, lid, p) || 0); } // adj baked into fpa_facts
   function _totRevP(p) { return _fVA('nr_rev',p)+_fVA('nr_cust_charge',p)+_fVA('fuel_rev',p)+_fVA('ipp_total',p)+_fVA('other_r',p); }
   function _gpP(p)     { return _totRevP(p) - _fVA('fuel_cost',p) - _fVA('ipp_cost',p) - _fVA('bd_cos',p); }
-  function _ebitdaP(p) { return _gpP(p) - _fVA('opex_total',p); }
-  function _ebitP(p)   { return _ebitdaP(p) - _fVA('depn',p); }
-  function _nfcP(p)    { return _fVA('fin_cost',p); } // reads derived value — single source of truth
-  function _pretaxP(p) { return _ebitP(p) - _nfcP(p) + _fVA('other_inc',p) + (!_p2Standalone ? _fVA('pl_div_recv',p) : 0); } // pl_fx already in fin_cost
-  function _niP(p)     { return _pretaxP(p) - _fVA('tax',p); }
+  // Per-period derived lines — all read from DB (single source of truth)
+  function _ebitdaP(p) { return _fVA('ebitda',p); }
+  function _ebitP(p)   { return _fVA('ebit',p); }
+  function _nfcP(p)    { return _fVA('fin_cost',p); }
+  function _pretaxP(p) { return _fVA('pretax',p); }
+  function _niP(p)     { return _fVA('net_inc',p); }
 
   // Template-driven body (Option B): render rows from the pl_consol template when loaded.
   // Standalone mode zeroes/hides flagged lines, matching the hardcoded pl_div_recv handling.
@@ -6512,11 +6507,9 @@ function _p10DeriveFinancial(f, months, kpiActuals) {
     var intexp = (f['nfc_int_exp']  && f['nfc_int_exp'][p])  || 0;
     var tax    = (f['tax']          && f['tax'][p])          || 0;
     var divr   = (f['pl_div_recv']  && f['pl_div_recv'][p])  || 0;
-    // Always derive — never read ebitda/net_inc from DB
-    var gp     = rev - fc - ic + oco;  // oco negative = cost
-    var ebitda = gp - opx;
-    var ebit   = ebitda - depn;
-    var netInc = ebit - intexp - tax + divr;  // div_recv tax-free, added after tax
+    // Read derived IS lines from DB — single source of truth
+    var ebitda = (f['ebitda']  && f['ebitda'][p])  || 0;
+    var netInc = (f['net_inc'] && f['net_inc'][p]) || 0;
     var gwh    = (kpiActuals['gwh_billed'] && kpiActuals['gwh_billed'][p] && kpiActuals['gwh_billed'][p].val) || 0;
 
     revSum    += rev;
