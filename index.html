@@ -10011,6 +10011,19 @@ function _dynSafeEval(expr) {
   return parts.reduce(function(s, p){ return s + (+p); }, 0) || 0;
 }
 
+// Build a line_id → computed-value lookup from an existing valMap (line.id → {a,b}) + lines array.
+// Used so formula/subtotal rows can reference other report-level calculated lines by their line_id,
+// not just stored fpa_facts values.
+function _dynComputedLidLookup(lines, valMap, side) {
+  var out = {};
+  lines.forEach(function(l) {
+    if (!l.line_id) return;
+    var v = valMap[l.id];
+    if (v) out[l.line_id] = side === 'b' ? v.b : v.a;
+  });
+  return out;
+}
+
 // Compute { a, b } for a single report line given YTD accessor functions and existing lineVals
 function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn, getAdjFn) {
   if (line.row_type === 'data') {
@@ -10019,6 +10032,14 @@ function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn, getAdjFn) {
     var adj  = getAdjFn ? getAdjFn(line.line_id || '') : {jmd:0, fx:0, rows:[]};
     return { a: rawA + adj.jmd, b: rawB, adjRows: adj.rows, fx: adj.fx };
   }
+
+  // Build computed-line fallback maps so formula rows can chain off other report lines
+  var compA = _dynComputedLidLookup(lines, lineVals, 'a');
+  var compB = _dynComputedLidLookup(lines, lineVals, 'b');
+  // Wrap base accessors: check computed report lines first, then fall back to DB facts
+  var getA2 = function(tok){ return tok in compA ? compA[tok] : getActFn(tok); };
+  var getB2 = function(tok){ return tok in compB ? compB[tok] : getCmpFn(tok); };
+
   // 'formula' rows compute via calc_expr but are TRANSPARENT to sum_children
   // (they don't stop the backward walk, so subtotals above them still see earlier anchor points)
   if (line.row_type === 'formula') {
@@ -10032,7 +10053,7 @@ function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn, getAdjFn) {
       var parts = cleaned.match(/[+\-][0-9.]+/g) || [];
       return parts.reduce(function(s, p){ return s + (+p); }, 0);
     };
-    return { a: evalF(getActFn), b: evalF(getCmpFn) };
+    return { a: evalF(getA2), b: evalF(getB2) };
   }
 
   if (line.row_type === 'subtotal' || line.row_type === 'total') {
@@ -10058,15 +10079,14 @@ function _dynComputeBoth(line, lines, lineVals, getActFn, getCmpFn, getAdjFn) {
       }
       return { a: sumA, b: sumB };
     }
-    // Arithmetic calc_expr: substitute line_id tokens with their DB values, then evaluate
-    // via _dynSafeEval (inline +/- parser — Function() is CSP-blocked in async render).
+    // Arithmetic calc_expr: substitute tokens — check computed report lines first, then DB facts
     var toks = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
     var evalWith = function(getFn) {
       var expr = line.calc_expr;
       toks.forEach(function(tok){ expr = expr.replace(new RegExp('\\b' + tok + '\\b', 'g'), String(getFn(tok) || 0)); });
       return _dynSafeEval(expr);
     };
-    return { a: evalWith(getActFn), b: evalWith(getCmpFn) };
+    return { a: evalWith(getA2), b: evalWith(getB2) };
   }
   return { a: 0, b: 0 };
 }
@@ -10585,6 +10605,11 @@ function _dynBuildYtg(lines, ctx, allActF, leF, aopF) {
         return { moC: sumC, moB: sumB };
       }
       var toks = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
+      // Check computed report lines first, then DB facts
+      var compLid = {};
+      lines.forEach(function(l){ if (l.line_id && moMap[l.id]) compLid[l.line_id] = moMap[l.id]; });
+      var getC2 = function(tok, m){ return tok in compLid ? (compLid[tok].moC[m-1] || 0) : getC(tok, m); };
+      var getB2 = function(tok, m){ return tok in compLid ? (compLid[tok].moB[m-1] || 0) : getB(tok, m); };
       var evalPer = function(getFn) {
         return months.map(function(m) {
           var cleaned = line.calc_expr.replace(/\s+/g, '');
@@ -10593,7 +10618,7 @@ function _dynBuildYtg(lines, ctx, allActF, leF, aopF) {
           return (cleaned.match(/[+\-][0-9.]+/g) || []).reduce(function(s,p){ return s+(+p); }, 0);
         });
       };
-      return { moC: evalPer(getC), moB: evalPer(getB) };
+      return { moC: evalPer(getC2), moB: evalPer(getB2) };
     }
     return { moC: months.map(function(){return 0;}), moB: months.map(function(){return 0;}) };
   }
@@ -10703,8 +10728,19 @@ function _dynBuildDetailed(lines, ctx, allActF, aopF) {
         }
         return { moA: sumA, moB: sumB };
       }
-      // Formula: evaluate per period using inline +/- parser
+      // Formula: evaluate per period — check computed report lines first, then DB facts
       var toks = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
+      // Build line_id → per-period array from already-computed moMap entries
+      var compLid = {};
+      lines.forEach(function(l){ if (l.line_id && moMap[l.id]) compLid[l.line_id] = moMap[l.id]; });
+      var getA2 = function(tok, pid) {
+        if (compLid[tok]) { var mi = actPids.indexOf(pid); return mi >= 0 ? compLid[tok].moA[mi] : 0; }
+        return getA(tok, pid);
+      };
+      var getB2 = function(tok, pid) {
+        if (compLid[tok]) { var mi = actPids.indexOf(pid); return mi >= 0 ? compLid[tok].moB[mi] : 0; }
+        return getB(tok, pid);
+      };
       var evalPerPid = function(getFn) {
         return actPids.map(function(pid) {
           var cleaned = line.calc_expr.replace(/\s+/g, '');
@@ -10714,7 +10750,7 @@ function _dynBuildDetailed(lines, ctx, allActF, aopF) {
           return parts.reduce(function(s,p){ return s + (+p); }, 0);
         });
       };
-      return { moA: evalPerPid(getA), moB: evalPerPid(getB) };
+      return { moA: evalPerPid(getA2), moB: evalPerPid(getB2) };
     }
     return { moA: actPids.map(function(){return 0;}), moB: actPids.map(function(){return 0;}) };
   }
@@ -10966,17 +11002,21 @@ function _dynBuildMonthly(lines, ctx, allActF, aopF, lineValsYtd) {
         }
         return { moA: sumMoA, moB: sumMoB };
       }
-      // Arithmetic calc_expr — per-month substitution
+      // Arithmetic calc_expr — per-month substitution; check computed report lines first, then DB facts
       var toks = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
+      var compLid = {};
+      lines.forEach(function(l){ if (l.line_id && moMap[l.id]) compLid[l.line_id] = moMap[l.id]; });
+      var getA2 = function(tok, m){ return tok in compLid ? (compLid[tok].moA[m-1] || 0) : getMoA(tok, m); };
+      var getB2 = function(tok, m){ return tok in compLid ? (compLid[tok].moB[m-1] || 0) : getMoB(tok, m); };
       return {
         moA: months.map(function(m){
           var expr = line.calc_expr;
-          toks.forEach(function(tok){ expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(getMoA(tok,m) || 0)); });
+          toks.forEach(function(tok){ expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(getA2(tok,m) || 0)); });
           return _dynSafeEval(expr);
         }),
         moB: months.map(function(m){
           var expr = line.calc_expr;
-          toks.forEach(function(tok){ expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(getMoB(tok,m) || 0)); });
+          toks.forEach(function(tok){ expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(getB2(tok,m) || 0)); });
           return _dynSafeEval(expr);
         }),
       };
@@ -11150,15 +11190,26 @@ function _dynBuildQuarterly(lines, ctx, allActF, aopF, lineValsYtd) {
         return { qA: sumQA, qB: sumQB };
       }
       var toks = [...new Set((line.calc_expr.match(/\b[a-z][a-z0-9_]*\b/g) || []))];
+      // Check computed report lines first, then DB facts
+      var compLid = {};
+      lines.forEach(function(l){ if (l.line_id && qMap[l.id]) compLid[l.line_id] = qMap[l.id]; });
+      var sumQA2 = function(tok, qMo){ return tok in compLid ? qMo.reduce(function(s,m){ return s+(compLid[tok].qA[qtrs.findIndex(function(qt){ return qt.mo.indexOf(m)>=0; })]||0); },0) : sumQ(tok, qMo, getMoA); };
+      var sumQB2 = function(tok, qMo){ return tok in compLid ? qMo.reduce(function(s,m){ return s+(compLid[tok].qB[qtrs.findIndex(function(qt){ return qt.mo.indexOf(m)>=0; })]||0); },0) : sumQ(tok, qMo, getMoB); };
       return {
-        qA: qtrs.map(function(qt){
+        qA: qtrs.map(function(qt, qi){
           var expr = line.calc_expr;
-          toks.forEach(function(tok){ var v = sumQ(tok, qt.mo, getMoA); expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(v || 0)); });
+          toks.forEach(function(tok){
+            var v = tok in compLid ? (compLid[tok].qA[qi] || 0) : sumQ(tok, qt.mo, getMoA);
+            expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(v || 0));
+          });
           return _dynSafeEval(expr);
         }),
-        qB: qtrs.map(function(qt){
+        qB: qtrs.map(function(qt, qi){
           var expr = line.calc_expr;
-          toks.forEach(function(tok){ var v = sumQ(tok, qt.mo, getMoB); expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(v || 0)); });
+          toks.forEach(function(tok){
+            var v = tok in compLid ? (compLid[tok].qB[qi] || 0) : sumQ(tok, qt.mo, getMoB);
+            expr = expr.replace(new RegExp('\\b'+tok+'\\b','g'), String(v || 0));
+          });
           return _dynSafeEval(expr);
         }),
       };
