@@ -2964,9 +2964,11 @@ function _normalizeAlias(f) {
 // ── Derived formula engine ────────────────────────────────────────────────────
 let _derivedFormulas = [];
 let _derivedFormulasLoaded = false;
+let _derivedFormulasTs = 0; // timestamp of last fetch — re-fetch every 5 min
 
 async function _ensureDerivedFormulas() {
-  if (_derivedFormulasLoaded) return;
+  const now = Date.now();
+  if (_derivedFormulasLoaded && (now - _derivedFormulasTs) < 300_000) return; // 5 min TTL
   const sb = _getSB(); if (!sb) return;
   try {
     const { data, error } = await sb
@@ -2977,6 +2979,7 @@ async function _ensureDerivedFormulas() {
     if (error) throw error;
     _derivedFormulas = data || [];
     _derivedFormulasLoaded = true;
+    _derivedFormulasTs = Date.now();
     console.log('[FPA] derived formulas loaded:', _derivedFormulas.length);
   } catch(e) {
     console.error('[FPA] _ensureDerivedFormulas:', e);
