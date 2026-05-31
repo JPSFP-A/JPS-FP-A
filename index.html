@@ -3988,9 +3988,9 @@ async function loadP2() {
     'fuel_cost','ipp_cost','pl_other_cos','opex','depn',
     'bd_rev','vpp_rev','bd_cos','bd_opex','vpp_opex',
     'opex_payroll','opex_contract','opex_materials','opex_other','opex_billdlvr','opex_tech','opex_transport','opex_insurance','opex_baddebt','opex_int_pp',
-    'nfc_int_exp','nfc_int_inc','nfc_afudc','nfc_fees','pl_pref_div','other_inc','pl_fx',
+    'nfc_int_exp','nfc_int_inc','nfc_int_afudc','nfc_fees','pl_pref_div','oth_inc','pl_fx',
     'ipp_total','pl_gross_profit','opex_total','ebitda','ebit','fin_cost','pretax','net_inc',
-    'tax','pl_div_recv','nr_cost'];
+    'tax','pl_div_recv','nr_cost','op_nfc'];
 
   let aF, bF, allActF, aopF, leF;
   if (_p2ColView === 'ytg') {
@@ -4413,12 +4413,14 @@ function _buildP2Detailed(ctx, aF, bF, sa, sb, sbFY) {
   const nfc_a    = sa('fin_cost');
   const nfc_b    = sb('fin_cost');
   const nfcFY    = sbFY('fin_cost');
-  const pretax_a = ebit_a - nfc_a + sa('other_inc') + (!_p2Standalone ? sa('pl_div_recv') : 0);
-  const pretax_b = ebit_b - nfc_b + sb('other_inc') + (!_p2Standalone ? sb('pl_div_recv') : 0);
-  const pretaxFY = ebitFY - nfcFY + sbFY('other_inc') + (!_p2Standalone ? sbFY('pl_div_recv') : 0);
-  const ni_a     = pretax_a - sa('tax');
-  const ni_b     = pretax_b - sb('tax');
-  const niFY     = pretaxFY - sbFY('tax');
+  // Read pretax and net_inc from DB — single source of truth, matches monthly cells
+  // (formula engine computes: pretax = ebit - fin_cost + oth_inc + pl_div_recv)
+  const pretax_a = sa('pretax');
+  const pretax_b = sb('pretax');
+  const pretaxFY = sbFY('pretax');
+  const ni_a     = sa('net_inc');
+  const ni_b     = sb('net_inc');
+  const niFY     = sbFY('net_inc');
 
   // Per-period derived helpers for monthly cells (adj-inclusive)
   function _fVA(lid, p) { return (_fVal(aF, lid, p) || 0); } // adj baked into fpa_facts
