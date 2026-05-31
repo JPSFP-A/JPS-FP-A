@@ -3153,10 +3153,13 @@ function _planKpi(lbl, v) {
 }
 // Cost stored positive → display as (x)
 function _fmtCost(v, dp) {
+  // Outflows/expenses displayed as POSITIVE numbers (no parentheses).
+  // Stored values are positive; subtotals (EBITDA etc.) are formula-driven and
+  // unaffected by this display change.
   dp = (dp == null) ? 0 : dp;
   const n = Math.abs(Number.isFinite(+v) ? +v : 0);
   if (n === 0) return '—';
-  return '(' + n.toFixed(dp).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ')';
+  return n.toFixed(dp).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 function _fmtPct(act, bud) {
   if (!bud || !Number.isFinite(+bud) || +bud === 0) return '—';
