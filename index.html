@@ -2164,14 +2164,17 @@ td.dyn-click:hover{background:rgba(0,61,165,.04)}
                   <select id="rpRowType" onchange="_rpRowTypeChange()">
                     <option value="data">Data (reads DB)</option>
                     <option value="section">Section Header</option>
-                    <option value="subtotal">Subtotal</option>
-                    <option value="total">Total</option>
+                    <option value="subtotal">Subtotal (sum_children)</option>
+                    <option value="total">Total (sum_children)</option>
+                    <option value="formula">Formula (calc_expr, transparent to subtotals)</option>
                     <option value="spacer">Spacer</option>
+                    <option value="chart">Chart / Visualization</option>
                   </select>
                 </div>
                 <div class="rp-field" style="flex:1" id="rpLineIdField">
-                  <label>DB Line ID</label>
+                  <label id="rpLineIdLabel">DB Line ID</label>
                   <select id="rpLineId"><option value="">— select —</option></select>
+                  <input id="rpLineIdText" type="text" placeholder="e.g. net_fin_cost" style="display:none">
                 </div>
               </div>
               <div class="rp-field-row">
@@ -11484,7 +11487,14 @@ function _rpEditLine(id) {
   _rpEditingId = id;
   _rpRenderTree();
   document.getElementById('rpRowType').value       = line.row_type || 'data';
-  document.getElementById('rpLineId').value        = line.line_id || '';
+  // Populate the right line_id field depending on row_type
+  if (line.row_type === 'formula') {
+    document.getElementById('rpLineIdText').value  = line.line_id || '';
+    document.getElementById('rpLineId').value      = '';
+  } else {
+    document.getElementById('rpLineId').value      = line.line_id || '';
+    document.getElementById('rpLineIdText').value  = '';
+  }
   document.getElementById('rpLabelOverride').value = line.label_override || '';
   document.getElementById('rpSign').value          = String(line.sign != null ? line.sign : 1);
   document.getElementById('rpIndent').value        = String(line.indent_level != null ? line.indent_level : 0);
@@ -11497,20 +11507,35 @@ function _rpEditLine(id) {
 }
 
 function _rpRowTypeChange() {
-  var rt     = document.getElementById('rpRowType').value;
-  var isCalc = rt === 'subtotal' || rt === 'total';
-  var noData = rt === 'section' || rt === 'spacer';
+  var rt       = document.getElementById('rpRowType').value;
+  var isCalc   = rt === 'subtotal' || rt === 'total';
+  var isFormula= rt === 'formula';
+  var noData   = rt === 'section' || rt === 'spacer' || rt === 'chart';
+  // Line ID field: hidden for section/spacer/chart/subtotal/total; text input for formula; select for data
   document.getElementById('rpLineIdField').style.display = (noData || isCalc) ? 'none' : '';
-  document.getElementById('rpCalcRow').style.display     = isCalc ? 'flex' : 'none';
+  document.getElementById('rpLineId').style.display      = isFormula ? 'none' : '';
+  document.getElementById('rpLineIdText').style.display  = isFormula ? '' : 'none';
+  document.getElementById('rpLineIdLabel').textContent   = isFormula ? 'Formula ID (for chaining)' : 'DB Line ID';
+  // calc_expr input: show for subtotal, total, AND formula
+  document.getElementById('rpCalcRow').style.display     = (isCalc || isFormula) ? 'flex' : 'none';
   document.getElementById('rpSignRow').style.display     = noData ? 'none' : 'flex';
+  if (isFormula) {
+    document.getElementById('rpCalcExpr').placeholder = 'e.g. nfc_int_exp - nfc_int_inc + pl_pref_div';
+  } else {
+    document.getElementById('rpCalcExpr').placeholder = 'sum_children  OR  revenue - cos';
+  }
 }
 
 async function _rpSaveLine() {
   if (!_rpEditingId || !_dynActiveTpl) return;
   var rt = document.getElementById('rpRowType').value;
+  // Formula rows use the text input; all others use the select
+  var lineIdVal = rt === 'formula'
+    ? (document.getElementById('rpLineIdText').value.trim().toLowerCase().replace(/\s+/g,'_') || null)
+    : (document.getElementById('rpLineId').value || null);
   var update = {
     row_type:       rt,
-    line_id:        document.getElementById('rpLineId').value || null,
+    line_id:        lineIdVal,
     label_override: document.getElementById('rpLabelOverride').value.trim() || null,
     sign:           parseInt(document.getElementById('rpSign').value),
     indent_level:   parseInt(document.getElementById('rpIndent').value),
