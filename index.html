@@ -2956,8 +2956,9 @@ function _normalizeAlias(f) {
     var _pxObj = f['pl_fx'];
     Object.keys(_pxObj).forEach(function(p) { _pxObj[p] = -(_pxObj[p]); });
   }
-  // Apply derived formula engine — always authoritative for formula lines
-  _computeDerived(f);
+  // NOTE: _computeDerived removed — derived lines (ebitda, ebit, fin_cost, pretax, net_inc etc.)
+  // are now stored in fpa_facts by DataManager Recalculate & Sync. Hub reads stored values directly.
+  // fpa_derived_formulas is the single source of truth; fpa_facts is the store; Hub reads the store.
   return f;
 }
 
