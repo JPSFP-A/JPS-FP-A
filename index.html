@@ -3987,6 +3987,7 @@ async function loadP2() {
     'bd_rev','vpp_rev','bd_cos','bd_opex','vpp_opex',
     'opex_payroll','opex_contract','opex_materials','opex_other','opex_billdlvr','opex_tech','opex_transport','opex_insurance','opex_baddebt','opex_int_pp',
     'nfc_int_exp','nfc_int_inc','nfc_afudc','nfc_fees','pl_pref_div','other_inc','pl_fx',
+    'fin_cost','pretax','net_inc',
     'tax','pl_div_recv','nr_cost'];
 
   let aF, bF, allActF, aopF, leF;
@@ -4562,8 +4563,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
   function ebitda(ps) { return gp(ps)-cvA('opex_total',ps); }
   function ebit(ps)   { return ebitda(ps)-cvA('depn',ps); }
   function pretax(ps) {
-    return ebit(ps) - cvA('nfc_int_exp',ps) + cvA('nfc_int_inc',ps) + cvA('nfc_afudc',ps)
-      - cvA('pl_pref_div',ps) - cvA('nfc_fees',ps) + cvA('other_inc',ps) + cvA('pl_fx',ps)
+    return ebit(ps) - cvA('fin_cost',ps) + cvA('other_inc',ps)
       + (!_p2Standalone ? cvA('pl_div_recv',ps) : 0);
   }
   function npat(ps)   { return pretax(ps) - cvA('tax',ps); }
@@ -4606,7 +4606,7 @@ function _buildP2MultiCol(ctx, actF, aopF, view, tab) {
   function fuel_surplus(ps) { return cvA('fuel_rev',ps) - cvA('fuel_cost',ps); }
   function reg_ebitda(ps)   { return fuel_surplus(ps) + cvA('nr_rev',ps) + cvA('nr_cust_charge',ps) + cvA('other_r',ps) - cvA('opex',ps); }
   function pp_surplus(ps)   { return cvA('ipp_fr',ps) - cvA('ipp_cost',ps); }
-  function nfc_net(ps)      { return cvA('nfc_int_exp',ps) - cvA('nfc_int_inc',ps) - cvA('nfc_afudc',ps) + cvA('pl_pref_div',ps) + cvA('nfc_fees',ps); }
+  function nfc_net(ps)      { return cvA('fin_cost',ps); }
   function after_nfc(ps)    { return ebit(ps) - nfc_net(ps); }
 
   // Template-driven detailed body (Option B): same pl_consol lines as the YTD Detailed view,
@@ -4829,15 +4829,13 @@ function _buildP2YearToGo(ctx, ytdF, leF, aopF) {
     + (!_p2Standalone ? rline('Dividends Received (tax-free)', 'pl_div_recv') : '')
     + rsec('Taxation')
     + rsub('Net Profit Before Tax', deriveFn(function(c){
-        var ebd=getColVal('nr_rev',c)+getColVal('nr_cust_charge',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)+getColVal('pl_other_cos',c)-getColVal('opex',c);
-        var ebit=ebd-getColVal('depn',c);
-        return ebit-getColVal('nfc_int_exp',c)+getColVal('nfc_int_inc',c)+getColVal('nfc_afudc',c)-getColVal('pl_pref_div',c)-getColVal('nfc_fees',c)+getColVal('other_inc',c)+getColVal('pl_fx',c)+(!_p2Standalone?getColVal('pl_div_recv',c):0);
+        var ebit=getColVal('ebit',c);
+        return ebit - getColVal('fin_cost',c) + getColVal('other_inc',c) + (!_p2Standalone?getColVal('pl_div_recv',c):0);
       }), 'rs')
     + rline('Income Tax Expense',         'tax',        'rind', true)
     + rsub('Net Profit After Tax (NPAT)', deriveFn(function(c){
-        var ebd=getColVal('nr_rev',c)+getColVal('nr_cust_charge',c)+getColVal('fuel_rev',c)+getColVal('ipp_fr',c)+getColVal('other_r',c)-getColVal('fuel_cost',c)-getColVal('ipp_cost',c)+getColVal('pl_other_cos',c)-getColVal('opex',c);
-        var ebit=ebd-getColVal('depn',c);
-        var pretax=ebit-getColVal('nfc_int_exp',c)+getColVal('nfc_int_inc',c)+getColVal('nfc_afudc',c)-getColVal('pl_pref_div',c)-getColVal('nfc_fees',c)+getColVal('other_inc',c)+getColVal('pl_fx',c)+(!_p2Standalone?getColVal('pl_div_recv',c):0);
+        var ebit=getColVal('ebit',c);
+        var pretax=ebit - getColVal('fin_cost',c) + getColVal('other_inc',c) + (!_p2Standalone?getColVal('pl_div_recv',c):0);
         return pretax-getColVal('tax',c);
       }), 'rt'));
 
@@ -4883,8 +4881,7 @@ function _buildRERecon(ctx, actF, priF, pyPer, aopF) {
     var oco      = g('pl_other_cos',p);
     var ebitda   = fuel_sur + pp_sur + oco + g('nr_rev',p) + g('nr_cust_charge',p) + g('other_r',p) - g('opex',p);
     var ebit     = ebitda - g('depn',p);
-    var nfc      = g('nfc_int_exp',p) - g('nfc_int_inc',p) - g('nfc_afudc',p) + g('pl_pref_div',p) + g('nfc_fees',p);
-    return ebit - nfc + g('other_inc',p) + g('pl_fx',p) + g('pl_div_recv',p) - g('tax',p);
+    return ebit - g('fin_cost',p) + g('other_inc',p) + g('pl_div_recv',p) - g('tax',p);
   }
 
   // Opening RE = Dec prior year closing + cumulative net income up to (but not including) this month.
@@ -4970,6 +4967,7 @@ async function loadP3() {
     'fuel_cost','ipp_cost','pl_other_cos',
     'opex','depn',
     'nfc_int_exp','nfc_int_inc','nfc_afudc','pl_pref_div','nfc_fees',
+    'fin_cost','pretax','net_inc',
     'other_inc','pl_fx','pl_div_recv','tax'
   ];
 
@@ -6904,7 +6902,7 @@ async function loadP18(){
           // Input lines only — all derived IS lines computed in JS after load
           .in('line_id',['cf_ops_net','cf_inv_net','cf_fin_net','cf_change','cf_ni',
                          'depn','fuel_cost','ipp_cost','pl_other_cos','nonfuel','nr_cust_charge','fuel_rev','ipp_fr','other_r',
-                         'opex','nfc_int_exp','nfc_int_inc','nfc_afudc','pl_fx','nfc_pref','tax','pl_div_recv',
+                         'opex','fin_cost','pretax','net_inc','tax','pl_div_recv',
                          'ltd','bs_curr_ltd','bs_bank_od','lease_cl','cash','rcash','recv'])
           .gte('period_id',yr*100+1).lte('period_id',yr*100+12);
       });
@@ -6913,18 +6911,8 @@ async function loadP18(){
         if(!_wbSummData[p])_wbSummData[p]={};
         _wbSummData[p][row.line_id]=parseFloat(row.value)||0;
       });}
-      // Compute derived IS lines from input components — never read from DB
-      Object.keys(_wbSummData).forEach(function(p){
-        var d=_wbSummData[p];
-        var rev=(d['nonfuel']||0)+(d['nr_cust_charge']||0)+(d['fuel_rev']||0)+(d['ipp_fr']||0)+(d['other_r']||0);
-        var gp=rev-(d['fuel_cost']||0)-(d['ipp_cost']||0)+(d['pl_other_cos']||0);
-        var ebitda=gp-(d['opex']||0);
-        var ebit=ebitda-(d['depn']||0);
-        var pretax=ebit+(d['nfc_afudc']||0)-(d['nfc_int_exp']||0)+(d['nfc_int_inc']||0)-(d['nfc_pref']||0)-(d['pl_fx']||0);
-        var netInc=pretax-(d['tax']||0)+(d['pl_div_recv']||0);
-        d['pl_total_sales']=rev; d['pl_gross_profit']=gp; d['ebitda']=ebitda;
-        d['ebit']=ebit; d['pretax']=pretax; d['net_inc']=netInc;
-      });
+      // Derived IS lines read from DB (fpa_derived_formulas single source of truth)
+      // fin_cost, pretax, net_inc are now fetched directly — no inline recomputation
     }
     // Load KPI targets for ratio benchmarks
     _wbTargets={};
