@@ -202,14 +202,39 @@ async function checkActualsFreshness() {
   }
   const rows = countRes.count ?? 0;
   const last = latestRes.data?.[0];
-  const ageDays = last
-    ? Math.floor((Date.now() - new Date(last.year, last.month - 1, 1)) / 86400000)
-    : null;
-  const status = rows === 0 ? 'warn' : ageDays > 60 ? 'warn' : 'pass';
-  const msg = rows === 0
-    ? 'No jps_actuals rows found'
-    : `${rows} rows, latest period ${last.year}-${String(last.month).padStart(2,'0')} (${ageDays}d ago)`;
-  await writeResult('Actuals Freshness', 'data_quality', 'fpa', status, msg, { row_count: rows, latest_year: last?.year, latest_month: last?.month, age_days: ageDays });
+
+  // Find the most recent period whose due date (month-end + 5 days) has already passed.
+  // e.g. on June 1: May due date = June 5, not yet passed → expected period = April.
+  //      on June 6: May due date = June 5, passed          → expected period = May.
+  const now = new Date();
+  let epYear = now.getFullYear(), epMonth = now.getMonth(); // getMonth() 0-indexed = last calendar month 1-indexed
+  if (epMonth === 0) { epYear--; epMonth = 12; }
+  const lastMonthEnd = new Date(epYear, epMonth, 0);
+  const lastMonthDue = new Date(lastMonthEnd.getTime() + 5 * 86400000);
+  if (now < lastMonthDue) {
+    // Last month's due date hasn't passed yet; step back one more month
+    epMonth--;
+    if (epMonth === 0) { epMonth = 12; epYear--; }
+  }
+
+  const loadedKey = last ? last.year * 100 + last.month : 0;
+  const expectedKey = epYear * 100 + epMonth;
+
+  let status, msg;
+  if (rows === 0) {
+    status = 'warn';
+    msg = 'No jps_actuals rows found';
+  } else if (loadedKey < expectedKey) {
+    status = 'warn';
+    const ep = `${epYear}-${String(epMonth).padStart(2,'0')}`;
+    const lp = `${last.year}-${String(last.month).padStart(2,'0')}`;
+    msg = `${rows} rows — latest loaded ${lp}, expected ≥ ${ep}`;
+  } else {
+    const ageDays = Math.floor((now - new Date(last.year, last.month, 0)) / 86400000);
+    status = 'pass';
+    msg = `${rows} rows, latest period ${last.year}-${String(last.month).padStart(2,'0')} (${ageDays}d since month-end)`;
+  }
+  await writeResult('Actuals Freshness', 'data_quality', 'fpa', status, msg, { row_count: rows, latest_year: last?.year, latest_month: last?.month, expected_year: epYear, expected_month: epMonth });
 }
 
 // ── Check 10: fpa_dim_period — current period close status ───────────────────
