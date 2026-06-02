@@ -10684,8 +10684,10 @@ async function dynRender() {
   // ── Precompute YTD line values (actual + comparison) ─────────────────────
   // Stock statements (BS) use last-period value; flow statements (P&L, CF) sum periods.
   var _isStock = _dynActiveTpl && _dynActiveTpl.statement_type === 'stock';
-  var getA   = function(lid){ return _isStock ? _fLastP(aF, lid, ctx.actPeriods) : _fSumP(aF, lid, ctx.actPeriods); };
-  var getB   = function(lid){ return _isStock ? _fLastP(bF, lid, ctx.cmpPeriods) : _fSumP(bF, lid, ctx.cmpPeriods); };
+  // CF balance lines (opening/closing cash, restricted cash) are period-end values — use last period, not sum
+  var _balLids = {'cf_open':1,'cf_close':1,'cf_rcash':1};
+  var getA   = function(lid){ return (_isStock || _balLids[lid]) ? _fLastP(aF, lid, ctx.actPeriods) : _fSumP(aF, lid, ctx.actPeriods); };
+  var getB   = function(lid){ return (_isStock || _balLids[lid]) ? _fLastP(bF, lid, ctx.cmpPeriods) : _fSumP(bF, lid, ctx.cmpPeriods); };
   var getAdj = function(lid){ return _adjSumFor(lid, ctx.actPeriods); };
   var lineVals = {}; // line.id → { a, b, adjRows, fx }
 
@@ -10802,7 +10804,7 @@ function _dynBuildYtg(lines, ctx, allActF, leF, aopF) {
   var thead = '<thead><tr>' +
     '<th style="text-align:left;min-width:200px">Description</th>' +
     moHdr +
-    '<th class="num">Full Year</th><th class="num">AOP FY</th><th class="num">Var&nbsp;$</th><th class="num">Var&nbsp;%</th>' +
+    '<th class="num">' + _verLabel(_dynVerA) + ' FY</th><th class="num">' + _verLabel(_dynVerB) + ' FY</th><th class="num">Var&nbsp;$</th><th class="num">Var&nbsp;%</th>' +
     '</tr></thead>';
 
   var rows = lines.map(function(line) {
@@ -10931,7 +10933,7 @@ function _dynBuildDetailed(lines, ctx, allActF, aopF) {
   var thead = '<thead><tr>' +
     '<th style="text-align:left;min-width:220px">Description</th>' +
     moHdr +
-    '<th class="num">YTD Actual</th><th class="num">AOP YTD</th><th class="num">Var&nbsp;$</th><th class="num">Var&nbsp;%</th>' +
+    '<th class="num">' + _verLabel(_dynVerA) + ' YTD</th><th class="num">' + _verLabel(_dynVerB) + ' YTD</th><th class="num">Var&nbsp;$</th><th class="num">Var&nbsp;%</th>' +
     '</tr></thead>';
 
   var rows = lines.map(function(line) {
@@ -10997,7 +10999,7 @@ function _dynBuildYtd(lines, lineVals, ctx) {
   var cmpLbl = _escHtml(ctx.cmpLbl);
   var thead = '<thead><tr>' +
     '<th style="text-align:left;min-width:220px">Description</th>' +
-    '<th>Actual</th><th>' + cmpLbl + '</th><th>Variance</th><th>Var %</th>' +
+    '<th>' + _verLabel(_dynVerA) + '</th><th>' + _verLabel(_dynVerB) + '</th><th>Variance</th><th>Var %</th>' +
     '</tr></thead>';
 
   var rows = lines.map(function(l){ return _dynRowYtd(l, lineVals, ctx, 5); }).join('');
@@ -11201,7 +11203,7 @@ function _dynBuildMonthly(lines, ctx, allActF, aopF, lineValsYtd) {
   var colspan = 1 + 12 + 3;
   var thead   = '<thead><tr>' +
     '<th style="text-align:left;min-width:180px">Description</th>' +
-    moHdr + '<th>YTD Act</th><th>AOP YTD</th><th>Var&nbsp;%</th>' +
+    moHdr + '<th>' + _verLabel(_dynVerA) + ' YTD</th><th>' + _verLabel(_dynVerB) + ' YTD</th><th>Var&nbsp;%</th>' +
     '</tr></thead>';
 
   var rows = lines.map(function(line){
@@ -11397,7 +11399,7 @@ function _dynBuildQuarterly(lines, ctx, allActF, aopF, lineValsYtd) {
   var thead   = '<thead><tr>' +
     '<th style="text-align:left;min-width:200px">Description</th>' +
     qtrs.map(function(qt){ return '<th>' + qt.q + '</th>'; }).join('') +
-    '<th>YTD Act</th><th>AOP YTD</th><th>Var&nbsp;%</th>' +
+    '<th>' + _verLabel(_dynVerA) + ' YTD</th><th>' + _verLabel(_dynVerB) + ' YTD</th><th>Var&nbsp;%</th>' +
     '</tr></thead>';
 
   var rows = lines.map(function(line){
