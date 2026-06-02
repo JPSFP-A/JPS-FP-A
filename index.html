@@ -9915,7 +9915,7 @@ async function loadP16() {
 
   } catch (e) {
     console.error('[p16] load error', e);
-    body.innerHTML = '<div style="padding:32px;text-align:center;color:var(--danger)">Failed to load assumptions: ' + (e.message || e) + '</div>';
+    body.innerHTML = '<div style="padding:32px;text-align:center;color:var(--danger)">Failed to load assumptions: ' + _escHtml(String(e.message || e)) + '</div>';
     toast('p16: ' + (e.message || 'load failed'), 'e');
   }
 }
@@ -9924,8 +9924,10 @@ function _p16RenderTabs(cats) {
   var row = document.getElementById('p16TabRow');
   if (!row) return;
   row.innerHTML = cats.map(function (c) {
+    // _escHtml on both the onclick attr value and display text — category comes from DB
+    var safe = _escHtml(c);
     return '<button class="tab-btn' + (c === _p16ActiveCat ? ' active' : '')
-      + '" onclick="p16SwitchTab(this,\'' + c + '\')">' + c + '</button>';
+      + '" onclick="p16SwitchTab(this,\'' + safe + '\')">' + safe + '</button>';
   }).join('');
 }
 
@@ -9944,23 +9946,25 @@ function _p16RenderTable(cat) {
   var isAdmin = _rpIsAdmin();
 
   var tbodyHtml = rows.map(function (r) {
-    var valDisplay = _p16FormatValue(r);
+    var valDisplay = _escHtml(_p16FormatValue(r));
     var statusBadge = r.is_locked
       ? '<span class="lock-badge">LOCKED</span>'
       : '<span class="pill">Editable</span>';
+    /* assumption_key is a slug (alphanumeric + underscore from DB seed) — safe for inline onclick attr */
+    var safeKey = String(r.assumption_key).replace(/[^a-z0-9_]/gi, '');
     var editBtn = (!r.is_locked && isAdmin)
       ? '<button class="btn-link" style="margin-left:8px;font-size:.8rem" '
-        + 'onclick="p16OpenEdit(\'' + r.assumption_key + '\')" title="Edit">&#9998;</button>'
+        + 'onclick="p16OpenEdit(\'' + safeKey + '\')" title="Edit">&#9998;</button>'
       : '';
     return '<tr class="assum-row">'
-      + '<td>' + r.assumption_label + '</td>'
+      + '<td>' + _escHtml(r.assumption_label) + '</td>'
       + '<td class="num">' + valDisplay + '</td>'
-      + '<td style="text-align:left">' + (r.source || '') + '</td>'
+      + '<td style="text-align:left">' + _escHtml(r.source || '') + '</td>'
       + '<td>' + statusBadge + editBtn + '</td>'
       + '</tr>';
   }).join('');
 
-  body.innerHTML = '<div class="card"><div class="card-head">' + cat + ' Assumptions</div>'
+  body.innerHTML = '<div class="card"><div class="card-head">' + _escHtml(cat) + ' Assumptions</div>'
     + '<div class="tbl-wrap"><table class="dt">'
     + '<thead><tr><th>Assumption</th><th>Value</th><th>Source</th><th>Status</th></tr></thead>'
     + '<tbody>' + tbodyHtml + '</tbody></table></div></div>';
