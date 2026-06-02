@@ -2137,6 +2137,7 @@ td.dyn-click:hover{background:rgba(0,61,165,.04)}
           <button class="dyn-cv-btn dyn-view-btn" onclick="dynSetColView('monthly',this)">Monthly</button>
           <button class="dyn-cv-btn dyn-view-btn" onclick="dynSetColView('quarterly',this)">Quarterly</button>
           <button class="dyn-cv-btn dyn-view-btn" onclick="dynSetColView('ytg',this)">Year to Go</button>
+          <span id="dynVerSelStatic"></span>
           <button id="dynInspectBtn" class="dyn-cv-btn" onclick="_dynToggleInspect(this)" title="Show DB line_id + data coverage for each row">&#128269; Inspect</button>
           <button id="rpEditBtn" class="dyn-cv-btn" onclick="_rpToggle()" style="display:none">✏ Edit</button>
         </div>
@@ -10010,6 +10011,32 @@ let _adjActiveVersionId = null;
 let _adjScope           = 'single';
 let _dynColView   = 'detailed'; // 'detailed' | 'ytd' | 'monthly' | 'quarterly' | 'ytg'
 let _dynTab       = 'detail';   // 'exec' | 'detail'
+let _dynVerA      = 'actuals';  // left column version: 'actuals' | 'aop' | 'le'
+let _dynVerB      = 'aop';      // right column version: 'actuals' | 'aop' | 'le'
+
+function _verCode(v, yr) {
+  if (v === 'aop') return 'AOP_' + yr;
+  if (v === 'le')  return 'LE_' + yr + '_02';
+  return null; // 'actuals' — caller handles monthly vs annual
+}
+function _verLabel(v) { return v === 'actuals' ? 'Actuals' : v === 'aop' ? 'AOP' : 'LE'; }
+function _dynSetVerA(v) { _dynVerA = v; dynRender(); }
+function _dynSetVerB(v) { _dynVerB = v; dynRender(); }
+function _dynRefreshVerSelector() {
+  ['dynVerSelStatic','dynVerSelDyn'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML =
+      '<span style="font-size:10px;color:var(--muted);margin:0 2px 0 10px">A:</span>' +
+      ['actuals','aop','le'].map(function(v) {
+        return '<button class="dyn-cv-btn' + (_dynVerA===v?' active':'') + '" onclick="_dynSetVerA(\'' + v + '\')">' + _verLabel(v) + '</button>';
+      }).join('') +
+      '<span style="font-size:10px;color:var(--muted);margin:0 2px 0 8px">vs:</span>' +
+      ['actuals','aop','le'].map(function(v) {
+        return '<button class="dyn-cv-btn' + (_dynVerB===v?' active':'') + '" onclick="_dynSetVerB(\'' + v + '\')">' + _verLabel(v) + '</button>';
+      }).join('');
+  });
+}
 let _dynInspect   = false; // inspect mode: show line_id + coverage badge per row
 var _dynCharts    = {};   // Chart.js instances keyed by chart line id
 var _dynFactsRef  = {};   // last-fetched actuals facts map (for coverage check in inspect mode)
@@ -10443,6 +10470,7 @@ async function _dynLoadIntoPage(pageId, tpl) {
       '<button class="dyn-cv-btn dyn-view-btn" onclick="dynSetColView(\'monthly\',this)">Monthly</button>' +
       '<button class="dyn-cv-btn dyn-view-btn" onclick="dynSetColView(\'quarterly\',this)">Quarterly</button>' +
       '<button class="dyn-cv-btn dyn-view-btn" onclick="dynSetColView(\'ytg\',this)">Year to Go</button>' +
+      '<span id="dynVerSelDyn"></span>' +
       '<button class="dyn-cv-btn" onclick="_dynToggleInspect(this)" title="Show line_id + coverage">&#128269; Inspect</button>' +
     '</div>' +
     '<div class="dyn-body" id="dynPageBody_' + pageId + '"></div>';
@@ -10456,7 +10484,7 @@ async function dynInitTemplates() {
   if (!sb) return;
   try {
     const { data, error } = await sb.from('report_templates')
-      .select('id,slug,name,report_type,statement_type,replaces_page')
+      .select('id,slug,name,report_type,statement_type,replaces_page,default_ver_a,default_ver_b')
       .contains('app_targets', ['hub'])
       .eq('is_active', true)
       .order('name');
@@ -10493,9 +10521,11 @@ async function dynShowReport(tplId, el) {
   if (lbl) lbl.textContent = _dynActiveTpl ? _dynActiveTpl.name : '—';
   // Always re-fetch lines so DataManager edits show immediately
   delete _dynLineCache[tplId];
-  // Reset to Detailed view + Detail tab on template change
+  // Reset to Detailed view + Detail tab + template-defined versions on template change
   _dynColView = 'detailed';
   _dynTab = 'detail';
+  _dynVerA = (_dynActiveTpl && _dynActiveTpl.default_ver_a) || 'actuals';
+  _dynVerB = (_dynActiveTpl && _dynActiveTpl.default_ver_b) || 'aop';
   document.querySelectorAll('.dyn-view-btn,.dyn-cv-btn:not(.dyn-tab-btn)').forEach(function(b){ b.classList.remove('active'); });
   var firstView = document.querySelector('.dyn-view-btn');
   if (firstView) firstView.classList.add('active');
@@ -10597,39 +10627,51 @@ async function dynRender() {
 
   var aF = {}, bF = {}, allActF = {}, aopF = {}, leF = {};
   try {
+    var _vyr = ctx.yr, _vps = _vyr * 100;
+    var _vaCode = _verCode(_dynVerA, _vyr); // null = actuals
+    var _vbCode = _verCode(_dynVerB, _vyr) || ('AOP_' + _vyr); // fallback AOP
+
+    // Fetch actuals (A when verA='actuals') honouring monthly-vs-annual split
+    function _fetchActFull(lids) {
+      var pids = []; for (var _fm = 1; _fm <= 12; _fm++) pids.push(_vps + _fm);
+      return ctx.hasMonthly
+        ? _fetchFactsMulti(_vyr, _expandAliasLines(lids), pids)
+        : _fetchFactsN(ctx.actCode, lids, _vps + 1, _vps + 12);
+    }
+
     if (_dynColView === 'ytd') {
       var res = await Promise.all([
-        _fetchFactsAct(ctx, allLids),
-        _fetchFactsCmp(ctx, allLids, ctx.cmpStart, ctx.cmpEnd),
+        _vaCode
+          ? _fetchFactsN(_vaCode, allLids, _vps + 1, _vps + ctx.maxMo)
+          : _fetchFactsAct(ctx, allLids),
+        _vbCode
+          ? _fetchFactsN(_vbCode, allLids, ctx.cmpStart, ctx.cmpEnd)
+          : _fetchFactsCmp(ctx, allLids, ctx.cmpStart, ctx.cmpEnd),
       ]);
       aF = res[0]; bF = res[1];
     } else if (_dynColView === 'ytg') {
-      // Year to Go: actuals (Jan-maxMo) + LE (maxMo+1 to Dec) + AOP full year
-      var yr = ctx.yr, ps = yr * 100;
+      // Year to Go: actuals (Jan-maxMo) + LE (maxMo+1 to Dec) + comparison full year
+      var yr = _vyr, ps = _vps;
       var allPids = []; for (var _m = 1; _m <= 12; _m++) allPids.push(ps + _m);
       var leCode = 'LE_' + yr + '_02';
       var remStart = ps + ctx.maxMo + 1, remEnd = ps + 12;
       var res3 = await Promise.all([
-        ctx.hasMonthly
-          ? _fetchFactsMulti(yr, _expandAliasLines(allLids), allPids)
-          : _fetchFactsN(ctx.actCode, allLids, ps + 1, ps + 12),
+        _fetchActFull(allLids),
         ctx.maxMo < 12 ? _fetchFactsN(leCode, allLids, remStart, remEnd) : Promise.resolve({}),
-        _fetchFactsN('AOP_' + yr, allLids, ps + 1, ps + 12),
+        _fetchFactsN(_vbCode, allLids, ps + 1, ps + 12),
       ]);
       allActF = res3[0]; leF = res3[1]; aopF = res3[2];
       aF = allActF; bF = aopF;
     } else {
-      // 'detailed', 'monthly', 'quarterly' — all need per-month data
-      var yr    = ctx.yr;
+      // 'detailed', 'monthly', 'quarterly' — full year per-month data
+      var yr = _vyr;
       var allPids = []; for (var _m = 1; _m <= 12; _m++) allPids.push(yr * 100 + _m);
       var res2 = await Promise.all([
-        ctx.hasMonthly
-          ? _fetchFactsMulti(yr, _expandAliasLines(allLids), allPids)
-          : _fetchFactsN(ctx.actCode, allLids, yr * 100 + 1, yr * 100 + 12),
-        _fetchFactsN('AOP_' + yr, allLids, yr * 100 + 1, yr * 100 + 12),
+        _vaCode ? _fetchFactsN(_vaCode, allLids, _vps + 1, _vps + 12) : _fetchActFull(allLids),
+        _fetchFactsN(_vbCode, allLids, yr * 100 + 1, yr * 100 + 12),
       ]);
       allActF = res2[0]; aopF = res2[1];
-      aF = allActF; bF = aopF; // YTD sub-totals in monthly/quarterly/detailed
+      aF = allActF; bF = aopF;
     }
   } catch(e) {
     body.innerHTML = '<div class="dyn-empty">&#9888; Data fetch failed: ' + _escHtml(e.message) + '</div>';
@@ -10679,6 +10721,7 @@ async function dynRender() {
   });
   // Refresh edit panel tree if open
   if (_rpPanelOpen) _rpRenderTree();
+  _dynRefreshVerSelector();
 }
 
 /* ── Year to Go: actuals months + LE remaining + Full Year + AOP FY ──── */
