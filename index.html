@@ -1881,106 +1881,46 @@ td.dyn-click:hover{background:rgba(0,61,165,.04)}
       <section class="page" id="p16">
         <div class="page-head">
           <h1>Model Assumptions</h1>
-          <div class="ph-sub">Core planning assumptions driving the FY2026 model</div>
+          <div class="ph-sub" id="p16SubHead">Core planning assumptions driving the FY<span id="p16Year"></span> model</div>
         </div>
 
-        <div class="tab-row" id="assumTabs">
-          <button class="tab-btn active" onclick="assumTab(this,'aMacro')">Macro</button>
-          <button class="tab-btn"        onclick="assumTab(this,'aRev')">Revenue</button>
-          <button class="tab-btn"        onclick="assumTab(this,'aFuel')">Fuel</button>
-          <button class="tab-btn"        onclick="assumTab(this,'aCapex')">CapEx</button>
-          <button class="tab-btn"        onclick="assumTab(this,'aTreas')">Treasury</button>
+        <div id="p16TabRow" class="tab-row"></div>
+
+        <div id="p16AdminBar" style="margin-bottom:14px;display:none">
+          <button class="btn-outline" id="p16EditBtn" onclick="p16OpenEdit()">&#9998; Edit Assumption</button>
         </div>
 
-        <div style="margin-bottom:14px">
-          <button class="btn-outline" onclick="toast('Lock assumptions: admin role required','w')">&#128274; Lock Assumptions</button>
-        </div>
-
-        <div class="tab-pane active" id="aMacro">
-          <div class="card">
-            <div class="card-head">Macro Assumptions</div>
-            <div class="tbl-wrap">
-              <table class="dt">
-                <thead><tr><th>Assumption</th><th>Value</th><th>Source</th><th>Status</th></tr></thead>
-                <tbody>
-                  <tr class="assum-row"><td>JMD / USD Exchange Rate</td><td class="num">J$157.40</td><td style="text-align:left">BOJ forecast</td><td><span class="lock-badge">LOCKED</span></td></tr>
-                  <tr class="assum-row"><td>Inflation (CPI) %</td><td class="num">5.8%</td><td style="text-align:left">STATIN / BOJ</td><td><span class="lock-badge">LOCKED</span></td></tr>
-                  <tr class="assum-row"><td>GDP Growth %</td><td class="num">1.9%</td><td style="text-align:left">PIOJ estimate</td><td><span class="pill">Editable</span></td></tr>
-                  <tr class="assum-row"><td>Policy Interest Rate %</td><td class="num">7.00%</td><td style="text-align:left">BOJ</td><td><span class="lock-badge">LOCKED</span></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div class="tab-pane" id="aRev">
-          <div class="card">
-            <div class="card-head">Revenue Assumptions</div>
-            <div class="tbl-wrap">
-              <table class="dt">
-                <thead><tr><th>Assumption</th><th>Value</th><th>Source</th><th>Status</th></tr></thead>
-                <tbody>
-                  <tr class="assum-row"><td>Demand Growth %</td><td class="num">1.5%</td><td style="text-align:left">AOP 2026</td><td><span class="lock-badge">LOCKED</span></td></tr>
-                  <tr class="assum-row"><td>Non-Fuel Tariff Adjustment %</td><td class="num">3.2%</td><td style="text-align:left">OUR rate case</td><td><span class="lock-badge">LOCKED</span></td></tr>
-                  <tr class="assum-row"><td>Customer Growth (000s)</td><td class="num">8.4</td><td style="text-align:left">AOP 2026</td><td><span class="pill">Editable</span></td></tr>
-                  <tr class="assum-row"><td>Collections Rate %</td><td class="num">97.5%</td><td style="text-align:left">AOP 2026</td><td><span class="pill">Editable</span></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div class="tab-pane" id="aFuel">
-          <div class="card">
-            <div class="card-head">Fuel Assumptions</div>
-            <div class="tbl-wrap">
-              <table class="dt">
-                <thead><tr><th>Assumption</th><th>Value</th><th>Source</th><th>Status</th></tr></thead>
-                <tbody>
-                  <tr class="assum-row"><td>HFO Price (US$/bbl)</td><td class="num">81.00</td><td style="text-align:left">Forward curve</td><td><span class="pill">Editable</span></td></tr>
-                  <tr class="assum-row"><td>LNG Price (US$/MMBtu)</td><td class="num">11.20</td><td style="text-align:left">Supply contract</td><td><span class="lock-badge">LOCKED</span></td></tr>
-                  <tr class="assum-row"><td>System Heat Rate (Btu/kWh)</td><td class="num">9,720</td><td style="text-align:left">Engineering est.</td><td><span class="pill">Editable</span></td></tr>
-                  <tr class="assum-row"><td>Fuel Pass-Through Lag (months)</td><td class="num">1</td><td style="text-align:left">OUR mechanism</td><td><span class="lock-badge">LOCKED</span></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div class="tab-pane" id="aCapex">
-          <div class="card">
-            <div class="card-head">CapEx Assumptions</div>
-            <div class="tbl-wrap">
-              <table class="dt">
-                <thead><tr><th>Assumption</th><th>Value</th><th>Source</th><th>Status</th></tr></thead>
-                <tbody>
-                  <tr class="assum-row"><td>FY2026 Capital Programme</td><td class="num">$188.0M</td><td style="text-align:left">Board-approved</td><td><span class="lock-badge">LOCKED</span></td></tr>
-                  <tr class="assum-row"><td>Avg Depreciation Rate %</td><td class="num">4.2%</td><td style="text-align:left">Asset register</td><td><span class="lock-badge">LOCKED</span></td></tr>
-                  <tr class="assum-row"><td>CWIP Capitalization Lag (months)</td><td class="num">3</td><td style="text-align:left">Project policy</td><td><span class="pill">Editable</span></td></tr>
-                  <tr class="assum-row"><td>Asset Useful Life (avg years)</td><td class="num">24</td><td style="text-align:left">IFRS / engineering</td><td><span class="lock-badge">LOCKED</span></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div class="tab-pane" id="aTreas">
-          <div class="card">
-            <div class="card-head">Treasury Assumptions</div>
-            <div class="tbl-wrap">
-              <table class="dt">
-                <thead><tr><th>Assumption</th><th>Value</th><th>Source</th><th>Status</th></tr></thead>
-                <tbody>
-                  <tr class="assum-row"><td>Avg Cost of Debt %</td><td class="num">6.80%</td><td style="text-align:left">Loan schedule</td><td><span class="lock-badge">LOCKED</span></td></tr>
-                  <tr class="assum-row"><td>New Borrowings FY2026</td><td class="num">$72.0M</td><td style="text-align:left">Funding plan</td><td><span class="pill">Editable</span></td></tr>
-                  <tr class="assum-row"><td>Net Debt / EBITDA Covenant</td><td class="num">&le; 3.5x</td><td style="text-align:left">Facility agreement</td><td><span class="lock-badge">LOCKED</span></td></tr>
-                  <tr class="assum-row"><td>IFRS 16 Lease Discount Rate %</td><td class="num">7.50%</td><td style="text-align:left">Incremental borrowing</td><td><span class="lock-badge">LOCKED</span></td></tr>
-                </tbody>
-              </table>
-            </div>
+        <div id="p16Body">
+          <div style="padding:40px;text-align:center;color:var(--muted)">
+            <span class="spinner" style="width:28px;height:28px;border-width:3px"></span>
           </div>
         </div>
       </section>
+
+      <!-- p16 edit modal -->
+      <div id="p16Modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);align-items:center;justify-content:center">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:28px 32px;min-width:360px;max-width:480px;width:90%">
+          <div style="font-weight:700;font-size:1.05rem;margin-bottom:18px">Edit Assumption</div>
+          <input type="hidden" id="p16EditKey">
+          <input type="hidden" id="p16EditYear">
+          <div style="margin-bottom:12px">
+            <label style="font-size:.82rem;color:var(--muted);display:block;margin-bottom:4px">Assumption</label>
+            <div id="p16EditLabel" style="font-weight:600"></div>
+          </div>
+          <div style="margin-bottom:12px">
+            <label style="font-size:.82rem;color:var(--muted);display:block;margin-bottom:4px">Value</label>
+            <input id="p16EditValue" class="form-input" style="width:100%;box-sizing:border-box" type="text">
+          </div>
+          <div style="margin-bottom:18px">
+            <label style="font-size:.82rem;color:var(--muted);display:block;margin-bottom:4px">Source</label>
+            <input id="p16EditSource" class="form-input" style="width:100%;box-sizing:border-box" type="text">
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn-outline" onclick="p16CloseEdit()">Cancel</button>
+            <button class="btn-primary" onclick="p16SaveEdit()">Save</button>
+          </div>
+        </div>
+      </div>
 
       <!-- ============ PAGE 17: MANAGEMENT REPORT ============ -->
       <section class="page" id="p17">
@@ -8831,10 +8771,11 @@ function loadPage(id) {
   else if (id === 'p17')   loadP17();
   else if (id === 'p11')   loadP11();
   else if (id === 'p15')   loadAuditFromDB();
+  else if (id === 'p16')   loadP16();
   else if (id === 'p18')   loadP18();
   else if (id === 'p-adj') loadPAdj();
   else if (id === 'p-dyn') dynRender();
-  // p14, p16: static HTML retained
+  // p14: static HTML retained
 }
 
 /* ── ADJUSTMENTS LOG PAGE ─────────────────────────────────────────────────── */
@@ -9920,17 +9861,185 @@ async function loadAuditFromDB() {
   }
 }
 
-/* ---------- Assumptions tabs ---------- */
-function assumTab(el, paneId) {
-  document.querySelectorAll('#assumTabs .tab-btn').forEach(function (b) {
-    b.classList.remove('active');
-  });
+/* ============================================================
+   PAGE 16 — Model Assumptions (DB-driven)
+   ============================================================ */
+var _p16Data      = [];   // full array from DB
+var _p16ActiveCat = '';   // currently visible category tab
+var _p16EditRow   = null; // row being edited
+
+/* Category display order */
+var _P16_CATS = ['Macro', 'Revenue', 'Fuel', 'CapEx', 'Treasury'];
+
+async function loadP16() {
+  var yearEl = document.getElementById('p16Year');
+  if (yearEl) yearEl.textContent = _CY;
+
+  var body = document.getElementById('p16Body');
+  if (!body) return;
+
+  /* spinner */
+  body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">'
+    + '<span class="spinner" style="width:28px;height:28px;border-width:3px"></span></div>';
+
+  try {
+    var sb = _getSB();
+    var { data, error } = await sb
+      .from('fpa_model_assumptions')
+      .select('assumption_key,assumption_label,assumption_value,assumption_category,unit,source,is_locked,year')
+      .eq('year', _CY)
+      .order('assumption_category')
+      .order('assumption_label');
+
+    if (error) throw error;
+    _p16Data = data || [];
+
+    /* build tabs from categories present in data (use canonical order) */
+    var catsInData = _P16_CATS.filter(function (c) {
+      return _p16Data.some(function (r) { return r.assumption_category === c; });
+    });
+    if (!catsInData.length) {
+      body.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted)">No assumptions found for ' + _CY + '.</div>';
+      return;
+    }
+
+    _p16ActiveCat = _p16ActiveCat && catsInData.indexOf(_p16ActiveCat) !== -1
+      ? _p16ActiveCat : catsInData[0];
+
+    _p16RenderTabs(catsInData);
+    _p16RenderTable(_p16ActiveCat);
+
+    /* show admin bar for admin users */
+    var adminBar = document.getElementById('p16AdminBar');
+    if (adminBar) adminBar.style.display = _rpIsAdmin() ? '' : 'none';
+
+  } catch (e) {
+    console.error('[p16] load error', e);
+    body.innerHTML = '<div style="padding:32px;text-align:center;color:var(--danger)">Failed to load assumptions: ' + (e.message || e) + '</div>';
+    toast('p16: ' + (e.message || 'load failed'), 'e');
+  }
+}
+
+function _p16RenderTabs(cats) {
+  var row = document.getElementById('p16TabRow');
+  if (!row) return;
+  row.innerHTML = cats.map(function (c) {
+    return '<button class="tab-btn' + (c === _p16ActiveCat ? ' active' : '')
+      + '" onclick="p16SwitchTab(this,\'' + c + '\')">' + c + '</button>';
+  }).join('');
+}
+
+function p16SwitchTab(el, cat) {
+  document.querySelectorAll('#p16TabRow .tab-btn').forEach(function (b) { b.classList.remove('active'); });
   el.classList.add('active');
-  document.querySelectorAll('#p16 .tab-pane').forEach(function (p) {
-    p.classList.remove('active');
-  });
-  const pane = document.getElementById(paneId);
-  if (pane) pane.classList.add('active');
+  _p16ActiveCat = cat;
+  _p16RenderTable(cat);
+}
+
+function _p16RenderTable(cat) {
+  var body = document.getElementById('p16Body');
+  if (!body) return;
+
+  var rows = _p16Data.filter(function (r) { return r.assumption_category === cat; });
+  var isAdmin = _rpIsAdmin();
+
+  var tbodyHtml = rows.map(function (r) {
+    var valDisplay = _p16FormatValue(r);
+    var statusBadge = r.is_locked
+      ? '<span class="lock-badge">LOCKED</span>'
+      : '<span class="pill">Editable</span>';
+    var editBtn = (!r.is_locked && isAdmin)
+      ? '<button class="btn-link" style="margin-left:8px;font-size:.8rem" '
+        + 'onclick="p16OpenEdit(\'' + r.assumption_key + '\')" title="Edit">&#9998;</button>'
+      : '';
+    return '<tr class="assum-row">'
+      + '<td>' + r.assumption_label + '</td>'
+      + '<td class="num">' + valDisplay + '</td>'
+      + '<td style="text-align:left">' + (r.source || '') + '</td>'
+      + '<td>' + statusBadge + editBtn + '</td>'
+      + '</tr>';
+  }).join('');
+
+  body.innerHTML = '<div class="card"><div class="card-head">' + cat + ' Assumptions</div>'
+    + '<div class="tbl-wrap"><table class="dt">'
+    + '<thead><tr><th>Assumption</th><th>Value</th><th>Source</th><th>Status</th></tr></thead>'
+    + '<tbody>' + tbodyHtml + '</tbody></table></div></div>';
+}
+
+function _p16FormatValue(r) {
+  var v = r.assumption_value ?? '';
+  var u = r.unit || '';
+  /* Format: prefix $ units, suffix % and other units */
+  if (u === '$M')        return '$' + v + 'M';
+  if (u === 'J$')        return 'J$' + v;
+  if (u === '%')         return v + '%';
+  if (u === 'x (max)')   return '&le;&nbsp;' + v + 'x';
+  if (u)                 return v + ' ' + u;
+  return v;
+}
+
+/* --- Edit modal --- */
+function p16OpenEdit(key) {
+  if (!key) {
+    /* called from toolbar "Edit Assumption" — need a row selected; show hint */
+    toast('Click the pencil icon on an editable row to edit it', 'i');
+    return;
+  }
+  var row = _p16Data.find(function (r) { return r.assumption_key === key; });
+  if (!row) return;
+  document.getElementById('p16EditKey').value    = row.assumption_key;
+  document.getElementById('p16EditYear').value   = row.year;
+  document.getElementById('p16EditLabel').textContent = row.assumption_label;
+  document.getElementById('p16EditValue').value  = row.assumption_value;
+  document.getElementById('p16EditSource').value = row.source || '';
+  var modal = document.getElementById('p16Modal');
+  modal.style.display = 'flex';
+}
+
+function p16CloseEdit() {
+  var modal = document.getElementById('p16Modal');
+  modal.style.display = 'none';
+}
+
+async function p16SaveEdit() {
+  var key    = document.getElementById('p16EditKey').value;
+  var year   = parseInt(document.getElementById('p16EditYear').value, 10);
+  var value  = document.getElementById('p16EditValue').value.trim();
+  var source = document.getElementById('p16EditSource').value.trim();
+
+  if (!value) { toast('Value cannot be empty', 'w'); return; }
+
+  var saveBtn = document.querySelector('#p16Modal .btn-primary');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+
+  try {
+    var sb = _getSB();
+    var { error } = await sb
+      .from('fpa_model_assumptions')
+      .update({ assumption_value: value, source: source, updated_by: _user ? _user.email : null, updated_at: new Date().toISOString() })
+      .eq('assumption_key', key)
+      .eq('year', year);
+
+    if (error) throw error;
+
+    /* update in-memory cache */
+    var idx = _p16Data.findIndex(function (r) { return r.assumption_key === key && r.year === year; });
+    if (idx !== -1) { _p16Data[idx].assumption_value = value; _p16Data[idx].source = source; }
+
+    p16CloseEdit();
+    _p16RenderTable(_p16ActiveCat);
+    toast('Assumption updated', 's');
+  } catch (e) {
+    console.error('[p16] save error', e);
+    toast('Save failed: ' + (e.message || e), 'e');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+  }
+}
+
+/* legacy stub — kept so any stale inline onclick="assumTab(...)" calls don't throw */
+function assumTab(el, paneId) {
+  p16SwitchTab(el, paneId);
 }
 
 /* ============================================================
