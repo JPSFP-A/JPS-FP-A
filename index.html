@@ -10846,9 +10846,9 @@ function _dynBuildYtg(lines, ctx, allActF, leF, aopF) {
   var name = _escHtml((_dynActiveTpl || {}).name || 'Report');
   var note = maxMo < 12 ? '<span style="font-size:9px;color:var(--muted);margin-left:8px;">* = LE ' + yr + ' forecast</span>' : '';
   return '<div class="page-head"><h1>' + name + '</h1>' +
-    '<div class="ph-sub">Full Year ' + yr + ' &middot; vs AOP ' + yr + ' &middot; JMD $000s' + note + '</div></div>' +
+    '<div class="ph-sub">Full Year ' + yr + ' &middot; vs ' + _verLabel(_dynVerB) + ' ' + yr + ' &middot; JMD $000s' + note + '</div></div>' +
     '<div class="card"><div class="card-head">' + name +
-    '<span class="ch-sub"> Full Year ' + yr + ' (Actuals + LE forecast)</span></div>' +
+    '<span class="ch-sub"> Full Year ' + yr + ' (' + _verLabel(_dynVerA) + ' + LE forecast)</span></div>' +
     '<div class="tbl-wrap" style="overflow-x:auto"><table class="dt">' + thead + '<tbody>' + rows + '</tbody></table></div></div>';
 }
 
@@ -10988,7 +10988,7 @@ function _dynBuildDetailed(lines, ctx, allActF, aopF) {
   var name = _escHtml((_dynActiveTpl || {}).name || 'Report');
   var viewLbl = _escHtml(ctx.viewLbl);
   return '<div class="page-head"><h1>' + name + '</h1>' +
-    '<div class="ph-sub">' + viewLbl + ' &middot; vs AOP ' + ctx.yr + ' &middot; JMD $000s</div></div>' +
+    '<div class="ph-sub">' + viewLbl + ' &middot; vs ' + _verLabel(_dynVerB) + ' ' + ctx.yr + ' &middot; JMD $000s</div></div>' +
     '<div class="card"><div class="card-head">' + name +
     '<span class="ch-sub"> ' + viewLbl + '</span></div>' +
     '<div class="tbl-wrap" style="overflow-x:auto"><table class="dt">' + thead + '<tbody>' + rows + '</tbody></table></div></div>';
