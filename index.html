@@ -23,7 +23,7 @@
     error:function(ev,msg){try{console.error('[JpsMonitor]',APP,ev||'',msg||'');}catch(e){}}
   };
   window.JpsMonitor=M;
-  setInterval(function(){M._beat();},300000); // 5-min heartbeat
+  setInterval(function(){M._beat();},60000); // 1-min heartbeat
 })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -3323,6 +3323,7 @@ async function _cmSave(cell) {
   });
   if (r && !r.error) {
     _cmCache[key] = note;
+    _platformAudit('commentary:save', 'fpa_commentary', null, '');
     _toast('Commentary saved', 'ok');
   } else {
     _toast('Save failed — ' + ((r && r.error && r.error.message) || 'unknown error'), 'err');
@@ -6340,6 +6341,7 @@ async function flashSaveNote() {
       if(!r){throw new Error('DB write returned null');}
       // Replace temp note with fresh data from DB
       await flashLoadNotes();
+      _platformAudit('flash_note:save', 'fpa_flash_notes', null, '');
       toast('Note saved','ok');
     },
     'Note save failed — reverted'
@@ -7166,6 +7168,7 @@ async function wbCommit(period,btn){
     var sb=_getSB();
     var{error}=await sb.from('fpa_facts').upsert(upsertRows,{onConflict:'version_id,line_id,period_id',ignoreDuplicates:false});
     if(error)throw error;
+    _platformAudit('facts:write', 'fpa_facts', null, '');
     if(!_wbData[period])_wbData[period]={};
     upsertRows.forEach(function(r){_wbData[period][r.line_id]=r.value;});
     btn.innerHTML='✓ Saved';btn.classList.remove('loading');btn.classList.add('done');btn.disabled=false;
@@ -9785,11 +9788,11 @@ async function scnSave() {
   var r;
   if (editId) {
     r = await _sbQ(function(sb){ return sb.from('fpa_scenarios').update(payload).eq('id', editId); });
-    if (r) { var idx = _scnData.findIndex(function(s){ return s.id === editId; }); if(idx>=0) Object.assign(_scnData[idx], payload); }
+    if (r) { var idx = _scnData.findIndex(function(s){ return s.id === editId; }); if(idx>=0) Object.assign(_scnData[idx], payload); _platformAudit('scenario:update', 'fpa_scenarios', null, ''); }
   } else {
     payload.year = yr; payload.is_active = false;
     r = await _sbQ(function(sb){ return sb.from('fpa_scenarios').insert(payload).select(); });
-    if (r && r.data && r.data[0]) _scnData.push(r.data[0]);
+    if (r && r.data && r.data[0]) { _scnData.push(r.data[0]); _platformAudit('scenario:insert', 'fpa_scenarios', null, ''); }
   }
   if (!r) return;
   _cacheInvalidate('fpa_scenarios_');
@@ -11803,6 +11806,7 @@ async function _rpSaveLine() {
     var sb = _getSB();
     var r = await sb.from('report_lines').update(update).eq('id', _rpEditingId);
     if (r.error) throw r.error;
+    _platformAudit('report_line:update', 'report_lines', null, '');
     // Update local cache
     var lines = _dynLineCache[_dynActiveTpl.id] || [];
     var idx   = lines.findIndex(function(l){ return l.id === _rpEditingId; });
@@ -11847,6 +11851,7 @@ async function _rpAddLine() {
     var sb = _getSB();
     var r = await sb.from('report_lines').insert(newLine).select().single();
     if (r.error) throw r.error;
+    _platformAudit('report_line:insert', 'report_lines', null, '');
     if (!_dynLineCache[tplId]) _dynLineCache[tplId] = [];
     _dynLineCache[tplId].push(r.data);
     _rpRenderTree();
@@ -11862,6 +11867,7 @@ async function _rpDeleteLine(id) {
     var sb = _getSB();
     var r = await sb.from('report_lines').delete().eq('id', id);
     if (r.error) throw r.error;
+    _platformAudit('report_line:delete', 'report_lines', null, '');
     if (_dynLineCache[tplId]) {
       _dynLineCache[tplId] = _dynLineCache[tplId].filter(function(l){ return l.id !== id; });
     }
