@@ -2768,7 +2768,7 @@ async function _fetchFacts(vCode, lines, pStart, pEnd) {
   const cacheKey = 'fpa_facts_' + vid + '_' + lines.join(',') + '_' + pStart + '_' + pEnd;
   return _cachedFetch(cacheKey, function() {
     return _sbQ(function(sb) {
-      return sb.from('fpa_facts')
+      return sb.from('fpa_v_facts')
         .select('line_id,period_id,value')
         .eq('version_id', vid)
         .in('line_id', lines)
@@ -2999,7 +2999,7 @@ async function _fetchFactsMulti(yr, lines, periods) {
     // Single query — each ACTUALS_YYYY_MM version has exactly one period_id,
     // so version_id lookup is sufficient to reconstruct the period mapping.
     return _sbQ(function(sb) {
-      return sb.from('fpa_facts').select('version_id,line_id,value')
+      return sb.from('fpa_v_facts').select('version_id,line_id,value')
         .in('version_id', activeVids).in('line_id', lines);
     }).then(async function(r) {
       if (!r || !r.data) return {};
@@ -3241,20 +3241,19 @@ function _cmCancel(cell) {
 // ── REPORT RENDERER ──────────────────────────────────────────────────────────
 // Driven by report_templates + report_lines (DataManager Report Builder).
 // Change a template in DB → FP&A Hub reflects it on next page load.
-// _rptCache: slug → { template, lines } (session-scoped).
-var _rptCache = {};
+// _rptCache replaced by _cachedFetch with 5-min TTL (key prefix: 'rpt_tpl_').
+// Invalidate via _cacheInvalidate('rpt_tpl_') or per-slug _cacheInvalidate('rpt_tpl_'+slug).
 
 async function _loadRptTemplate(slug) {
-  if (_rptCache[slug]) return _rptCache[slug];
-  const { data: tpl, error: te } = await _sb.from('report_templates')
-    .select('*').eq('slug', slug).eq('is_active', true).maybeSingle();
-  if (te || !tpl) return null;
-  const { data: lines, error: le } = await _sb.from('report_lines')
-    .select('*').eq('template_id', tpl.id).order('sort_order');
-  if (le) return null;
-  const r = { template: tpl, lines: lines || [] };
-  _rptCache[slug] = r;
-  return r;
+  return _cachedFetch('rpt_tpl_' + slug, async function() {
+    const { data: tpl, error: te } = await _sb.from('report_templates')
+      .select('*').eq('slug', slug).eq('is_active', true).maybeSingle();
+    if (te || !tpl) return null;
+    const { data: lines, error: le } = await _sb.from('report_lines')
+      .select('*').eq('template_id', tpl.id).order('sort_order');
+    if (le) return null;
+    return { template: tpl, lines: lines || [] };
+  }, 300_000);
 }
 
 function _rptEvalExpr(expr, byId) {
@@ -5967,7 +5966,7 @@ function _flashGetGlobalCtx() {
 async function flashFetchFacts(versionId, periodIds) {
   if (!versionId || !periodIds.length) return {};
   var r = await _sbQ(function(sb) {
-    return sb.from('fpa_facts').select('line_id,period_id,value')
+    return sb.from('fpa_v_facts').select('line_id,period_id,value')
       .eq('version_id', versionId).in('period_id', periodIds);
   });
   if (!r || !r.data) return {};
@@ -6857,7 +6856,7 @@ async function loadP18(){
     _wbData={}; _wbSummData={};
     if(verIds.length>0){
       var r=await _sbQ(function(sb){
-        return sb.from('fpa_facts').select('version_id,line_id,period_id,value')
+        return sb.from('fpa_v_facts').select('version_id,line_id,period_id,value')
           .in('version_id',verIds).like('line_id','cf_d_%');
       });
       if(r&&r.data){
@@ -6872,7 +6871,7 @@ async function loadP18(){
     var histVerId=(_vMap||{})['ACTUALS_'+yr+'_12']||null;
     if(histVerId){
       var r2=await _sbQ(function(sb){
-        return sb.from('fpa_facts').select('line_id,period_id,value')
+        return sb.from('fpa_v_facts').select('line_id,period_id,value')
           .eq('version_id',histVerId)
           // Input lines only — all derived IS lines computed in JS after load
           .in('line_id',['cf_ops_net','cf_inv_net','cf_fin_net','cf_change','cf_ni',
@@ -8029,7 +8028,7 @@ async function loadP7() {
   var genData = {};
   if (genVid) {
     try {
-      var genRes = await _getSB().from('fpa_facts').select('line_id,period_id,value')
+      var genRes = await _getSB().from('fpa_v_facts').select('line_id,period_id,value')
         .eq('version_id', genVid).in('line_id', genLineIds);
       (genRes.data || []).forEach(function(r) {
         var m = r.period_id % 100;
@@ -8500,7 +8499,7 @@ async function loadP9() {
     var _genVid9 = (_vMap||{})['ACTUALS_'+yr9+'_'+(ctx.maxMo<10?'0'+ctx.maxMo:ctx.maxMo)]
                 || (_vMap||{})['AOP_'+yr9];
     if (_genVid9) {
-      var _genR9 = await _getSB().from('fpa_facts').select('line_id,period_id,value')
+      var _genR9 = await _getSB().from('fpa_v_facts').select('line_id,period_id,value')
         .eq('version_id', _genVid9)
         .in('line_id', ['kpi_gen_gross_gwh','kpi_gen_hfo_gwh','kpi_gen_lng_gwh','kpi_gen_renew_gwh','kpi_tdl_pct',
                         'kpi_sales_mwh','stat_billed_gwh','nonfuel','nr_cust_charge','fuel_rev']);
@@ -9322,12 +9321,12 @@ async function _loadNotifications() {
       const ytdVids    = ytdPids.map(function(p){ return vm['ACTUALS_' + yr + '_' + String(p % 100).padStart(2,'0')]; }).filter(Boolean);
 
       const [rA, rB, rBS] = await Promise.all([
-        _sbQ(function(sb){ return sb.from('fpa_facts').select('line_id,value')
+        _sbQ(function(sb){ return sb.from('fpa_v_facts').select('line_id,value')
           .in('version_id', ytdVids).in('line_id', FLOW_LINES); }, { silent: true }),
-        _sbQ(function(sb){ return sb.from('fpa_facts').select('line_id,value')
+        _sbQ(function(sb){ return sb.from('fpa_v_facts').select('line_id,value')
           .eq('version_id', vm[aopKey]).in('period_id', ytdPids).in('line_id', FLOW_LINES.concat(BS_LINES)); }, { silent: true }),
         // cash: latest month snapshot only (not YTD sum)
-        _sbQ(function(sb){ return sb.from('fpa_facts').select('line_id,value')
+        _sbQ(function(sb){ return sb.from('fpa_v_facts').select('line_id,value')
           .eq('version_id', latestVid).in('line_id', BS_LINES); }, { silent: true }),
       ]);
 
@@ -11991,6 +11990,7 @@ async function _rpSaveLine() {
     // re-fetches everything with updated line_id tokens and calc_expr values
     _cacheInvalidate('fpa_facts_');
     _cacheInvalidate('fpa_multi_');
+    _cacheInvalidate('rpt_tpl_');
     if (_dynActiveTpl) delete _dynLineCache[_dynActiveTpl.id];
     dynRender(); // live re-render with new values
     toast('Line saved ✓', 's');
@@ -12044,6 +12044,7 @@ async function _rpDeleteLine(id) {
     if (_dynLineCache[tplId]) {
       _dynLineCache[tplId] = _dynLineCache[tplId].filter(function(l){ return l.id !== id; });
     }
+    _cacheInvalidate('rpt_tpl_');
     if (_rpEditingId === id) {
       _rpEditingId = null;
       document.getElementById('rpEditForm').style.display = 'none';
