@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 <script src="../shared/jps-monitor.js"></script>
+<script src="../shared/jps-formatters.js"></script>
 <script>if(window.JpsMonitor)JpsMonitor.setApp('hub');</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2454,14 +2455,7 @@ async function _platformAudit(action, target, oldVal, newVal) {
   }
 }
 
-function _fmtN(v, dp) {
-  if (dp == null) dp = 1;
-  const n = Number(v);
-  const x = Number.isFinite(n) ? n : 0;
-  if (Math.abs(x) >= 1e6) return (x / 1e6).toFixed(dp) + 'M';
-  if (Math.abs(x) >= 1e3) return (x / 1e3).toFixed(dp) + 'K';
-  return x.toFixed(dp);
-}
+var _fmtN = JpsFmt._fmtN;
 
 function _debounce(fn, ms) {
   if (ms == null) ms = 300;
@@ -3055,12 +3049,7 @@ function _fFirstP(f, lid, periods) {
 }
 
 // Format $000s — parens for negatives
-function _fmtM(v, dp) {
-  dp = (dp == null) ? 0 : dp;
-  const n = Number.isFinite(+v) ? +v : 0;
-  const abs = Math.abs(n).toFixed(dp).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return n < 0 ? '(' + abs + ')' : (n === 0 ? '—' : abs);
-}
+var _fmtM = JpsFmt._fmtM;
 // Planning year banner — shown on all data pages when plan year has no actuals
 function _planYrBanner(yr, title, sub) {
   return '<div class="page-head"><h1>' + title + ' — FY ' + yr + '</h1>'
@@ -3083,21 +3072,8 @@ function _planKpi(lbl, v) {
     + '<div style="font-size:9px;color:var(--muted);margin-top:2px">JMD $000s</div>'
     + '</div>';
 }
-// Cost stored positive → display as (x)
-function _fmtCost(v, dp) {
-  // Outflows/expenses displayed as POSITIVE numbers (no parentheses).
-  // Stored values are positive; subtotals (EBITDA etc.) are formula-driven and
-  // unaffected by this display change.
-  dp = (dp == null) ? 0 : dp;
-  const n = Math.abs(Number.isFinite(+v) ? +v : 0);
-  if (n === 0) return '—';
-  return n.toFixed(dp).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
-function _fmtPct(act, bud) {
-  if (!bud || !Number.isFinite(+bud) || +bud === 0) return '—';
-  const p = ((+act - +bud) / Math.abs(+bud)) * 100;
-  return (p >= 0 ? '+' : '') + p.toFixed(1) + '%';
-}
+var _fmtCost = JpsFmt._fmtCost;
+var _fmtPct  = JpsFmt._fmtPct;
 function _vc(v, higherGood) {
   higherGood = (higherGood !== false);
   if (!v || v === 0) return 'neut';
@@ -4095,7 +4071,7 @@ function _p2InitExecChart() {
   var ebdMg_b = rev_b ? +(ebd_b / rev_b * 100).toFixed(1) : 0;
   var niMg_a  = rev_a ? +(ni_a  / rev_a * 100).toFixed(1) : 0;
   var niMg_b  = rev_b ? +(ni_b  / rev_b * 100).toFixed(1) : 0;
-  var fmtK = function(v){ return v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : String(v); };
+  var fmtK = JpsFmt._fmtK;
 
   // Grouped bar: Revenue / EBITDA / NPAT — Actual vs AOP
   var c1 = document.getElementById('p2ChartExec');
