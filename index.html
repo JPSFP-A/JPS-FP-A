@@ -10685,7 +10685,7 @@ async function dynRender() {
   // Stock statements (BS) use last-period value; flow statements (P&L, CF) sum periods.
   var _isStock = _dynActiveTpl && _dynActiveTpl.statement_type === 'stock';
   // CF balance lines (opening/closing cash, restricted cash) are period-end values — use last period, not sum
-  var _balLids = {'cf_open':1,'cf_close':1,'cf_rcash':1};
+  var _balLids = {'cf_open':1,'cf_close':1,'cf_rcash':1,'cf_d_open':1,'cf_d_close':1};
   var getA   = function(lid){ return (_isStock || _balLids[lid]) ? _fLastP(aF, lid, ctx.actPeriods) : _fSumP(aF, lid, ctx.actPeriods); };
   var getB   = function(lid){ return (_isStock || _balLids[lid]) ? _fLastP(bF, lid, ctx.cmpPeriods) : _fSumP(bF, lid, ctx.cmpPeriods); };
   var getAdj = function(lid){ return _adjSumFor(lid, ctx.actPeriods); };
