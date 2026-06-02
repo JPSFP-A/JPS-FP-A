@@ -2267,6 +2267,26 @@ function _getSB() {
   return _sb;
 }
 
+// Hard OCC single-cell write to fpa_facts via fpa_facts_write_occ RPC.
+// Reads current row_version, passes it as expected; RPC rejects on mismatch.
+// Returns true on success, false on conflict (toasts a warning).
+async function _occWrite(versionId, lineId, periodId, value, source) {
+  var sb = _getSB();
+  var r1 = await sb.from('fpa_facts').select('row_version,value')
+    .eq('version_id', versionId).eq('line_id', lineId).eq('period_id', periodId).maybeSingle();
+  var expectedVersion = (r1.data && r1.data.row_version != null) ? r1.data.row_version : null;
+  var r2 = await sb.rpc('fpa_facts_write_occ', {
+    p_version_id: versionId, p_line_id: lineId, p_period_id: periodId,
+    p_value: value, p_source: source, p_expected_row_version: expectedVersion
+  });
+  if (r2.error) throw r2.error;
+  if (r2.data && r2.data.conflict) {
+    toast('Conflict: this cell was changed by another user (their value: ' + r2.data.current_value + '). Refresh to see latest.', 'w');
+    return false;
+  }
+  return true;
+}
+
 // ── Financial Term Tooltips ───────────────────────────────────────────────────
 const _TIPS = {
   // Income Statement
@@ -2614,6 +2634,19 @@ async function doLogin() {
   }
 }
 
+function _initIdleTimeout(signOutFn) {
+  var IDLE_MS = 30 * 60 * 1000;
+  var _idleTimer = null;
+  function _reset() {
+    clearTimeout(_idleTimer);
+    _idleTimer = setTimeout(function() { try { signOutFn(); } catch(e){} window.location.reload(); }, IDLE_MS);
+  }
+  ['mousedown','mousemove','keydown','scroll','touchstart','click'].forEach(function(evt) {
+    document.addEventListener(evt, _reset, { passive: true });
+  });
+  _reset();
+}
+
 function afterLogin() {
   document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('hubScreen').classList.add('visible');
@@ -2623,6 +2656,7 @@ function afterLogin() {
     try { JpsMonitor._clientFn = _getSB; JpsMonitor.setUser(_user.id, _user.email); } catch (e) { console.error('[FPA] JpsMonitor.setUser failed:', e); }
   }
   _platformAudit('login', 'session', null, { email: _user.email });
+  _initIdleTimeout(function(){ _getSB().auth.signOut(); });
 }
 
 function enterPlatform() {
@@ -7134,26 +7168,19 @@ async function wbCommit(period,btn){
       if(!isNaN(v))editRows.push({lid:lid,val:v});
     });
     if(editRows.length===0){toast('No data to commit','warn');btn.innerHTML=origText;btn.classList.remove('loading');btn.disabled=false;return;}
-    var sb=_getSB();
-    // OCC: read existing rows to detect stale overwrites
-    var lids=editRows.map(function(r){return r.lid;});
-    var{data:existing,error:readErr}=await sb.from('fpa_facts')
-      .select('line_id,value,version,updated_at')
-      .eq('version_id',vid).eq('period_id',period).in('line_id',lids);
-    if(readErr){console.warn('[WB] OCC read failed',readErr);}
-    var existMap={};
-    (existing||[]).forEach(function(r){existMap[r.line_id]={value:r.value,version:r.version||1};});
-    var upsertRows=editRows.map(function(r){
-      var cur=existMap[r.lid]||{value:null,version:0};
-      return{version_id:vid,line_id:r.lid,period_id:period,value:r.val,source:'manual',version:(cur.version||0)+1,updated_at:new Date().toISOString()};
-    });
-    var{error}=await sb.from('fpa_facts').upsert(upsertRows,{onConflict:'version_id,line_id,period_id',ignoreDuplicates:false});
-    if(error)throw error;
-    _platformAudit('facts:write', 'fpa_facts', null, '');
+    // Hard OCC: write each user-entered cell via fpa_facts_write_occ RPC.
+    // A cell changed by another user since load is rejected (conflict) and skipped.
     if(!_wbData[period])_wbData[period]={};
-    upsertRows.forEach(function(r){_wbData[period][r.line_id]=r.value;});
+    var saved=0,conflicts=0;
+    for(var i=0;i<editRows.length;i++){
+      var er=editRows[i];
+      var okCell=await _occWrite(vid,er.lid,period,er.val,'manual');
+      if(okCell){_wbData[period][er.lid]=er.val;saved++;}
+      else{conflicts++;}
+    }
+    _platformAudit('facts:write', 'fpa_facts', null, '');
     btn.innerHTML='✓ Saved';btn.classList.remove('loading');btn.classList.add('done');btn.disabled=false;
-    toast('Saved '+upsertRows.length+' rows for '+period,'ok');
+    toast('Saved '+saved+' rows for '+period+(conflicts?' · '+conflicts+' conflict(s) skipped':''),conflicts?'warn':'ok');
     setTimeout(function(){btn.innerHTML='&#128190; Save';btn.classList.remove('done');},3000);
   }catch(e){
     console.error('[WB] commit',e);toast('Commit failed: '+(e.message||e),'error');
