@@ -8,24 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
-<script>
-/* JpsMonitor — lightweight heartbeat + event logger.
-   Heartbeat → record_heartbeat RPC → fpa_audit_log (read by the platform audit).
-   Set JpsMonitor._clientFn = () => <supabaseClient> once the client exists. */
-(function(){
-  var APP='fpa';
-  var M={
-    _app:APP,_uid:null,_email:null,_clientFn:null,
-    setUser:function(id,email){this._uid=id;this._email=email;this._beat();},
-    _beat:function(){try{var c=this._clientFn&&this._clientFn();if(c&&c.rpc){c.rpc('record_heartbeat',{p_app:this._app}).then(function(){},function(){});}}catch(e){}},
-    info:function(ev,msg){try{console.debug('[JpsMonitor]',APP,ev||'',msg||'');}catch(e){}},
-    warning:function(ev,msg){try{console.warn('[JpsMonitor]',APP,ev||'',msg||'');}catch(e){}},
-    error:function(ev,msg){try{console.error('[JpsMonitor]',APP,ev||'',msg||'');}catch(e){}}
-  };
-  window.JpsMonitor=M;
-  setInterval(function(){M._beat();},60000); // 1-min heartbeat
-})();
-</script>
+<script src="../shared/jps-monitor.js"></script>
+<script>if(window.JpsMonitor)JpsMonitor.setApp('hub');</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -3445,17 +3429,45 @@ async function loadP1() {
     'bd_rev','vpp_rev','bd_cos','bd_opex','vpp_opex',
     'ipp_total','pl_total_sales','pl_gross_profit','opex_total','ebitda','ebit','fin_cost','pretax','net_inc'];
   const CM_LINES = ['pl_total_sales','ebitda','net_inc','ebitda_margin','cf_capex','stat_billed_gwh','cf_ops_net'];
-  const [aF, bF,, _p1PlHtml] = await Promise.all([
+  const [aF, bF,, _p1PlHtml, _p1KpiRes] = await Promise.all([
     _fetchFactsAct(ctx, LINES),
     _fetchFactsCmp(ctx, LINES, ctx.cmpStart, ctx.cmpEnd),
     _loadCommentary(CM_LINES, ctx.actEnd, _activeView),
     _renderReport('pl_flash', ctx),
+    ctx.actPeriods.length
+      ? _sbQ(function(sb) {
+          return sb.from('jps_kpi_actuals')
+            .select('period_id,kpi_code,value')
+            .in('period_id', ctx.actPeriods)
+            .order('period_id');
+        }, { silent: true })
+      : Promise.resolve(null),
   ]);
   _pgLoad('p1', false);
 
   // Refresh nav pills with discovered data
   _renderYrNav();
   _renderMoNav(ctx.maxMo);
+
+  // Build operational KPI map from jps_kpi_actuals
+  // Cumulative (flow): gwh_generated, gwh_billed, saidi, saifi
+  // Point-in-time (latest): td_loss_pct, renewable_pct, hfo_pct, lng_pct, customer_count, rev_per_kwh
+  var _P1KPI_CUMULATIVE = ['gwh_generated','gwh_billed','saidi','saifi'];
+  var _p1KpiRows = (_p1KpiRes && _p1KpiRes.data) || [];
+  var _p1KpiIndex = {}; // kpi_code -> [{period_id, value}] sorted asc
+  _p1KpiRows.forEach(function(r) {
+    if (!_p1KpiIndex[r.kpi_code]) _p1KpiIndex[r.kpi_code] = [];
+    _p1KpiIndex[r.kpi_code].push({ p: r.period_id, v: r.value });
+  });
+  function _p1KpiYtd(code) {
+    var arr = _p1KpiIndex[code];
+    if (!arr || !arr.length) return null;
+    if (_P1KPI_CUMULATIVE.indexOf(code) >= 0) {
+      return arr.reduce(function(s, r) { return s + (r.v || 0); }, 0);
+    }
+    // point-in-time: latest period value
+    return arr[arr.length - 1].v;
+  }
 
   function sa(lid) { return _fSumP(aF, lid, ctx.actPeriods); }
   function sb(lid) { return _fSumP(bF, lid, ctx.cmpPeriods); }
@@ -3667,6 +3679,46 @@ async function loadP1() {
     + '<td class="num">' + (ebd_b ? (ocf_b / ebd_b * 100).toFixed(1) : '—') + '%</td>'
     + '<td>' + _ragBadge(ebd_a ? ocf_a / ebd_a : 0, ebd_b ? ocf_b / ebd_b : 0) + '</td></tr>'
     + '</tbody></table></div></div>'
+    + (function() {
+        // Operational KPIs — sourced from jps_kpi_actuals + fpa_facts (gwh_billed)
+        var _noKpi = !_p1KpiRows.length;
+        var gwhGen = _p1KpiYtd('gwh_generated');
+        var tdLoss = _p1KpiYtd('td_loss_pct');
+        var renew  = _p1KpiYtd('renewable_pct');
+        var custK  = _p1KpiYtd('customer_count');
+        var saidi  = _p1KpiYtd('saidi');
+        var saifi  = _p1KpiYtd('saifi');
+        // GWh Billed: fpa_facts primary (already loaded as gwh_a), fall back to jps_kpi_actuals
+        var gwhBill = gwh_a || _p1KpiYtd('gwh_billed');
+        function _opFmt(val, unit) {
+          if (val === null || val === undefined) return '<span style="color:var(--muted);font-style:italic">—</span>';
+          if (unit === 'GWh') return (val / 1).toFixed(1) + ' GWh';
+          if (unit === 'pct') return val.toFixed(1) + '%';
+          if (unit === 'k')   return (val / 1000).toFixed(1) + 'k';
+          if (unit === 'min') return val.toFixed(0) + ' min';
+          if (unit === 'ct')  return val.toFixed(2);
+          return String(Math.round(val));
+        }
+        function _opRow(label, val, unit, badge) {
+          return '<tr><td>' + label + '</td><td class="num">' + _opFmt(val, unit) + '</td>'
+            + '<td>' + (badge || '') + '</td></tr>';
+        }
+        return '<div class="card"><div class="card-head">Operational KPIs'
+          + ' <span class="ch-sub">' + ctx.viewLbl
+          + (_noKpi ? ' &middot; <span style="color:var(--amber)">No data — upload via DataManager</span>' : '')
+          + '</span></div>'
+          + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+          + '<th>Metric</th><th>' + ctx.viewLbl + '</th><th></th>'
+          + '</tr></thead><tbody>'
+          + _opRow('GWh Billed',          gwhBill, 'GWh')
+          + _opRow('Net Generation (GWh)', gwhGen,  'GWh')
+          + _opRow('T&amp;D Loss %',       tdLoss,  'pct', tdLoss !== null ? _ragBadge(null, tdLoss, false) : '')
+          + _opRow('Renewable Share %',    renew,   'pct', renew  !== null ? _ragBadge(renew,  null,  true)  : '')
+          + _opRow('Customers',            custK,   'k')
+          + _opRow('SAIDI (min)',          saidi,   'min', saidi  !== null ? _ragBadge(null, saidi, false)   : '')
+          + _opRow('SAIFI',                saifi,   'ct',  saifi  !== null ? _ragBadge(null, saifi, false)   : '')
+          + '</tbody></table></div></div>';
+      }())
     + '</div>'
     + _buildP1Commentary(ctx);
 
