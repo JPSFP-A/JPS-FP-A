@@ -11804,7 +11804,8 @@ var _rpEditingId = null;
 var _rpPanelOpen = false;
 
 function _rpIsAdmin() {
-  return _user && (_user.role === 'admin' || _user.accessRole === 'admin');
+  // Use only server-verified accessRole — never the client-side display role
+  return _user && _user.accessRole === 'admin';
 }
 
 function _rpInitEditButton() {
