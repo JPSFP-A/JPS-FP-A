@@ -7178,6 +7178,99 @@ async function wbCommit(period,btn){
 }
 
 /* ----- p5: CAPEX & CWIP ----- */
+// ── Build project-level CapEx table from capex_* tables ──────────────────
+async function _buildCapexProjectTable(yr, maxMo) {
+  var sb = _getSB(); if (!sb) return '';
+  try {
+    var res = await Promise.all([
+      sb.from('capex_projects').select('id,name,division,business_unit,sort_order').order('sort_order'),
+      sb.from('capex_actuals').select('project_id,month,amount_jmd').eq('year', yr),
+      sb.from('capex_budget').select('project_id,month,amount_jmd').eq('year', yr).not('month','is',null)
+    ]);
+    if (res[0].error || res[1].error || res[2].error) return '';
+    var projects = res[0].data || [], actuals = res[1].data || [], budget = res[2].data || [];
+    if (!projects.length) return '';
+
+    var actMap = {}, budMap = {};
+    actuals.forEach(function(r){ if (!actMap[r.project_id]) actMap[r.project_id]={}; actMap[r.project_id][+r.month]=(actMap[r.project_id][+r.month]||0)+(+r.amount_jmd||0); });
+    budget.forEach(function(r){  if (!budMap[r.project_id]) budMap[r.project_id]={}; budMap[r.project_id][+r.month]=(+r.amount_jmd||0); });
+
+    var K=1000;
+    function fmt(v){ return _fmtM(v/K); }
+    function vc(a,b){ return a>=b?'fav':'adv'; }
+
+    // Group by division > BU
+    var divOrder=[], divMap={};
+    projects.forEach(function(p){
+      var div=p.division||'Other', bu=p.business_unit||'Other';
+      if (!divMap[div]){ divOrder.push(div); divMap[div]={buOrder:[],buMap:{}}; }
+      if (!divMap[div].buMap[bu]){ divMap[div].buOrder.push(bu); divMap[div].buMap[bu]=[]; }
+      divMap[div].buMap[bu].push(p);
+    });
+
+    var MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var moHdr = MONS.map(function(m,i){
+      var isA=(i+1)<=maxMo;
+      return '<th class="num" style="font-size:10px;'+(isA?'':'color:var(--muted)')+'">'+m+(isA?'':'*')+'</th>';
+    }).join('');
+    var thead='<thead><tr><th style="text-align:left;min-width:180px">Category</th>'+moHdr+
+      '<th class="num">YTD Act</th><th class="num">YTD Bgt</th><th class="num">Var&nbsp;$</th><th class="num">Var&nbsp;%</th></tr></thead>';
+
+    var tbody='', grandMoA=new Array(12).fill(0), grandMoB=new Array(12).fill(0), grandYA=0, grandYB=0;
+
+    divOrder.forEach(function(div){
+      var dm=divMap[div], divMoA=new Array(12).fill(0), divMoB=new Array(12).fill(0), divYA=0, divYB=0;
+      var buRows='';
+      dm.buOrder.forEach(function(bu){
+        var prjs=dm.buMap[bu], buMoA=new Array(12).fill(0), buMoB=new Array(12).fill(0), buYA=0, buYB=0;
+        var projRows='';
+        prjs.forEach(function(p){
+          var act=actMap[p.id]||{}, bud=budMap[p.id]||{};
+          var pMoA=new Array(12).fill(0), pMoB=new Array(12).fill(0), pYA=0, pYB=0;
+          for(var m=1;m<=12;m++){ pMoA[m-1]=act[m]||0; pMoB[m-1]=bud[m]||0; if(m<=maxMo){pYA+=pMoA[m-1];pYB+=pMoB[m-1];} }
+          var cells=pMoA.map(function(a,i){var isA=(i+1)<=maxMo,v=isA?a:pMoB[i];return '<td class="num"style="'+(isA?'':'color:var(--muted)')+'">'+(v?fmt(v):'—')+'</td>';}).join('');
+          var vd=pYA-pYB;
+          projRows+='<tr class="rind"><td style="padding-left:32px">'+_escHtml(p.name)+'</td>'+cells+
+            '<td class="num">'+(pYA?fmt(pYA):'—')+'</td><td class="num">'+(pYB?fmt(pYB):'—')+'</td>'+
+            '<td class="num '+(pYB?vc(pYA,pYB):'')+'">'+(pYB?fmt(vd):'—')+'</td>'+
+            '<td class="num '+(pYB?vc(pYA,pYB):'')+'">'+(pYB?_fmtPct(pYA/K,pYB/K):'—')+'</td></tr>';
+          for(var m=0;m<12;m++){buMoA[m]+=pMoA[m];buMoB[m]+=pMoB[m];} buYA+=pYA; buYB+=pYB;
+        });
+        var buCells=buMoA.map(function(a,i){var isA=(i+1)<=maxMo,v=isA?a:buMoB[i];return '<td class="num"style="font-weight:600;'+(isA?'':'color:var(--muted)')+'">'+(v?fmt(v):'—')+'</td>';}).join('');
+        var bvd=buYA-buYB;
+        buRows+='<tr class="rind"style="background:rgba(0,61,165,.04)"><td style="padding-left:16px;font-weight:600">'+_escHtml(bu)+'</td>'+buCells+
+          '<td class="num"style="font-weight:600">'+(buYA?fmt(buYA):'—')+'</td><td class="num"style="font-weight:600">'+(buYB?fmt(buYB):'—')+'</td>'+
+          '<td class="num '+(buYB?vc(buYA,buYB):'')+'"style="font-weight:600">'+(buYB?fmt(bvd):'—')+'</td>'+
+          '<td class="num '+(buYB?vc(buYA,buYB):'')+'"style="font-weight:600">'+(buYB?_fmtPct(buYA/K,buYB/K):'—')+'</td></tr>'+projRows;
+        for(var m=0;m<12;m++){divMoA[m]+=buMoA[m];divMoB[m]+=buMoB[m];} divYA+=buYA; divYB+=buYB;
+      });
+      var divCells=divMoA.map(function(a,i){var isA=(i+1)<=maxMo,v=isA?a:divMoB[i];return '<td class="num"style="font-weight:700;'+(isA?'':'color:var(--muted)')+'">'+(v?fmt(v):'—')+'</td>';}).join('');
+      var dvd=divYA-divYB;
+      tbody+='<tr class="rsec"><td colspan="17">'+_escHtml(div)+'</td></tr>'+buRows+
+        '<tr class="rs"><td style="font-weight:700">'+_escHtml(div)+' Total</td>'+divCells+
+        '<td class="num"style="font-weight:700">'+fmt(divYA)+'</td><td class="num"style="font-weight:700">'+fmt(divYB)+'</td>'+
+        '<td class="num '+(divYB?vc(divYA,divYB):'')+'"style="font-weight:700">'+(divYB?fmt(dvd):'—')+'</td>'+
+        '<td class="num '+(divYB?vc(divYA,divYB):'')+'"style="font-weight:700">'+(divYB?_fmtPct(divYA/K,divYB/K):'—')+'</td></tr>';
+      for(var m=0;m<12;m++){grandMoA[m]+=divMoA[m];grandMoB[m]+=divMoB[m];} grandYA+=divYA; grandYB+=divYB;
+    });
+
+    var gtCells=grandMoA.map(function(a,i){var isA=(i+1)<=maxMo,v=isA?a:grandMoB[i];return '<td class="num"style="font-weight:800;'+(isA?'':'color:var(--muted)')+'">'+(v?fmt(v):'—')+'</td>';}).join('');
+    var gvd=grandYA-grandYB;
+    tbody+='<tr class="rs"style="border-top:2px solid var(--border)"><td style="font-weight:800">Grand Total</td>'+gtCells+
+      '<td class="num"style="font-weight:800">'+fmt(grandYA)+'</td><td class="num"style="font-weight:800">'+fmt(grandYB)+'</td>'+
+      '<td class="num '+(grandYB?vc(grandYA,grandYB):'')+'"style="font-weight:800">'+(grandYB?fmt(gvd):'—')+'</td>'+
+      '<td class="num '+(grandYB?vc(grandYA,grandYB):'')+'"style="font-weight:800">'+(grandYB?_fmtPct(grandYA/K,grandYB/K):'—')+'</td></tr>';
+
+    return '<div class="card">'
+      +'<div class="card-head"><span class="card-title">CapEx by Division / BU / Category</span>'
+      +'<span class="ch-sub">Actual Jan–'+(maxMo>0?_MONS[maxMo-1]:'—')+' · Budget remaining · JMD $000s'+(maxMo<12?' · *=budget phasing':'')+'</span></div>'
+      +'<div class="tbl-wrap"style="overflow-x:auto"><table class="dt">'+thead+'<tbody>'+tbody+'</tbody></table></div></div>';
+  } catch(e) {
+    console.error('[p5] project table', e);
+    return '';
+  }
+}
+
 async function loadP5() {
   _pgLoad('p5', true);
   await _ensureMaxMo(_activeYear);
@@ -7185,7 +7278,7 @@ async function loadP5() {
   if (!ctx) { _pgLoad('p5', false); return; }
 
   var sub = document.getElementById('p5PhSub');
-  if (sub) sub.textContent = 'Capital expenditure & work in progress · ' + ctx.viewLbl + ' · USD $000s';
+  if (sub) sub.textContent = 'Capital expenditure & work in progress · ' + ctx.viewLbl + ' · JMD $000s';
 
   const LINES = ['cf_capex','cwip','bs_fa_cost','bs_accum_depn','depn'];
   const pyCode = 'ACTUALS_' + (ctx.yr - 1) + '_12';
@@ -7195,8 +7288,9 @@ async function loadP5() {
 
   var aF, aopF, pyF, allActF;
 
+  // Fetch fpa_facts + capex project table in parallel
+  var _capexProjTableP = _buildCapexProjectTable(yr, ctx.maxMo);
   if (_p5ColView === 'monthly' || _p5ColView === 'quarterly') {
-    // Fetch all 12 months of actuals + full AOP
     [allActF, aopF, pyF] = await Promise.all([
       ctx.hasMonthly
         ? _fetchFactsMulti(yr, _expandAliasLines(LINES), allPids)
@@ -7206,13 +7300,13 @@ async function loadP5() {
     ]);
     aF = allActF;
   } else {
-    // YTD / YTG — existing fetch
     [aF, aopF, pyF] = await Promise.all([
       _fetchFactsAct(ctx, LINES),
       _fetchFactsN('AOP_' + yr, LINES, ps + 1, ps + 12),
       _fetchFactsN(pyCode, LINES, pyDecPer, pyDecPer),
     ]);
   }
+  var _capexProjTable = await _capexProjTableP;
   _pgLoad('p5', false);
 
   var hdr = _cvHdr('p5', _p5ColView, []);
@@ -7320,10 +7414,7 @@ async function loadP5() {
         })()
       + '</tbody></table></div></div>';
 
-    var note = '<div class="card" style="background:var(--bg);border-style:dashed;text-align:center;color:var(--muted);padding:18px 24px">'
-      + '<strong>Project-level CapEx register not yet available.</strong><br>'
-      + 'Upload project data via the CapEx Platform to enable project-by-project tracking, committed spend, and status reporting.'
-      + '</div>';
+    var note = _capexProjTable || '';
     var pg = document.getElementById('p5Body');
     if (pg) pg.innerHTML = hdr + mTbl + note;
     return;
