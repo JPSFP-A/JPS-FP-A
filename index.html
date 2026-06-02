@@ -3689,7 +3689,8 @@ async function loadP1() {
         var saidi  = _p1KpiYtd('saidi');
         var saifi  = _p1KpiYtd('saifi');
         // GWh Billed: fpa_facts primary (already loaded as gwh_a), fall back to jps_kpi_actuals
-        var gwhBill = gwh_a || _p1KpiYtd('gwh_billed');
+        // Use null-check not falsy — gwh_a=0 means no data, not "zero GWh"
+        var gwhBill = (gwh_a != null && gwh_a !== 0) ? gwh_a : _p1KpiYtd('gwh_billed');
         function _opFmt(val, unit) {
           if (val === null || val === undefined) return '<span style="color:var(--muted);font-style:italic">—</span>';
           if (unit === 'GWh') return (val / 1).toFixed(1) + ' GWh';
