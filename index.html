@@ -1424,7 +1424,7 @@ td.dyn-click:hover{background:rgba(0,61,165,.04)}
           </div>
 
           <div class="card">
-            <div class="card-head">Key Operational Metrics <span class="ch-sub">YTD Apr 2026</span></div>
+            <div class="card-head">Key Operational Metrics <span class="ch-sub" id="p1OpsMetricsSub">YTD</span></div>
             <div class="tbl-wrap">
               <table class="dt">
                 <thead><tr><th>Metric</th><th>Actual</th><th>AOP</th><th>RAG</th></tr></thead>
@@ -1805,14 +1805,14 @@ td.dyn-click:hover{background:rgba(0,61,165,.04)}
             <div class="ai-msgs" id="aiMsgs">
               <div class="ai-msg ai-bot">
                 <div class="ai-lbl">JPS AI Analyst</div>
-                <div>Hello. I have the April 2026 YTD financials loaded. Ask me to explain a variance, draft board commentary, identify risks, or summarize performance. Use a quick prompt below to get started.</div>
+                <div id="aiGreeting">Hello. I have the YTD financials loaded. Ask me to explain a variance, draft board commentary, identify risks, or summarize performance. Use a quick prompt below to get started.</div>
               </div>
             </div>
-            <div class="ai-chips">
-              <button class="ai-chip" onclick="aiQuickPrompt('Explain the EBITDA variance vs AOP for YTD April 2026.')">Explain EBITDA variance</button>
+            <div class="ai-chips" id="aiChips">
+              <button class="ai-chip" id="aiChipEbitda" onclick="aiQuickPrompt(document.getElementById('aiChipEbitda').dataset.prompt)">Explain EBITDA variance</button>
               <button class="ai-chip" onclick="aiQuickPrompt('Draft a concise board commentary paragraph on YTD financial performance.')">Draft board commentary</button>
               <button class="ai-chip" onclick="aiQuickPrompt('Identify the top three financial risks visible in the YTD results.')">Identify top risks</button>
-              <button class="ai-chip" onclick="aiQuickPrompt('Summarize YTD April 2026 performance against AOP in five bullet points.')">Summarize YTD performance</button>
+              <button class="ai-chip" id="aiChipSumm" onclick="aiQuickPrompt(document.getElementById('aiChipSumm').dataset.prompt)">Summarize YTD performance</button>
             </div>
             <div class="ai-input-row">
               <input id="aiInput" type="text" placeholder="Ask the JPS AI Analyst…"
@@ -3464,6 +3464,7 @@ async function loadP1() {
   const ctx = _getCtx();
   if (!ctx) { _pgLoad('p1', false); return; }
   // Dynamic period labels — no hardcoded dates
+  _aiUpdatePeriodLabels();
   var _p1s = document.getElementById('p1PhSub');
   if (_p1s) _p1s.textContent = ctx.viewLbl + ' · Actual vs ' + ctx.cmpLbl + ' · USD $000s';
   var _p1r = document.getElementById('p1RagSub');
@@ -7159,13 +7160,25 @@ async function wbCommit(period,btn){
     var vid=(_vMap||{})[code];
     if(!vid)throw new Error('Version '+code+' not in DB');
     var rows=document.querySelectorAll('input[data-p="'+period+'"]');
-    var upsertRows=[];
+    var editRows=[];
     rows.forEach(function(inp){
       var lid=inp.dataset.lid,v=parseFloat(inp.value);
-      if(!isNaN(v))upsertRows.push({version_id:vid,line_id:lid,period_id:period,value:v,source:'manual',version:1,updated_at:new Date().toISOString()});
+      if(!isNaN(v))editRows.push({lid:lid,val:v});
     });
-    if(upsertRows.length===0){toast('No data to commit','warn');btn.innerHTML=origText;btn.classList.remove('loading');btn.disabled=false;return;}
+    if(editRows.length===0){toast('No data to commit','warn');btn.innerHTML=origText;btn.classList.remove('loading');btn.disabled=false;return;}
     var sb=_getSB();
+    // OCC: read existing rows to detect stale overwrites
+    var lids=editRows.map(function(r){return r.lid;});
+    var{data:existing,error:readErr}=await sb.from('fpa_facts')
+      .select('line_id,value,version,updated_at')
+      .eq('version_id',vid).eq('period_id',period).in('line_id',lids);
+    if(readErr){console.warn('[WB] OCC read failed',readErr);}
+    var existMap={};
+    (existing||[]).forEach(function(r){existMap[r.line_id]={value:r.value,version:r.version||1};});
+    var upsertRows=editRows.map(function(r){
+      var cur=existMap[r.lid]||{value:null,version:0};
+      return{version_id:vid,line_id:r.lid,period_id:period,value:r.val,source:'manual',version:(cur.version||0)+1,updated_at:new Date().toISOString()};
+    });
     var{error}=await sb.from('fpa_facts').upsert(upsertRows,{onConflict:'version_id,line_id,period_id',ignoreDuplicates:false});
     if(error)throw error;
     _platformAudit('facts:write', 'fpa_facts', null, '');
@@ -9040,8 +9053,25 @@ function _reloadActive() {
   _loadedPages.clear();
   // Clear commentary cache — keys are period-specific, stale when year/view changes
   Object.keys(_cmCache).forEach(function(k) { delete _cmCache[k]; });
+  _aiUpdatePeriodLabels();
   const pg = document.querySelector('.page.active');
   if (pg) loadPage(pg.id);
+}
+
+// Update AI greeting and chip prompts to reflect the active period label.
+// Called on every year/month/view change so prompts stay accurate.
+function _aiUpdatePeriodLabels() {
+  var ctx = _getCtx();
+  if (!ctx) return;
+  var lbl = ctx.viewLbl; // e.g. "Jan–Apr 2026", "Apr 2026", "FY 2026"
+  var greeting = document.getElementById('aiGreeting');
+  if (greeting) greeting.textContent = 'Hello. I have the ' + lbl + ' financials loaded. Ask me to explain a variance, draft board commentary, identify risks, or summarize performance. Use a quick prompt below to get started.';
+  var chipEbitda = document.getElementById('aiChipEbitda');
+  if (chipEbitda) chipEbitda.dataset.prompt = 'Explain the EBITDA variance vs AOP for ' + lbl + '.';
+  var chipSumm = document.getElementById('aiChipSumm');
+  if (chipSumm) chipSumm.dataset.prompt = 'Summarize ' + lbl + ' performance against AOP in five bullet points.';
+  var p1sub = document.getElementById('p1OpsMetricsSub');
+  if (p1sub) p1sub.textContent = lbl;
 }
 
 function setActiveYear(yr) {
