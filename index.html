@@ -2802,7 +2802,7 @@ async function _fetchFacts(vCode, lines, pStart, pEnd) {
   const cacheKey = 'fpa_facts_' + vid + '_' + lines.join(',') + '_' + pStart + '_' + pEnd;
   return _cachedFetch(cacheKey, function() {
     return _sbQ(function(sb) {
-      return sb.from('fpa_v_facts')
+      return sb.from('fpa_facts')
         .select('line_id,period_id,value')
         .eq('version_id', vid)
         .in('line_id', lines)
@@ -3033,7 +3033,7 @@ async function _fetchFactsMulti(yr, lines, periods) {
     // Single query — each ACTUALS_YYYY_MM version has exactly one period_id,
     // so version_id lookup is sufficient to reconstruct the period mapping.
     return _sbQ(function(sb) {
-      return sb.from('fpa_v_facts').select('version_id,line_id,value')
+      return sb.from('fpa_facts').select('version_id,line_id,value')
         .in('version_id', activeVids).in('line_id', lines);
     }).then(async function(r) {
       if (!r || !r.data) return {};
@@ -6000,7 +6000,7 @@ function _flashGetGlobalCtx() {
 async function flashFetchFacts(versionId, periodIds) {
   if (!versionId || !periodIds.length) return {};
   var r = await _sbQ(function(sb) {
-    return sb.from('fpa_v_facts').select('line_id,period_id,value')
+    return sb.from('fpa_facts').select('line_id,period_id,value')
       .eq('version_id', versionId).in('period_id', periodIds);
   });
   if (!r || !r.data) return {};
@@ -6890,7 +6890,7 @@ async function loadP18(){
     _wbData={}; _wbSummData={};
     if(verIds.length>0){
       var r=await _sbQ(function(sb){
-        return sb.from('fpa_v_facts').select('version_id,line_id,period_id,value')
+        return sb.from('fpa_facts').select('version_id,line_id,period_id,value')
           .in('version_id',verIds).like('line_id','cf_d_%');
       });
       if(r&&r.data){
@@ -6905,7 +6905,7 @@ async function loadP18(){
     var histVerId=(_vMap||{})['ACTUALS_'+yr+'_12']||null;
     if(histVerId){
       var r2=await _sbQ(function(sb){
-        return sb.from('fpa_v_facts').select('line_id,period_id,value')
+        return sb.from('fpa_facts').select('line_id,period_id,value')
           .eq('version_id',histVerId)
           // Input lines only — all derived IS lines computed in JS after load
           .in('line_id',['cf_ops_net','cf_inv_net','cf_fin_net','cf_change','cf_ni',
@@ -8055,7 +8055,7 @@ async function loadP7() {
   var genData = {};
   if (genVid) {
     try {
-      var genRes = await _getSB().from('fpa_v_facts').select('line_id,period_id,value')
+      var genRes = await _getSB().from('fpa_facts').select('line_id,period_id,value')
         .eq('version_id', genVid).in('line_id', genLineIds);
       (genRes.data || []).forEach(function(r) {
         var m = r.period_id % 100;
@@ -8526,7 +8526,7 @@ async function loadP9() {
     var _genVid9 = (_vMap||{})['ACTUALS_'+yr9+'_'+(ctx.maxMo<10?'0'+ctx.maxMo:ctx.maxMo)]
                 || (_vMap||{})['AOP_'+yr9];
     if (_genVid9) {
-      var _genR9 = await _getSB().from('fpa_v_facts').select('line_id,period_id,value')
+      var _genR9 = await _getSB().from('fpa_facts').select('line_id,period_id,value')
         .eq('version_id', _genVid9)
         .in('line_id', ['kpi_gen_gross_gwh','kpi_gen_hfo_gwh','kpi_gen_lng_gwh','kpi_gen_renew_gwh','kpi_tdl_pct',
                         'kpi_sales_mwh','stat_billed_gwh','nonfuel','nr_cust_charge','fuel_rev']);
@@ -9348,12 +9348,12 @@ async function _loadNotifications() {
       const ytdVids    = ytdPids.map(function(p){ return vm['ACTUALS_' + yr + '_' + String(p % 100).padStart(2,'0')]; }).filter(Boolean);
 
       const [rA, rB, rBS] = await Promise.all([
-        _sbQ(function(sb){ return sb.from('fpa_v_facts').select('line_id,value')
+        _sbQ(function(sb){ return sb.from('fpa_facts').select('line_id,value')
           .in('version_id', ytdVids).in('line_id', FLOW_LINES); }, { silent: true }),
-        _sbQ(function(sb){ return sb.from('fpa_v_facts').select('line_id,value')
+        _sbQ(function(sb){ return sb.from('fpa_facts').select('line_id,value')
           .eq('version_id', vm[aopKey]).in('period_id', ytdPids).in('line_id', FLOW_LINES.concat(BS_LINES)); }, { silent: true }),
         // cash: latest month snapshot only (not YTD sum)
-        _sbQ(function(sb){ return sb.from('fpa_v_facts').select('line_id,value')
+        _sbQ(function(sb){ return sb.from('fpa_facts').select('line_id,value')
           .eq('version_id', latestVid).in('line_id', BS_LINES); }, { silent: true }),
       ]);
 
