@@ -1228,6 +1228,7 @@ td.dyn-click:hover{background:rgba(0,61,165,.04)}
 
       <div class="nav-sec">Reporting</div>
       <div class="ni active" data-p="p1" onclick="nav(this)"><span class="ni-ic">&#9889;</span> Overview</div>
+      <div class="ni" data-p="p-fsum" onclick="nav(this)"><span class="ni-ic">&#128203;</span> Financial Summary</div>
       <div class="ni" data-p="p17" onclick="nav(this)"><span class="ni-ic">&#128240;</span> Management Report</div>
       <div class="ni" data-p="p2" onclick="nav(this)"><span class="ni-ic">&#128202;</span> Consolidated P&amp;L</div>
       <div class="ni" data-p="p3" onclick="nav(this)"><span class="ni-ic">&#127974;</span> Balance Sheet</div>
@@ -2045,6 +2046,13 @@ td.dyn-click:hover{background:rgba(0,61,165,.04)}
         <div id="adjLogSummary" style="display:none;font-size:11px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;margin-bottom:12px"></div>
         <div id="adjLogBody">
           <div style="padding:40px;text-align:center;color:var(--muted);font-size:12px">Loading&hellip;</div>
+        </div>
+      </section>
+
+      <!-- ============ PAGE: FINANCIAL SUMMARY (composite, DB-driven) ============ -->
+      <section class="page" id="p-fsum">
+        <div class="dyn-body" id="fsumBody">
+          <div class="dyn-empty">Loading Financial Summary…</div>
         </div>
       </section>
 
@@ -8801,6 +8809,185 @@ async function loadP9() {
 
 /* ================================================================ */
 
+/* ===================== FINANCIAL SUMMARY (p-fsum) — composite, DB-driven ===================== */
+// Replaces the legacy Excel "Financial Summary" board-pack tab. Every section is a Report Builder
+// template (report_templates/report_lines); composition is config in report_summary_layout.
+// Triple-block layout: Month | YTD | Full Year, each Actual/AOP/Var (FY uses LE vs AOP).
+
+var _fsLineStmtCache = null;
+async function _fsLineStmt() {
+  if (!_fsLineStmtCache) {
+    _fsLineStmtCache = {};
+    var r = await _sbQ(function(sb) { return sb.from('fpa_dim_line').select('id,statement'); });
+    (r && r.data ? r.data : []).forEach(function(row) { _fsLineStmtCache[row.id] = row.statement; });
+  }
+  return _fsLineStmtCache;
+}
+
+function _fsTemplateLineIds(lines) {
+  var ids = [];
+  lines.forEach(function(l) {
+    if (l.line_id && ids.indexOf(l.line_id) < 0) ids.push(l.line_id);
+    if (l.calc_expr && l.calc_expr !== 'sum_children') {
+      (l.calc_expr.match(/[a-z][a-z0-9_]*/g) || []).forEach(function(t) { if (ids.indexOf(t) < 0) ids.push(t); });
+    }
+  });
+  return ids;
+}
+
+function _fsSectionErr(title, msg) {
+  return '<div class="card"><div class="card-head"><span class="card-title">' + _escHtml(title) + '</span></div>'
+    + '<div class="dyn-empty">' + _escHtml(msg) + '</div></div>';
+}
+
+async function loadFinancialSummary() {
+  _pgLoad('p-fsum', true);
+  await _ensureMaxMo(_activeYear);
+  var ctx = _getCtx();
+  var body = document.getElementById('fsumBody');
+  if (!ctx || !body) { _pgLoad('p-fsum', false); return; }
+  var yr = ctx.yr;
+  try {
+    var sb = _getSB();
+    var layoutRes = await sb.from('report_summary_layout')
+      .select('section_order,section_title,template_slug,render_mode')
+      .eq('page_key', 'financial_summary').eq('is_active', true).order('section_order');
+    if (layoutRes.error) throw layoutRes.error;
+    var sections = layoutRes.data || [];
+    if (!sections.length) { body.innerHTML = '<div class="dyn-empty">No Financial Summary layout configured.</div>'; _pgLoad('p-fsum', false); return; }
+
+    var html = '<div class="page-head"><h1>Financial Summary</h1>'
+      + '<div class="ph-sub">Consolidated board pack &middot; Month / YTD / Full Year &middot; Actual vs AOP, FY LE &middot; FY ' + yr + ' &middot; US$’000s</div></div>';
+
+    for (var si = 0; si < sections.length; si++) {
+      var sec = sections[si];
+      var tplRes = await sb.from('report_templates')
+        .select('id,slug,name,statement_type,report_type').eq('slug', sec.template_slug).maybeSingle();
+      if (!tplRes.data) { html += _fsSectionErr(sec.section_title, 'Template "' + sec.template_slug + '" not found'); continue; }
+      var tpl = tplRes.data;
+      var lineRes = await sb.from('report_lines').select('*').eq('template_id', tpl.id).order('sort_order');
+      var lines = lineRes.data || [];
+      if (sec.render_mode === 'ratios') html += await _fsRenderRatios(sec, lines, ctx);
+      else                              html += await _fsRenderTriple(sec, tpl, lines, ctx);
+    }
+    body.innerHTML = html;
+  } catch (e) {
+    body.innerHTML = '<div class="dyn-empty">&#9888; Financial Summary failed: ' + _escHtml(e.message || String(e)) + '</div>';
+    if (window.JpsMonitor && JpsMonitor.warning) JpsMonitor.warning('fsum:load', e.message || 'error', {});
+  }
+  _pgLoad('p-fsum', false);
+}
+
+async function _fsRenderTriple(sec, tpl, lines, ctx) {
+  var yr = ctx.yr, ps = yr * 100, mo = ctx.maxMo || ctx.mo || 1;
+  var isStock = (tpl.report_type === 'bs') || (tpl.statement_type === 'stock');
+  var lids = _fsTemplateLineIds(lines);
+  var allPids = []; for (var m = 1; m <= 12; m++) allPids.push(ps + m);
+  var res = await Promise.all([
+    ctx.hasMonthly ? _fetchFactsMulti(yr, _expandAliasLines(lids), allPids) : _fetchFactsN(ctx.actCode, lids, ps + 1, ps + 12),
+    _fetchFactsN('AOP_' + yr, lids, ps + 1, ps + 12),
+    _fetchFactsN('LE_' + yr + '_02', lids, ps + 1, ps + 12)
+  ]);
+  var actF = res[0], aopF = res[1], leF = res[2];
+  var moSet = [ps + mo];
+  var ytdSet = []; for (var m2 = 1; m2 <= mo; m2++) ytdSet.push(ps + m2);
+  var fySet = allPids;
+  function mk(f, set) { return function(lid) { return isStock ? _fLastP(f, lid, set) : _fSumP(f, lid, set); }; }
+  var noAdj = function() { return { jmd: 0, fx: 0, rows: [] }; };
+  function computeVals(getA, getB) {
+    var lv = {};
+    for (var pass = 0; pass < 3; pass++) {
+      lines.forEach(function(l) {
+        if (l.row_type === 'section' || l.row_type === 'spacer' || l.row_type === 'chart') return;
+        lv[l.id] = _dynComputeBoth(l, lines, lv, getA, getB, noAdj);
+      });
+    }
+    return lv;
+  }
+  var mVals = computeVals(mk(actF, moSet),  mk(aopF, moSet));
+  var yVals = computeVals(mk(actF, ytdSet), mk(aopF, ytdSet));
+  var fVals = computeVals(mk(leF,  fySet),  mk(aopF, fySet));
+
+  var bl = 'border-left:2px solid var(--border)';
+  var thead = '<thead><tr><th rowspan="2" style="text-align:left;min-width:230px">' + _escHtml(sec.section_title) + '</th>'
+    + '<th colspan="3" class="num" style="' + bl + '">' + _MONS[mo - 1] + ' ' + yr + '</th>'
+    + '<th colspan="3" class="num" style="' + bl + '">YTD ' + _MONS[mo - 1] + '</th>'
+    + '<th colspan="3" class="num" style="' + bl + '">Full Year</th></tr>'
+    + '<tr><th class="num" style="' + bl + '">Act</th><th class="num">AOP</th><th class="num">Var</th>'
+    + '<th class="num" style="' + bl + '">Act</th><th class="num">AOP</th><th class="num">Var</th>'
+    + '<th class="num" style="' + bl + '">LE</th><th class="num">AOP</th><th class="num">Var</th></tr></thead>';
+
+  var rows = lines.map(function(l) {
+    if (l.row_type === 'spacer') return '<tr><td colspan="10" style="height:5px;border:none"></td></tr>';
+    if (l.row_type === 'section') return '<tr class="rsec"><td colspan="10">' + _escHtml(l.label_override || '') + '</td></tr>';
+    if (l.row_type === 'chart' || l.parent_id) return '';
+    var bold = (l.row_type === 'subtotal' || l.row_type === 'total' || l.is_bold);
+    var pad = 12 + (l.indent_level || 0) * 14;
+    var favDir = (l.fav_direction != null ? l.fav_direction : 1);
+    function block(vals) {
+      var v = vals[l.id] || { a: 0, b: 0 };
+      var vd = v.a - v.b;
+      var vc = favDir === 1 ? (vd >= 0 ? 'fav' : 'adv') : (vd <= 0 ? 'fav' : 'adv');
+      return '<td class="num" style="' + bl + '">' + _fmtM(v.a) + '</td>'
+        + '<td class="num" style="color:var(--muted)">' + _fmtM(v.b) + '</td>'
+        + '<td class="num ' + vc + '">' + _fmtM(vd) + '</td>';
+    }
+    return '<tr class="' + (bold ? 'rs' : 'rind') + '"><td style="padding-left:' + pad + 'px;' + (bold ? 'font-weight:700' : '') + '">'
+      + _escHtml(l.label_override || l.line_id || '') + '</td>' + block(mVals) + block(yVals) + block(fVals) + '</tr>';
+  }).join('');
+
+  return '<div class="card"><div class="card-head"><span class="card-title">' + _escHtml(sec.section_title) + '</span>'
+    + '<span class="ch-sub">US$’000s</span></div>'
+    + '<div class="tbl-wrap" style="overflow-x:auto"><table class="dt">' + thead + '<tbody>' + rows + '</tbody></table></div></div>';
+}
+
+async function _fsRenderRatios(sec, lines, ctx) {
+  var yr = ctx.yr, ps = yr * 100;
+  var lids = [];
+  lines.forEach(function(l) {
+    if (l.calc_expr) (l.calc_expr.match(/[a-z][a-z0-9_]*/g) || []).forEach(function(t) { if (lids.indexOf(t) < 0) lids.push(t); });
+  });
+  var stmtMap = await _fsLineStmt();
+  var allPids = []; for (var m = 1; m <= 12; m++) allPids.push(ps + m);
+  var res = await Promise.all([
+    ctx.hasMonthly ? _fetchFactsMulti(yr, _expandAliasLines(lids), allPids) : _fetchFactsN(ctx.actCode, lids, ps + 1, ps + 12),
+    _fetchFactsN('AOP_' + yr, lids, ps + 1, ps + 12)
+  ]);
+  var actF = res[0], aopF = res[1], fySet = allPids;
+  function tokVal(f, tok) { return stmtMap[tok] === 'BS' ? _fLastP(f, tok, fySet) : _fSumP(f, tok, fySet); }
+  function evalExpr(f, expr) {
+    var e = expr;
+    var toks = (expr.match(/[a-z][a-z0-9_]*/g) || []);
+    var uniq = toks.filter(function(t, i) { return toks.indexOf(t) === i; });
+    uniq.sort(function(a, b) { return b.length - a.length; }); // longest-first to avoid partial replace
+    uniq.forEach(function(t) { e = e.replace(new RegExp('\\b' + t + '\\b', 'g'), '(' + tokVal(f, t) + ')'); });
+    return _arithEval(e);
+  }
+  function fx(v) { return (typeof v === 'number' && isFinite(v) && v !== 0) ? v.toFixed(2) + 'x' : '—'; }
+
+  var rows = lines.map(function(l) {
+    if (l.row_type === 'section') return '<tr class="rsec"><td colspan="5">' + _escHtml(l.label_override || '') + '</td></tr>';
+    var meta = {}; try { meta = JSON.parse(l.description || '{}'); } catch (e) {}
+    var bench = meta.benchmark, dir = meta.dir || 1;
+    var aVal = evalExpr(actF, l.calc_expr || '0');
+    var bVal = evalExpr(aopF, l.calc_expr || '0');
+    var pass = bench == null ? '' : (dir === 1 ? (aVal >= bench ? 'fav' : 'adv') : (aVal <= bench ? 'fav' : 'adv'));
+    var benchStr = bench == null ? '' : (dir === 1 ? '≥ ' : '≤ ') + bench + 'x';
+    return '<tr class="rind"><td>' + _escHtml(l.label_override || '')
+      + (meta.note ? ' <span style="font-size:9px;color:var(--muted)">(' + _escHtml(meta.note) + ')</span>' : '') + '</td>'
+      + '<td class="num" style="color:var(--muted)">' + benchStr + '</td>'
+      + '<td class="num ' + pass + '" style="font-weight:600">' + fx(aVal) + '</td>'
+      + '<td class="num" style="color:var(--muted)">' + fx(bVal) + '</td>'
+      + '<td class="num">' + (pass === 'fav' ? '<span class="fav">PASS</span>' : pass === 'adv' ? '<span class="adv">WATCH</span>' : '') + '</td></tr>';
+  }).join('');
+
+  return '<div class="card"><div class="card-head"><span class="card-title">' + _escHtml(sec.section_title) + '</span>'
+    + '<span class="ch-sub">FY ' + yr + ' basis &middot; BS period-end, P&amp;L annualised</span></div>'
+    + '<div class="tbl-wrap"><table class="dt"><thead><tr><th style="text-align:left">Ratio / Covenant</th>'
+    + '<th class="num">Benchmark</th><th class="num">Actual</th><th class="num">AOP</th><th class="num">Status</th></tr></thead>'
+    + '<tbody>' + rows + '</tbody></table></div></div>';
+}
+
 function loadPage(id) {
   console.log('[FPA] load:', id);
   _dynPageBody = null; // clear any page-override render target on every page transition
@@ -8830,6 +9017,7 @@ function loadPage(id) {
   else if (id === 'p18')   loadP18();
   else if (id === 'p-adj') loadPAdj();
   else if (id === 'p-dyn') dynRender();
+  else if (id === 'p-fsum') loadFinancialSummary();
   // p14: static HTML retained
 }
 
