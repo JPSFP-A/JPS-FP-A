@@ -2067,7 +2067,7 @@ td.dyn-click:hover{background:rgba(0,61,165,.04)}
           <div style="flex:1"></div>
           <span style="font-size:10px;color:var(--muted);margin-right:4px">Columns:</span>
           <button id="fsLeToggle" class="dyn-cv-btn active" onclick="_fsToggleLE(this)" title="Show / hide the Full Year (LE vs AOP) block">Full Year (LE)</button>
-          <button class="dyn-cv-btn" onclick="_fsToggleStandalone()" title="Clean full-screen layout (hide sidebar/topbar) for presentation">⛶ Standalone</button>
+          <button id="fsStandaloneBtn" class="dyn-cv-btn" onclick="_fsToggleStandalone()" title="Clean full-screen layout (hide sidebar/topbar) for presentation; click again to exit">⛶ Standalone</button>
           <button class="dyn-cv-btn" onclick="_fsPrint()" title="Print / save the report to PDF">🖨 PDF</button>
         </div>
         <div class="dyn-body" id="fsumBody">
@@ -8837,19 +8837,28 @@ var _fsLineStmtCache = null;
 var _fsShowLE = true;       // include the Full Year (LE vs AOP) block in triple-block sections
 var _fsSection = 'all';     // which section to show: 'all' | template_slug
 var _fsDrill = {};          // drilldown open-state by line id
+var _fsBusy = false;        // re-entrancy guard — block overlapping renders
 function _fsToggleLE(btn) {
   _fsShowLE = !_fsShowLE;
   if (btn) btn.classList.toggle('active', _fsShowLE);
   loadFinancialSummary();
 }
 function _fsSetSection(key, btn) {
+  // Show/hide already-rendered sections — NO reload (instant, avoids re-fetch/recompute freeze)
   _fsSection = key;
   var bar = document.getElementById('fsSecBar');
   if (bar) bar.querySelectorAll('.dyn-cv-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-fssec') === key); });
-  loadFinancialSummary();
+  _fsApplySectionFilter();
+}
+function _fsApplySectionFilter() {
+  document.querySelectorAll('#fsumBody .fs-section').forEach(function(d){
+    d.style.display = (_fsSection === 'all' || d.getAttribute('data-fssec') === _fsSection) ? '' : 'none';
+  });
 }
 function _fsToggleStandalone() {
-  document.body.classList.toggle('fsum-standalone');
+  var on = document.body.classList.toggle('fsum-standalone');
+  var b = document.getElementById('fsStandaloneBtn');
+  if (b) { b.classList.toggle('active', on); b.textContent = on ? '⛶ Exit Standalone' : '⛶ Standalone'; }
 }
 function _fsToggleDrill(lineId) {
   _fsDrill[lineId] = !_fsDrill[lineId];
@@ -8884,20 +8893,22 @@ function _fsSectionErr(title, msg) {
 }
 
 async function loadFinancialSummary() {
-  _pgLoad('p-fsum', true);
-  await _ensureMaxMo(_activeYear);
-  var ctx = _getCtx();
-  var body = document.getElementById('fsumBody');
-  if (!ctx || !body) { _pgLoad('p-fsum', false); return; }
-  var yr = ctx.yr;
+  if (_fsBusy) return;
+  _fsBusy = true;
   try {
+    _pgLoad('p-fsum', true);
+    await _ensureMaxMo(_activeYear);
+    var ctx = _getCtx();
+    var body = document.getElementById('fsumBody');
+    if (!ctx || !body) return;
+    var yr = ctx.yr;
     var sb = _getSB();
     var layoutRes = await sb.from('report_summary_layout')
       .select('section_order,section_title,template_slug,render_mode')
       .eq('page_key', 'financial_summary').eq('is_active', true).order('section_order');
     if (layoutRes.error) throw layoutRes.error;
     var sections = layoutRes.data || [];
-    if (!sections.length) { body.innerHTML = '<div class="dyn-empty">No Financial Summary layout configured.</div>'; _pgLoad('p-fsum', false); return; }
+    if (!sections.length) { body.innerHTML = '<div class="dyn-empty">No Financial Summary layout configured.</div>'; return; }
 
     // Section nav buttons (one-at-a-time + All) — built from the layout, so it stays data-driven
     var secBar = '<div id="fsSecBar" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px">'
@@ -8911,24 +8922,31 @@ async function loadFinancialSummary() {
       + '<div class="ph-sub">Consolidated board pack &middot; Month / YTD / Full Year &middot; Actual vs AOP, FY LE &middot; FY ' + yr + ' &middot; US$’000s</div></div>'
       + secBar;
 
-    var shown = sections.filter(function(s){ return _fsSection === 'all' || s.template_slug === _fsSection; });
-    for (var si = 0; si < shown.length; si++) {
-      var sec = shown[si];
+    // Render ALL sections once; the section nav just shows/hides them (no reload)
+    for (var si = 0; si < sections.length; si++) {
+      var sec = sections[si];
+      var secHtml;
       var tplRes = await sb.from('report_templates')
         .select('id,slug,name,statement_type,report_type').eq('slug', sec.template_slug).maybeSingle();
-      if (!tplRes.data) { html += _fsSectionErr(sec.section_title, 'Template "' + sec.template_slug + '" not found'); continue; }
-      var tpl = tplRes.data;
-      var lineRes = await sb.from('report_lines').select('*').eq('template_id', tpl.id).order('sort_order');
-      var lines = lineRes.data || [];
-      if (sec.render_mode === 'ratios') html += await _fsRenderRatios(sec, lines, ctx);
-      else                              html += await _fsRenderTriple(sec, tpl, lines, ctx);
+      if (!tplRes.data) { secHtml = _fsSectionErr(sec.section_title, 'Template "' + sec.template_slug + '" not found'); }
+      else {
+        var tpl = tplRes.data;
+        var lineRes = await sb.from('report_lines').select('*').eq('template_id', tpl.id).order('sort_order');
+        var lines = lineRes.data || [];
+        if (sec.render_mode === 'ratios') secHtml = await _fsRenderRatios(sec, lines, ctx);
+        else                              secHtml = await _fsRenderTriple(sec, tpl, lines, ctx);
+      }
+      html += '<div class="fs-section" data-fssec="' + _escHtml(sec.template_slug) + '">' + secHtml + '</div>';
     }
     body.innerHTML = html;
+    _fsApplySectionFilter();
   } catch (e) {
     body.innerHTML = '<div class="dyn-empty">&#9888; Financial Summary failed: ' + _escHtml(e.message || String(e)) + '</div>';
     if (window.JpsMonitor && JpsMonitor.warning) JpsMonitor.warning('fsum:load', e.message || 'error', {});
+  } finally {
+    _pgLoad('p-fsum', false);
+    _fsBusy = false;
   }
-  _pgLoad('p-fsum', false);
 }
 
 async function _fsRenderTriple(sec, tpl, lines, ctx) {
