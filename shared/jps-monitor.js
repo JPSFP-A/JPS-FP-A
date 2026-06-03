@@ -26,7 +26,8 @@
       if (_cfn && _uid) {
         var c = _cfn();
         if (c && c.rpc) {
-          c.rpc('record_heartbeat', { p_app: _app, p_user_id: _uid })
+          // record_heartbeat takes a single p_app arg
+          c.rpc('record_heartbeat', { p_app: _app })
            .then(function(){}).catch(function(){});
         }
       }
@@ -35,7 +36,11 @@
 
   setInterval(_beat, 60000);
 
-  // ── Log writer → platform_audit_results ───────────────
+  // ── Error writer → platform_audit_results (schema-correct) ───
+  function _uuid() {
+    try { if (root.crypto && root.crypto.randomUUID) return root.crypto.randomUUID(); } catch(e) {}
+    return '00000000-0000-0000-0000-000000000000';
+  }
   function _log(level, evt, msg) {
     try {
       if (_cfn && _uid) {
@@ -43,9 +48,12 @@
         if (c && c.from) {
           c.from('platform_audit_results').insert({
             app:          _app,
-            check_name:   evt  || 'event',
+            check_name:   evt   || 'event',
+            check_type:   'monitor',
             status:       level,
-            detail:       msg  || null,
+            message:      msg   || level,
+            run_id:       _uuid(),
+            run_at:       new Date().toISOString(),
             triggered_by: 'monitor'
           }).then(function(){}).catch(function(){});
         }
@@ -75,9 +83,10 @@
       _beat();
     },
 
-    info:    function(evt, msg) { _log('info',    evt, msg); },
-    warning: function(evt, msg) { _log('warning', evt, msg); },
-    error:   function(evt, msg) { _log('error',   evt, msg); },
+    // info/warning are console-only (originally no-ops) — avoids flooding the audit table.
+    info:    function(evt, msg) { try { if (root.console) root.console.info('[mon]', evt, msg || ''); } catch(e){} },
+    warning: function(evt, msg) { try { if (root.console) root.console.warn('[mon]', evt, msg || ''); } catch(e){} },
+    error:   function(evt, msg) { _log('error', evt, msg); },
 
     /** Legacy compat — some apps call JpsMonitor.init() */
     init: function(opts) {
