@@ -1,3 +1,5 @@
-# Deploy only the main app file
+# Deploy only the main app file + shared modules
 *
 !index.html
+!shared
+!shared/**
