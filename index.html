@@ -171,7 +171,18 @@ button { font-family: inherit; cursor: pointer; }
   #p17{height:auto!important;overflow:visible!important;background:#fff!important}
   #flashDocument{overflow:visible!important;padding:0!important}
   .flash-page{box-shadow:none!important}
+  /* Scope print to the active report only — no chrome, no other pages */
+  .page:not(.active){display:none!important}
+  #main{overflow:visible!important;margin:0!important;max-width:100%!important}
+  #p-fsum{height:auto!important;overflow:visible!important;background:#fff!important}
+  #p-fsum .dyn-ctrl,#fsSecBar{display:none!important}
+  #p-fsum .card{box-shadow:none!important;break-inside:avoid}
 }
+/* Standalone presentation mode — clean full-screen, no chrome */
+body.fsum-standalone nav#sidebar,
+body.fsum-standalone .topbar-bar,
+body.fsum-standalone .tb-bar{display:none!important}
+body.fsum-standalone #main{margin:0!important;max-width:100%!important;width:100%!important}
 
 /* ===================== TOAST ===================== */
 .toast {
@@ -2056,6 +2067,8 @@ td.dyn-click:hover{background:rgba(0,61,165,.04)}
           <div style="flex:1"></div>
           <span style="font-size:10px;color:var(--muted);margin-right:4px">Columns:</span>
           <button id="fsLeToggle" class="dyn-cv-btn active" onclick="_fsToggleLE(this)" title="Show / hide the Full Year (LE vs AOP) block">Full Year (LE)</button>
+          <button class="dyn-cv-btn" onclick="_fsToggleStandalone()" title="Clean full-screen layout (hide sidebar/topbar) for presentation">⛶ Standalone</button>
+          <button class="dyn-cv-btn" onclick="_fsPrint()" title="Print / save the report to PDF">🖨 PDF</button>
         </div>
         <div class="dyn-body" id="fsumBody">
           <div class="dyn-empty">Loading Financial Summary…</div>
@@ -8821,12 +8834,30 @@ async function loadP9() {
 // Triple-block layout: Month | YTD | Full Year, each Actual/AOP/Var (FY uses LE vs AOP).
 
 var _fsLineStmtCache = null;
-var _fsShowLE = true;  // toggle: include the Full Year (LE vs AOP) block in triple-block sections
+var _fsShowLE = true;       // include the Full Year (LE vs AOP) block in triple-block sections
+var _fsSection = 'all';     // which section to show: 'all' | template_slug
+var _fsDrill = {};          // drilldown open-state by line id
 function _fsToggleLE(btn) {
   _fsShowLE = !_fsShowLE;
   if (btn) btn.classList.toggle('active', _fsShowLE);
   loadFinancialSummary();
 }
+function _fsSetSection(key, btn) {
+  _fsSection = key;
+  var bar = document.getElementById('fsSecBar');
+  if (bar) bar.querySelectorAll('.dyn-cv-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-fssec') === key); });
+  loadFinancialSummary();
+}
+function _fsToggleStandalone() {
+  document.body.classList.toggle('fsum-standalone');
+}
+function _fsToggleDrill(lineId) {
+  _fsDrill[lineId] = !_fsDrill[lineId];
+  document.querySelectorAll('[data-fsdrill-parent="' + lineId + '"]').forEach(function(r){ r.style.display = _fsDrill[lineId] ? '' : 'none'; });
+  var btn = document.querySelector('[data-fsdrill-toggle="' + lineId + '"]');
+  if (btn) btn.textContent = _fsDrill[lineId] ? '▼' : '▶';
+}
+function _fsPrint() { window.print(); }
 async function _fsLineStmt() {
   if (!_fsLineStmtCache) {
     _fsLineStmtCache = {};
@@ -8868,11 +8899,21 @@ async function loadFinancialSummary() {
     var sections = layoutRes.data || [];
     if (!sections.length) { body.innerHTML = '<div class="dyn-empty">No Financial Summary layout configured.</div>'; _pgLoad('p-fsum', false); return; }
 
-    var html = '<div class="page-head"><h1>Financial Summary</h1>'
-      + '<div class="ph-sub">Consolidated board pack &middot; Month / YTD / Full Year &middot; Actual vs AOP, FY LE &middot; FY ' + yr + ' &middot; US$’000s</div></div>';
+    // Section nav buttons (one-at-a-time + All) — built from the layout, so it stays data-driven
+    var secBar = '<div id="fsSecBar" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px">'
+      + '<button class="dyn-cv-btn' + (_fsSection==='all'?' active':'') + '" data-fssec="all" onclick="_fsSetSection(\'all\',this)">All</button>'
+      + sections.map(function(s){
+          return '<button class="dyn-cv-btn' + (_fsSection===s.template_slug?' active':'') + '" data-fssec="' + _escHtml(s.template_slug) + '" onclick="_fsSetSection(\'' + _escHtml(s.template_slug) + '\',this)">' + _escHtml(s.section_title) + '</button>';
+        }).join('')
+      + '</div>';
 
-    for (var si = 0; si < sections.length; si++) {
-      var sec = sections[si];
+    var html = '<div class="page-head"><h1>Financial Summary</h1>'
+      + '<div class="ph-sub">Consolidated board pack &middot; Month / YTD / Full Year &middot; Actual vs AOP, FY LE &middot; FY ' + yr + ' &middot; US$’000s</div></div>'
+      + secBar;
+
+    var shown = sections.filter(function(s){ return _fsSection === 'all' || s.template_slug === _fsSection; });
+    for (var si = 0; si < shown.length; si++) {
+      var sec = shown[si];
       var tplRes = await sb.from('report_templates')
         .select('id,slug,name,statement_type,report_type').eq('slug', sec.template_slug).maybeSingle();
       if (!tplRes.data) { html += _fsSectionErr(sec.section_title, 'Template "' + sec.template_slug + '" not found'); continue; }
@@ -8932,14 +8973,12 @@ async function _fsRenderTriple(sec, tpl, lines, ctx) {
     + '<th class="num" style="' + bl + '">Act</th><th class="num">AOP</th><th class="num">Var</th>'
     + (showLE ? '<th class="num" style="' + bl + '">LE</th><th class="num">AOP</th><th class="num">Var</th>' : '') + '</tr></thead>';
 
-  var rows = lines.map(function(l) {
-    if (l.row_type === 'spacer') return '<tr><td colspan="' + ncol + '" style="height:5px;border:none"></td></tr>';
-    if (l.row_type === 'section') return '<tr class="rsec"><td colspan="' + ncol + '">' + _escHtml(l.label_override || '') + '</td></tr>';
-    if (l.row_type === 'chart' || l.parent_id) return '';
-    var bold = (l.row_type === 'subtotal' || l.row_type === 'total' || l.is_bold);
-    var pad = 12 + (l.indent_level || 0) * 14;
-    var favDir = (l.fav_direction != null ? l.fav_direction : 1);
-    function block(vals) {
+  // parents = lines that have at least one child pointing at them (for ▶ drill toggle)
+  var parentIds = {};
+  lines.forEach(function(l) { if (l.parent_id) parentIds[l.parent_id] = true; });
+
+  function blockFor(l, favDir) {
+    function one(vals) {
       var v = vals[l.id] || { a: 0, b: 0 };
       var vd = v.a - v.b;
       var vc = favDir === 1 ? (vd >= 0 ? 'fav' : 'adv') : (vd <= 0 ? 'fav' : 'adv');
@@ -8947,8 +8986,32 @@ async function _fsRenderTriple(sec, tpl, lines, ctx) {
         + '<td class="num" style="color:var(--muted)">' + _fmtM(v.b) + '</td>'
         + '<td class="num ' + vc + '">' + _fmtM(vd) + '</td>';
     }
+    return one(mVals) + one(yVals) + (showLE ? one(fVals) : '');
+  }
+
+  var rows = lines.map(function(l) {
+    if (l.row_type === 'spacer') return '<tr><td colspan="' + ncol + '" style="height:5px;border:none"></td></tr>';
+    if (l.row_type === 'section') return '<tr class="rsec"><td colspan="' + ncol + '">' + _escHtml(l.label_override || '') + '</td></tr>';
+    if (l.row_type === 'chart') return '';
+    var favDir = (l.fav_direction != null ? l.fav_direction : 1);
+
+    // Drilldown child row — hidden until parent expanded
+    if (l.parent_id) {
+      var open = !!_fsDrill[l.parent_id];
+      var cpad = 12 + (l.indent_level || 2) * 14;
+      return '<tr data-fsdrill-parent="' + _escHtml(l.parent_id) + '" style="' + (open ? '' : 'display:none;') + 'background:rgba(0,61,165,.02)">'
+        + '<td style="padding-left:' + cpad + 'px;font-size:11px;color:var(--muted)">' + _escHtml(l.label_override || l.line_id || '') + '</td>'
+        + blockFor(l, favDir) + '</tr>';
+    }
+
+    var bold = (l.row_type === 'subtotal' || l.row_type === 'total' || l.is_bold);
+    var pad = 12 + (l.indent_level || 0) * 14;
+    var isParent = parentIds[l.id];
+    var toggle = isParent
+      ? '<span data-fsdrill-toggle="' + _escHtml(l.id) + '" onclick="_fsToggleDrill(\'' + _escHtml(l.id) + '\')" style="cursor:pointer;display:inline-block;width:14px;color:var(--muted)">' + (_fsDrill[l.id] ? '▼' : '▶') + '</span>'
+      : '';
     return '<tr class="' + (bold ? 'rs' : 'rind') + '"><td style="padding-left:' + pad + 'px;' + (bold ? 'font-weight:700' : '') + '">'
-      + _escHtml(l.label_override || l.line_id || '') + '</td>' + block(mVals) + block(yVals) + (showLE ? block(fVals) : '') + '</tr>';
+      + toggle + _escHtml(l.label_override || l.line_id || '') + '</td>' + blockFor(l, favDir) + '</tr>';
   }).join('');
 
   return '<div class="card"><div class="card-head"><span class="card-title">' + _escHtml(sec.section_title) + '</span>'
@@ -8964,11 +9027,12 @@ async function _fsRenderRatios(sec, lines, ctx) {
   });
   var stmtMap = await _fsLineStmt();
   var allPids = []; for (var m = 1; m <= 12; m++) allPids.push(ps + m);
+  // FY LE vs FY AOP basis — both full-year so debt (period-end) and EBITDA (full-year) are consistent.
   var res = await Promise.all([
-    ctx.hasMonthly ? _fetchFactsMulti(yr, _expandAliasLines(lids), allPids) : _fetchFactsN(ctx.actCode, lids, ps + 1, ps + 12),
+    _fetchFactsN('LE_' + yr + '_02', lids, ps + 1, ps + 12),
     _fetchFactsN('AOP_' + yr, lids, ps + 1, ps + 12)
   ]);
-  var actF = res[0], aopF = res[1], fySet = allPids;
+  var leF = res[0], aopF = res[1], fySet = allPids;
   function tokVal(f, tok) { return stmtMap[tok] === 'BS' ? _fLastP(f, tok, fySet) : _fSumP(f, tok, fySet); }
   function evalExpr(f, expr) {
     var e = expr;
@@ -8984,7 +9048,7 @@ async function _fsRenderRatios(sec, lines, ctx) {
     if (l.row_type === 'section') return '<tr class="rsec"><td colspan="5">' + _escHtml(l.label_override || '') + '</td></tr>';
     var meta = {}; try { meta = JSON.parse(l.description || '{}'); } catch (e) {}
     var bench = meta.benchmark, dir = meta.dir || 1;
-    var aVal = evalExpr(actF, l.calc_expr || '0');
+    var aVal = evalExpr(leF, l.calc_expr || '0');
     var bVal = evalExpr(aopF, l.calc_expr || '0');
     var pass = bench == null ? '' : (dir === 1 ? (aVal >= bench ? 'fav' : 'adv') : (aVal <= bench ? 'fav' : 'adv'));
     var benchStr = bench == null ? '' : (dir === 1 ? '≥ ' : '≤ ') + bench + 'x';
@@ -8999,7 +9063,7 @@ async function _fsRenderRatios(sec, lines, ctx) {
   return '<div class="card"><div class="card-head"><span class="card-title">' + _escHtml(sec.section_title) + '</span>'
     + '<span class="ch-sub">FY ' + yr + ' basis &middot; BS period-end, P&amp;L annualised</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr><th style="text-align:left">Ratio / Covenant</th>'
-    + '<th class="num">Benchmark</th><th class="num">Actual</th><th class="num">AOP</th><th class="num">Status</th></tr></thead>'
+    + '<th class="num">Benchmark</th><th class="num">FY LE</th><th class="num">FY AOP</th><th class="num">Status</th></tr></thead>'
     + '<tbody>' + rows + '</tbody></table></div></div>';
 }
 
