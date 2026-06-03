@@ -9037,7 +9037,8 @@ async function _fsRenderTriple(sec, tpl, lines, ctx) {
     + '<div class="tbl-wrap" style="overflow-x:auto"><table class="dt">' + thead + '<tbody>' + rows + '</tbody></table></div></div>';
 }
 
-async function _fsRenderRatios(sec, lines, ctx) {
+async function _fsRenderRatios(sec, lines, ctx, opts) {
+  opts = opts || {};
   var yr = ctx.yr, ps = yr * 100;
   var lids = [];
   lines.forEach(function(l) {
@@ -9045,11 +9046,19 @@ async function _fsRenderRatios(sec, lines, ctx) {
   });
   var stmtMap = await _fsLineStmt();
   var allPids = []; for (var m = 1; m <= 12; m++) allPids.push(ps + m);
-  // FY LE vs FY AOP basis — both full-year so debt (period-end) and EBITDA (full-year) are consistent.
-  var res = await Promise.all([
-    _fetchFactsN('LE_' + yr + '_02', lids, ps + 1, ps + 12),
-    _fetchFactsN('AOP_' + yr, lids, ps + 1, ps + 12)
-  ]);
+  // Column versions — default FY LE vs FY AOP; overridable (e.g. by the Report Builder version selector / a scenario).
+  var codeA = ('verACode' in opts) ? opts.verACode : ('LE_' + yr + '_02');
+  var codeB = ('verBCode' in opts) ? opts.verBCode : ('AOP_' + yr);
+  var labA = opts.labelA || 'FY LE';
+  var labB = opts.labelB || 'FY AOP';
+  // null code = actuals (per-month versions) → multi-fetch; else single named version.
+  function fetchVer(code) {
+    if (code == null) return ctx.hasMonthly
+      ? _fetchFactsMulti(yr, _expandAliasLines(lids), allPids)
+      : _fetchFactsN(ctx.actCode, lids, ps + 1, ps + 12);
+    return _fetchFactsN(code, lids, ps + 1, ps + 12);
+  }
+  var res = await Promise.all([ fetchVer(codeA), fetchVer(codeB) ]);
   var leF = res[0], aopF = res[1], fySet = allPids;
   function tokVal(f, tok) { return stmtMap[tok] === 'BS' ? _fLastP(f, tok, fySet) : _fSumP(f, tok, fySet); }
   function evalExpr(f, expr) {
@@ -9081,7 +9090,7 @@ async function _fsRenderRatios(sec, lines, ctx) {
   return '<div class="card"><div class="card-head"><span class="card-title">' + _escHtml(sec.section_title) + '</span>'
     + '<span class="ch-sub">FY ' + yr + ' basis &middot; BS period-end, P&amp;L annualised</span></div>'
     + '<div class="tbl-wrap"><table class="dt"><thead><tr><th style="text-align:left">Ratio / Covenant</th>'
-    + '<th class="num">Benchmark</th><th class="num">FY LE</th><th class="num">FY AOP</th><th class="num">Status</th></tr></thead>'
+    + '<th class="num">Benchmark</th><th class="num">' + _escHtml(labA) + '</th><th class="num">' + _escHtml(labB) + '</th><th class="num">Status</th></tr></thead>'
     + '<tbody>' + rows + '</tbody></table></div></div>';
 }
 
@@ -11279,7 +11288,16 @@ async function dynRender() {
   // ── Render ───────────────────────────────────────────────────────────────
   var visLines = _dynFilterLines(lines);
   var html = '';
-  if (_dynColView === 'detailed') {
+  if (_dynActiveTpl && _dynActiveTpl.report_type === 'custom') {
+    // Ratio-style template (e.g. fs_ratios): needs the stock/flow-aware renderer with
+    // a real arithmetic evaluator (division). The standard builders use _dynSafeEval (+/- only).
+    // Columns follow the version selector, so ratios compute for whatever version/scenario is picked.
+    html = await _fsRenderRatios(
+      { section_title: _dynActiveTpl.name }, lines, ctx,
+      { verACode: _dynVerCode(_dynVerA, ctx.yr), verBCode: _dynVerCode(_dynVerB, ctx.yr),
+        labelA: _verLabel(_dynVerA), labelB: _verLabel(_dynVerB) }
+    );
+  } else if (_dynColView === 'detailed') {
     html = _dynBuildDetailed(visLines, ctx, allActF, aopF);
   } else if (_dynColView === 'ytg') {
     html = _dynBuildYtg(visLines, ctx, allActF, leF, aopF);
