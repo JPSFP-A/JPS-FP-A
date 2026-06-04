@@ -1179,10 +1179,12 @@ td.dyn-click:hover{background:rgba(0,61,165,.04)}
     <!-- Year selector -->
     <div class="tb-ctrl-grp">
       <span class="tb-ctrl-lbl">Year</span>
-      <div id="yr-nav" class="yr-nav">
-        <!-- Populated dynamically by _renderYrNav() — placeholder seeded at DOMContentLoaded -->
+      <div style="display:flex;align-items:center;gap:4px">
+        <div id="yr-nav" class="yr-nav">
+          <!-- Populated dynamically by _renderYrNav() — placeholder seeded at DOMContentLoaded -->
+        </div>
+        <button class="yr-add-btn" onclick="toggleYrMgmt(event)" title="Open / close planning years">&#43;</button>
       </div>
-      <button class="yr-add-btn" onclick="toggleYrMgmt(event)" title="Open / close planning years">&#43;</button>
     </div>
 
     <!-- Month selector -->
@@ -11528,8 +11530,11 @@ function _dynBuildDetailed(lines, ctx, allActF, aopF) {
   }
 
   var moHdr = moLabels.map(function(m){ return '<th class="num" style="font-size:11px">' + m + '</th>'; }).join('');
-  var thead = '<thead><tr>' +
-    '<th style="text-align:left;min-width:220px">Description</th>' +
+  var thead = '<thead>' +
+    '<tr><th></th>' +
+    '<th colspan="' + nMo + '" style="text-align:center;font-size:9px;font-weight:600;letter-spacing:.06em;border-bottom:none;padding-bottom:2px;color:rgba(255,255,255,.6)">' + yr + ' — ' + _verLabel(_dynVerA) + '</th>' +
+    '<th colspan="4" style="text-align:center;font-size:9px;font-weight:500;border-bottom:none;padding-bottom:2px;color:rgba(255,255,255,.5)">Summary</th></tr>' +
+    '<tr><th style="text-align:left;min-width:220px">Description</th>' +
     moHdr +
     '<th class="num">' + _verLabel(_dynVerA) + ' YTD</th><th class="num">' + _verLabel(_dynVerB) + ' YTD</th><th class="num">Var&nbsp;$</th><th class="num">Var&nbsp;%</th>' +
     '</tr></thead>';
@@ -11543,6 +11548,12 @@ function _dynBuildDetailed(lines, ctx, allActF, aopF) {
     if (line.parent_id) return ''; // drilldown children hidden in detailed view
 
     var entry = moMap[line.id] || { moA: actPids.map(function(){return 0;}), moB: actPids.map(function(){return 0;}) };
+    // Skip data rows with no values loaded (avoids blank gap rows); show in inspect mode
+    if (line.row_type === 'data' && !_dynInspect) {
+      var _dtHasAny = entry.moA.some(function(v){ return Math.abs(v) > 0.005; }) ||
+                      entry.moB.some(function(v){ return Math.abs(v) > 0.005; });
+      if (!_dtHasAny) return '';
+    }
     var isCost = (line.sign != null ? line.sign : 1) === -1;
     var hg     = (line.fav_direction != null ? line.fav_direction : 1) === 1;
     var fmt    = isCost ? _fmtCost : _fmtM;
@@ -11799,8 +11810,11 @@ function _dynBuildMonthly(lines, ctx, allActF, aopF, lineValsYtd) {
 
   var moHdr   = months.map(function(m){ return '<th style="font-size:10px">' + _MONS[m-1] + '</th>'; }).join('');
   var colspan = 1 + 12 + 3;
-  var thead   = '<thead><tr>' +
-    '<th style="text-align:left;min-width:180px">Description</th>' +
+  var thead   = '<thead>' +
+    '<tr><th></th>' +
+    '<th colspan="12" style="text-align:center;font-size:9px;font-weight:600;letter-spacing:.06em;border-bottom:none;padding-bottom:2px;color:rgba(255,255,255,.6)">' + yr + ' — ' + _verLabel(_dynVerA) + '</th>' +
+    '<th colspan="3" style="text-align:center;font-size:9px;font-weight:500;border-bottom:none;padding-bottom:2px;color:rgba(255,255,255,.5)">Summary</th></tr>' +
+    '<tr><th style="text-align:left;min-width:180px">Description</th>' +
     moHdr + '<th>' + _verLabel(_dynVerA) + ' YTD</th><th>' + _verLabel(_dynVerB) + ' YTD</th><th>Var&nbsp;%</th>' +
     '</tr></thead>';
 
@@ -11817,6 +11831,12 @@ function _dynBuildMonthly(lines, ctx, allActF, aopF, lineValsYtd) {
     var mv   = moMap[line.id];
     var ytdV = lineValsYtd[line.id] || { a: 0, b: 0 };
     if (!mv) return '';
+    // Skip data rows with no values loaded (avoids blank gap rows); show in inspect mode
+    if (line.row_type === 'data' && !_dynInspect) {
+      var _hasAny = mv.moA.some(function(v){ return Math.abs(v) > 0.005; }) ||
+                    mv.moB.some(function(v){ return Math.abs(v) > 0.005; });
+      if (!_hasAny) return '';
+    }
     var isCost = (line.sign != null ? line.sign : 1) === -1;
     var hg     = (line.fav_direction != null ? line.fav_direction : 1) === 1;
     var bold   = line.is_bold || line.row_type === 'total' || line.row_type === 'subtotal' || line.row_type === 'formula';
@@ -11994,8 +12014,11 @@ function _dynBuildQuarterly(lines, ctx, allActF, aopF, lineValsYtd) {
   var qPartial  = qtrs.map(function(qt){ return maxMo >= qt.mo[0] && maxMo < qt.mo[2]; });
 
   var colspan = 1 + 4 + 3;
-  var thead   = '<thead><tr>' +
-    '<th style="text-align:left;min-width:200px">Description</th>' +
+  var thead   = '<thead>' +
+    '<tr><th></th>' +
+    '<th colspan="4" style="text-align:center;font-size:9px;font-weight:600;letter-spacing:.06em;border-bottom:none;padding-bottom:2px;color:rgba(255,255,255,.6)">' + yr + ' — ' + _verLabel(_dynVerA) + '</th>' +
+    '<th colspan="3" style="text-align:center;font-size:9px;font-weight:500;border-bottom:none;padding-bottom:2px;color:rgba(255,255,255,.5)">Summary</th></tr>' +
+    '<tr><th style="text-align:left;min-width:200px">Description</th>' +
     qtrs.map(function(qt){ return '<th>' + qt.q + '</th>'; }).join('') +
     '<th>' + _verLabel(_dynVerA) + ' YTD</th><th>' + _verLabel(_dynVerB) + ' YTD</th><th>Var&nbsp;%</th>' +
     '</tr></thead>';
@@ -12013,6 +12036,12 @@ function _dynBuildQuarterly(lines, ctx, allActF, aopF, lineValsYtd) {
     var qv   = qMap[line.id];
     var ytdV = lineValsYtd[line.id] || { a: 0, b: 0 };
     if (!qv) return '';
+    // Skip data rows with no values loaded (avoids blank gap rows); show in inspect mode
+    if (line.row_type === 'data' && !_dynInspect) {
+      var _qHasAny = qv.qA.some(function(v){ return Math.abs(v) > 0.005; }) ||
+                     qv.qB.some(function(v){ return Math.abs(v) > 0.005; });
+      if (!_qHasAny) return '';
+    }
     var isCost = (line.sign != null ? line.sign : 1) === -1;
     var hg     = (line.fav_direction != null ? line.fav_direction : 1) === 1;
     var bold   = line.is_bold || line.row_type === 'total' || line.row_type === 'subtotal' || line.row_type === 'formula';
