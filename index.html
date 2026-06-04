@@ -11194,6 +11194,9 @@ async function dynRender() {
   var ctx = _getCtx();
   if (!ctx) { body.innerHTML = '<div class="dyn-empty">No context — select a year.</div>'; return; }
 
+  // Keep month nav in sync (template-replaced pages bypass their native loaders)
+  _renderMoNav(ctx.maxMo);
+
   // Load adjustments for this template + year
   await _loadAdjustments(tplId, ctx.yr);
 
