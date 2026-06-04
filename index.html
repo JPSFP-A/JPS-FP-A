@@ -3915,12 +3915,15 @@ var _PL_CONSOL_EXEC_TPL_ID = 'b86712bd-a3b3-49cd-a3b4-06232209b9ad';
 var _p2ExecTplLines = null;  // report_lines[] for the segmented Exec view (null = hardcoded)
 
 async function _ensureP2Tpl() {
-  if (_p2TplLines && _p2ExecTplLines) return;
+  // Always fetch report lines fresh from DB — no session cache. Mirrors the dynamic
+  // renderer (_loadDynLines): Report Builder layout edits to pl_consol must appear on
+  // the standard P&L page on next entry without a full browser reload. (Previously the
+  // session-cached _p2TplLines/_p2ExecTplLines made p2 stale until Ctrl+Shift+R.)
   var sb = _getSB(); if (!sb) return;
   try {
     var res = await Promise.all([
-      _p2TplLines     ? Promise.resolve({ data: _p2TplLines })     : sb.from('report_lines').select('*').eq('template_id', _PL_CONSOL_TPL_ID).order('sort_order'),
-      _p2ExecTplLines ? Promise.resolve({ data: _p2ExecTplLines }) : sb.from('report_lines').select('*').eq('template_id', _PL_CONSOL_EXEC_TPL_ID).order('sort_order'),
+      sb.from('report_lines').select('*').eq('template_id', _PL_CONSOL_TPL_ID).order('sort_order'),
+      sb.from('report_lines').select('*').eq('template_id', _PL_CONSOL_EXEC_TPL_ID).order('sort_order'),
     ]);
     var r = res[0], e = res[1];
     if (!r.error && r.data && r.data.length) {
