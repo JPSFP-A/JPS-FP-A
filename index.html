@@ -3123,7 +3123,7 @@ function _planYrBanner(yr, title, sub) {
     + 'This year is open for planning but no data has been uploaded yet.<br>'
     + 'Upload AOP ' + yr + ' data via DataManager to activate all reports.</p>'
     + '<div style="display:flex;gap:10px;align-items:center">'
-    + '<a href="data-manager.html" style="padding:8px 16px;background:var(--teal);color:#fff;border-radius:7px;font-size:12px;font-weight:700;text-decoration:none">Open DataManager &rarr;</a>'
+    + '<a href="https://datamanager.jmfinancelab.com" target="_blank" style="padding:8px 16px;background:var(--teal);color:#fff;border-radius:7px;font-size:12px;font-weight:700;text-decoration:none">Open DataManager &rarr;</a>'
     + '<button onclick="toggleOpenYear(' + yr + ')" style="padding:8px 16px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Close This Year</button>'
     + '</div></div>';
 }
@@ -10519,17 +10519,14 @@ function initPlatform() {
   if (!sb) { _dynTplsReady(); return; }
   // Warm up vMap, derived formulas, and DB-backed planning years in parallel
   Promise.all([
-    _ensureVMap().then(function() {
-      console.log('[FPA v2] vMap ready, versions:', Object.keys(_vMap || {}).length);
-    }),
+    _ensureVMap(),
     _ensureDerivedFormulas(),
-    _loadOpenYears().then(function() {
-      if (_openYears.length) {
-        console.log('[FPA v2] Open planning years from DB:', _openYears);
-        _renderYrNav(); // re-render now that open years are known
-      }
-    })
-  ]).catch(function(e) { console.error('[FPA] init warmup failed:', e); });
+    _loadOpenYears()
+  ]).then(function() {
+    // Render year nav once both vMap and planning years are ready
+    _renderYrNav();
+    console.log('[FPA v2] vMap ready, versions:', Object.keys(_vMap || {}).length, '| planning years:', _openYears);
+  }).catch(function(e) { console.error('[FPA] init warmup failed:', e); });
   // Load dynamic report templates (sidebar nav items)
   dynInitTemplates().catch(function(e){ console.error('[FPA] dynInitTemplates:', e); });
 }
