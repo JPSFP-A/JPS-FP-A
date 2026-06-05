@@ -2646,7 +2646,19 @@ async function doLogin() {
     try {
       const { data: accRows } = await sb.rpc('get_app_access', { p_app_id: 'fpa_hub' });
       accessRole = accRows?.[0]?.role || null;
-    } catch(e) { console.error('[auth] get_app_access failed', e); toast('Access check failed — reload', 'error'); }
+    } catch(e) {
+      console.error('[auth] get_app_access failed', e);
+      await sb.auth.signOut();
+      const errEl = document.getElementById('loginError');
+      if (errEl) { errEl.textContent = 'Access check failed. Contact admin or try again.'; errEl.style.display = 'block'; }
+      return;
+    }
+    if (!accessRole) {
+      await sb.auth.signOut();
+      const errEl = document.getElementById('loginError');
+      if (errEl) { errEl.textContent = 'No FP&A Hub access. Contact your administrator.'; errEl.style.display = 'block'; }
+      return;
+    }
     _user = {
       id: u.id,
       name: (u.user_metadata && u.user_metadata.full_name) || email,
@@ -6057,15 +6069,19 @@ async function flashFetchFacts(versionId, periodIds) {
   agg['ebitda'] = agg['pl_gross_profit'] - (agg['opex_total']||0);
   // ebit: ebitda - depreciation
   agg['ebit'] = agg['ebitda'] - (agg['depn']||0);
-  // pretax: ebit + net finance items
-  agg['pretax'] = agg['ebit']
+  // op_nfc: ebit + finance items (matches DB: op_nfc = ebit + pl_afudc - fin_cost + nfc_int_inc)
+  // fin_cost = nfc_int_exp + nfc_pref + nfc_fees - pl_fx
+  agg['op_nfc'] = agg['ebit']
     + (agg['pl_afudc']||0)
     - (agg['nfc_int_exp']||0)
     + (agg['nfc_int_inc']||0)
     - (agg['nfc_pref']||0)
+    - (agg['nfc_fees']||0)
     + (agg['pl_fx']||0);
-  // net_inc: pretax - tax + pl_div_recv (dividend received is tax-free, added after tax line)
-  agg['net_inc'] = agg['pretax'] - (agg['tax']||0) - (agg['oth_tax']||0) + (agg['pl_div_recv']||0);
+  // pretax: op_nfc + other income + dividends received (matches DB: pretax = op_nfc + oth_inc + pl_div_recv)
+  agg['pretax'] = agg['op_nfc'] + (agg['oth_inc']||0) + (agg['pl_div_recv']||0);
+  // net_inc: pretax - tax (pl_div_recv already included in pretax — do NOT add again)
+  agg['net_inc'] = agg['pretax'] - (agg['tax']||0) - (agg['oth_tax']||0);
   return agg;
 }
 
@@ -6317,7 +6333,7 @@ async function flashLoadNotes(periodId) {
   var r=await _sbQ(function(sb){
     return sb.from('fpa_flash_notes').select('*')
       .eq('report_period',rptPeriod).eq('is_deleted',false)
-      .order('entered_at',{ascending:false});
+      .order('entered_at',{ascending:false}).limit(200);
   },{silent:true});
   _flashNotesData=(r&&r.data)||[];
   flashRenderNotes();
@@ -8927,22 +8943,22 @@ async function loadFinancialSummary() {
       + '<div class="ph-sub">Consolidated board pack &middot; Month / YTD / Full Year &middot; Actual vs AOP, FY LE &middot; FY ' + yr + ' &middot; US$’000s</div></div>'
       + secBar;
 
-    // Render ALL sections once; the section nav just shows/hides them (no reload)
-    for (var si = 0; si < sections.length; si++) {
-      var sec = sections[si];
-      var secHtml;
+    // Render ALL sections in parallel (template + lines fetched concurrently per section)
+    var secHtmls = await Promise.all(sections.map(async function(sec) {
       var tplRes = await sb.from('report_templates')
         .select('id,slug,name,statement_type,report_type').eq('slug', sec.template_slug).maybeSingle();
-      if (!tplRes.data) { secHtml = _fsSectionErr(sec.section_title, 'Template "' + sec.template_slug + '" not found'); }
-      else {
-        var tpl = tplRes.data;
-        var lineRes = await sb.from('report_lines').select('*').eq('template_id', tpl.id).order('sort_order');
-        var lines = lineRes.data || [];
-        if (sec.render_mode === 'ratios') secHtml = await _fsRenderRatios(sec, lines, ctx);
-        else                              secHtml = await _fsRenderTriple(sec, tpl, lines, ctx);
-      }
-      html += '<div class="fs-section" data-fssec="' + _escHtml(sec.template_slug) + '">' + secHtml + '</div>';
-    }
+      if (!tplRes.data) return { slug: sec.template_slug, html: _fsSectionErr(sec.section_title, 'Template "' + sec.template_slug + '" not found') };
+      var tpl = tplRes.data;
+      var lineRes = await sb.from('report_lines').select('*').eq('template_id', tpl.id).order('sort_order');
+      var lines = lineRes.data || [];
+      var secHtml = sec.render_mode === 'ratios'
+        ? await _fsRenderRatios(sec, lines, ctx)
+        : await _fsRenderTriple(sec, tpl, lines, ctx);
+      return { slug: sec.template_slug, html: secHtml };
+    }));
+    secHtmls.forEach(function(s) {
+      html += '<div class="fs-section" data-fssec="' + _escHtml(s.slug) + '">' + s.html + '</div>';
+    });
     body.innerHTML = html;
     _fsApplySectionFilter();
   } catch (e) {
@@ -10742,7 +10758,10 @@ document.addEventListener('click', function(e) {
 function _dynSafeEval(expr) {
   if (typeof expr !== 'string') return 0;
   var cleaned = expr.replace(/\s+/g, '');
-  if (!/^[-+0-9.]+$/.test(cleaned)) return 0;   // only signed numbers + operators after substitution
+  if (!/^[-+0-9.]+$/.test(cleaned)) {
+    if (/[*/]/.test(cleaned)) console.warn('[dynSafeEval] expr contains * or / — use custom report_type for ratio templates. Got:', expr.slice(0,80));
+    return 0;
+  }   // only signed numbers + operators after substitution
   if (cleaned[0] !== '-') cleaned = '+' + cleaned;
   var parts = cleaned.match(/[+\-][0-9.]+/g) || [];
   return parts.reduce(function(s, p){ return s + (+p); }, 0) || 0;
