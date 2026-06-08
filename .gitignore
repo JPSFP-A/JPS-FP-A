@@ -65,3 +65,7 @@ proposal_*.html
 theme-preview.html
 # Welcome.jpg and JPS-Logo-*.png are now tracked (needed for Vercel deploy)
 glossary.json
+
+# whole Claude dir + editor backups
+.claude/
+* - Copy.html

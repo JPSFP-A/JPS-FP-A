@@ -6,7 +6,7 @@ const { defineConfig, devices } = require('@playwright/test');
  * Run against local dev server (npx serve . -p 4300) or production Vercel URL.
  *
  * Local:  BASE_URL=http://localhost:4300 npx playwright test
- * Prod:   BASE_URL=https://jps-fpa-hub.vercel.app npx playwright test
+ * Prod:   BASE_URL=https://jmfinancelab.com npx playwright test
  */
 module.exports = defineConfig({
   testDir: './specs',
