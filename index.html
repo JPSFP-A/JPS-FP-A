@@ -2613,16 +2613,6 @@ let _user = null;
 let _selectedRole    = 'Revenue Analyst';
 let _postLoginTarget = null;
 
-function wsSelectRole(el, role) {
-  document.querySelectorAll('.ws-role-card').forEach(function (c) {
-    c.classList.remove('selected');
-  });
-  el.classList.add('selected');
-  _selectedRole = role;
-  const tag = document.getElementById('wsSelectedRoleTag');
-  tag.style.display = 'block';
-  document.getElementById('wsRoleName').textContent = role;
-}
 
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
@@ -3023,27 +3013,6 @@ function _evalDerivedExpr(expr, snap) {
 // _computeDerived — evaluate all active formulas against a facts object.
 // Iterates in sort_order (topological) so later formulas can use earlier results.
 // Formula results always overwrite stored fpa_facts values for derived lines.
-function _computeDerived(f) {
-  if (!_derivedFormulas.length) return f;
-  // Union of all period keys across all lines
-  const allPeriods = new Set();
-  Object.values(f).forEach(function(pm) {
-    if (pm && typeof pm === 'object') {
-      Object.keys(pm).forEach(function(p) { allPeriods.add(p); });
-    }
-  });
-  _derivedFormulas.forEach(function(formula) {
-    const result = {};
-    allPeriods.forEach(function(p) {
-      // Per-period snapshot — includes already-computed derived lines from earlier sort_orders
-      const snap = {};
-      Object.keys(f).forEach(function(lid) { snap[lid] = (f[lid] && f[lid][p] != null) ? f[lid][p] : 0; });
-      result[p] = _evalDerivedExpr(formula.calc_expr, snap);
-    });
-    f[formula.line_id] = result;
-  });
-  return f;
-}
 
 // _fetchFactsN — drop-in for _fetchFacts with alias normalization
 async function _fetchFactsN(vCode, lines, pStart, pEnd) {
@@ -3167,8 +3136,6 @@ function _ragBadge(act, bud, higherGood) {
 
 const _MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function _pLabel(pid) { return _MONS[(pid % 100) - 1] || String(pid); }
-function _pStart(yr) { return ((yr || _CY) * 100) + 1; }
-function _pEnd(yr)   { return ((yr || _CY) * 100) + 12; }
 
 function _skelKpis(n) {
   return '<div class="skel-strip">'
@@ -5958,20 +5925,6 @@ function _buildCFYearToGo(ctx, ytdF, leF) {
    ==================================================================== */
 
 // Build period label maps dynamically from _CY
-function _flashPeriodMaps() {
-  const short = {}, full = {};
-  const mFull = ['January','February','March','April','May','June',
-                 'July','August','September','October','November','December'];
-  const mShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  [_CY - 1, _CY, _CY + 1].forEach(function(yr) {
-    for (var m = 1; m <= 12; m++) {
-      var p = yr * 100 + m;
-      short[p] = mShort[m-1] + ' ' + yr;
-      full[p]  = mFull[m-1]  + ' ' + yr;
-    }
-  });
-  return { short: short, full: full };
-}
 
 let _flashNotesData = [];
 
@@ -6104,14 +6057,6 @@ function flashFmt(v) {
   return v<0?'('+abs.toLocaleString()+')':abs.toLocaleString();
 }
 
-function flashVar(a, b, fav) {
-  if (a==null||b==null||isNaN(a)||isNaN(b)) return { html:'—', cls:'' };
-  var diff=a-b, pct=b!==0?((diff/Math.abs(b))*100).toFixed(1):'—';
-  var good=fav?diff>=0:diff<=0;
-  var cls=diff===0?'fv-neu':good?'fv-pos':'fv-neg';
-  var sign=diff>0?'+':'';
-  return { html:sign+flashFmt(diff)+'<br><span style="font-size:9px">'+sign+pct+'%</span>', cls:cls };
-}
 
 // ── KPI strip ─────────────────────────────────────────────────────────────────
 function flashBuildKpisV2(fA, fB, lA, lB) {
@@ -9788,19 +9733,7 @@ document.addEventListener('click', function (e) {
 });
 
 /* ---------- Variance / BvL selectors ---------- */
-function onVarianceChange() {
-  const a = document.getElementById('varCmpA').value;
-  const b = document.getElementById('varCmpB').value;
-  toast('Variance: ' + a + ' vs ' + b, 'info');
-  loadPage('p8');
-}
 
-function onBvlChange() {
-  const a = document.getElementById('bvlA').value;
-  const b = document.getElementById('bvlB').value;
-  toast('Comparing ' + a + ' vs ' + b, 'info');
-  loadPage('p12');
-}
 
 /* ---------- Scenario manager ---------- */
 /* ── O&M Summary (p11) ────────────────────────────────────────────────── */
@@ -10143,7 +10076,6 @@ async function scnSave() {
 }
 
 // Legacy stub for hub screen button compatibility
-function activateScenario(name, cardId) { toast('Use Scenario Manager to activate scenarios', 'info'); }
 
 /* ---------- Audit trail ---------- */
 let _auditFilter = 'all';
@@ -11170,10 +11102,6 @@ function _dynFilterLines(lines) {
 }
 
 // Call after publishing a template from DataManager to refresh the renderer cache
-function dynInvalidateCache(tplId) {
-  if (tplId) delete _dynLineCache[tplId];
-  else { _dynLineCache = {}; dynInitTemplates(); }
-}
 
 async function dynRender() {
   if (!_dynActiveTpl) return;
