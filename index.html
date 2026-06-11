@@ -19,6 +19,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 <script src="shared/jps-monitor.js"></script>
 <script src="shared/jps-formatters.js"></script>
+<script src="shared/jps-auth.js"></script>
+<script src="shared/jps-nav.js"></script>
 <script>if(window.JpsMonitor)JpsMonitor.setApp('hub');</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -257,6 +259,10 @@ body.fsum-standalone #main{margin:0!important;max-width:100%!important;width:100
 .ws-login-btn:disabled{opacity:.55;cursor:default}
 .ws-error{color:#ff6b6b;font-size:11px;text-align:center;margin-top:9px;min-height:15px;font-weight:600}
 .ws-footer{text-align:center;margin-top:14px;font-size:8.5px;color:rgba(255,255,255,.22);letter-spacing:.04em}
+.ws-forgot{text-align:center;margin-top:11px}
+.ws-forgot a{color:#00aeef;font-size:11px;font-weight:600;text-decoration:none;cursor:pointer;letter-spacing:.02em}
+.ws-forgot a:hover{text-decoration:underline}
+.ws-hint{font-size:10px;color:rgba(255,255,255,.45);text-align:center;margin-top:9px;line-height:1.5}
 .ws-outputs-col{flex:0 0 190px;display:flex;flex-direction:column;gap:6px}
 .ws-out-col-label{font-size:9px;font-weight:700;color:rgba(255,255,255,.32);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;text-align:right;padding-right:2px}
 .ws-output-card{display:flex;align-items:center;gap:9px;padding:8px 12px 8px 10px;border-radius:9px;background:rgba(0,30,15,.65);border:1px solid rgba(34,197,94,.15);cursor:default;transition:all .2s}
@@ -1078,7 +1084,30 @@ td.dyn-click:hover{background:rgba(0,61,165,.04)}
           <label class="ws-label">Password</label>
           <input class="ws-input" id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
         </div>
-        <button class="ws-login-btn" onclick="doLogin()">Sign In →</button>
+        <button class="ws-login-btn" id="signInBtn" onclick="doLogin()">Sign In &rarr;</button>
+        <div class="ws-forgot" id="forgotRow"><a href="#" onclick="showReset();return false;">Forgot password?</a></div>
+
+        <!-- Password reset — OTP code flow (defeats M365 SafeLinks token-burn) -->
+        <div id="resetView" style="display:none">
+          <div class="ws-field">
+            <label class="ws-label">Email</label>
+            <input class="ws-input" id="resetEmail" type="email" placeholder="you@jps.com.jm" autocomplete="username" onkeydown="if(event.key==='Enter')resetSendCode()">
+          </div>
+          <button class="ws-login-btn" id="resetSendBtn" onclick="resetSendCode()">Send reset code</button>
+          <div id="resetStep2" style="display:none">
+            <div class="ws-field" style="margin-top:12px">
+              <label class="ws-label">6-digit code (from email)</label>
+              <input class="ws-input" id="resetCode" type="text" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code">
+            </div>
+            <div class="ws-field">
+              <label class="ws-label">New password (min 8 chars)</label>
+              <input class="ws-input" id="resetNewPass" type="password" placeholder="new password" autocomplete="new-password" onkeydown="if(event.key==='Enter')resetConfirm()">
+            </div>
+            <button class="ws-login-btn" id="resetConfirmBtn" onclick="resetConfirm()">Set password &amp; sign in</button>
+          </div>
+          <div class="ws-forgot"><a href="#" onclick="backToLogin();return false;">&larr; Back to sign in</a></div>
+        </div>
+
         <div class="ws-error" id="loginError"></div>
         <div class="ws-footer">CONFIDENTIAL · Internal Use Only · JPS Finance &amp; Strategy</div>
       </div>
@@ -2293,14 +2322,18 @@ let _sb = null;
 function _getSB() {
   if (_sb) return _sb;
   if (window.supabase && window.supabase.createClient) {
-    _sb = window.supabase.createClient(_SB_URL, _SB_ANON_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        storageKey: 'jps_fpa_v2',
-        detectSessionInUrl: false,
-      },
-    });
+    // Platform SSO session (jps_sso_v1 cookie on .jmfinancelab.com);
+    // keeps detectSessionInUrl:false — hub handles its own recovery flow.
+    _sb = window.supabase.createClient(_SB_URL, _SB_ANON_KEY,
+      window.JpsAuth ? JpsAuth.clientOptions({ detectSessionInUrl: false }) : {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          storageKey: 'jps_fpa_v2',
+          detectSessionInUrl: false,
+        },
+      });
+    try { if (window.JpsNav) JpsNav.bind(_sb); } catch(e){ console.warn('JpsNav bind failed', e); }
   }
   return _sb;
 }
@@ -2671,6 +2704,104 @@ async function doLogin() {
   } finally {
     btn.textContent = 'Sign In →';
     btn.disabled = false;
+  }
+}
+
+// ── SSO session restore ─────────────────────────────────────────
+// Platform cookie (JpsAuth) may hold a session from another JPS app.
+// Same access gate as manual login; workspace lens falls back to default.
+async function _ssoRestore() {
+  try {
+    const sb = _getSB();
+    if (!sb) return;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const { data: accRows, error: accErr } = await sb.rpc('get_app_access', { p_app_id: 'fpa_hub' });
+    if (accErr) { console.warn('[hub] SSO access check failed:', accErr.message); return; }
+    const accessRole = accRows?.[0]?.role || null;
+    if (!accRows?.[0]?.can_access || !accessRole) return; // platform session but no hub access — stay on login
+    _user = {
+      id: session.user.id,
+      name: (session.user.user_metadata && session.user.user_metadata.full_name) || session.user.email,
+      email: session.user.email,
+      role: _selectedRole,
+      accessRole: accessRole,
+    };
+    afterLogin();
+  } catch (e) { console.warn('[hub] SSO restore failed:', e.message); }
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _ssoRestore);
+else _ssoRestore();
+
+// ── Password reset (OTP code flow) ─────────────────────────────
+function _loginEls() {
+  return [
+    document.getElementById('loginEmail').closest('.ws-field'),
+    document.getElementById('loginPassword').closest('.ws-field'),
+    document.getElementById('signInBtn'),
+    document.getElementById('forgotRow')
+  ];
+}
+function showReset() {
+  _loginEls().forEach(function(el){ if (el) el.style.display = 'none'; });
+  document.getElementById('resetView').style.display = 'block';
+  var errEl = document.getElementById('loginError'); errEl.textContent = '';
+  var le = document.getElementById('loginEmail').value.trim();
+  if (le) document.getElementById('resetEmail').value = le;
+  document.getElementById('resetEmail').focus();
+}
+function backToLogin() {
+  document.getElementById('resetView').style.display = 'none';
+  document.getElementById('resetStep2').style.display = 'none';
+  _loginEls().forEach(function(el){ if (el) el.style.display = ''; });
+  document.getElementById('loginError').textContent = '';
+}
+async function resetSendCode() {
+  var email = document.getElementById('resetEmail').value.trim();
+  var errEl = document.getElementById('loginError'); errEl.textContent = '';
+  if (!email) { errEl.textContent = 'Enter your email.'; return; }
+  var btn = document.getElementById('resetSendBtn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    var sb = _getSB();
+    if (!sb) throw new Error('Supabase client unavailable');
+    var r = await sb.auth.resetPasswordForEmail(email);
+    if (r.error) throw r.error;
+    document.getElementById('resetStep2').style.display = 'block';
+    errEl.textContent = 'If that email is registered, a 6-digit code was sent. Check inbox and spam.';
+    document.getElementById('resetCode').focus();
+  } catch (e) {
+    errEl.textContent = e.message || 'Could not send reset code.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Resend code';
+  }
+}
+async function resetConfirm() {
+  var email   = document.getElementById('resetEmail').value.trim();
+  var code    = document.getElementById('resetCode').value.trim();
+  var newPass = document.getElementById('resetNewPass').value;
+  var errEl   = document.getElementById('loginError'); errEl.textContent = '';
+  if (!code || code.length < 6) { errEl.textContent = 'Enter the 6-digit code.'; return; }
+  if (!newPass || newPass.length < 8) { errEl.textContent = 'New password must be at least 8 characters.'; return; }
+  var btn = document.getElementById('resetConfirmBtn');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  try {
+    var sb = _getSB();
+    if (!sb) throw new Error('Supabase client unavailable');
+    var v = await sb.auth.verifyOtp({ email: email, token: code, type: 'recovery' });
+    if (v.error) throw v.error;
+    var up = await sb.auth.updateUser({ password: newPass });
+    if (up.error) throw up.error;
+    // Revoke ALL existing sessions (old tokens die) so only the new password works, then sign in fresh
+    try { await sb.auth.signOut({ scope: 'global' }); } catch (_) {}
+    document.getElementById('loginEmail').value = email;
+    document.getElementById('loginPassword').value = newPass;
+    backToLogin();
+    errEl.textContent = 'Password updated. Signing you in…';
+    await doLogin();
+  } catch (e) {
+    errEl.textContent = e.message || 'Reset failed — the code may be wrong or expired.';
+    btn.disabled = false; btn.textContent = 'Set password & sign in';
   }
 }
 
