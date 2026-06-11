@@ -37,6 +37,8 @@ mockup.html
 !jps-monitor.js
 !jps-formatters.js
 !jps-platform-utils.js
+!jps-auth.js
+!jps-nav.js
 !fpa_check.js
 # Playwright tests — always include
 !tests/**
