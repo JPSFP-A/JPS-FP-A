@@ -2824,7 +2824,7 @@ function afterLogin() {
   document.getElementById('hubUserName').textContent = _user.name;
   document.getElementById('hubRoleDisp').textContent = _user.role;
   if (window.JpsMonitor && JpsMonitor.setUser) {
-    try { JpsMonitor._clientFn = _getSB; JpsMonitor.setUser(_user.id, _user.email); if(window.posthog)posthog.identify(_user.id, _user.email); if(window.Sentry)Sentry.setUser({id:(_user.id), email:(_user.email)});; } catch (e) { console.error('[FPA] JpsMonitor.setUser failed:', e); }
+    try { JpsMonitor._clientFn = _getSB; JpsMonitor.setUser(_user.id, _user.email); if(window.posthog)posthog.identify(_user.id, _user.email); if(window.Sentry){const _su={id:_user.id,email:_user.email}; if(typeof Sentry.setUser==='function')Sentry.setUser(_su); else if(typeof Sentry.onLoad==='function')Sentry.onLoad(function(){Sentry.setUser(_su);});} } catch (e) { console.error('[FPA] JpsMonitor.setUser failed:', e); }
   }
   _platformAudit('login', 'session', null, { email: _user.email });
   _initIdleTimeout(function(){ _getSB().auth.signOut(); });
