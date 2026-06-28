@@ -8787,7 +8787,7 @@ ROU Depreciation = Opening ROU ÷ total months</div>
       <p><strong>AI Commentary</strong> is rate-limited to your Anthropic account tier. Keys are per-browser; each user needs their own.</p>`},
     {n:'16. Live Infrastructure',c:'var(--teal)',body:`
       <p><strong>Database:</strong> Supabase project <code>JPS_sales_forecast</code> (us-west-2) — PostgreSQL + Realtime + RLS</p>
-      <p><strong>Hosting:</strong> Vercel → <code>jps-fp-a.vercel.app</code> — auto-deploys on every push to GitHub main branch</p>
+      <p><strong>Hosting:</strong> Vercel → <code>jmfinancelab.com</code></p>
       <p><strong>Repo:</strong> GitHub org <code>JPSFP-A</code> / repo <code>JPS-FP-A</code> (public) — single file <code>index.html</code></p>
       <p><strong>Realtime sync:</strong> Changes to <code>fpa_facts</code>, <code>fpa_assumptions</code>, and <code>fpa_versions</code> by any user trigger an automatic refresh for all connected sessions via Supabase Realtime postgres_changes.</p>
       <p><strong>17 active tables:</strong></p>

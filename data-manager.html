@@ -1,0 +1,3224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JPS Data Manager</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0a1628;--navy2:#132238;--teal:#00aeef;--gold:#f0b429;
+  --green:#22c55e;--red:#ef4444;--amber:#f59e0b;--muted:#7da0c4;
+  --border:#2a4a6c;--bg:#eef1f6;--card:#fff;--text:#1a2a3a
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh}
+
+/* ── Header ── */
+.hdr{background:linear-gradient(135deg,var(--navy) 0%,#1a3a5c 100%);color:#fff;padding:14px 28px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.hdr-logo{font-size:20px;font-weight:800;color:var(--gold);letter-spacing:1px;flex-shrink:0}
+.hdr-title{flex:1}.hdr-title h1{font-size:15px;font-weight:600;color:#d4e2f4}
+.hdr-title p{font-size:11px;color:var(--muted);margin-top:1px}
+.db-badge{font-size:11px;font-weight:700;padding:4px 12px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--muted);cursor:default}
+
+/* ── Mode nav ── */
+.mode-nav{background:var(--navy2);border-bottom:2px solid var(--border);display:flex;padding:0 20px;gap:2px}
+.mnav-btn{padding:10px 20px;font-size:12px;font-weight:700;color:var(--muted);background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;transition:.15s;text-transform:uppercase;letter-spacing:.5px}
+.mnav-btn:hover{color:#d4e2f4}
+.mnav-btn.on{color:var(--teal);border-bottom-color:var(--teal)}
+.mnav-pill{background:rgba(0,174,239,.2);color:var(--teal);font-size:10px;padding:1px 6px;border-radius:8px;margin-left:6px}
+
+/* ── Drop zone ── */
+.drop-zone{margin:24px 28px;border:2px dashed #94a3b8;border-radius:12px;padding:48px 40px;text-align:center;cursor:pointer;transition:.2s;background:var(--card)}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--teal);background:#f0fbff}
+.dz-icon{font-size:40px;margin-bottom:10px}
+.dz-title{font-size:15px;font-weight:700;color:#334155;margin-bottom:6px}
+.dz-sub{font-size:12px;color:#64748b;line-height:1.7}
+.dz-formats{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:14px}
+.dz-chip{padding:3px 10px;border-radius:10px;font-size:10px;font-weight:600;background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe}
+
+/* ── Parse panel ── */
+.parse-panel{display:none;padding:0 28px 100px}
+
+/* Period banner */
+.period-banner{background:var(--navy);color:#fff;border-radius:8px;padding:14px 20px;display:flex;align-items:center;gap:20px;margin-bottom:16px;flex-wrap:wrap}
+.pb-period{font-size:22px;font-weight:800;color:var(--gold)}
+.pb-info{flex:1}.pb-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.pb-val{font-size:13px;font-weight:600;color:#d4e2f4;margin-top:2px}
+.pb-badge{padding:4px 12px;border-radius:10px;font-size:11px;font-weight:700;flex-shrink:0}
+.badge-new    {background:#dcfce7;color:#15803d}
+.badge-exists {background:#fef9c3;color:#854d0e}
+.badge-locked {background:#fee2e2;color:#991b1b}
+.badge-grey   {background:rgba(255,255,255,.1);color:#94b4cc}
+
+/* Tabs */
+.tab-wrap{background:var(--card);border-radius:8px;border:1px solid #e2e8f0;overflow:hidden;margin-bottom:16px}
+.tab-row{display:flex;background:#f8fafc;border-bottom:1px solid #e2e8f0}
+.tab-btn{padding:10px 18px;cursor:pointer;font-size:12px;font-weight:600;color:#64748b;border-bottom:3px solid transparent;background:none;border-right:1px solid #e2e8f0;transition:.15s;white-space:nowrap;user-select:none}
+.tab-btn:last-child{border-right:none}
+.tab-btn.on{color:var(--navy);border-bottom-color:var(--teal);background:var(--card)}
+.tab-pane{display:none;padding:0}.tab-pane.on{display:block}
+
+/* Results table */
+.res-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.res-tbl th{background:#f1f5f9;padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.res-tbl th.r{text-align:right}
+.res-tbl td{padding:7px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.res-tbl td.r{text-align:right;font-family:'Consolas',monospace;font-size:12px}
+.res-tbl td.id-cell{font-family:'Consolas',monospace;font-size:11px;color:#475569}
+.res-tbl tr:hover td{background:#f8fafc}
+.sec-hdr-row td{background:#f8fafc!important;font-weight:700;font-size:10px;color:#1e3a5c;text-transform:uppercase;letter-spacing:.5px;padding:5px 12px;border-top:2px solid #e2e8f0}
+
+/* Status badges */
+.st{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.st-ok   {background:#dcfce7;color:#15803d}
+.st-blank{background:#f1f5f9;color:#64748b}
+.st-agg  {background:#dbeafe;color:#1e40af}
+.st-diff {background:#fef9c3;color:#854d0e}
+.st-err  {background:#fee2e2;color:#991b1b}
+.st-note {background:#f0f9ff;color:#0369a1}
+
+/* Value diff */
+.val-new{color:#0d6efd;font-weight:700}
+.val-same{color:#475569}
+.val-diff-pos{color:#15803d;font-weight:700}
+.val-diff-neg{color:#dc2626;font-weight:700}
+.val-blank{color:#94a3b8;font-style:italic}
+
+/* Recon panel */
+.recon-panel{background:var(--card);border:1px solid #e2e8f0;border-radius:8px;padding:0;margin-bottom:16px;overflow:hidden}
+.recon-hdr{background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:10px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#475569;display:flex;align-items:center;gap:8px}
+.recon-row{display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid #f1f5f9;font-size:12px}
+.recon-row:last-child{border-bottom:none}
+.recon-lbl{flex:1;color:#334155;font-weight:500}
+.recon-detail{font-size:11px;color:#64748b;margin-top:1px}
+.recon-num{font-family:'Consolas',monospace;width:95px;text-align:right;font-size:12px}
+.recon-ok  {color:#15803d;font-weight:700}
+.recon-warn{color:#92400e;font-weight:700}
+.recon-na  {color:#94a3b8}
+.recon-ico {font-size:14px;width:20px;text-align:center}
+
+/* Commit bar (sticky) */
+.commit-bar{position:fixed;bottom:0;left:0;right:0;background:var(--navy);padding:12px 28px;display:none;align-items:center;gap:14px;z-index:200;flex-wrap:wrap;border-top:2px solid var(--teal)}
+.cb-info{flex:1;font-size:12px;color:var(--muted)}
+.cb-info b{color:var(--gold);font-size:16px}
+.btn{padding:9px 20px;border-radius:6px;border:none;font-size:12px;font-weight:700;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+.btn-gold {background:var(--gold);color:var(--navy)}.btn-gold:hover{background:#d97706}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}.btn-ghost:hover{background:var(--navy2);color:#fff}
+.btn-red  {background:#dc2626;color:#fff}.btn-red:hover{background:#b91c1c}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* History */
+.history-wrap{padding:8px 28px 28px}
+.section-hdr{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-bottom:10px}
+.hist-tbl{width:100%;border-collapse:collapse;font-size:12px;background:var(--card);border-radius:8px;overflow:hidden;border:1px solid #e2e8f0}
+.hist-tbl th{background:#f1f5f9;padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;text-transform:uppercase}
+.hist-tbl td{padding:8px 12px;border-bottom:1px solid #f1f5f9;color:#334155}
+.hist-tbl tr:last-child td{border-bottom:none}
+.hist-tbl tr:hover td{background:#f8fafc}
+.hist-pill{padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700}
+.pill-act{background:#dcfce7;color:#15803d}.pill-le{background:#dbeafe;color:#1e40af}
+.pill-aop{background:#f3e8ff;color:#7c3aed}.pill-gl{background:#fef9c3;color:#854d0e}
+.pill-trs{background:#fff7ed;color:#9a3412}.pill-kpi{background:#fdf4ff;color:#7e22ce}
+
+/* Treasury file cards */
+.file-cards{display:flex;flex-direction:column;gap:8px;margin:16px 28px}
+.file-card{background:var(--card);border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:14px}
+.fc-icon{font-size:22px;flex-shrink:0}
+.fc-info{flex:1}
+.fc-name{font-size:12px;font-weight:700;color:#1e3a5c}
+.fc-meta{font-size:11px;color:#64748b;margin-top:2px}
+.fc-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px}
+.fc-ok  {background:#dcfce7;color:#15803d}
+.fc-warn{background:#fef9c3;color:#854d0e}
+.fc-err {background:#fee2e2;color:#991b1b}
+.fc-wait{background:#f1f5f9;color:#64748b}
+
+/* KPI grid */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding:16px}
+.kpi-card{background:var(--card);border:1px solid #e2e8f0;border-radius:8px;padding:14px}
+.kpi-code{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.kpi-val{font-size:22px;font-weight:800;color:var(--navy);margin:4px 0 2px}
+.kpi-tgt{font-size:11px;color:#64748b}
+
+/* Status matrix */
+.status-matrix{margin:16px 28px;background:var(--card);border:1px solid #e2e8f0;border-radius:8px;overflow:hidden}
+.sm-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.sm-tbl th{background:#f1f5f9;padding:9px 14px;text-align:center;font-size:10px;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;text-transform:uppercase;letter-spacing:.4px}
+.sm-tbl th.left{text-align:left}
+.sm-tbl td{padding:8px 14px;border-bottom:1px solid #f1f5f9;text-align:center}
+.sm-tbl td.period-cell{text-align:left;font-weight:700;color:#1e3a5c;white-space:nowrap}
+.sm-tbl tr:last-child td{border-bottom:none}
+.sm-tbl tr:hover td{background:#f8fafc}
+.sm-dot{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:12px}
+.dot-ok {background:#dcfce7;color:#15803d}
+.dot-no {background:#f1f5f9;color:#94a3b8}
+.dot-partial{background:#fef9c3;color:#854d0e}
+
+/* Spinner */
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Alert */
+.alert{border-radius:6px;padding:10px 14px;font-size:12px;line-height:1.6;margin:12px 0}
+.alert-warn{background:#fffbeb;border:1px solid #fcd34d;color:#92400e}
+.alert-err {background:#fef2f2;border:1px solid #fca5a5;color:#dc2626}
+.alert-ok  {background:#f0fdf4;border:1px solid #86efac;color:#15803d}
+.alert-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+
+/* Toast */
+#toast{position:fixed;top:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast-msg{background:#1e3a5c;color:#fff;padding:10px 16px;border-radius:8px;font-size:12px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.3);animation:toastIn .25s ease;max-width:340px}
+.toast-msg.ok  {border-left:4px solid var(--green)}
+.toast-msg.err {border-left:4px solid var(--red)}
+.toast-msg.warn{border-left:4px solid var(--amber)}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<div class="hdr">
+  <div class="hdr-logo">JPS</div>
+  <div class="hdr-title">
+    <h1>Data Manager</h1>
+    <p>Single source of truth · All financial data writes go through here · Apps read only from DB</p>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span style="font-size:11px;color:var(--muted)">User:</span>
+    <input id="dm-user" placeholder="your name" maxlength="40"
+      style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:rgba(255,255,255,.08);
+             color:#d4e2f4;font-size:12px;width:130px"
+      oninput="localStorage.setItem('jps_dm_user',this.value.trim())">
+  </div>
+  <div id="db-badge" class="db-badge">⬤ Connecting…</div>
+</div>
+
+<!-- ══ MODE NAV ══ -->
+<div class="mode-nav">
+  <button class="mnav-btn on" id="nav-corp"     onclick="setMode('corp')">Corp Actuals</button>
+  <button class="mnav-btn"    id="nav-treasury" onclick="setMode('treasury')">Treasury</button>
+  <button class="mnav-btn"    id="nav-kpi"      onclick="setMode('kpi')">KPI Actuals</button>
+  <button class="mnav-btn"    id="nav-status"   onclick="setMode('status')">Period Status</button>
+  <button class="mnav-btn"    id="nav-gl"       onclick="setMode('gl')">GL Sub-lines</button>
+  <button class="mnav-btn"    id="nav-le"       onclick="setMode('le')">LE / AOP</button>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECTION: CORP ACTUALS
+══════════════════════════════════════════════ -->
+<div id="sec-corp">
+
+  <div id="drop-zone-corp" class="drop-zone"
+       onclick="document.getElementById('fi-corp').click()"
+       ondragover="dzOver(event,'drop-zone-corp')" ondragleave="dzLeave('drop-zone-corp')"
+       ondrop="dzDrop(event,'corp')">
+    <div class="dz-icon">📂</div>
+    <div class="dz-title">Drop the Corporate Accounting Monthly Pack here</div>
+    <div class="dz-sub">
+      Drag & drop or click to browse<br>
+      Auto-detects period from header · Extracts current month actuals only
+    </div>
+    <div class="dz-formats">
+      <span class="dz-chip">JPSCo Financials_MM-YY.xlsx</span>
+      <span class="dz-chip">.xlsx / .xls</span>
+    </div>
+  </div>
+  <input type="file" id="fi-corp" accept=".xlsx,.xls" onchange="onFileInput(this,'corp')" style="display:none">
+
+  <div id="parse-panel" class="parse-panel">
+    <div class="period-banner" id="period-banner">
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Detected Period</div>
+        <div class="pb-period" id="pb-period">—</div>
+      </div>
+      <div class="pb-info"><div class="pb-label">Version Code</div><div class="pb-val" id="pb-version">—</div></div>
+      <div class="pb-info"><div class="pb-label">Period Status</div><div class="pb-val" id="pb-period-status">—</div></div>
+      <div class="pb-info"><div class="pb-label">Lines to Write</div><div class="pb-val" id="pb-line-count">—</div></div>
+      <span class="pb-badge badge-grey" id="pb-badge">Checking DB…</span>
+    </div>
+    <div id="parse-alerts"></div>
+    <div class="tab-wrap">
+      <div class="tab-row">
+        <div class="tab-btn on" onclick="switchTab('pl',this)">P&amp;L Lines</div>
+        <div class="tab-btn"   onclick="switchTab('bs',this)">Balance Sheet</div>
+        <div class="tab-btn"   onclick="switchTab('cf',this)">Cash Flow</div>
+        <div class="tab-btn"   onclick="switchTab('stat',this)">Stats &amp; FX</div>
+      </div>
+      <div id="tab-pl"   class="tab-pane on"><table class="res-tbl" id="tbl-pl"></table></div>
+      <div id="tab-bs"   class="tab-pane">   <table class="res-tbl" id="tbl-bs"></table></div>
+      <div id="tab-cf"   class="tab-pane">   <table class="res-tbl" id="tbl-cf"></table></div>
+      <div id="tab-stat" class="tab-pane">   <table class="res-tbl" id="tbl-stat"></table></div>
+    </div>
+    <div class="recon-panel" id="recon-panel">
+      <div class="recon-hdr">🔍 Reconciliation Checks — sub-lines filled by GL load</div>
+      <div id="recon-rows"></div>
+    </div>
+  </div>
+
+  <div class="history-wrap" id="history-wrap">
+    <div class="section-hdr">Recent Uploads</div>
+    <div id="hist-content">
+      <table class="hist-tbl">
+        <thead><tr><th>Period</th><th>Type</th><th>Lines</th><th>User</th><th>Uploaded</th><th>Status</th></tr></thead>
+        <tbody id="hist-body"><tr><td colspan="6" style="color:#94a3b8;text-align:center;padding:20px">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="commit-bar" id="commit-bar-corp">
+    <div class="cb-info"><b id="cb-count">0</b> lines ready · <span id="cb-period-label">—</span>
+      <span id="cb-overwrite-note" style="color:var(--amber);margin-left:8px"></span></div>
+    <button class="btn btn-ghost" onclick="resetCorp()">✕ Cancel</button>
+    <button class="btn btn-gold" id="commit-btn-corp" onclick="commitCorp()">⬆ Commit to Database</button>
+  </div>
+
+</div><!-- /sec-corp -->
+
+<!-- ══════════════════════════════════════════════
+     SECTION: TREASURY
+══════════════════════════════════════════════ -->
+<div id="sec-treasury" style="display:none">
+
+  <div id="drop-zone-trs" class="drop-zone"
+       onclick="document.getElementById('fi-trs').click()"
+       ondragover="dzOver(event,'drop-zone-trs')" ondragleave="dzLeave('drop-zone-trs')"
+       ondrop="dzDrop(event,'trs')" style="margin-bottom:0">
+    <div class="dz-icon">🏦</div>
+    <div class="dz-title">Drop Treasury files here (one or all at once)</div>
+    <div class="dz-sub">
+      Auto-detects file type from filename & sheet structure<br>
+      Expected: Loans - Long Term, Loans - Short Term, Interest - Long Term, Interest - Short Term
+    </div>
+    <div class="dz-formats">
+      <span class="dz-chip">Loans - Long Term MMM YYYY.xlsx</span>
+      <span class="dz-chip">Interest - Long Term MMM YYYY.xlsx</span>
+      <span class="dz-chip">Loans - Short Term MMM YYYY.xlsx</span>
+      <span class="dz-chip">Interest - Short Term MMM YYYY.xlsx</span>
+    </div>
+  </div>
+  <input type="file" id="fi-trs" accept=".xlsx,.xls" multiple onchange="onFilesInput(this,'trs')" style="display:none">
+
+  <div id="trs-cards" class="file-cards"></div>
+
+  <div id="trs-parse-panel" class="parse-panel">
+    <div class="period-banner" id="trs-period-banner">
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Period</div>
+           <div class="pb-period" id="trs-pb-period">—</div></div>
+      <div class="pb-info"><div class="pb-label">Lines to Write</div><div class="pb-val" id="trs-pb-count">—</div></div>
+      <div class="pb-info"><div class="pb-label">Files Loaded</div><div class="pb-val" id="trs-pb-files">0 / 4</div></div>
+      <span class="pb-badge badge-grey" id="trs-pb-badge">Ready</span>
+    </div>
+    <div id="trs-alerts"></div>
+    <div class="tab-wrap">
+      <div class="tab-row">
+        <div class="tab-btn on" onclick="switchTabSet('trs',this,'trs-summary')">Summary Lines</div>
+        <div class="tab-btn"   onclick="switchTabSet('trs',this,'trs-loans')">LT Loan Detail</div>
+        <div class="tab-btn"   onclick="switchTabSet('trs',this,'trs-interest')">Interest Detail</div>
+      </div>
+      <div id="trs-tab-trs-summary"  class="tab-pane on"><table class="res-tbl" id="tbl-trs-summary"></table></div>
+      <div id="trs-tab-trs-loans"    class="tab-pane">   <table class="res-tbl" id="tbl-trs-loans"></table></div>
+      <div id="trs-tab-trs-interest" class="tab-pane">   <table class="res-tbl" id="tbl-trs-interest"></table></div>
+    </div>
+  </div>
+
+  <div class="commit-bar" id="commit-bar-trs">
+    <div class="cb-info"><b id="trs-cb-count">0</b> lines ready · <span id="trs-cb-period">—</span></div>
+    <button class="btn btn-ghost" onclick="resetTrs()">✕ Cancel</button>
+    <button class="btn btn-gold" id="commit-btn-trs" onclick="commitTrs()">⬆ Commit to Database</button>
+  </div>
+
+  <!-- ── Debt Schedule Import ── -->
+  <div id="trs-debt-panel" style="margin:28px 28px 0; border-top:2px solid var(--border); padding-top:24px; padding-bottom:32px">
+    <h3 style="margin:0 0 6px; font-size:14px; font-weight:700; color:var(--navy)">Debt Schedule Import</h3>
+    <p style="font-size:12px; color:var(--muted); margin:0 0 16px">
+      Upload the JPS Debt Schedule model (single sheet "Debt").
+      Extracts per-loan drawdown, repayment, and closing balances for all periods.
+    </p>
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap">
+      <label style="font-size:12px; color:var(--muted); font-weight:600">Model start:</label>
+      <select id="debt-start-year" style="font-size:12px; padding:4px 8px; border:1px solid var(--border); border-radius:4px; background:#fff; color:var(--text)">
+        <option value="2010">2010</option>
+        <option value="2011">2011</option>
+        <option value="2012">2012</option>
+        <option value="2013">2013</option>
+        <option value="2014" selected>2014</option>
+        <option value="2015">2015</option>
+        <option value="2016">2016</option>
+        <option value="2017">2017</option>
+        <option value="2018">2018</option>
+        <option value="2019">2019</option>
+        <option value="2020">2020</option>
+      </select>
+      <select id="debt-start-month" style="font-size:12px; padding:4px 8px; border:1px solid var(--border); border-radius:4px; background:#fff; color:var(--text)">
+        <option value="1"  selected>Jan</option>
+        <option value="2">Feb</option>
+        <option value="3">Mar</option>
+        <option value="4">Apr</option>
+        <option value="5">May</option>
+        <option value="6">Jun</option>
+        <option value="7">Jul</option>
+        <option value="8">Aug</option>
+        <option value="9">Sep</option>
+        <option value="10">Oct</option>
+        <option value="11">Nov</option>
+        <option value="12">Dec</option>
+      </select>
+    </div>
+    <div id="debt-drop" style="border:2px dashed var(--border); border-radius:8px; padding:32px; text-align:center; cursor:pointer; transition:border-color 0.2s; background:var(--card)"
+         onclick="document.getElementById('debt-file').click()"
+         ondragover="event.preventDefault(); this.style.borderColor='var(--teal)'"
+         ondragleave="this.style.borderColor='var(--border)'"
+         ondrop="handleDebtDrop(event)">
+      <input type="file" id="debt-file" accept=".xlsx,.xls" style="display:none" onchange="handleDebtFile(this.files[0])">
+      <div style="font-size:28px; margin-bottom:8px">📊</div>
+      <p style="margin:0; font-size:13px; color:var(--muted)">Drop debt schedule .xlsx or click to browse</p>
+      <p style="margin:4px 0 0; font-size:11px; color:var(--muted)">Sheet must be named "Debt" · Col A=lender group, B=row label, C=sub-label, D+=monthly data</p>
+    </div>
+    <div id="debt-preview" style="display:none; margin-top:16px"></div>
+    <div id="commit-bar-debt" style="display:none; margin-top:16px; gap:10px; align-items:center">
+      <button onclick="commitDebtSchedule()" style="padding:8px 20px; background:var(--teal); color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:700">
+        ⬆ Commit to DB
+      </button>
+      <button onclick="resetDebtUpload()" style="padding:8px 14px; background:none; border:1px solid var(--border); border-radius:6px; cursor:pointer; font-size:12px; color:var(--muted)">
+        ✕ Cancel
+      </button>
+      <span id="debt-commit-msg" style="font-size:12px; color:var(--muted)"></span>
+    </div>
+  </div>
+
+</div><!-- /sec-treasury -->
+
+<!-- ══════════════════════════════════════════════
+     SECTION: KPI ACTUALS
+══════════════════════════════════════════════ -->
+<div id="sec-kpi" style="display:none">
+
+  <div id="drop-zone-kpi" class="drop-zone"
+       onclick="document.getElementById('fi-kpi').click()"
+       ondragover="dzOver(event,'drop-zone-kpi')" ondragleave="dzLeave('drop-zone-kpi')"
+       ondrop="dzDrop(event,'kpi')">
+    <div class="dz-icon">📊</div>
+    <div class="dz-title">Drop the Generation Performance Data file here</div>
+    <div class="dz-sub">
+      Reads sheet "JPS KPIs Summary" · Extracts Heat Rate, EAF, EFOR for each month with data<br>
+      Writes to jps_kpi_actuals
+    </div>
+    <div class="dz-formats">
+      <span class="dz-chip">Generation Performance Data YYYY.xlsx</span>
+    </div>
+  </div>
+  <input type="file" id="fi-kpi" accept=".xlsx,.xls" onchange="onFileInput(this,'kpi')" style="display:none">
+
+  <div id="kpi-parse-panel" class="parse-panel">
+    <div class="period-banner" id="kpi-period-banner">
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Year</div>
+           <div class="pb-period" id="kpi-pb-year">—</div></div>
+      <div class="pb-info"><div class="pb-label">Months with Data</div><div class="pb-val" id="kpi-pb-months">—</div></div>
+      <div class="pb-info"><div class="pb-label">KPI Rows to Write</div><div class="pb-val" id="kpi-pb-count">—</div></div>
+      <span class="pb-badge badge-grey" id="kpi-pb-badge">Ready</span>
+    </div>
+    <div id="kpi-alerts"></div>
+    <div class="tab-wrap" style="margin-bottom:16px">
+      <div class="tab-row">
+        <div class="tab-btn on" onclick="switchTabSet('kpi',this,'heat_rate')">Heat Rate</div>
+        <div class="tab-btn"   onclick="switchTabSet('kpi',this,'eaf')">EAF</div>
+        <div class="tab-btn"   onclick="switchTabSet('kpi',this,'efor')">EFOR</div>
+      </div>
+      <div id="kpi-tab-heat_rate" class="tab-pane on"><table class="res-tbl" id="tbl-kpi-heat_rate"></table></div>
+      <div id="kpi-tab-eaf"       class="tab-pane">   <table class="res-tbl" id="tbl-kpi-eaf"></table></div>
+      <div id="kpi-tab-efor"      class="tab-pane">   <table class="res-tbl" id="tbl-kpi-efor"></table></div>
+    </div>
+  </div>
+
+  <div class="commit-bar" id="commit-bar-kpi">
+    <div class="cb-info"><b id="kpi-cb-count">0</b> KPI rows ready · <span id="kpi-cb-year">—</span></div>
+    <button class="btn btn-ghost" onclick="resetKpi()">✕ Cancel</button>
+    <button class="btn btn-gold" id="commit-btn-kpi" onclick="commitKpi()">⬆ Commit to Database</button>
+  </div>
+
+</div><!-- /sec-kpi -->
+
+<!-- ══════════════════════════════════════════════
+     SECTION: PERIOD STATUS
+══════════════════════════════════════════════ -->
+<div id="sec-status" style="display:none">
+  <div style="padding:20px 28px 8px;display:flex;align-items:center;gap:12px">
+    <div style="font-size:13px;font-weight:700;color:#1e3a5c">Upload Completeness Matrix</div>
+    <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px" onclick="loadStatusMatrix()">↻ Refresh</button>
+  </div>
+  <div id="status-matrix-wrap" class="status-matrix">
+    <div style="padding:40px;text-align:center;color:#94a3b8">Click Refresh or switch to this tab to load</div>
+  </div>
+  <div style="padding:12px 28px">
+    <div style="font-size:11px;color:#64748b;display:flex;gap:20px;flex-wrap:wrap">
+      <span><span class="sm-dot dot-ok" style="display:inline-flex">✓</span> Committed</span>
+      <span><span class="sm-dot dot-no" style="display:inline-flex">○</span> Not uploaded</span>
+      <span><span class="sm-dot dot-partial" style="display:inline-flex">◑</span> Partial</span>
+    </div>
+  </div>
+
+  <!-- Version manager -->
+  <div style="padding:0 28px 8px;display:flex;align-items:center;gap:12px;margin-top:8px">
+    <div style="font-size:13px;font-weight:700;color:#1e3a5c">Version Manager</div>
+    <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px" onclick="loadVersionManager()">↻ Refresh</button>
+    <span style="font-size:11px;color:#94a3b8">Delete removes all fpa_facts for that version · irreversible</span>
+  </div>
+  <div id="version-manager-wrap" style="margin:0 28px 28px;background:var(--card);border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+    <div style="padding:28px;text-align:center;color:#94a3b8">Click Refresh to load versions</div>
+  </div>
+
+</div><!-- /sec-status -->
+
+<!-- ══════════════════════════════════════════════
+     SECTION: GL SUB-LINES
+══════════════════════════════════════════════ -->
+<div id="sec-gl" style="display:none">
+
+  <!-- Step 1: Drop file -->
+  <div id="drop-zone-gl" class="drop-zone"
+       onclick="document.getElementById('fi-gl').click()"
+       ondragover="dzOver(event,'drop-zone-gl')" ondragleave="dzLeave('drop-zone-gl')"
+       ondrop="dzDrop(event,'gl')">
+    <div class="dz-icon">🗂️</div>
+    <div class="dz-title">Drop Oracle GL Export here</div>
+    <div class="dz-sub">
+      CSV or Excel · Trial balance or transaction-level export<br>
+      Fills O&amp;M sub-lines, Depreciation sub-lines, CapEx sub-lines, IPP detail
+    </div>
+    <div class="dz-formats">
+      <span class="dz-chip">.csv</span><span class="dz-chip">.xlsx</span><span class="dz-chip">.xls</span>
+    </div>
+  </div>
+  <input type="file" id="fi-gl" accept=".csv,.xlsx,.xls" onchange="onFileInput(this,'gl')" style="display:none">
+
+  <!-- Step 2: Column mapping -->
+  <div id="gl-col-panel" style="display:none;padding:16px 28px 0">
+    <div style="background:var(--card);border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:16px">
+      <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:10px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#475569">
+        Step 1 — Identify Columns
+      </div>
+      <div style="padding:16px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Account Code Column</div>
+          <select id="gl-col-acct" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;min-width:160px"></select>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Amount Column</div>
+          <select id="gl-col-amt" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;min-width:160px"></select>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Debit Column <span style="color:#94a3b8">(if no net)</span></div>
+          <select id="gl-col-dr" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;min-width:160px"><option value="">(none)</option></select>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Credit Column <span style="color:#94a3b8">(if no net)</span></div>
+          <select id="gl-col-cr" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;min-width:160px"><option value="">(none)</option></select>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Period Column <span style="color:#94a3b8">(opt)</span></div>
+          <select id="gl-col-period" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;min-width:160px"><option value="">(auto-detect)</option></select>
+        </div>
+        <div>
+          <button class="btn btn-gold" style="padding:7px 16px;font-size:12px" onclick="glSetPeriodManual()" id="gl-period-btn">Set Period</button>
+          <div style="font-size:11px;color:#64748b;margin-top:4px" id="gl-period-display">Not set</div>
+        </div>
+      </div>
+      <!-- Period manual input (hidden by default) -->
+      <div id="gl-period-manual" style="display:none;padding:0 16px 12px;display:flex;gap:12px;align-items:center">
+        <span style="font-size:12px;color:#475569">Manual period:</span>
+        <select id="gl-man-month" style="padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px">
+          <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+          <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+          <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+          <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+        </select>
+        <input id="gl-man-year" type="number" value="2026" min="2020" max="2035"
+               style="width:70px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px">
+        <button class="btn btn-ghost" style="padding:5px 12px;font-size:11px" onclick="glApplyManualPeriod()">Apply</button>
+      </div>
+      <div style="padding:0 16px 14px">
+        <div style="font-size:11px;color:#64748b;margin-bottom:6px">File preview (first 5 rows):</div>
+        <div id="gl-preview" style="overflow-x:auto;font-size:11px;font-family:monospace;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;max-height:120px;overflow-y:auto"></div>
+      </div>
+    </div>
+
+    <!-- Step 3: Account code mapping -->
+    <div style="background:var(--card);border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:16px">
+      <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:10px 16px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#475569">Step 2 — Map GL Account Codes → Line IDs</span>
+        <span style="font-size:10px;color:#94a3b8;flex:1">Comma-separated codes per line · Saved to browser storage</span>
+        <button class="btn btn-ghost" style="padding:4px 10px;font-size:10px" onclick="glSaveMapping()">💾 Save Mapping</button>
+        <button class="btn btn-ghost" style="padding:4px 10px;font-size:10px" onclick="glResetMapping()">↺ Reset</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="res-tbl" id="gl-map-tbl" style="font-size:11px">
+          <thead><tr>
+            <th>Line ID</th><th>Description</th><th>Section</th>
+            <th style="width:320px">GL Account Codes <span style="font-weight:400;color:#94a3b8">(comma-separated)</span></th>
+            <th>Sign</th>
+          </tr></thead>
+          <tbody id="gl-map-body"></tbody>
+        </table>
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid #f1f5f9">
+        <button class="btn btn-gold" onclick="glRunExtraction()" id="gl-extract-btn">▶ Extract Values from GL</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: Results -->
+  <div id="gl-parse-panel" class="parse-panel" style="padding-top:0">
+    <div class="period-banner" id="gl-period-banner" style="margin:16px 0 16px">
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Period</div>
+           <div class="pb-period" id="gl-pb-period">—</div></div>
+      <div class="pb-info"><div class="pb-label">Lines Extracted</div><div class="pb-val" id="gl-pb-count">—</div></div>
+      <div class="pb-info"><div class="pb-label">GL Rows Processed</div><div class="pb-val" id="gl-pb-rows">—</div></div>
+      <span class="pb-badge badge-grey" id="gl-pb-badge">Ready</span>
+    </div>
+    <div id="gl-alerts"></div>
+    <div class="tab-wrap">
+      <div class="tab-row">
+        <div class="tab-btn on" onclick="switchTabSet('gl',this,'gl-results')">Extracted Lines</div>
+        <div class="tab-btn"   onclick="switchTabSet('gl',this,'gl-recon')">Reconciliation</div>
+        <div class="tab-btn"   onclick="switchTabSet('gl',this,'gl-unmapped')">Unmapped Accounts</div>
+      </div>
+      <div id="gl-tab-gl-results"  class="tab-pane on"><table class="res-tbl" id="tbl-gl-results"></table></div>
+      <div id="gl-tab-gl-recon"    class="tab-pane">   <table class="res-tbl" id="tbl-gl-recon"></table></div>
+      <div id="gl-tab-gl-unmapped" class="tab-pane">   <table class="res-tbl" id="tbl-gl-unmapped"></table></div>
+    </div>
+  </div>
+
+  <div class="commit-bar" id="commit-bar-gl">
+    <div class="cb-info"><b id="gl-cb-count">0</b> GL lines ready · <span id="gl-cb-period">—</span>
+      <span style="color:var(--amber);margin-left:8px" id="gl-cb-warn"></span></div>
+    <button class="btn btn-ghost" onclick="resetGl()">✕ Cancel</button>
+    <button class="btn btn-gold" id="commit-btn-gl" onclick="commitGl()">⬆ Commit to Database</button>
+  </div>
+
+</div><!-- /sec-gl -->
+
+<!-- ══════════════════════════════════════════════
+     SECTION: LE / AOP
+══════════════════════════════════════════════ -->
+<div id="sec-le" style="display:none">
+
+  <!-- Version config bar -->
+  <div style="background:var(--card);border-bottom:1px solid #e2e8f0;padding:14px 28px;display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Upload Type</div>
+      <select id="le-type" style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px" onchange="leUpdateVersion()">
+        <option value="LE">Latest Estimate (LE)</option>
+        <option value="AOP">Annual Operating Plan (AOP)</option>
+      </select>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Year</div>
+      <input id="le-year" type="number" value="2026" min="2020" max="2035"
+             style="width:80px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px" onchange="leUpdateVersion()">
+    </div>
+    <div id="le-round-wrap">
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Round</div>
+      <select id="le-round" style="padding:7px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px" onchange="leUpdateVersion()">
+        <option value="01">LE1 — Q1 reforecast</option>
+        <option value="02">LE2 — Q2 reforecast</option>
+        <option value="03">LE3 — Q3 reforecast</option>
+      </select>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Version Code</div>
+      <div id="le-version-display"
+           style="font-family:monospace;font-size:13px;font-weight:700;color:var(--navy);padding:7px 12px;background:#f1f5f9;border-radius:6px;border:1px solid #e2e8f0">
+        LE_2026_01
+      </div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:10px;align-items:flex-end">
+      <button class="btn btn-ghost" onclick="leDownloadTemplate()" style="font-size:11px;padding:7px 14px">
+        ⬇ Download Template
+      </button>
+      <div id="le-db-status" style="font-size:11px;color:#94a3b8;padding:7px 0">Checking DB…</div>
+    </div>
+  </div>
+
+  <!-- Drop zone -->
+  <div id="drop-zone-le" class="drop-zone"
+       onclick="document.getElementById('fi-le').click()"
+       ondragover="dzOver(event,'drop-zone-le')" ondragleave="dzLeave('drop-zone-le')"
+       ondrop="dzDrop(event,'le')" style="margin-bottom:0">
+    <div class="dz-icon">📋</div>
+    <div class="dz-title">Drop completed LE / AOP template here</div>
+    <div class="dz-sub">
+      Use the template above · One row per line ID · Columns Jan–Dec<br>
+      Leave months blank for actuals-lock or not-yet-planned periods
+    </div>
+    <div class="dz-formats">
+      <span class="dz-chip">JPS_LE_Template_YYYY.xlsx</span>
+      <span class="dz-chip">.xlsx</span>
+    </div>
+  </div>
+  <input type="file" id="fi-le" accept=".xlsx,.xls" onchange="onFileInput(this,'le')" style="display:none">
+
+  <!-- Parse panel -->
+  <div id="le-parse-panel" class="parse-panel" style="padding-top:8px">
+    <div class="period-banner" id="le-period-banner">
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Version</div>
+           <div class="pb-period" id="le-pb-version" style="font-size:16px">—</div></div>
+      <div class="pb-info"><div class="pb-label">Months with Data</div><div class="pb-val" id="le-pb-months">—</div></div>
+      <div class="pb-info"><div class="pb-label">Lines × Periods</div><div class="pb-val" id="le-pb-cells">—</div></div>
+      <div class="pb-info"><div class="pb-label">Total Facts to Write</div><div class="pb-val" id="le-pb-total">—</div></div>
+      <span class="pb-badge badge-grey" id="le-pb-badge">Checking DB…</span>
+    </div>
+    <div id="le-alerts"></div>
+
+    <!-- Month filter bar -->
+    <div style="background:var(--card);border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px">Include months:</span>
+      <div id="le-month-toggles" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      <button class="btn btn-ghost" style="font-size:10px;padding:4px 10px;margin-left:auto" onclick="leToggleAllMonths(true)">All</button>
+      <button class="btn btn-ghost" style="font-size:10px;padding:4px 10px" onclick="leToggleAllMonths(false)">None</button>
+    </div>
+
+    <!-- Grid tab -->
+    <div class="tab-wrap">
+      <div class="tab-row">
+        <div class="tab-btn on" onclick="switchTabSet('le',this,'le-grid')">Full Grid</div>
+        <div class="tab-btn"   onclick="switchTabSet('le',this,'le-pl')">P&amp;L</div>
+        <div class="tab-btn"   onclick="switchTabSet('le',this,'le-bs')">Balance Sheet</div>
+        <div class="tab-btn"   onclick="switchTabSet('le',this,'le-cf')">Cash Flow</div>
+        <div class="tab-btn"   onclick="switchTabSet('le',this,'le-stat')">Stats &amp; FX</div>
+      </div>
+      <div id="le-tab-le-grid" class="tab-pane on" style="overflow-x:auto"><table class="res-tbl" id="tbl-le-grid" style="white-space:nowrap"></table></div>
+      <div id="le-tab-le-pl"   class="tab-pane" style="overflow-x:auto"><table class="res-tbl" id="tbl-le-pl"   style="white-space:nowrap"></table></div>
+      <div id="le-tab-le-bs"   class="tab-pane" style="overflow-x:auto"><table class="res-tbl" id="tbl-le-bs"   style="white-space:nowrap"></table></div>
+      <div id="le-tab-le-cf"   class="tab-pane" style="overflow-x:auto"><table class="res-tbl" id="tbl-le-cf"   style="white-space:nowrap"></table></div>
+      <div id="le-tab-le-stat" class="tab-pane" style="overflow-x:auto"><table class="res-tbl" id="tbl-le-stat" style="white-space:nowrap"></table></div>
+    </div>
+  </div>
+
+  <div class="commit-bar" id="commit-bar-le">
+    <div class="cb-info">
+      <b id="le-cb-cells">0</b> facts ready ·
+      <span id="le-cb-version">—</span>
+      <span style="color:var(--amber);margin-left:8px" id="le-cb-warn"></span>
+    </div>
+    <button class="btn btn-ghost" onclick="resetLe()">✕ Cancel</button>
+    <button class="btn btn-gold" id="commit-btn-le" onclick="commitLe()">⬆ Commit to Database</button>
+  </div>
+
+</div><!-- /sec-le -->
+
+<div id="toast"></div>
+
+<!-- ══ SCRIPT ══ -->
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const SB_URL = 'https://bhrswnbenkvflpdjhfpa.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJocnN3bmJlbmt2ZmxwZGpoZnBhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI5MTkwMDEsImV4cCI6MjA1ODQ5NTAwMX0.9oMwXHgOjCvOjT1bpqXkbx5y_R0MHxj1A7VTjuH1p3M';
+const sb = createClient(SB_URL, SB_KEY);
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_UP = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
+// ── Nav ───────────────────────────────────────────────────────────────────────
+window.setMode = function(mode) {
+  ['corp','treasury','kpi','status','gl','le'].forEach(m => {
+    document.getElementById(`sec-${m}`).style.display = m===mode ? '' : 'none';
+    document.getElementById(`nav-${m}`).classList.toggle('on', m===mode);
+    const cb = document.getElementById(`commit-bar-${m}`);
+    if (cb && m !== mode) cb.style.display = 'none';
+  });
+  if (mode === 'status') loadStatusMatrix();
+};
+
+// ── Drop zone helpers ─────────────────────────────────────────────────────────
+window.dzOver  = (e,id) => { e.preventDefault(); document.getElementById(id).classList.add('drag'); };
+window.dzLeave = id     => document.getElementById(id).classList.remove('drag');
+window.dzDrop  = (e,type) => {
+  e.preventDefault();
+  dzLeave('drop-zone-'+type);
+  if (type==='trs') handleTrsFiles(Array.from(e.dataTransfer.files));
+  else handleSingleFile(e.dataTransfer.files[0], type);
+};
+window.onFileInput  = (el,type) => { if (el.files[0]) handleSingleFile(el.files[0], type); };
+window.onFilesInput = (el,type) => { if (el.files.length) handleTrsFiles(Array.from(el.files)); };
+
+function handleSingleFile(file, type) {
+  if (!file) return;
+  if (!/\.(xlsx|xls)$/i.test(file.name)) { toast('Must be .xlsx or .xls','err'); return; }
+  if (type === 'corp') handleCorpFile(file);
+  else if (type === 'kpi') handleKpiFile(file);
+  else if (type === 'gl')  handleGlFile(file);
+  else if (type === 'le')  handleLeFile(file);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CORP ACTUALS
+// ═══════════════════════════════════════════════════════════════════════════════
+let _cPeriod=null, _cVersion=null, _cRows=[], _cDbFacts={};
+
+const RULES = [
+  {s:'rev',id:'FUEL_REV',  lbl:'Fuel Revenue',                  sh:'P&L',       r:7,  c:2,xf:'direct'},
+  {s:'rev',id:'NONFUEL',   lbl:'Non-Fuel Revenue',               sh:'P&L',       r:8,  c:2,xf:'direct'},
+  {s:'rev',id:'FUEL_COST', lbl:'Fuel Cost',                      sh:'P&L',       r:10, c:2,xf:'negate'},
+  {s:'ipp',id:'IPP_COST',  lbl:'PPA/IPP Cost Paid',              sh:'P&L',       r:11, c:2,xf:'negate',
+   note:'IPP_FR & IPP_NR blank — fill via GL load'},
+  {s:'om', id:'OM_PAY',    lbl:'Payroll, Benefits & Training',
+   parts:[{sh:'P&L Detail',r:16,c:2}], xf:'negate',
+   note:'OM_OT/OM_BEN/OM_DBEN/OM_TRN blank — GL load'},
+  {s:'om', id:'OM_3PTY',   lbl:'Third Party Services',
+   parts:[{sh:'P&L Detail',r:17,c:2}], xf:'negate'},
+  {s:'om', id:'OM_MAT',    lbl:'Materials & Equipment',
+   parts:[{sh:'P&L Detail',r:18,c:2}], xf:'negate'},
+  {s:'om', id:'OM_OFF',    lbl:'Office & Other + Transportation',
+   parts:[{sh:'P&L Detail',r:19,c:2},{sh:'P&L Detail',r:22,c:2}], xf:'negate',
+   note:'Office + Transport combined'},
+  {s:'om', id:'OM_BDR',    lbl:'Bill Delivery + Bad Debt',
+   parts:[{sh:'P&L Detail',r:20,c:2},{sh:'P&L Detail',r:24,c:2}], xf:'negate',
+   note:'BDR + Bad Debt combined'},
+  {s:'om', id:'OM_TECH',   lbl:'Technology & Telecom',
+   parts:[{sh:'P&L Detail',r:21,c:2}], xf:'negate'},
+  {s:'om', id:'OM_INS',    lbl:'Insurance',
+   parts:[{sh:'P&L Detail',r:23,c:2}], xf:'negate'},
+  {s:'dep',id:'DEPN',      lbl:'Total Depreciation',
+   parts:[{sh:'P&L',r:19,c:2}], xf:'negate',
+   note:'DEP sub-lines blank — GL load'},
+  {s:'nfc',id:'NFC_INT',   lbl:'Interest Expense',
+   parts:[{sh:'P&L Detail',r:38,c:2}], xf:'negate'},
+  {s:'nfc',id:'NFC_TOTAL', lbl:'Net Financing Costs (Total)',
+   parts:[{sh:'P&L',r:23,c:2}], xf:'negate',
+   note:'NFC_LEASE auto from lease schedule'},
+  {s:'bs', id:'BS_PPE',    lbl:'Fixed Assets NBV',       parts:[{sh:'B_S',r:17,c:3}], xf:'direct'},
+  {s:'bs', id:'BS_CASH',   lbl:'Cash & Short-term Deposits', parts:[{sh:'B_S',r:24,c:3}], xf:'direct'},
+  {s:'bs', id:'BS_RECV',   lbl:'Trade Receivables (Net)', parts:[{sh:'B_S',r:26,c:3}], xf:'direct'},
+  {s:'bs', id:'BS_OPRE',   lbl:'Other Current Assets',
+   parts:[{sh:'B_S',r:28,c:3},{sh:'B_S',r:30,c:3}], xf:'direct',
+   note:'Other recv + Prepaid combined'},
+  {s:'bs', id:'BS_INV',    lbl:'Inventories (Fuel + Materials)',
+   parts:[{sh:'B_S',r:31,c:3},{sh:'B_S',r:32,c:3}], xf:'direct',
+   note:'Fuel + Materials combined'},
+  {s:'bs', id:'BS_TASSETS',lbl:'Total Assets',            parts:[{sh:'B_S',r:35,c:3}], xf:'direct'},
+  {s:'bs', id:'BS_EQUITY', lbl:'Total Equity',            parts:[{sh:'B_S',r:42,c:3}], xf:'direct'},
+  {s:'bs', id:'BS_PAYBL',  lbl:'Trade Payables',          parts:[{sh:'B_S',r:45,c:3}], xf:'direct'},
+  {s:'bs', id:'BS_ACCRUAL',lbl:'Accrued Liabilities',
+   parts:[{sh:'B_S',r:53,c:3},{sh:'B_S',r:47,c:3}], xf:'direct',
+   note:'Interest accrued + Payroll taxes combined'},
+  {s:'bs', id:'BS_DEBTST', lbl:'Debt — Current Portion',
+   parts:[{sh:'B_S',r:50,c:3},{sh:'B_S',r:51,c:3}], xf:'direct',
+   note:'ST debt + Current maturity of LT debt'},
+  {s:'bs', id:'BS_DEBTLT', lbl:'Debt — Long-Term',        parts:[{sh:'B_S',r:56,c:3}], xf:'direct'},
+  {s:'bs', id:'BS_LEASE',  lbl:'Lease Liabilities (Current + LT)',
+   parts:[{sh:'B_S',r:52,c:3},{sh:'B_S',r:57,c:3}], xf:'direct',
+   note:'IFRS 16 current + non-current combined'},
+  {s:'cx', id:'CX_TOTAL',  lbl:'Total CapEx',
+   parts:[{sh:'Cash flow',r:41,c:3}], xf:'negate',
+   note:'CX sub-lines blank — fill via CapEx report'},
+  {s:'cf', id:'CF_OPS',    lbl:'Net Cash from Operations', parts:[{sh:'Cash flow',r:37,c:3}], xf:'direct'},
+  {s:'cf', id:'CF_INTPD',  lbl:'Interest Paid (Cash)',     parts:[{sh:'Cash flow',r:53,c:3}], xf:'negate'},
+  {s:'cf', id:'CF_PRPD',   lbl:'Principal Repayments',     parts:[{sh:'Cash flow',r:51,c:3}], xf:'negate'},
+  {s:'cf', id:'CF_DIVID',  lbl:'Dividends Paid',           parts:[{sh:'Cash flow',r:56,c:3}], xf:'negate'},
+  {s:'stat',id:'FX_BILL',  lbl:'Billing FX Rate (J$/USD)', parts:[{sh:'Revenues',r:31,c:2}], xf:'direct'},
+  {s:'stat',id:'FX_EOP',   lbl:'End-of-Period FX (J$/USD)',parts:[{sh:'Revenues',r:32,c:2}], xf:'direct'},
+  {s:'stat',id:'NF_CENTS', lbl:'Non-Fuel Tariff (US¢/kWh)',parts:[{sh:'Revenues',r:46,c:2}], xf:'direct'},
+  {s:'stat',id:'BILLED_GWH',lbl:'Billed Sales (GWh)',      parts:[{sh:'Revenues',r:45,c:2}], xf:'div1000',
+   note:'MWh ÷ 1000'},
+  {s:'stat',id:'NETGEN_GWH',lbl:'Net Generation (GWh)',    parts:[{sh:'Net Gen',r:11,c:2}], xf:'div1000',
+   note:'MWh ÷ 1000'},
+  {s:'stat',id:'HEATRATE', lbl:'Weighted Heat Rate (BTU/kWh)',parts:[{sh:'Net Gen',r:69,c:2}], xf:'kj_btu',
+   note:'kJ/kWh × 0.9478'},
+];
+
+const RECON_CHECKS = [
+  {lbl:'O&M Total = sum OM_* lines',total:'OM_TOTAL',
+   parts:['OM_PAY','OM_OT','OM_BEN','OM_DBEN','OM_TRN','OM_3PTY','OM_SUP','OM_MAT','OM_BDR','OM_TECH','OM_OFF','OM_ENVR','OM_INS','OM_MISC','OM_MGMT'],
+   detail:'Sub-lines pending GL load'},
+  {lbl:'NFC Total = NFC_INT + NFC_LEASE',total:'NFC_TOTAL',
+   parts:['NFC_INT','NFC_LEASE'],detail:'NFC_LEASE auto from lease schedule'},
+  {lbl:'Depreciation = sum DEP_* lines',total:'DEPN',
+   parts:['DEP_FA','DEP_SJPC','DEP_LEASE','DEP_SP','DEP_IMP'],detail:'Sub-lines pending GL load'},
+  {lbl:'CapEx Total = sum CX sub-lines',total:'CX_TOTAL',
+   parts:['CX_GEN','CX_TX','CX_DIST','CX_HURR','CX_CUST','CX_SS','CX_LOSS'],detail:'Sub-lines pending CapEx report'},
+];
+
+const SEC_LABELS = {
+  rev:'Revenue & Cost of Sales',ipp:'IPP / PPA',
+  om:'Operating Expenses (O&M)',dep:'Depreciation',
+  nfc:'Net Financing Costs',bs:'Balance Sheet',
+  cx:'Capital Expenditure',cf:'Cash Flow',stat:'Stats & FX'
+};
+const SEC_TAB = {rev:'pl',ipp:'pl',om:'pl',dep:'pl',nfc:'pl',bs:'bs',cx:'cf',cf:'cf',stat:'stat'};
+
+async function handleCorpFile(file) {
+  const buf = await file.arrayBuffer();
+  let wb;
+  try { wb = XLSX.read(buf,{type:'array',cellDates:true}); }
+  catch(e){ toast('Cannot parse: '+e.message,'err'); return; }
+
+  const period = detectCorpPeriod(wb);
+  if (!period) { toast('Cannot detect period — check P&L sheet header row 6','err'); return; }
+  _cPeriod = period;
+
+  const sheets = {};
+  for (const name of Object.keys(wb.Sheets))
+    sheets[name] = XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:null,raw:true});
+  _cRows = extractCorpRows(sheets);
+
+  document.getElementById('drop-zone-corp').style.display = 'none';
+  document.getElementById('parse-panel').style.display = 'block';
+  document.getElementById('commit-bar-corp').style.display = 'flex';
+
+  updateCorpBanner();
+  renderCorpTables();
+  renderRecon();
+  await checkCorpDb();
+}
+
+function detectCorpPeriod(wb) {
+  const ws = wb.Sheets['P&L']; if(!ws) return null;
+  const d = XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true,cellDates:true});
+  const hdr = d[5]; if(!hdr) return null;
+  const cell = hdr[2];
+  if (cell instanceof Date)
+    return {year:cell.getFullYear(),month:cell.getMonth()+1,id:cell.getFullYear()*100+(cell.getMonth()+1)};
+  if (typeof cell==='number'&&cell>40000) {
+    try { const p=XLSX.SSF.parse_date_code(cell); return {year:p.y,month:p.m,id:p.y*100+p.m}; } catch(e){}
+  }
+  return null;
+}
+
+function extractCorpRows(sheets) {
+  return RULES.map(rule => {
+    const parts = rule.parts || [{sh:rule.sh,r:rule.r,c:rule.c}];
+    let sum=null, missing=false;
+    for (const p of parts) {
+      const sh = sheets[p.sh]; if(!sh){missing=true;break;}
+      const row = sh[p.r]; if(!row){missing=true;break;}
+      const v = row[p.c];
+      if(typeof v!=='number'||!isFinite(v)){missing=true;break;}
+      sum = (sum===null?0:sum)+v;
+    }
+    let value=null, status='ok';
+    if(missing||sum===null){status='err';}
+    else{value=applyXf(sum,rule.xf); if(parts.length>1)status='agg';}
+    return {id:rule.id,lbl:rule.lbl,s:rule.s,value,status,note:rule.note||null};
+  });
+}
+
+function applyXf(v,xf) {
+  if(v===null)return null;
+  if(xf==='negate')  return Math.round(v*-1*1000)/1000;
+  if(xf==='div1000') return Math.round(v/1000*1000)/1000;
+  if(xf==='kj_btu')  return Math.round(v*0.9478*10)/10;
+  return Math.round(v*1000)/1000;
+}
+
+async function checkCorpDb() {
+  const pid = _cPeriod.id;
+  const vCode = `ACTUALS_${_cPeriod.year}_${String(_cPeriod.month).padStart(2,'0')}`;
+  const {data:pd} = await sb.from('fpa_dim_period').select('id,is_closed').eq('id',pid).maybeSingle();
+  const locked = pd?.is_closed===true;
+  const {data:vd} = await sb.from('fpa_versions').select('id,code').eq('code',vCode).maybeSingle();
+  _cVersion = {code:vCode,id:vd?.id||null,exists:!!vd};
+  _cDbFacts = {};
+  if(vd){
+    const {data:facts} = await sb.from('fpa_facts').select('line_id,value').eq('version_id',vd.id).eq('period_id',pid);
+    (facts||[]).forEach(r=>{ _cDbFacts[r.line_id]=r.value; });
+  }
+  const badge = document.getElementById('pb-badge');
+  if(locked){
+    badge.className='pb-badge badge-locked'; badge.textContent='🔒 Period Locked';
+    document.getElementById('commit-btn-corp').disabled=true;
+    showAlert('parse-alerts','🔒 Period locked — uploads blocked.','err');
+  } else if(vd){
+    const ct=Object.keys(_cDbFacts).length;
+    badge.className='pb-badge badge-exists'; badge.textContent=`⚠ Overwrite — ${ct} lines exist`;
+    document.getElementById('cb-overwrite-note').textContent=`(replaces ${ct} existing)`;
+  } else {
+    badge.className='pb-badge badge-new'; badge.textContent='✓ New upload';
+  }
+  document.getElementById('pb-version').textContent=vCode;
+  document.getElementById('pb-period-status').textContent=locked?'🔒 Closed':'🔓 Open';
+  renderCorpTables();
+}
+
+function updateCorpBanner() {
+  const {year,month}=_cPeriod;
+  document.getElementById('pb-period').textContent=`${MONTHS[month-1]} ${year}`;
+  const good=_cRows.filter(r=>r.value!==null).length;
+  document.getElementById('pb-line-count').textContent=`${good} / ${_cRows.length}`;
+  document.getElementById('cb-count').textContent=good;
+  document.getElementById('cb-period-label').textContent=`${MONTHS[month-1]} ${year} Actuals`;
+}
+
+function renderCorpTables() {
+  const byTab={pl:[],bs:[],cf:[],stat:[]};
+  for(const r of _cRows){const t=SEC_TAB[r.s]||'pl'; byTab[t].push(r);}
+  for(const [t,rows] of Object.entries(byTab)) renderResTable(document.getElementById(`tbl-${t}`),rows);
+  updateCorpBanner();
+}
+
+function renderResTable(tbl, rows) {
+  let html=`<thead><tr>
+    <th>Line ID</th><th>Description</th><th class="r">Extracted</th>
+    <th class="r">DB Current</th><th class="r">Change</th><th>Status</th>
+  </tr></thead><tbody>`;
+  let lastSec=null;
+  for(const r of rows){
+    if(r.s!==lastSec){
+      html+=`<tr class="sec-hdr-row"><td colspan="6">${SEC_LABELS[r.s]||r.s}</td></tr>`;
+      lastSec=r.s;
+    }
+    const db=_cDbFacts[r.id], hasDb=db!==undefined&&db!==null;
+    const vs=r.value!==null?fmtN(r.value):'<span class="val-blank">—</span>';
+    const ds=hasDb?fmtN(db):'<span class="val-blank">—</span>';
+    let cs='<span class="val-blank">—</span>';
+    if(r.value!==null&&hasDb){
+      const d=r.value-parseFloat(db);
+      cs=Math.abs(d)<0.01?'<span style="color:#94a3b8">±0</span>'
+        :`<span class="${d>0?'val-diff-pos':'val-diff-neg'}">${d>0?'+':''}${fmtN(d)}</span>`;
+    } else if(r.value!==null&&!hasDb){
+      cs='<span style="color:#22c55e;font-size:10px">NEW</span>';
+    }
+    const sb2=r.status==='err'?'<span class="st st-err">⚠ Not found</span>'
+             :r.status==='agg'?'<span class="st st-agg">∑ Combined</span>'
+             :r.note?'<span class="st st-note">ℹ Info</span>'
+             :'<span class="st st-ok">✓ OK</span>';
+    html+=`<tr>
+      <td class="id-cell">${r.id}</td>
+      <td>${r.lbl}${r.note?`<br><span style="font-size:10px;color:#94a3b8">${r.note}</span>`:''}</td>
+      <td class="r">${vs}</td><td class="r">${ds}</td><td class="r">${cs}</td><td>${sb2}</td>
+    </tr>`;
+  }
+  tbl.innerHTML=html+'</tbody>';
+}
+
+function renderRecon() {
+  const vm={};
+  for(const r of _cRows) vm[r.id]=r.value;
+  let html='';
+  for(const chk of RECON_CHECKS){
+    const tot=vm[chk.total], pvs=chk.parts.map(p=>vm[p]), allHave=pvs.every(v=>v!=null);
+    let ico,cls,ds;
+    if(tot==null){ico='—';cls='recon-na';ds='Total not extracted';}
+    else if(!allHave){ico='⏳';cls='recon-na';ds='Parts pending GL load';}
+    else{
+      const ps=pvs.reduce((s,v)=>s+(v||0),0), diff=Math.round((ps-tot)*100)/100;
+      if(Math.abs(diff)<0.5){ico='✓';cls='recon-ok';ds='Balanced';}
+      else{ico='✗';cls='recon-warn';ds=`Gap: ${fmtN(diff)}`;}
+    }
+    html+=`<div class="recon-row">
+      <div class="recon-ico ${cls}">${ico}</div>
+      <div><div class="recon-lbl">${chk.lbl}</div><div class="recon-detail">${chk.detail}</div></div>
+      <div class="recon-num ${cls}">${ds}</div>
+    </div>`;
+  }
+  document.getElementById('recon-rows').innerHTML=html;
+}
+
+window.commitCorp = async function() {
+  if(!_cPeriod||!_cRows.length) return;
+  const pid=_cPeriod.id;
+  const btn=document.getElementById('commit-btn-corp');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Writing…';
+  try {
+    const {data:ep} = await sb.from('fpa_dim_period').select('id,is_closed').eq('id',pid).maybeSingle();
+    if(ep?.is_closed){toast('Period locked','err');btn.disabled=false;btn.textContent='⬆ Commit to Database';return;}
+    if(!ep){
+      const {error:pe}=await sb.from('fpa_dim_period').insert({id:pid,year:_cPeriod.year,month:_cPeriod.month,
+        label:`${MONTHS[_cPeriod.month-1]} ${_cPeriod.year}`,is_closed:false});
+      if(pe) throw pe;
+    }
+    let vid=_cVersion?.id;
+    if(!vid){
+      const {data:nv,error:ve}=await sb.from('fpa_versions').insert({
+        code:_cVersion.code,kind:'ACTUAL',period_id:pid,is_active:true}).select('id').single();
+      if(ve) throw ve; vid=nv.id;
+    }
+    const rows=_cRows.filter(r=>r.value!==null).map(r=>({version_id:vid,period_id:pid,line_id:r.id,value:r.value}));
+    if(!rows.length){toast('Nothing to write','warn');btn.disabled=false;btn.textContent='⬆ Commit to Database';return;}
+    const {error:fe}=await sb.from('fpa_facts').upsert(rows,{onConflict:'version_id,line_id,period_id'});
+    if(fe) throw fe;
+    await sb.from('fpa_audit_log').insert({app:'data-manager',action:'upload_actuals',
+      version_id:vid,period_id:pid,user_id:dmUser(),
+      meta:JSON.stringify({lines:rows.length,source:'excel_corp_acctg_pack',
+        period_label:`${MONTHS[_cPeriod.month-1]} ${_cPeriod.year}`})});
+    toast(`✓ ${rows.length} lines written`,'ok');
+    btn.innerHTML=`✓ Done — ${rows.length} lines`;
+    _cVersion.id=vid; _cVersion.exists=true;
+    await loadHistory(); await checkCorpDb();
+  } catch(e) {
+    console.error('[Corp] commit error:',e);
+    toast('Write failed: '+e.message,'err');
+    btn.disabled=false; btn.textContent='⬆ Commit to Database';
+  }
+};
+
+window.resetCorp = function() {
+  _cPeriod=null;_cVersion=null;_cRows=[];_cDbFacts={};
+  document.getElementById('drop-zone-corp').style.display='';
+  document.getElementById('parse-panel').style.display='none';
+  document.getElementById('commit-bar-corp').style.display='none';
+  document.getElementById('parse-alerts').innerHTML='';
+  document.getElementById('fi-corp').value='';
+  document.getElementById('commit-btn-corp').disabled=false;
+  document.getElementById('commit-btn-corp').textContent='⬆ Commit to Database';
+  document.getElementById('cb-overwrite-note').textContent='';
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TREASURY
+// ═══════════════════════════════════════════════════════════════════════════════
+// Treasury state
+let _trs = {
+  period: null,           // {year,month,id}
+  ltLoans: null,          // parsed LT loans data
+  stLoans: null,          // parsed ST loans data
+  ltInterest: null,       // parsed LT interest data
+  stInterest: null,       // parsed ST interest data
+  summaryRows: [],        // fpa_facts lines: NFC_INT, CF_INTPD, CF_PRPD, CF_DRAWDN
+  loanRows: [],           // loan detail rows
+  interestRows: [],       // interest detail rows
+};
+
+// Detect Treasury file type from filename
+function detectTrsType(filename) {
+  const f = filename.toUpperCase();
+  if (f.includes('LOANS') && f.includes('LONG'))     return 'lt_loans';
+  if (f.includes('LOANS') && f.includes('SHORT'))    return 'st_loans';
+  if (f.includes('INTEREST') && f.includes('LONG'))  return 'lt_interest';
+  if (f.includes('INTEREST') && f.includes('SHORT')) return 'st_interest';
+  return 'unknown';
+}
+
+// Extract period from Treasury filename e.g. "JAN 2026"
+function detectTrsPeriod(filename) {
+  const m = filename.toUpperCase().match(/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{4})\b/);
+  if (!m) return null;
+  const month = MONTHS_UP.indexOf(m[1]) + 1;
+  const year  = parseInt(m[2]);
+  return { year, month, id: year * 100 + month };
+}
+
+async function handleTrsFiles(files) {
+  const cards = document.getElementById('trs-cards');
+  cards.innerHTML = '';
+  _trs = { period:null, ltLoans:null, stLoans:null, ltInterest:null, stInterest:null,
+           summaryRows:[], loanRows:[], interestRows:[] };
+
+  for (const file of files) {
+    if (!/\.(xlsx|xls)$/i.test(file.name)) continue;
+    const type    = detectTrsType(file.name);
+    const period  = detectTrsPeriod(file.name);
+    if (!_trs.period && period) _trs.period = period;
+
+    // Render a loading card
+    const cardId = `fc-${type}`;
+    cards.innerHTML += `<div class="file-card" id="${cardId}">
+      <div class="fc-icon">📄</div>
+      <div class="fc-info">
+        <div class="fc-name">${esc(file.name)}</div>
+        <div class="fc-meta">${esc(typeLabel(type))} · ${period ? `${MONTHS[period.month-1]} ${period.year}` : 'Period unknown'}</div>
+      </div>
+      <span class="fc-badge fc-wait" id="fc-badge-${type}">Parsing…</span>
+    </div>`;
+
+    const buf = await file.arrayBuffer();
+    let wb;
+    try { wb = XLSX.read(buf,{type:'array',raw:true}); }
+    catch(e) {
+      document.getElementById(`fc-badge-${type}`).className='fc-badge fc-err';
+      document.getElementById(`fc-badge-${type}`).textContent='Parse error';
+      toast('Cannot parse '+file.name,'err');
+      continue;
+    }
+
+    try {
+      if (type === 'lt_loans')    _trs.ltLoans    = parseLtLoans(wb);
+      if (type === 'st_loans')    _trs.stLoans    = parseStLoans(wb);
+      if (type === 'lt_interest') _trs.ltInterest = parseLtInterest(wb);
+      if (type === 'st_interest') _trs.stInterest = parseStInterest(wb);
+      document.getElementById(`fc-badge-${type}`).className='fc-badge fc-ok';
+      document.getElementById(`fc-badge-${type}`).textContent='✓ Parsed';
+    } catch(e) {
+      document.getElementById(`fc-badge-${type}`).className='fc-badge fc-err';
+      document.getElementById(`fc-badge-${type}`).textContent='Extract error';
+      console.error('[Trs] parse error',type,e);
+      toast(`Extract failed (${typeLabel(type)}): ${e.message}`,'err');
+    }
+  }
+
+  // Build summary lines from whatever we have
+  buildTrsSummary();
+  renderTrsTables();
+  if (_trs.period) {
+    document.getElementById('trs-parse-panel').style.display = 'block';
+    document.getElementById('commit-bar-trs').style.display = 'flex';
+    document.getElementById('trs-pb-period').textContent =
+      `${MONTHS[_trs.period.month-1]} ${_trs.period.year}`;
+    const loaded = [_trs.ltLoans,_trs.stLoans,_trs.ltInterest,_trs.stInterest].filter(Boolean).length;
+    document.getElementById('trs-pb-files').textContent = `${loaded} / 4`;
+    document.getElementById('trs-pb-count').textContent = `${_trs.summaryRows.filter(r=>r.value!==null).length}`;
+    document.getElementById('trs-cb-period').textContent = `${MONTHS[_trs.period.month-1]} ${_trs.period.year} Treasury`;
+    document.getElementById('trs-cb-count').textContent  = _trs.summaryRows.filter(r=>r.value!==null).length;
+    document.getElementById('trs-pb-badge').className = 'pb-badge badge-new';
+    document.getElementById('trs-pb-badge').textContent = '✓ Ready to commit';
+    await checkTrsDb();
+  }
+}
+
+function typeLabel(t) {
+  return {lt_loans:'LT Loans',st_loans:'ST Loans',lt_interest:'LT Interest',st_interest:'ST Interest',unknown:'Unknown'}[t]||t;
+}
+
+// LT Loans: sheet "LTD Summary"
+// US$ cols: Opening=9, Repayment=10, Drawdown=11, Revaluation=12, OtherAdj=13, Closing=14
+function parseLtLoans(wb) {
+  const ws = wb.Sheets['LTD Summary'];
+  if (!ws) throw new Error('Sheet "LTD Summary" not found');
+  const data = XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true});
+  const loans = [];
+  let grandTotal = null;
+  for (let i=0; i<data.length; i++) {
+    const row = data[i]; if (!row) continue;
+    // Loan rows: col 1 is a number (loan ID)
+    if (typeof row[1] === 'number' && typeof row[9] === 'number') {
+      loans.push({
+        name:    String(row[2]||row[1]),
+        opening: row[9]||0, repayment:row[10]||0, drawdown:row[11]||0,
+        reval:   row[12]||0, otherAdj:row[13]||0, closing:row[14]||0
+      });
+    }
+    // Grand total: look for non-numeric col 1 but has values in numeric cols, near end
+    if (grandTotal === null && i > data.length - 10) {
+      if (typeof row[9] === 'number' && typeof row[10] === 'number' && typeof row[14] === 'number') {
+        if (typeof row[1] !== 'number') {
+          grandTotal = { opening:row[9], repayment:row[10], drawdown:row[11]||0, closing:row[14] };
+        }
+      }
+    }
+  }
+  // Fallback: sum loans
+  if (!grandTotal && loans.length) {
+    grandTotal = loans.reduce((acc,l) => ({
+      opening:   acc.opening   + l.opening,
+      repayment: acc.repayment + l.repayment,
+      drawdown:  acc.drawdown  + l.drawdown,
+      closing:   acc.closing   + l.closing,
+    }), {opening:0,repayment:0,drawdown:0,closing:0});
+  }
+  return { loans, grandTotal };
+}
+
+// ST Loans: same structure but typically 1-2 rows
+function parseStLoans(wb) {
+  const ws = wb.Sheets['LTD Summary'] || wb.Sheets[wb.SheetNames[0]];
+  if (!ws) throw new Error('No suitable sheet found in ST Loans file');
+  const data = XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true});
+  const loans = [];
+  for (let i=0; i<data.length; i++) {
+    const row = data[i]; if (!row) continue;
+    if (typeof row[1] === 'number' && typeof row[9] === 'number') {
+      loans.push({name:String(row[2]||row[1]),opening:row[9]||0,repayment:row[10]||0,
+                  drawdown:row[11]||0,reval:row[12]||0,otherAdj:row[13]||0,closing:row[14]||0});
+    }
+  }
+  const grandTotal = loans.length ? loans.reduce((acc,l)=>({
+    opening:acc.opening+l.opening, repayment:acc.repayment+l.repayment,
+    drawdown:acc.drawdown+l.drawdown, closing:acc.closing+l.closing,
+  }),{opening:0,repayment:0,drawdown:0,closing:0}) : null;
+  return { loans, grandTotal };
+}
+
+// LT Interest: sheet "Int-Summary"
+// US$ cols: Payment=9, Accruals=10
+function parseLtInterest(wb) {
+  const ws = wb.Sheets['Int-Summary'];
+  if (!ws) throw new Error('Sheet "Int-Summary" not found');
+  const data = XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true});
+  const loans = [];
+  let grandTotal = null;
+  for (let i=0; i<data.length; i++) {
+    const row = data[i]; if (!row) continue;
+    if (typeof row[1] === 'number' && typeof row[9] === 'number') {
+      loans.push({name:String(row[2]||row[1]),payment:row[9]||0,accrual:row[10]||0});
+    }
+    if (grandTotal === null && i > data.length - 10) {
+      if (typeof row[9] === 'number' && typeof row[10] === 'number' && typeof row[1] !== 'number') {
+        grandTotal = {payment:row[9], accrual:row[10]};
+      }
+    }
+  }
+  if (!grandTotal && loans.length) {
+    grandTotal = loans.reduce((acc,l)=>({payment:acc.payment+l.payment,accrual:acc.accrual+l.accrual}),{payment:0,accrual:0});
+  }
+  return { loans, grandTotal };
+}
+
+// ST Interest: same structure
+function parseStInterest(wb) {
+  const ws = wb.Sheets['Int-Summary'] || wb.Sheets[wb.SheetNames[0]];
+  if (!ws) throw new Error('No suitable sheet found in ST Interest file');
+  const data = XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true});
+  const loans = [];
+  for (let i=0; i<data.length; i++) {
+    const row = data[i]; if (!row) continue;
+    if (typeof row[1] === 'number' && typeof row[9] === 'number') {
+      loans.push({name:String(row[2]||row[1]),payment:row[9]||0,accrual:row[10]||0});
+    }
+  }
+  const grandTotal = loans.length ? loans.reduce((acc,l)=>({payment:acc.payment+l.payment,accrual:acc.accrual+l.accrual}),{payment:0,accrual:0}) : null;
+  return { loans, grandTotal };
+}
+
+function buildTrsSummary() {
+  // Combine LT + ST totals → fpa_facts lines
+  const lt = _trs.ltLoans?.grandTotal;
+  const st = _trs.stLoans?.grandTotal;
+  const li = _trs.ltInterest?.grandTotal;
+  const si = _trs.stInterest?.grandTotal;
+
+  const totalRepayment = (lt?.repayment||0) + (st?.repayment||0);
+  const totalDrawdown  = (lt?.drawdown||0)  + (st?.drawdown||0);
+  const totalIntPaid   = (li?.payment||0)   + (si?.payment||0);
+  const totalIntAccr   = (li?.accrual||0)   + (si?.accrual||0);
+
+  _trs.summaryRows = [
+    { id:'CF_PRPD',  lbl:'Principal Repayments (Cash)',  value: (lt||st) ? Math.round(totalRepayment*100)/100 : null,
+      src: 'LT+ST Loans → US$ Repayment' },
+    { id:'CF_DRAWDN',lbl:'Loan Drawdowns (Cash)',         value: (lt||st) ? Math.round(totalDrawdown*100)/100  : null,
+      src: 'LT+ST Loans → US$ Drawdown' },
+    { id:'CF_INTPD', lbl:'Interest Paid (Cash)',          value: (li||si) ? Math.round(totalIntPaid*100)/100   : null,
+      src: 'LT+ST Interest → US$ Payment' },
+    { id:'NFC_INT',  lbl:'Interest Expense (Accrual)',    value: (li||si) ? Math.round(totalIntAccr*100)/100   : null,
+      src: 'LT+ST Interest → US$ Accruals' },
+  ];
+
+  // Loan detail for display
+  _trs.loanRows = [
+    ...(_trs.ltLoans?.loans||[]).map(l=>({...l,type:'LT'})),
+    ...(_trs.stLoans?.loans||[]).map(l=>({...l,type:'ST'})),
+  ];
+  _trs.interestRows = [
+    ...(_trs.ltInterest?.loans||[]).map(l=>({...l,type:'LT'})),
+    ...(_trs.stInterest?.loans||[]).map(l=>({...l,type:'ST'})),
+  ];
+}
+
+async function checkTrsDb() {
+  if (!_trs.period) return;
+  const pid = _trs.period.id;
+  const vCode = `ACTUALS_${_trs.period.year}_${String(_trs.period.month).padStart(2,'0')}`;
+  const {data:vd} = await sb.from('fpa_versions').select('id').eq('code',vCode).maybeSingle();
+  if (vd) {
+    const {data:facts} = await sb.from('fpa_facts').select('line_id,value')
+      .eq('version_id',vd.id).eq('period_id',pid)
+      .in('line_id',['CF_PRPD','CF_DRAWDN','CF_INTPD','NFC_INT']);
+    const existing = {};
+    (facts||[]).forEach(r=>{ existing[r.line_id]=r.value; });
+    if (Object.keys(existing).length) {
+      document.getElementById('trs-pb-badge').className='pb-badge badge-exists';
+      document.getElementById('trs-pb-badge').textContent='⚠ Overwrites existing';
+    }
+  }
+}
+
+function renderTrsTables() {
+  // Summary
+  let html=`<thead><tr><th>Line ID</th><th>Description</th><th class="r">Value (USD)</th><th>Source</th></tr></thead><tbody>`;
+  for(const r of _trs.summaryRows){
+    html+=`<tr>
+      <td class="id-cell">${r.id}</td><td>${r.lbl}</td>
+      <td class="r">${r.value!==null?fmtN(r.value):'<span class="val-blank">No file</span>'}</td>
+      <td style="font-size:11px;color:#64748b">${r.src}</td>
+    </tr>`;
+  }
+  document.getElementById('tbl-trs-summary').innerHTML=html+'</tbody>';
+
+  // LT Loan detail
+  let lhtml=`<thead><tr><th>Type</th><th>Loan</th><th class="r">Opening</th><th class="r">Repayment</th><th class="r">Drawdown</th><th class="r">Closing</th></tr></thead><tbody>`;
+  for(const l of _trs.loanRows){
+    lhtml+=`<tr><td><span class="hist-pill ${l.type==='LT'?'pill-act':'pill-trs'}">${esc(l.type)}</span></td>
+      <td>${esc(l.name)}</td><td class="r">${fmtN(l.opening)}</td><td class="r">${fmtN(l.repayment)}</td>
+      <td class="r">${fmtN(l.drawdown)}</td><td class="r">${fmtN(l.closing)}</td></tr>`;
+  }
+  if(!_trs.loanRows.length) lhtml+=`<tr><td colspan="6" style="color:#94a3b8;text-align:center;padding:20px">No loan files loaded</td></tr>`;
+  document.getElementById('tbl-trs-loans').innerHTML=lhtml+'</tbody>';
+
+  // Interest detail
+  let ihtml=`<thead><tr><th>Type</th><th>Loan</th><th class="r">Payment</th><th class="r">Accrual</th></tr></thead><tbody>`;
+  for(const l of _trs.interestRows){
+    ihtml+=`<tr><td><span class="hist-pill ${l.type==='LT'?'pill-act':'pill-trs'}">${esc(l.type)}</span></td>
+      <td>${esc(l.name)}</td><td class="r">${fmtN(l.payment)}</td><td class="r">${fmtN(l.accrual)}</td></tr>`;
+  }
+  if(!_trs.interestRows.length) ihtml+=`<tr><td colspan="4" style="color:#94a3b8;text-align:center;padding:20px">No interest files loaded</td></tr>`;
+  document.getElementById('tbl-trs-interest').innerHTML=ihtml+'</tbody>';
+}
+
+window.commitTrs = async function() {
+  if (!_trs.period) { toast('No period detected','warn'); return; }
+  const pid  = _trs.period.id;
+  const btn  = document.getElementById('commit-btn-trs');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Writing…';
+  try {
+    // Ensure period row
+    const {data:ep} = await sb.from('fpa_dim_period').select('id,is_closed').eq('id',pid).maybeSingle();
+    if (ep?.is_closed) { toast('Period locked','err'); btn.disabled=false; btn.textContent='⬆ Commit to Database'; return; }
+    if (!ep) {
+      const {error:pe} = await sb.from('fpa_dim_period').insert({id:pid,year:_trs.period.year,month:_trs.period.month,
+        label:`${MONTHS[_trs.period.month-1]} ${_trs.period.year}`,is_closed:false});
+      if (pe) throw pe;
+    }
+    // Get or create version
+    const vCode = `ACTUALS_${_trs.period.year}_${String(_trs.period.month).padStart(2,'0')}`;
+    let vid;
+    const {data:vd} = await sb.from('fpa_versions').select('id').eq('code',vCode).maybeSingle();
+    if (vd) { vid = vd.id; }
+    else {
+      const {data:nv,error:ve} = await sb.from('fpa_versions').insert({
+        code:vCode,kind:'ACTUAL',period_id:pid,is_active:true}).select('id').single();
+      if (ve) throw ve; vid = nv.id;
+    }
+    // Write summary lines
+    const rows = _trs.summaryRows.filter(r=>r.value!==null).map(r=>({
+      version_id:vid, period_id:pid, line_id:r.id, value:r.value }));
+    if (!rows.length) { toast('No values to write','warn'); btn.disabled=false; btn.textContent='⬆ Commit to Database'; return; }
+    const {error:fe} = await sb.from('fpa_facts').upsert(rows,{onConflict:'version_id,line_id,period_id'});
+    if (fe) throw fe;
+    await sb.from('fpa_audit_log').insert({app:'data-manager',action:'upload_treasury',
+      version_id:vid,period_id:pid,user_id:dmUser(),
+      meta:JSON.stringify({lines:rows.length,source:'treasury_files',
+        period_label:`${MONTHS[_trs.period.month-1]} ${_trs.period.year}`})});
+    toast(`✓ ${rows.length} treasury lines written`,'ok');
+    btn.innerHTML=`✓ Done — ${rows.length} lines`;
+  } catch(e) {
+    console.error('[Trs] commit error:',e);
+    toast('Write failed: '+e.message,'err');
+    btn.disabled=false; btn.textContent='⬆ Commit to Database';
+  }
+};
+
+window.resetTrs = function() {
+  _trs={period:null,ltLoans:null,stLoans:null,ltInterest:null,stInterest:null,summaryRows:[],loanRows:[],interestRows:[]};
+  document.getElementById('trs-cards').innerHTML='';
+  document.getElementById('trs-parse-panel').style.display='none';
+  document.getElementById('commit-bar-trs').style.display='none';
+  document.getElementById('trs-alerts').innerHTML='';
+  document.getElementById('fi-trs').value='';
+};
+
+window.switchTabSet = function(prefix, el, name) {
+  el.closest('.tab-wrap').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
+  el.closest('.tab-wrap').querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById(`${prefix}-tab-${name}`).classList.add('on');
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DEBT SCHEDULE IMPORT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// LT loan names as they appear in col B of the Debt sheet LOAN SUMMARY section
+const DEBT_LT_LOANS = [
+  'NCB J$','Sagicor J$','FCIB J$','KFW LOAN (EURO)','Expansion Plants',
+  'Capital Financing','Export Development Canada','NCB ( JMD coverted to USD )',
+  'Espirito Santo Bank','CARIBBEAN DEVELOPMENT BANK','PROPARCO',
+  'Citibank/OPIC US$30M','NEXI/Citibank Japan Ltd.','Citi/OPIC ',
+  'Sagicor Facility 2&3','OPECFund for Int\'l Development  New Loan($25M @ 7.14%)',
+  'Citi/Opic - US$120M Facility','FCIB - US$15M / US$70.625M','FCIB- US$30M',
+  'IFC #2 US$30M','Peninsula Corporation','OPEC Fund for Int\'l Development/GOJ-2026',
+  'Caribbean Devel. Bank (CDB) - US$','SCOTIABANK - US$',
+  'Scotiabank Jamaican Dollar Loan - US$','New Facility - US$ IDB US$100M Loan'
+];
+const DEBT_ST_LOANS = [
+  'Available Facility J$','Citibank N.A. US$','Citibank N.A.','Scotia BANK'
+];
+
+// Convert 0-based data col offset to period_id given model start year/month
+function debtPeriodId(col0based, startYear, startMonth) {
+  const totalMonths = startYear * 12 + (startMonth - 1) + col0based;
+  const y = Math.floor(totalMonths / 12);
+  const m = (totalMonths % 12) + 1;
+  return y * 100 + m;
+}
+
+function debtPeriodLabel(pid) {
+  const MNAMES = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return MNAMES[pid % 100] + ' ' + Math.floor(pid / 100);
+}
+
+function parseDebtSchedule(wb, startYear, startMonth) {
+  const ws = wb.Sheets['Debt'];
+  if (!ws) return { error: 'Sheet "Debt" not found. Rename the sheet to "Debt" and retry.' };
+
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: 0 });
+  const DATA_START_COL = 3; // col index 3 (D) = first monthly data col
+
+  if (!data || data.length < 5) return { error: 'Sheet appears empty.' };
+
+  const totalDataCols = (data[0] || []).length - DATA_START_COL;
+
+  // Scan col B (index 1) for section header rows
+  let drawdownRow = -1, repaymentRow = -1, closingRow = -1;
+  for (let r = 0; r < data.length; r++) {
+    const b = String(data[r][1] || '').trim();
+    if (drawdownRow  < 0 && (b === 'Draw Down (US$\'000)' || b.includes('Draw Down')))            drawdownRow  = r;
+    if (repaymentRow < 0 && (b === 'Repayment (US$\'000)' || b.includes('Repayment (US$')))       repaymentRow = r;
+    if (closingRow   < 0 && (b.includes('Closing Loan Balances') || b.includes('Closing Balance'))) closingRow = r;
+  }
+
+  if (drawdownRow < 0 || repaymentRow < 0 || closingRow < 0) {
+    return { error: `Could not find required section headers. Found: DD=${drawdownRow} REP=${repaymentRow} CL=${closingRow}. Expected "Draw Down", "Repayment (US$", "Closing Loan Balances" in col B.` };
+  }
+
+  // Extract rows under a section header until a blank or "Total" terminator
+  function extractSection(headerRow, loanType) {
+    const result = [];
+    for (let r = headerRow + 1; r < Math.min(headerRow + 60, data.length); r++) {
+      const row = data[r] || [];
+      const b = String(row[1] || '').trim();
+      if (!b) continue;
+      // Stop at next major section (all-caps header or grand total)
+      if (/^[A-Z\s]{8,}$/.test(b) && !b.includes('Ltd') && !b.includes('Inc')) break;
+      if (b.toLowerCase().startsWith('grand total')) break;
+      // Skip subtotal rows — keep loan-level rows only
+      const isTotal = /^total\s/i.test(b) || b.toLowerCase() === 'total';
+      const rowLoanType = isTotal
+        ? (/short/i.test(b) ? 'TOTAL_ST' : /long/i.test(b) ? 'TOTAL_LT' : 'TOTAL')
+        : loanType;
+      const values = [];
+      for (let c = DATA_START_COL; c < row.length; c++) {
+        values.push(Number(row[c]) || 0);
+      }
+      result.push({ loanName: b, loanType: rowLoanType, isTotal, values });
+    }
+    return result;
+  }
+
+  // Find where LT section ends and ST section begins
+  // Strategy: extract from drawdownRow, split on SHORT TERM header
+  function extractBothTypes(headerRow) {
+    const lt = [], st = [];
+    let inST = false;
+    for (let r = headerRow + 1; r < Math.min(headerRow + 80, data.length); r++) {
+      const row = data[r] || [];
+      const b = String(row[1] || '').trim();
+      if (!b) continue;
+      if (/SHORT\s*TERM/i.test(b)) { inST = true; continue; }
+      if (/^grand\s*total/i.test(b)) break;
+      // Next section header = stop
+      if (!inST && /^LONG\s*TERM/i.test(b)) continue;
+      const isTotal = /^total\s/i.test(b) || b.toLowerCase() === 'total';
+      const loanType = isTotal
+        ? (inST ? 'TOTAL_ST' : 'TOTAL_LT')
+        : (inST ? 'ST' : 'LT');
+      const values = [];
+      for (let c = DATA_START_COL; c < row.length; c++) {
+        values.push(Number(row[c]) || 0);
+      }
+      (inST ? st : lt).push({ loanName: b, loanType, isTotal, values });
+    }
+    return { lt, st };
+  }
+
+  const dd  = extractBothTypes(drawdownRow);
+  const rep = extractBothTypes(repaymentRow);
+  const cl  = extractBothTypes(closingRow);
+
+  // Merge into DB rows: one row per period × loan
+  const rows = [];
+  const numPeriods = Math.min(
+    dd.lt[0]?.values.length || totalDataCols,
+    totalDataCols
+  );
+
+  function mergeSection(ddArr, repArr, clArr) {
+    for (let li = 0; li < ddArr.length; li++) {
+      const ddEntry  = ddArr[li];
+      const repEntry = repArr.find(r => r.loanName === ddEntry.loanName) || repArr[li] || { values: [] };
+      const clEntry  = clArr.find(r => r.loanName === ddEntry.loanName)  || clArr[li]  || { values: [] };
+      for (let ci = 0; ci < numPeriods; ci++) {
+        const pid = debtPeriodId(ci, startYear, startMonth);
+        const yr  = Math.floor(pid / 100);
+        if (yr < 2010 || yr > 2040) continue;
+        const dd_v  = Number(ddEntry.values[ci])  || 0;
+        const rep_v = Number(repEntry.values[ci]) || 0;
+        const cl_v  = Number(clEntry.values[ci])  || 0;
+        if (dd_v === 0 && rep_v === 0 && cl_v === 0) continue;
+        rows.push({
+          period_id:       pid,
+          loan_name:       ddEntry.loanName,
+          loan_type:       ddEntry.loanType,
+          drawdown_usd:    dd_v,
+          repayment_usd:   rep_v,
+          closing_bal_usd: cl_v
+        });
+      }
+    }
+  }
+
+  mergeSection(dd.lt, rep.lt, cl.lt);
+  mergeSection(dd.st, rep.st, cl.st);
+
+  const ltLoans = new Set(dd.lt.filter(r => !r.isTotal).map(r => r.loanName));
+  const stLoans = new Set(dd.st.filter(r => !r.isTotal).map(r => r.loanName));
+  const firstPid = debtPeriodId(0, startYear, startMonth);
+  const lastPid  = debtPeriodId(numPeriods - 1, startYear, startMonth);
+
+  return {
+    rows,
+    summary: {
+      periods:    numPeriods,
+      ltLoans:    ltLoans.size,
+      stLoans:    stLoans.size,
+      nonZeroRows: rows.length,
+      firstPid,
+      lastPid
+    }
+  };
+}
+
+window.handleDebtDrop = function(e) {
+  e.preventDefault();
+  document.getElementById('debt-drop').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file) handleDebtFile(file);
+};
+
+window.handleDebtFile = async function(file) {
+  if (!file) return;
+  const startYear  = parseInt(document.getElementById('debt-start-year').value);
+  const startMonth = parseInt(document.getElementById('debt-start-month').value);
+
+  const commitBar = document.getElementById('commit-bar-debt');
+  const preview   = document.getElementById('debt-preview');
+  commitBar.style.display = 'none';
+  preview.style.display   = 'none';
+  preview.innerHTML = '';
+  document.getElementById('debt-commit-msg').textContent = 'Parsing…';
+
+  let buf;
+  try { buf = await file.arrayBuffer(); }
+  catch(e) { toast('Cannot read file: ' + e.message, 'err'); return; }
+
+  let wb;
+  try { wb = XLSX.read(buf, { type: 'array' }); }
+  catch(e) { toast('Cannot parse workbook: ' + e.message, 'err'); return; }
+
+  const result = parseDebtSchedule(wb, startYear, startMonth);
+
+  if (result.error) {
+    toast(result.error, 'err');
+    console.error('[DebtSchedule] parse error:', result.error);
+    return;
+  }
+
+  window._debtRows = result.rows;
+  const { periods, ltLoans, stLoans, nonZeroRows, firstPid, lastPid } = result.summary;
+
+  preview.style.display = '';
+  preview.innerHTML = `
+    <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:14px 16px">
+      <p style="margin:0 0 6px; font-size:13px; font-weight:700; color:#0369a1">Parse complete — ${file.name}</p>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px">
+        <div style="background:#fff; border:1px solid #e0f2fe; border-radius:6px; padding:8px 10px; text-align:center">
+          <div style="font-size:18px; font-weight:800; color:var(--navy)">${nonZeroRows.toLocaleString()}</div>
+          <div style="font-size:10px; color:var(--muted); text-transform:uppercase">Non-zero rows</div>
+        </div>
+        <div style="background:#fff; border:1px solid #e0f2fe; border-radius:6px; padding:8px 10px; text-align:center">
+          <div style="font-size:18px; font-weight:800; color:var(--navy)">${ltLoans} LT + ${stLoans} ST</div>
+          <div style="font-size:10px; color:var(--muted); text-transform:uppercase">Loans detected</div>
+        </div>
+        <div style="background:#fff; border:1px solid #e0f2fe; border-radius:6px; padding:8px 10px; text-align:center">
+          <div style="font-size:14px; font-weight:800; color:var(--navy)">${debtPeriodLabel(firstPid)} → ${debtPeriodLabel(lastPid)}</div>
+          <div style="font-size:10px; color:var(--muted); text-transform:uppercase">${periods} periods</div>
+        </div>
+      </div>
+      <p style="margin:0; font-size:11px; color:var(--muted)">Model start: ${document.getElementById('debt-start-month').selectedOptions[0].text} ${startYear}</p>
+    </div>`;
+
+  commitBar.style.display = 'flex';
+  document.getElementById('debt-commit-msg').textContent = `${nonZeroRows.toLocaleString()} rows ready to commit`;
+};
+
+window.commitDebtSchedule = async function() {
+  const rows = window._debtRows;
+  if (!rows || rows.length === 0) { toast('No data to commit', 'err'); return; }
+
+  const btn = document.querySelector('#commit-bar-debt button');
+  const msg = document.getElementById('debt-commit-msg');
+  btn.disabled = true;
+  btn.textContent = 'Writing…';
+
+  try {
+    // Get or create DEBT_SCHEDULE version (kind='debt', no period_id — spans all periods)
+    const vCode = 'DEBT_SCHEDULE';
+    let versionId;
+    const { data: existing, error: ve } = await sb.from('fpa_versions')
+      .select('id').eq('code', vCode).maybeSingle();
+    if (ve) throw ve;
+
+    if (!existing) {
+      const { data: created, error: ce } = await sb.from('fpa_versions').insert({
+        code: vCode,
+        name: 'Debt Schedule Model',
+        kind: 'DEBT',
+        is_active: true
+      }).select('id').single();
+      if (ce) throw ce;
+      versionId = created.id;
+    } else {
+      versionId = existing.id;
+    }
+
+    const tagged = rows.map(r => ({ ...r, version_id: versionId }));
+    const CHUNK  = 500;
+    let inserted = 0;
+
+    for (let i = 0; i < tagged.length; i += CHUNK) {
+      const chunk = tagged.slice(i, i + CHUNK);
+      const { error: ue } = await sb.from('fpa_debt_schedule')
+        .upsert(chunk, { onConflict: 'version_id,period_id,loan_name' });
+      if (ue) throw ue;
+      inserted += chunk.length;
+      msg.textContent = `Writing… ${inserted.toLocaleString()} / ${tagged.length.toLocaleString()}`;
+    }
+
+    // Audit log
+    const { error: ae } = await sb.from('fpa_audit_log').insert({
+      app:    'data-manager',
+      action: 'upload_debt_schedule',
+      user_id: dmUser(),
+      meta: { rows: inserted, version_id: versionId }
+    });
+    if (ae) console.warn('[DebtSchedule] audit log failed:', ae.message);
+
+    toast(`✓ Debt schedule committed: ${inserted.toLocaleString()} rows`, 'ok');
+    msg.textContent = `✓ ${inserted.toLocaleString()} rows in DB`;
+    btn.textContent  = '✓ Done';
+    window._debtRows = null;
+
+  } catch(e) {
+    console.error('[DebtSchedule] commit error:', e);
+    toast('Write failed: ' + e.message, 'err');
+    btn.disabled = false;
+    btn.textContent = '⬆ Commit to DB';
+    msg.textContent = '';
+  }
+};
+
+window.resetDebtUpload = function() {
+  window._debtRows = null;
+  document.getElementById('debt-preview').style.display   = 'none';
+  document.getElementById('commit-bar-debt').style.display = 'none';
+  document.getElementById('debt-file').value = '';
+  document.getElementById('debt-commit-msg').textContent  = '';
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// KPI ACTUALS
+// ═══════════════════════════════════════════════════════════════════════════════
+// KPI extraction config
+// Sheet "JPS KPIs Summary" (0-indexed rows)
+// Heat Rate: header row 14, data rows 15-26 (Jan-Dec), col 2=Actual, col 3=Target
+// EAF:       header row 31, data rows 32-43
+// EFOR:      header row 48, data rows 49-60
+const KPI_BLOCKS = [
+  { code:'heat_rate', lbl:'Heat Rate (BTU/kWh)', unit:'BTU/kWh', dataStartRow:15, actCol:2, tgtCol:3, scale:0.9478, scaleNote:'kJ→BTU ×0.9478' },
+  { code:'eaf',       lbl:'Equivalent Availability Factor', unit:'%', dataStartRow:32, actCol:2, tgtCol:3, scale:100, scaleNote:'×100 to %' },
+  { code:'efor',      lbl:'Equivalent Forced Outage Rate',  unit:'%', dataStartRow:49, actCol:2, tgtCol:3, scale:100, scaleNote:'×100 to %' },
+];
+
+let _kpi = { year:null, rows:[] }; // rows: [{code,month,period_id,value,target,hasData}]
+
+async function handleKpiFile(file) {
+  const buf = await file.arrayBuffer();
+  let wb;
+  try { wb = XLSX.read(buf,{type:'array',raw:true}); }
+  catch(e){ toast('Cannot parse: '+e.message,'err'); return; }
+
+  // Detect year from filename
+  const yearMatch = file.name.match(/(\d{4})/);
+  const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+  _kpi.year = year;
+
+  const ws = wb.Sheets['JPS KPIs Summary'];
+  if (!ws) { toast('Sheet "JPS KPIs Summary" not found','err'); return; }
+  const data = XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true});
+
+  _kpi.rows = [];
+  for (const block of KPI_BLOCKS) {
+    for (let mo=1; mo<=12; mo++) {
+      const rowIdx = block.dataStartRow + (mo - 1);
+      const row = data[rowIdx];
+      if (!row) continue;
+      const rawAct = row[block.actCol];
+      const rawTgt = row[block.tgtCol];
+      const hasData = typeof rawAct === 'number' && isFinite(rawAct) && rawAct !== 0;
+      _kpi.rows.push({
+        code:      block.code,
+        lbl:       block.lbl,
+        unit:      block.unit,
+        month:     mo,
+        year:      year,
+        period_id: year * 100 + mo,
+        value:     hasData ? Math.round(rawAct * block.scale * 10000) / 10000 : null,
+        target:    (typeof rawTgt === 'number' && isFinite(rawTgt))
+                   ? Math.round(rawTgt * block.scale * 10000) / 10000 : null,
+        hasData,
+        scaleNote: block.scaleNote,
+      });
+    }
+  }
+
+  document.getElementById('drop-zone-kpi').style.display = 'none';
+  document.getElementById('kpi-parse-panel').style.display = 'block';
+  document.getElementById('commit-bar-kpi').style.display = 'flex';
+
+  const withData = _kpi.rows.filter(r=>r.hasData);
+  const months   = [...new Set(withData.map(r=>r.month))];
+  document.getElementById('kpi-pb-year').textContent = year;
+  document.getElementById('kpi-pb-months').textContent = months.length;
+  document.getElementById('kpi-pb-count').textContent = withData.length;
+  document.getElementById('kpi-pb-badge').className = 'pb-badge badge-new';
+  document.getElementById('kpi-pb-badge').textContent = '✓ Parsed';
+  document.getElementById('kpi-cb-count').textContent = withData.length;
+  document.getElementById('kpi-cb-year').textContent = `${year} KPI Actuals`;
+
+  renderKpiTables();
+  await checkKpiDb();
+}
+
+async function checkKpiDb() {
+  if (!_kpi.year) return;
+  const withData = _kpi.rows.filter(r=>r.hasData);
+  if (!withData.length) return;
+  const periods = [...new Set(withData.map(r=>r.period_id))];
+  const {data:existing} = await sb.from('jps_kpi_actuals').select('period_id,kpi_code')
+    .in('period_id', periods);
+  if (existing && existing.length) {
+    document.getElementById('kpi-pb-badge').className = 'pb-badge badge-exists';
+    document.getElementById('kpi-pb-badge').textContent = `⚠ ${existing.length} rows exist`;
+  }
+}
+
+function renderKpiTables() {
+  for (const block of KPI_BLOCKS) {
+    const rows = _kpi.rows.filter(r => r.code === block.code);
+    let html = `<thead><tr><th>Month</th><th>Period ID</th><th class="r">Actual</th><th class="r">Target</th><th>Status</th></tr></thead><tbody>`;
+    for (const r of rows) {
+      const vs = r.value !== null ? fmtN(r.value) + ` <span style="font-size:10px;color:#94a3b8">${r.unit}</span>` : '<span class="val-blank">No data</span>';
+      const ts = r.target !== null ? fmtN(r.target) : '<span class="val-blank">—</span>';
+      const st = r.hasData
+        ? '<span class="st st-ok">✓ Has data</span>'
+        : '<span class="st st-blank">○ Empty</span>';
+      html += `<tr>
+        <td><strong>${MONTHS[r.month-1]}</strong></td>
+        <td class="id-cell">${r.period_id}</td>
+        <td class="r">${vs}</td>
+        <td class="r">${ts}</td>
+        <td>${st}</td>
+      </tr>`;
+    }
+    document.getElementById(`tbl-kpi-${block.code}`).innerHTML = html + '</tbody>';
+  }
+}
+
+window.commitKpi = async function() {
+  const withData = _kpi.rows.filter(r => r.hasData);
+  if (!withData.length) { toast('No KPI data to write','warn'); return; }
+  const btn = document.getElementById('commit-btn-kpi');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Writing…';
+  try {
+    const upsertRows = withData.map(r => ({
+      period_id:      r.period_id,
+      kpi_code:       r.code,
+      value:          r.value,
+      adjusted_value: r.value,  // adjusted = actual until manually overridden
+    }));
+    const {error} = await sb.from('jps_kpi_actuals').upsert(upsertRows, {onConflict:'period_id,kpi_code'});
+    if (error) throw error;
+    // Audit log (no version_id for KPI — period-level)
+    const firstPeriod = withData[0].period_id;
+    await sb.from('fpa_audit_log').insert({app:'data-manager',action:'upload_kpi',
+      period_id:firstPeriod,user_id:dmUser(),
+      meta:JSON.stringify({rows:upsertRows.length,year:_kpi.year,codes:[...new Set(withData.map(r=>r.code))]})});
+    toast(`✓ ${upsertRows.length} KPI rows written`,'ok');
+    btn.innerHTML = `✓ Done — ${upsertRows.length} rows`;
+  } catch(e) {
+    console.error('[KPI] commit error:',e);
+    toast('Write failed: '+e.message,'err');
+    btn.disabled=false; btn.textContent='⬆ Commit to Database';
+  }
+};
+
+window.resetKpi = function() {
+  _kpi = {year:null,rows:[]};
+  document.getElementById('drop-zone-kpi').style.display='';
+  document.getElementById('kpi-parse-panel').style.display='none';
+  document.getElementById('commit-bar-kpi').style.display='none';
+  document.getElementById('kpi-alerts').innerHTML='';
+  document.getElementById('fi-kpi').value='';
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATUS MATRIX
+// ═══════════════════════════════════════════════════════════════════════════════
+window.togglePeriodLock = async function(pid, lock) {
+  const label = lock ? 'Lock' : 'Unlock';
+  if (!confirm(`${label} period ${pid}? ${lock ? 'This will block all further uploads for this period.' : 'This will re-open the period for uploads.'}`)) return;
+  try {
+    const {error} = await sb.from('fpa_dim_period')
+      .update({ is_closed: lock })
+      .eq('id', pid);
+    if (error) throw error;
+    await sb.from('fpa_audit_log').insert({
+      app: 'data-manager',
+      action: lock ? 'period_lock' : 'period_unlock',
+      period_id: pid,
+      user_id: dmUser(),
+      meta: JSON.stringify({ period_id: pid, locked: lock }),
+    });
+    toast(`${label}ed period ${pid}`, lock ? 'warn' : 'ok');
+    await loadStatusMatrix(); // refresh
+  } catch(e) {
+    console.error('[Lock] error:', e);
+    toast(`${label} failed: ${e.message}`, 'err');
+  }
+};
+
+window.loadStatusMatrix = async function() {
+  const wrap = document.getElementById('status-matrix-wrap');
+  wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">Loading…</div>';
+  try {
+    // Get last 12 periods from fpa_dim_period
+    const {data:periods,error:pe} = await sb.from('fpa_dim_period').select('id,label,is_closed')
+      .order('id',{ascending:false}).limit(12);
+    if (pe) throw pe;
+
+    if (!periods || !periods.length) {
+      wrap.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">No periods in database yet</div>';
+      return;
+    }
+
+    // Get audit log entries for data-manager
+    const pids = periods.map(p=>p.id);
+    const {data:logs,error:le} = await sb.from('fpa_audit_log')
+      .select('action,period_id,created_at')
+      .eq('app','data-manager')
+      .in('period_id',pids)
+      .order('created_at',{ascending:false});
+    if (le) throw le;
+
+    // Build lookup: {period_id: {upload_actuals:true, upload_treasury:true, upload_kpi:true}}
+    const matrix = {};
+    for (const p of periods) matrix[p.id] = {actuals:false,treasury:false,kpi:false,gl:false,le:false};
+    for (const log of (logs||[])) {
+      if (!matrix[log.period_id]) continue;
+      if (log.action==='upload_actuals')  matrix[log.period_id].actuals  = true;
+      if (log.action==='upload_treasury') matrix[log.period_id].treasury = true;
+      if (log.action==='upload_kpi')      matrix[log.period_id].kpi      = true;
+      if (log.action==='upload_gl')       matrix[log.period_id].gl       = true;
+      if (log.action==='upload_le')       matrix[log.period_id].le       = true;
+    }
+
+    let html = `<table class="sm-tbl"><thead><tr>
+      <th class="left">Period</th>
+      <th>Corp Actuals</th>
+      <th>Treasury</th>
+      <th>KPI Actuals</th>
+      <th>GL Sub-lines</th>
+      <th>LE / AOP</th>
+      <th>Status</th>
+      <th>Export</th>
+      <th>Lock</th>
+    </tr></thead><tbody>`;
+
+    for (const p of periods) {
+      const m = matrix[p.id];
+      const dot = (ok) => ok
+        ? '<span class="sm-dot dot-ok">✓</span>'
+        : '<span class="sm-dot dot-no">○</span>';
+      const allDone  = m.actuals && m.treasury && m.kpi && m.gl;
+      const anyDone  = m.actuals || m.treasury || m.kpi;
+      const locked   = p.is_closed;
+      const status   = locked ? '<span class="st" style="background:#e0f2fe;color:#0369a1;font-size:11px">🔒 Closed</span>'
+                     : allDone ? '<span class="st st-ok" style="font-size:11px">✓ Complete</span>'
+                     : anyDone ? '<span class="st st-note" style="font-size:11px">◑ Partial</span>'
+                     : '<span class="st st-blank" style="font-size:11px">○ Empty</span>';
+      const exportBtn = `<button onclick="exportPeriod(${p.id},'${esc(p.label||String(p.id))}')"
+        title="Export all versions for this period to Excel"
+        style="padding:3px 10px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;
+               color:#1e40af;font-size:10px;font-weight:700;cursor:pointer">⬇ xlsx</button>`;
+      const lockBtn = locked
+        ? `<button onclick="togglePeriodLock(${p.id},false)" title="Unlock period"
+             style="padding:3px 10px;border-radius:6px;border:1px solid #fcd34d;background:#fffbeb;
+                    color:#92400e;font-size:10px;font-weight:700;cursor:pointer">🔒 Unlock</button>`
+        : `<button onclick="togglePeriodLock(${p.id},true)" title="Lock period — blocks further uploads"
+             style="padding:3px 10px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;
+                    color:#64748b;font-size:10px;font-weight:700;cursor:pointer">Lock</button>`;
+      html += `<tr>
+        <td class="period-cell">${esc(p.label || String(p.id))}${locked?' 🔒':''}</td>
+        <td>${dot(m.actuals)}</td>
+        <td>${dot(m.treasury)}</td>
+        <td>${dot(m.kpi)}</td>
+        <td>${dot(m.gl)}</td>
+        <td>${dot(m.le)}</td>
+        <td>${status}</td>
+        <td style="text-align:center">${exportBtn}</td>
+        <td style="text-align:center">${lockBtn}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  } catch(e) {
+    console.error('[Status] error:',e);
+    wrap.innerHTML = `<div style="padding:40px;text-align:center;color:#dc2626">Error loading: ${e.message}</div>`;
+    toast('Status load failed: '+e.message,'err');
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HISTORY (Corp section — shared audit log)
+// ═══════════════════════════════════════════════════════════════════════════════
+async function loadHistory() {
+  try {
+    const {data} = await sb.from('fpa_audit_log').select('*')
+      .eq('app','data-manager').order('created_at',{ascending:false}).limit(20);
+    renderHistory(data||[]);
+  } catch(e) { /* offline */ }
+}
+
+function renderHistory(rows) {
+  if (!rows.length) {
+    document.getElementById('hist-body').innerHTML='<tr><td colspan="6" style="color:#94a3b8;text-align:center;padding:20px">No uploads yet</td></tr>';
+    return;
+  }
+  const ACTION_PILL = {
+    upload_actuals: '<span class="hist-pill pill-act">Actuals</span>',
+    upload_treasury:'<span class="hist-pill pill-trs">Treasury</span>',
+    upload_kpi:     '<span class="hist-pill pill-kpi">KPI</span>',
+    upload_gl:      '<span class="hist-pill pill-gl">GL</span>',
+    upload_le:      '<span class="hist-pill pill-le">LE/AOP</span>',
+  };
+  const html = rows.map(r => {
+    const meta = (() => { try{return JSON.parse(r.meta||'{}')}catch(e){return {}} })();
+    const when = r.created_at ? new Date(r.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    const pill = ACTION_PILL[r.action] || '<span class="hist-pill pill-aop">Other</span>';
+    const period = meta.period_label || (r.period_id ? String(r.period_id) : '—');
+    const lines  = meta.lines || meta.rows || '—';
+    return `<tr>
+      <td><strong>${esc(period)}</strong></td><td>${pill}</td>
+      <td style="font-family:monospace">${esc(String(lines))}</td>
+      <td style="color:#64748b">${esc(r.user_id||'—')}</td>
+      <td style="color:#64748b">${esc(when)}</td>
+      <td><span class="st st-ok" style="font-size:10px">✓ Committed</span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('hist-body').innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHARED HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+window.switchTab = function(name,el) {
+  document.querySelectorAll('#sec-corp .tab-btn').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('#sec-corp .tab-pane').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('tab-'+name).classList.add('on');
+};
+
+function showAlert(id, msg, type) {
+  const cls=type==='err'?'alert-err':type==='ok'?'alert-ok':type==='warn'?'alert-warn':'alert-info';
+  const el=document.getElementById(id);
+  if(el) el.innerHTML+=`<div class="alert ${cls}">${msg}</div>`;
+}
+
+// XSS-safe string escape — apply to ALL user/DB/file data in innerHTML
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function dmUser() {
+  return localStorage.getItem('jps_dm_user') || 'anonymous';
+}
+
+function fmtN(v) {
+  if(v===null||v===undefined) return '—';
+  const n=parseFloat(v); if(isNaN(n)) return String(v);
+  if(Math.abs(n)>=1000) return n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:1});
+  return n.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:4});
+}
+
+window.toast = function(msg,type='ok') {
+  const el=document.getElementById('toast'), d=document.createElement('div');
+  d.className=`toast-msg ${type}`; d.textContent=msg;
+  el.appendChild(d); setTimeout(()=>d.remove(),4000);
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GL SUB-LINES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Lines that GL is expected to fill (sub-lines blank after Corp upload)
+const GL_LINE_DEFS = [
+  // O&M sub-lines
+  {id:'OM_OT',   lbl:'Overtime',                   sec:'O&M',  sign:'+'},
+  {id:'OM_BEN',  lbl:'Employee Benefits',           sec:'O&M',  sign:'+'},
+  {id:'OM_DBEN', lbl:'Defined Benefit / Pension',   sec:'O&M',  sign:'+'},
+  {id:'OM_TRN',  lbl:'Training',                    sec:'O&M',  sign:'+'},
+  {id:'OM_SUP',  lbl:'Supervision / Management',    sec:'O&M',  sign:'+'},
+  {id:'OM_ENVR', lbl:'Environmental',               sec:'O&M',  sign:'+'},
+  {id:'OM_MISC', lbl:'Miscellaneous O&M',           sec:'O&M',  sign:'+'},
+  {id:'OM_MGMT', lbl:'Management Fee',              sec:'O&M',  sign:'+'},
+  // Depreciation sub-lines
+  {id:'DEP_FA',  lbl:'Depreciation — Fixed Assets', sec:'DEP',  sign:'+'},
+  {id:'DEP_SJPC',lbl:'Depreciation — SJPC',         sec:'DEP',  sign:'+'},
+  {id:'DEP_SP',  lbl:'Depreciation — Spare Parts',  sec:'DEP',  sign:'+'},
+  {id:'DEP_IMP', lbl:'Impairment',                  sec:'DEP',  sign:'+'},
+  // CapEx sub-lines
+  {id:'CX_GEN',  lbl:'CapEx — Generation',          sec:'CapEx',sign:'+'},
+  {id:'CX_TX',   lbl:'CapEx — Transmission',        sec:'CapEx',sign:'+'},
+  {id:'CX_DIST', lbl:'CapEx — Distribution',        sec:'CapEx',sign:'+'},
+  {id:'CX_HURR', lbl:'CapEx — Hurricane/Emergency', sec:'CapEx',sign:'+'},
+  {id:'CX_CUST', lbl:'CapEx — Customer',            sec:'CapEx',sign:'+'},
+  {id:'CX_SS',   lbl:'CapEx — Substation',          sec:'CapEx',sign:'+'},
+  {id:'CX_LOSS', lbl:'CapEx — Loss Reduction',      sec:'CapEx',sign:'+'},
+  // IPP detail
+  {id:'IPP_FR',  lbl:'IPP — Fuel Reimbursement',    sec:'IPP',  sign:'+'},
+  {id:'IPP_NR',  lbl:'IPP — Non-fuel Recovery',     sec:'IPP',  sign:'+'},
+  // Cash Flow lines
+  {id:'CF_WCCHG',lbl:'Working Capital Change',      sec:'CF',   sign:'+'},
+  {id:'CF_TAXPD',lbl:'Tax Paid',                    sec:'CF',   sign:'+'},
+  {id:'CF_EBITDA',lbl:'EBITDA (derived)',            sec:'CF',   sign:'+'},
+];
+
+// Recon checks: GL sub-lines must sum to Corp totals
+const GL_RECON = [
+  { totalId:'OM_TOTAL',  totalLbl:'O&M Total',
+    parts:['OM_PAY','OM_OT','OM_BEN','OM_DBEN','OM_TRN','OM_3PTY','OM_SUP','OM_MAT','OM_BDR','OM_TECH','OM_OFF','OM_ENVR','OM_INS','OM_MISC','OM_MGMT'] },
+  { totalId:'DEPN',      totalLbl:'Total Depreciation',
+    parts:['DEP_FA','DEP_SJPC','DEP_LEASE','DEP_SP','DEP_IMP'] },
+  { totalId:'CX_TOTAL',  totalLbl:'Total CapEx',
+    parts:['CX_GEN','CX_TX','CX_DIST','CX_HURR','CX_CUST','CX_SS','CX_LOSS'] },
+  { totalId:'IPP_COST',  totalLbl:'Total IPP Cost',
+    parts:['IPP_FR','IPP_NR'] },
+];
+
+const GL_MAP_KEY = 'jps_gl_mapping_v1';
+
+let _gl = {
+  period:   null,
+  rawData:  [],       // array of row objects from parsed file
+  columns:  [],       // detected column names
+  mapping:  {},       // { line_id: { codes: ['1234','1235'], sign: '+' } }
+  extracted:[],       // [{ id, lbl, sec, value, glRows, codes }]
+  unmapped: [],       // account codes with no mapping
+  dbFacts:  {},       // existing fpa_facts for this period/version
+};
+
+function glLoadMapping() {
+  const saved = localStorage.getItem(GL_MAP_KEY);
+  const base  = {};
+  for (const d of GL_LINE_DEFS) base[d.id] = { codes:[], sign:d.sign };
+  if (saved) {
+    try { const p = JSON.parse(saved);
+      for (const [k,v] of Object.entries(p)) { if (base[k]) base[k] = v; }
+    } catch(e) {}
+  }
+  return base;
+}
+
+window.glSaveMapping = function() {
+  glReadMappingFromTable();
+  localStorage.setItem(GL_MAP_KEY, JSON.stringify(_gl.mapping));
+  toast('Mapping saved to browser storage','ok');
+};
+
+window.glResetMapping = function() {
+  localStorage.removeItem(GL_MAP_KEY);
+  _gl.mapping = glLoadMapping();
+  glRenderMappingTable();
+  toast('Mapping reset to defaults','warn');
+};
+
+function glReadMappingFromTable() {
+  for (const d of GL_LINE_DEFS) {
+    const inp  = document.getElementById(`glm-${d.id}`);
+    const sign = document.getElementById(`gls-${d.id}`);
+    if (inp) _gl.mapping[d.id].codes = inp.value.split(',').map(s=>s.trim()).filter(Boolean);
+    if (sign) _gl.mapping[d.id].sign = sign.value;
+  }
+}
+
+function glRenderMappingTable() {
+  let html = '';
+  let lastSec = null;
+  for (const d of GL_LINE_DEFS) {
+    if (d.sec !== lastSec) {
+      html += `<tr class="sec-hdr-row"><td colspan="5">${d.sec}</td></tr>`;
+      lastSec = d.sec;
+    }
+    const codes = (_gl.mapping[d.id]?.codes||[]).join(', ');
+    const sign  = _gl.mapping[d.id]?.sign || '+';
+    html += `<tr>
+      <td class="id-cell">${d.id}</td>
+      <td>${d.lbl}</td>
+      <td style="font-size:10px;color:#64748b">${d.sec}</td>
+      <td><input id="glm-${d.id}" value="${codes}"
+            style="width:100%;padding:4px 8px;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;font-family:monospace"
+            placeholder="e.g. 5101, 5102"></td>
+      <td>
+        <select id="gls-${d.id}" style="padding:4px 6px;border:1px solid #e2e8f0;border-radius:4px;font-size:11px">
+          <option value="+" ${sign==='+'?'selected':''}>Dr positive</option>
+          <option value="-" ${sign==='-'?'selected':''}>Cr positive</option>
+        </select>
+      </td>
+    </tr>`;
+  }
+  document.getElementById('gl-map-body').innerHTML = html;
+}
+
+async function handleGlFile(file) {
+  _gl = { period:null, rawData:[], columns:[], mapping:glLoadMapping(),
+          extracted:[], unmapped:[], dbFacts:{} };
+
+  const buf = await file.arrayBuffer();
+  let rows = [];
+
+  if (/\.csv$/i.test(file.name)) {
+    const text = new TextDecoder().decode(buf);
+    const lines = text.split(/\r?\n/);
+    if (!lines.length) { toast('Empty CSV','err'); return; }
+    const headers = lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
+    _gl.columns = headers;
+    for (let i=1; i<lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const vals = lines[i].split(',').map(v=>v.replace(/^"|"$/g,'').trim());
+      const obj  = {};
+      headers.forEach((h,j) => { obj[h] = vals[j]||''; });
+      rows.push(obj);
+    }
+  } else {
+    // Excel
+    const wb   = XLSX.read(buf,{type:'array',raw:false});
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const arr  = XLSX.utils.sheet_to_json(ws,{defval:''});
+    rows = arr;
+    _gl.columns = arr.length ? Object.keys(arr[0]) : [];
+  }
+
+  if (!rows.length) { toast('No data rows found','err'); return; }
+  _gl.rawData = rows;
+
+  // Show column selectors
+  document.getElementById('drop-zone-gl').style.display = 'none';
+  document.getElementById('gl-col-panel').style.display = 'block';
+
+  // Populate column dropdowns
+  const opts = _gl.columns.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const noneOpt = '<option value="">(none)</option>';
+  ['gl-col-acct','gl-col-amt','gl-col-dr','gl-col-cr','gl-col-period'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = (id.includes('dr')||id.includes('cr')||id.includes('period') ? noneOpt : '') + opts;
+  });
+
+  // Auto-guess columns
+  const guess = (candidates) => {
+    for (const c of candidates) {
+      const match = _gl.columns.find(col => col.toLowerCase().includes(c.toLowerCase()));
+      if (match) return match;
+    }
+    return _gl.columns[0];
+  };
+  document.getElementById('gl-col-acct').value   = guess(['account','acct','gl code','code','account_code','Account']);
+  document.getElementById('gl-col-amt').value    = guess(['net','amount','balance','net amount','ytd','period']);
+  document.getElementById('gl-col-dr').value     = guess(['debit','dr']) || '';
+  document.getElementById('gl-col-cr').value     = guess(['credit','cr']) || '';
+  document.getElementById('gl-col-period').value = guess(['period','month','fiscal']) || '';
+
+  // Preview
+  const preview = _gl.rawData.slice(0,5).map(r =>
+    _gl.columns.map(c => String(r[c]||'').substring(0,18)).join(' | ')
+  ).join('\n');
+  document.getElementById('gl-preview').textContent =
+    _gl.columns.map(c=>c.substring(0,18)).join(' | ') + '\n' + '—'.repeat(60) + '\n' + preview;
+
+  // Render mapping table
+  glRenderMappingTable();
+}
+
+window.glSetPeriodManual = function() {
+  const panel = document.getElementById('gl-period-manual');
+  panel.style.display = panel.style.display==='none'?'flex':'none';
+};
+
+window.glApplyManualPeriod = function() {
+  const mo   = parseInt(document.getElementById('gl-man-month').value);
+  const yr   = parseInt(document.getElementById('gl-man-year').value);
+  _gl.period = { year:yr, month:mo, id:yr*100+mo };
+  document.getElementById('gl-period-display').textContent = `${MONTHS[mo-1]} ${yr}`;
+  document.getElementById('gl-period-manual').style.display = 'none';
+  toast(`Period set: ${MONTHS[mo-1]} ${yr}`,'ok');
+};
+
+window.glRunExtraction = async function() {
+  // Read column choices
+  const acctCol   = document.getElementById('gl-col-acct').value;
+  const amtCol    = document.getElementById('gl-col-amt').value;
+  const drCol     = document.getElementById('gl-col-dr').value;
+  const crCol     = document.getElementById('gl-col-cr').value;
+  const periodCol = document.getElementById('gl-col-period').value;
+
+  if (!acctCol) { toast('Select account code column','warn'); return; }
+  if (!amtCol && !drCol) { toast('Select amount or debit column','warn'); return; }
+
+  // Read mapping from table inputs
+  glReadMappingFromTable();
+
+  // Auto-detect period from periodCol if available
+  if (!_gl.period && periodCol) {
+    for (const row of _gl.rawData) {
+      const v = String(row[periodCol]||'');
+      // Try patterns like "Jan-26", "Jan 2026", "2026-01", "01/2026"
+      const d = parsePeriodStr(v);
+      if (d) { _gl.period = d; break; }
+    }
+  }
+
+  if (!_gl.period) {
+    toast('Set period manually (Set Period button)','warn');
+    return;
+  }
+
+  // Build account → amounts map from raw data
+  const acctTotals = {}; // { acctCode: netAmount }
+  let rowsProcessed = 0;
+  for (const row of _gl.rawData) {
+    const code = String(row[acctCol]||'').trim();
+    if (!code) continue;
+    let net = 0;
+    if (drCol && crCol) {
+      const dr = parseFloat(String(row[drCol]||'').replace(/,/g,'')) || 0;
+      const cr = parseFloat(String(row[crCol]||'').replace(/,/g,'')) || 0;
+      net = dr - cr;
+    } else if (amtCol) {
+      net = parseFloat(String(row[amtCol]||'').replace(/,/g,'')) || 0;
+    }
+    acctTotals[code] = (acctTotals[code]||0) + net;
+    rowsProcessed++;
+  }
+
+  // Match to line IDs via mapping
+  const mappedCodes = new Set();
+  _gl.extracted = [];
+  for (const d of GL_LINE_DEFS) {
+    const map = _gl.mapping[d.id];
+    if (!map || !map.codes.length) continue;
+    let total = 0;
+    const matchedRows = [];
+    for (const code of map.codes) {
+      // Support wildcards: "5101*" matches "5101001", "5101002" etc.
+      const pattern = code.endsWith('*')
+        ? code.slice(0,-1)
+        : null;
+      for (const [ac, amt] of Object.entries(acctTotals)) {
+        if (pattern ? ac.startsWith(pattern) : ac === code) {
+          total += amt;
+          matchedRows.push({code:ac, amt});
+          mappedCodes.add(ac);
+        }
+      }
+    }
+    if (matchedRows.length) {
+      const value = map.sign==='-' ? -total : total;
+      _gl.extracted.push({ id:d.id, lbl:d.lbl, sec:d.sec,
+        value: Math.round(Math.abs(value)*100)/100, // stored positive
+        glRows: matchedRows, codes: map.codes });
+    }
+  }
+
+  // Find unmapped codes
+  _gl.unmapped = Object.entries(acctTotals)
+    .filter(([code]) => !mappedCodes.has(code))
+    .map(([code, amt]) => ({code, amt}))
+    .sort((a,b) => Math.abs(b.amt)-Math.abs(a.amt));
+
+  // Load existing DB facts for recon
+  await glLoadDbFacts();
+
+  // Render
+  document.getElementById('gl-parse-panel').style.display = 'block';
+  document.getElementById('commit-bar-gl').style.display  = 'flex';
+  glRenderResults(rowsProcessed);
+};
+
+async function glLoadDbFacts() {
+  if (!_gl.period) return;
+  const pid   = _gl.period.id;
+  const vCode = `ACTUALS_${_gl.period.year}_${String(_gl.period.month).padStart(2,'0')}`;
+  const {data:vd} = await sb.from('fpa_versions').select('id').eq('code',vCode).maybeSingle();
+  _gl.dbFacts = {};
+  if (vd) {
+    const {data:facts} = await sb.from('fpa_facts').select('line_id,value')
+      .eq('version_id',vd.id).eq('period_id',pid);
+    (facts||[]).forEach(r=>{ _gl.dbFacts[r.line_id]=parseFloat(r.value)||0; });
+  }
+}
+
+function glRenderResults(rowsProcessed) {
+  const {year,month} = _gl.period;
+  document.getElementById('gl-pb-period').textContent  = `${MONTHS[month-1]} ${year}`;
+  document.getElementById('gl-pb-count').textContent   = _gl.extracted.length;
+  document.getElementById('gl-pb-rows').textContent    = rowsProcessed;
+  document.getElementById('gl-pb-badge').className     = 'pb-badge badge-new';
+  document.getElementById('gl-pb-badge').textContent   = '✓ Extracted';
+  document.getElementById('gl-cb-period').textContent  = `${MONTHS[month-1]} ${year} GL`;
+  document.getElementById('gl-cb-count').textContent   = _gl.extracted.length;
+
+  if (_gl.unmapped.length) {
+    document.getElementById('gl-cb-warn').textContent =
+      `⚠ ${_gl.unmapped.length} unmapped accounts`;
+  }
+
+  // Results tab
+  let html=`<thead><tr><th>Line ID</th><th>Description</th><th class="r">GL Value</th><th class="r">DB Current</th><th class="r">Change</th><th>GL Accounts</th></tr></thead><tbody>`;
+  let lastSec=null;
+  for(const r of _gl.extracted){
+    if(r.sec!==lastSec){html+=`<tr class="sec-hdr-row"><td colspan="6">${r.sec}</td></tr>`;lastSec=r.sec;}
+    const dbv = _gl.dbFacts[r.id];
+    const hasDb = dbv !== undefined;
+    const ds = hasDb ? fmtN(dbv) : '<span class="val-blank">—</span>';
+    let cs = '<span class="val-blank">—</span>';
+    if(hasDb){ const d=r.value-dbv; cs=Math.abs(d)<0.01?'<span style="color:#94a3b8">±0</span>'
+      :`<span class="${d>0?'val-diff-pos':'val-diff-neg'}">${d>0?'+':''}${fmtN(d)}</span>`; }
+    else { cs='<span style="color:#22c55e;font-size:10px">NEW</span>'; }
+    const codesStr = r.glRows.map(g=>`${esc(g.code)}(${fmtN(g.amt)})`).slice(0,4).join(', ')
+      + (r.glRows.length>4?` +${r.glRows.length-4} more`:'');
+    html+=`<tr>
+      <td class="id-cell">${r.id}</td><td>${r.lbl}</td>
+      <td class="r">${fmtN(r.value)}</td><td class="r">${ds}</td><td class="r">${cs}</td>
+      <td style="font-size:10px;color:#64748b">${codesStr}</td>
+    </tr>`;
+  }
+  if(!_gl.extracted.length) html+=`<tr><td colspan="6" style="color:#94a3b8;text-align:center;padding:20px">No lines matched — check account code mapping</td></tr>`;
+  document.getElementById('tbl-gl-results').innerHTML=html+'</tbody>';
+
+  // Recon tab — GL sub-lines vs Corp totals already in DB
+  let rhtml=`<thead><tr><th>Check</th><th class="r">Total (DB)</th><th class="r">Sum of Parts</th><th class="r">Gap</th><th>Status</th></tr></thead><tbody>`;
+  const glMap = {}; _gl.extracted.forEach(r=>{ glMap[r.id]=r.value; });
+  const allFacts = {..._gl.dbFacts, ...glMap}; // merge: GL values override blanks
+  for(const chk of GL_RECON){
+    const tot = allFacts[chk.totalId];
+    const pvs = chk.parts.map(p=>allFacts[p]||0);
+    const psum = pvs.reduce((s,v)=>s+v,0);
+    if(tot===undefined){
+      rhtml+=`<tr><td>${chk.totalLbl} = Σ parts</td><td class="r"><span class="val-blank">No Corp upload</span></td>
+        <td class="r">${fmtN(psum)}</td><td class="r">—</td>
+        <td><span class="st st-blank">No total</span></td></tr>`;
+    } else {
+      const gap=Math.round((psum-tot)*100)/100;
+      const ok=Math.abs(gap)<0.5;
+      rhtml+=`<tr>
+        <td><strong>${chk.totalLbl}</strong> = Σ ${chk.parts.length} lines</td>
+        <td class="r">${fmtN(tot)}</td><td class="r">${fmtN(psum)}</td>
+        <td class="r"><span class="${ok?'':'val-diff-neg'}">${ok?'±0':fmtN(gap)}</span></td>
+        <td><span class="st ${ok?'st-ok':'st-err'}">${ok?'✓ Balanced':'✗ Gap'}</span></td>
+      </tr>`;
+    }
+  }
+  document.getElementById('tbl-gl-recon').innerHTML=rhtml+'</tbody>';
+
+  // Unmapped tab
+  let uhtml=`<thead><tr><th>Account Code</th><th class="r">Net Amount</th><th>Note</th></tr></thead><tbody>`;
+  if(!_gl.unmapped.length){
+    uhtml+=`<tr><td colspan="3" style="color:#22c55e;text-align:center;padding:16px">✓ All accounts mapped</td></tr>`;
+  } else {
+    for(const u of _gl.unmapped.slice(0,100)){
+      uhtml+=`<tr><td class="id-cell">${esc(u.code)}</td><td class="r">${fmtN(u.amt)}</td>
+        <td style="font-size:10px;color:#94a3b8">Not mapped to any line ID</td></tr>`;
+    }
+    if(_gl.unmapped.length>100) uhtml+=`<tr><td colspan="3" style="color:#94a3b8;text-align:center;padding:8px">+${_gl.unmapped.length-100} more…</td></tr>`;
+  }
+  document.getElementById('tbl-gl-unmapped').innerHTML=uhtml+'</tbody>';
+}
+
+function parsePeriodStr(s) {
+  // "Jan-26", "Jan 2026", "JAN-26"
+  const m1 = s.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*[-\s](\d{2,4})\b/i);
+  if (m1) {
+    const mo = MONTHS.findIndex(m=>m.toLowerCase()===m1[1].toLowerCase().substring(0,3))+1;
+    const yr = parseInt(m1[2]); const year = yr < 100 ? 2000+yr : yr;
+    if (mo>0&&year>2000) return {year,month:mo,id:year*100+mo};
+  }
+  // "2026-01", "2026/01"
+  const m2 = s.match(/^(\d{4})[-/](\d{2})$/);
+  if (m2) { const yr=parseInt(m2[1]),mo=parseInt(m2[2]); if(yr>2000&&mo>=1&&mo<=12) return {year:yr,month:mo,id:yr*100+mo}; }
+  // "01-2026"
+  const m3 = s.match(/^(\d{2})[-/](\d{4})$/);
+  if (m3) { const mo=parseInt(m3[1]),yr=parseInt(m3[2]); if(yr>2000&&mo>=1&&mo<=12) return {year:yr,month:mo,id:yr*100+mo}; }
+  return null;
+}
+
+window.commitGl = async function() {
+  if(!_gl.period||!_gl.extracted.length){toast('Nothing to commit','warn');return;}
+  const pid  = _gl.period.id;
+  const btn  = document.getElementById('commit-btn-gl');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Writing…';
+  try {
+    const {data:ep}=await sb.from('fpa_dim_period').select('id,is_closed').eq('id',pid).maybeSingle();
+    if(ep?.is_closed){toast('Period locked','err');btn.disabled=false;btn.textContent='⬆ Commit to Database';return;}
+    if(!ep){
+      const {error:pe}=await sb.from('fpa_dim_period').insert({id:pid,year:_gl.period.year,
+        month:_gl.period.month,label:`${MONTHS[_gl.period.month-1]} ${_gl.period.year}`,is_closed:false});
+      if(pe) throw pe;
+    }
+    const vCode=`ACTUALS_${_gl.period.year}_${String(_gl.period.month).padStart(2,'0')}`;
+    let vid;
+    const {data:vd}=await sb.from('fpa_versions').select('id').eq('code',vCode).maybeSingle();
+    if(vd){vid=vd.id;}
+    else {
+      const {data:nv,error:ve}=await sb.from('fpa_versions').insert(
+        {code:vCode,kind:'ACTUAL',period_id:pid,is_active:true}).select('id').single();
+      if(ve) throw ve; vid=nv.id;
+    }
+    const rows=_gl.extracted.map(r=>({version_id:vid,period_id:pid,line_id:r.id,value:r.value}));
+    const {error:fe}=await sb.from('fpa_facts').upsert(rows,{onConflict:'version_id,line_id,period_id'});
+    if(fe) throw fe;
+    await sb.from('fpa_audit_log').insert({app:'data-manager',action:'upload_gl',
+      version_id:vid,period_id:pid,user_id:dmUser(),
+      meta:JSON.stringify({lines:rows.length,source:'oracle_gl_export',
+        period_label:`${MONTHS[_gl.period.month-1]} ${_gl.period.year}`})});
+    toast(`✓ ${rows.length} GL lines written`,'ok');
+    btn.innerHTML=`✓ Done — ${rows.length} lines`;
+    await loadHistory();
+  } catch(e){
+    console.error('[GL] commit error:',e);
+    toast('Write failed: '+e.message,'err');
+    btn.disabled=false; btn.textContent='⬆ Commit to Database';
+  }
+};
+
+window.resetGl = function() {
+  _gl={period:null,rawData:[],columns:[],mapping:glLoadMapping(),extracted:[],unmapped:[],dbFacts:{}};
+  document.getElementById('drop-zone-gl').style.display='';
+  document.getElementById('gl-col-panel').style.display='none';
+  document.getElementById('gl-parse-panel').style.display='none';
+  document.getElementById('commit-bar-gl').style.display='none';
+  document.getElementById('gl-alerts').innerHTML='';
+  document.getElementById('fi-gl').value='';
+  document.getElementById('gl-period-display').textContent='Not set';
+  document.getElementById('gl-cb-warn').textContent='';
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LE / AOP UPLOAD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// All line IDs with labels and sections — used for template generation + parsing
+const ALL_LINES = [
+  // Revenue
+  {id:'FUEL_REV',  lbl:'Fuel Revenue',               sec:'rev'},
+  {id:'NONFUEL',   lbl:'Non-Fuel Revenue',            sec:'rev'},
+  {id:'OTHER_REV', lbl:'Other Revenue',               sec:'rev'},
+  {id:'REV_TOTAL', lbl:'Total Revenue',               sec:'rev'},
+  {id:'FUEL_COST', lbl:'Fuel Cost',                   sec:'rev'},
+  {id:'FUEL_SURP', lbl:'Fuel Surcharge',              sec:'rev'},
+  // IPP
+  {id:'IPP_FR',    lbl:'IPP Fuel Reimbursement',      sec:'ipp'},
+  {id:'IPP_NR',    lbl:'IPP Non-fuel Recovery',       sec:'ipp'},
+  {id:'IPP_COST',  lbl:'Total IPP Cost',              sec:'ipp'},
+  {id:'IPP_NET',   lbl:'IPP Net',                     sec:'ipp'},
+  // O&M
+  {id:'OM_PAY',    lbl:'Payroll (Base)',               sec:'om'},
+  {id:'OM_OT',     lbl:'Overtime',                    sec:'om'},
+  {id:'OM_BEN',    lbl:'Employee Benefits',            sec:'om'},
+  {id:'OM_DBEN',   lbl:'Defined Benefit / Pension',   sec:'om'},
+  {id:'OM_TRN',    lbl:'Training',                    sec:'om'},
+  {id:'OM_3PTY',   lbl:'Third Party Services',        sec:'om'},
+  {id:'OM_SUP',    lbl:'Supervision',                 sec:'om'},
+  {id:'OM_MAT',    lbl:'Materials & Equipment',       sec:'om'},
+  {id:'OM_BDR',    lbl:'Bill Delivery + Bad Debt',    sec:'om'},
+  {id:'OM_TECH',   lbl:'Technology & Telecom',        sec:'om'},
+  {id:'OM_OFF',    lbl:'Office & Transportation',     sec:'om'},
+  {id:'OM_ENVR',   lbl:'Environmental',               sec:'om'},
+  {id:'OM_INS',    lbl:'Insurance',                   sec:'om'},
+  {id:'OM_MISC',   lbl:'Miscellaneous',               sec:'om'},
+  {id:'OM_MGMT',   lbl:'Management Fee',              sec:'om'},
+  {id:'OM_TOTAL',  lbl:'Total O&M',                   sec:'om'},
+  // Depreciation
+  {id:'DEP_FA',    lbl:'Depreciation — Fixed Assets', sec:'dep'},
+  {id:'DEP_SJPC',  lbl:'Depreciation — SJPC',         sec:'dep'},
+  {id:'DEP_LEASE', lbl:'Depreciation — ROU (IFRS16)', sec:'dep'},
+  {id:'DEP_SP',    lbl:'Depreciation — Spare Parts',  sec:'dep'},
+  {id:'DEP_IMP',   lbl:'Impairment',                  sec:'dep'},
+  {id:'DEPN',      lbl:'Total Depreciation',          sec:'dep'},
+  // CapEx
+  {id:'CX_GEN',    lbl:'CapEx — Generation',          sec:'cx'},
+  {id:'CX_TX',     lbl:'CapEx — Transmission',        sec:'cx'},
+  {id:'CX_DIST',   lbl:'CapEx — Distribution',        sec:'cx'},
+  {id:'CX_HURR',   lbl:'CapEx — Hurricane/Emergency', sec:'cx'},
+  {id:'CX_CUST',   lbl:'CapEx — Customer',            sec:'cx'},
+  {id:'CX_SS',     lbl:'CapEx — Substation',          sec:'cx'},
+  {id:'CX_LOSS',   lbl:'CapEx — Loss Reduction',      sec:'cx'},
+  {id:'CX_TOTAL',  lbl:'Total CapEx',                 sec:'cx'},
+  // Net Financing
+  {id:'NFC_INT',   lbl:'Interest Expense',            sec:'nfc'},
+  {id:'NFC_LEASE', lbl:'Lease Finance Cost (IFRS16)', sec:'nfc'},
+  {id:'NFC_TOTAL', lbl:'Total Net Financing',         sec:'nfc'},
+  // Balance Sheet
+  {id:'BS_CASH',   lbl:'Cash & Short-term Deposits',  sec:'bs'},
+  {id:'BS_RECV',   lbl:'Trade Receivables (Net)',      sec:'bs'},
+  {id:'BS_INV',    lbl:'Inventories',                 sec:'bs'},
+  {id:'BS_OPRE',   lbl:'Other Current Assets',        sec:'bs'},
+  {id:'BS_PPE',    lbl:'Fixed Assets NBV',            sec:'bs'},
+  {id:'BS_ROU',    lbl:'Right-of-Use Assets (IFRS16)',sec:'bs'},
+  {id:'BS_TASSETS',lbl:'Total Assets',                sec:'bs'},
+  {id:'BS_PAYBL',  lbl:'Trade Payables',              sec:'bs'},
+  {id:'BS_ACCRUAL',lbl:'Accrued Liabilities',         sec:'bs'},
+  {id:'BS_DEBTST', lbl:'Debt — Current',              sec:'bs'},
+  {id:'BS_DEBTLT', lbl:'Debt — Long-Term',            sec:'bs'},
+  {id:'BS_LEASE',  lbl:'Lease Liabilities',           sec:'bs'},
+  {id:'BS_EQUITY', lbl:'Total Equity',                sec:'bs'},
+  // Cash Flow
+  {id:'CF_EBITDA', lbl:'EBITDA',                      sec:'cf'},
+  {id:'CF_WCCHG',  lbl:'Working Capital Change',      sec:'cf'},
+  {id:'CF_INTPD',  lbl:'Interest Paid',               sec:'cf'},
+  {id:'CF_TAXPD',  lbl:'Tax Paid',                    sec:'cf'},
+  {id:'CF_OPS',    lbl:'Net Cash from Operations',    sec:'cf'},
+  {id:'CF_CAPEX',  lbl:'Capital Expenditure (CF)',    sec:'cf'},
+  {id:'CF_PRPD',   lbl:'Principal Repayments',        sec:'cf'},
+  {id:'CF_DRAWDN', lbl:'Loan Drawdowns',              sec:'cf'},
+  {id:'CF_DIVID',  lbl:'Dividends Paid',              sec:'cf'},
+  {id:'CF_NET',    lbl:'Net Change in Cash',          sec:'cf'},
+  // Stats & FX
+  {id:'BILLED_GWH',lbl:'Billed Sales (GWh)',          sec:'stat'},
+  {id:'NETGEN_GWH',lbl:'Net Generation (GWh)',         sec:'stat'},
+  {id:'PEAK_MW',   lbl:'Peak Demand (MW)',             sec:'stat'},
+  {id:'SYSLOSS',   lbl:'System Losses (%)',            sec:'stat'},
+  {id:'HEATRATE',  lbl:'Heat Rate (BTU/kWh)',          sec:'stat'},
+  {id:'NF_CENTS',  lbl:'Non-Fuel Tariff (US¢/kWh)',   sec:'stat'},
+  {id:'FX_BILL',   lbl:'Billing FX (J$/USD)',          sec:'stat'},
+  {id:'FX_EOP',    lbl:'End-of-Period FX (J$/USD)',    sec:'stat'},
+];
+
+const LE_SEC_LABELS = {
+  rev:'Revenue & Cost of Sales', ipp:'IPP / PPA', om:'Operating Expenses (O&M)',
+  dep:'Depreciation', cx:'Capital Expenditure', nfc:'Net Financing Costs',
+  bs:'Balance Sheet', cf:'Cash Flow', stat:'Stats & FX'
+};
+const LE_SEC_TAB = {rev:'pl',ipp:'pl',om:'pl',dep:'pl',nfc:'pl',cx:'cf',bs:'bs',cf:'cf',stat:'stat'};
+
+let _le = {
+  versionCode: 'LE_2026_01',
+  versionKind: 'LE',
+  year: 2026,
+  cells:       [],   // [{ lineId, lbl, sec, month, value }]
+  monthActive: Array(12).fill(true),
+  dbVersionId: null,
+  dbExists:    false,
+};
+
+window.leUpdateVersion = function() {
+  const type  = document.getElementById('le-type').value;
+  const year  = parseInt(document.getElementById('le-year').value)||2026;
+  const round = document.getElementById('le-round').value;
+  _le.year = year;
+  _le.versionKind = type;
+  if (type === 'AOP') {
+    _le.versionCode = `AOP_${year}`;
+    document.getElementById('le-round-wrap').style.display = 'none';
+  } else {
+    _le.versionCode = `LE_${year}_${round}`;
+    document.getElementById('le-round-wrap').style.display = '';
+  }
+  document.getElementById('le-version-display').textContent = _le.versionCode;
+  leCheckDbVersion();
+};
+
+async function leCheckDbVersion() {
+  const el = document.getElementById('le-db-status');
+  el.textContent = 'Checking…';
+  try {
+    const {data:vd} = await sb.from('fpa_versions').select('id').eq('code',_le.versionCode).maybeSingle();
+    _le.dbVersionId = vd?.id || null;
+    _le.dbExists    = !!vd;
+    el.textContent  = vd ? `⚠ Version exists in DB` : '✓ New version';
+    el.style.color  = vd ? '#92400e' : '#15803d';
+  } catch(e) { el.textContent='DB error'; el.style.color='#dc2626'; }
+}
+
+// ── Template download ──────────────────────────────────────────────────────────
+window.leDownloadTemplate = function() {
+  const year  = parseInt(document.getElementById('le-year').value)||2026;
+  const vCode = _le.versionCode;
+
+  // Build sheet data
+  const header = ['Line_ID', 'Description', 'Section',
+    'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const rows = [header];
+
+  let lastSec = null;
+  for (const line of ALL_LINES) {
+    if (line.sec !== lastSec) {
+      // Section separator row
+      rows.push([`--- ${LE_SEC_LABELS[line.sec]||line.sec} ---`, '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+      lastSec = line.sec;
+    }
+    rows.push([line.id, line.lbl, line.sec, ...Array(12).fill('')]);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // Style header row widths
+  ws['!cols'] = [
+    {wch:14},{wch:32},{wch:8},
+    ...Array(12).fill({wch:12})
+  ];
+  // Freeze panes: freeze first 3 cols + header row
+  ws['!freeze'] = {xSplit:3, ySplit:1};
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'LE Template');
+
+  // Instructions sheet
+  const instData = [
+    ['JPS LE / AOP Upload Template'],
+    [''],
+    ['Version:', vCode],
+    ['Year:', year],
+    ['Generated:', new Date().toLocaleDateString()],
+    [''],
+    ['Instructions:'],
+    ['1. Fill monthly values (Jan–Dec) for each line ID you want to upload'],
+    ['2. Leave cells blank for months you do not want to overwrite'],
+    ['3. Values in J$000 (thousands) unless noted in Description'],
+    ['4. Stats lines: GWh, MW, %, BTU/kWh, J$/USD — see units in Description'],
+    ['5. Drop this file on the LE / AOP tab in Data Manager to commit'],
+    [''],
+    ['Sign conventions:'],
+    ['  Revenue lines: positive = revenue'],
+    ['  Cost/expense lines: positive = cost (system stores costs as positive)'],
+    ['  Balance sheet: positive = asset or liability value (as labeled)'],
+    ['  Cash flow: CF_OPS positive = inflow; repayments/payments positive = amount paid'],
+  ];
+  const wsI = XLSX.utils.aoa_to_sheet(instData);
+  wsI['!cols'] = [{wch:20},{wch:50}];
+  XLSX.utils.book_append_sheet(wb, wsI, 'Instructions');
+
+  XLSX.writeFile(wb, `JPS_${vCode}_Template.xlsx`);
+  toast('Template downloaded','ok');
+};
+
+// ── File handling ──────────────────────────────────────────────────────────────
+async function handleLeFile(file) {
+  const buf = await file.arrayBuffer();
+  let wb;
+  try { wb = XLSX.read(buf,{type:'array',raw:false}); }
+  catch(e){ toast('Cannot parse: '+e.message,'err'); return; }
+
+  // Find the LE Template sheet (first non-Instructions sheet)
+  const sheetName = wb.SheetNames.find(n => !n.toLowerCase().includes('instruct')) || wb.SheetNames[0];
+  const ws   = wb.Sheets[sheetName];
+  const data = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+
+  if (!data || data.length < 2) { toast('No data found in template','err'); return; }
+
+  // Find header row (has "Line_ID" or "Line ID" in col 0)
+  let headerIdx = data.findIndex(r => r && String(r[0]||'').toLowerCase().replace(/[^a-z]/g,'').includes('lineid'));
+  if (headerIdx < 0) headerIdx = 0; // fallback: assume row 0
+
+  const header = data[headerIdx];
+  // Find month columns: look for Jan, Feb, etc.
+  const monthCols = {};
+  header.forEach((h,i) => {
+    if (!h) return;
+    const s = String(h).trim().toLowerCase().substring(0,3);
+    const mo = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].indexOf(s);
+    if (mo >= 0) monthCols[mo+1] = i; // month 1-12 → column index
+  });
+
+  const lineIdCol = header.findIndex(h => String(h||'').toLowerCase().replace(/[^a-z]/g,'').includes('lineid'));
+  const idCol = lineIdCol >= 0 ? lineIdCol : 0;
+
+  if (!Object.keys(monthCols).length) {
+    toast('No month columns detected (Jan–Dec) — check template format','err'); return;
+  }
+
+  // Build line lookup
+  const lineLookup = {};
+  for (const l of ALL_LINES) lineLookup[l.id] = l;
+
+  // Parse cells
+  _le.cells = [];
+  for (let i = headerIdx+1; i < data.length; i++) {
+    const row = data[i]; if (!row) continue;
+    const rawId = String(row[idCol]||'').trim();
+    if (!rawId || rawId.startsWith('---') || !lineLookup[rawId]) continue;
+    const line = lineLookup[rawId];
+    for (const [mo, ci] of Object.entries(monthCols)) {
+      const v = row[ci];
+      if (v === null || v === undefined || v === '') continue;
+      const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/,/g,''));
+      if (!isFinite(n)) continue;
+      _le.cells.push({
+        lineId: rawId, lbl: line.lbl, sec: line.sec,
+        month: parseInt(mo), value: Math.round(n * 1000) / 1000,
+      });
+    }
+  }
+
+  if (!_le.cells.length) {
+    toast('No numeric values found — fill in the template and try again','warn'); return;
+  }
+
+  // Init month active toggles
+  const monthsWithData = new Set(_le.cells.map(c=>c.month));
+  _le.monthActive = Array.from({length:12},(_,i)=>monthsWithData.has(i+1));
+
+  // Show
+  document.getElementById('drop-zone-le').style.display = 'none';
+  document.getElementById('le-parse-panel').style.display = 'block';
+  document.getElementById('commit-bar-le').style.display = 'flex';
+
+  leRenderMonthToggles(monthsWithData);
+  leRenderAll();
+  await leCheckDb();
+}
+
+function leRenderMonthToggles(withData) {
+  let html = '';
+  for (let mo=1; mo<=12; mo++) {
+    const has = withData.has(mo);
+    const active = _le.monthActive[mo-1];
+    html += `<button id="le-mt-${mo}" onclick="leToggleMonth(${mo})"
+      style="padding:4px 10px;border-radius:14px;border:1px solid ${active?'var(--teal)':'#e2e8f0'};
+             background:${active?'#e0f7ff':'#f8fafc'};color:${active?'var(--navy)':'#94a3b8'};
+             font-size:11px;font-weight:700;cursor:${has?'pointer':'not-allowed'};opacity:${has?1:.4}">
+      ${MONTHS[mo-1]}${has?' ✓':''}
+    </button>`;
+  }
+  document.getElementById('le-month-toggles').innerHTML = html;
+}
+
+window.leToggleMonth = function(mo) {
+  _le.monthActive[mo-1] = !_le.monthActive[mo-1];
+  const btn = document.getElementById(`le-mt-${mo}`);
+  const active = _le.monthActive[mo-1];
+  btn.style.borderColor  = active ? 'var(--teal)' : '#e2e8f0';
+  btn.style.background   = active ? '#e0f7ff' : '#f8fafc';
+  btn.style.color        = active ? 'var(--navy)' : '#94a3b8';
+  leUpdateCommitBar();
+};
+
+window.leToggleAllMonths = function(on) {
+  for (let i=0;i<12;i++) _le.monthActive[i] = on;
+  const monthsWithData = new Set(_le.cells.map(c=>c.month));
+  leRenderMonthToggles(monthsWithData);
+  leUpdateCommitBar();
+};
+
+function leActiveCells() {
+  return _le.cells.filter(c => _le.monthActive[c.month-1]);
+}
+
+function leUpdateCommitBar() {
+  const ac = leActiveCells();
+  document.getElementById('le-cb-cells').textContent   = ac.length;
+  document.getElementById('le-cb-version').textContent = _le.versionCode;
+}
+
+async function leCheckDb() {
+  await leCheckDbVersion();
+  const badge = document.getElementById('le-pb-badge');
+  if (_le.dbExists) {
+    badge.className = 'pb-badge badge-exists'; badge.textContent = '⚠ Overwrites existing';
+    document.getElementById('le-cb-warn').textContent = '(overwrites existing version)';
+  } else {
+    badge.className = 'pb-badge badge-new'; badge.textContent = '✓ New version';
+  }
+  leRenderAll();
+}
+
+function leRenderAll() {
+  const ac = leActiveCells();
+  const months = [...new Set(ac.map(c=>c.month))].sort((a,b)=>a-b);
+  const lines  = [...new Set(ac.map(c=>c.lineId))];
+
+  document.getElementById('le-pb-version').textContent = _le.versionCode;
+  document.getElementById('le-pb-months').textContent  = months.length;
+  document.getElementById('le-pb-cells').textContent   = `${lines.length} × ${months.length}`;
+  document.getElementById('le-pb-total').textContent   = ac.length;
+  leUpdateCommitBar();
+
+  // Build lookup: { lineId: { month: value } }
+  const grid = {};
+  for (const c of _le.cells) {
+    if (!grid[c.lineId]) grid[c.lineId] = { lbl:c.lbl, sec:c.sec, months:{} };
+    grid[c.lineId].months[c.month] = c.value;
+  }
+
+  const allMonths = [...new Set(_le.cells.map(c=>c.month))].sort((a,b)=>a-b);
+
+  // Full grid table
+  renderLeGrid(document.getElementById('tbl-le-grid'), grid, allMonths, null);
+  // Section-filtered tables
+  renderLeGrid(document.getElementById('tbl-le-pl'),   grid, allMonths, ['rev','ipp','om','dep','nfc']);
+  renderLeGrid(document.getElementById('tbl-le-bs'),   grid, allMonths, ['bs']);
+  renderLeGrid(document.getElementById('tbl-le-cf'),   grid, allMonths, ['cx','cf']);
+  renderLeGrid(document.getElementById('tbl-le-stat'), grid, allMonths, ['stat']);
+}
+
+function renderLeGrid(tbl, grid, allMonths, secFilter) {
+  const activeSet = new Set(leActiveCells().map(c=>`${c.lineId}:${c.month}`));
+  const mths = allMonths.filter(m => !secFilter || true); // show all months regardless of filter
+
+  let html = '<thead><tr><th>Line ID</th><th>Description</th>';
+  for (const mo of mths) {
+    const active = _le.monthActive[mo-1];
+    html += `<th class="r" style="color:${active?'var(--navy)':'#94a3b8'}">${MONTHS[mo-1]}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  let lastSec = null;
+  const lineOrder = ALL_LINES.map(l=>l.id).filter(id => grid[id] && (!secFilter || secFilter.includes(grid[id].sec)));
+
+  if (!lineOrder.length) {
+    html += `<tr><td colspan="${2+mths.length}" style="color:#94a3b8;text-align:center;padding:20px">No data for this section</td></tr>`;
+  }
+
+  for (const id of lineOrder) {
+    const row = grid[id];
+    if (!row) continue;
+    if (row.sec !== lastSec) {
+      if (!secFilter || secFilter.includes(row.sec)) {
+        html += `<tr class="sec-hdr-row"><td colspan="${2+mths.length}">${LE_SEC_LABELS[row.sec]||row.sec}</td></tr>`;
+        lastSec = row.sec;
+      }
+    }
+    if (secFilter && !secFilter.includes(row.sec)) continue;
+    html += `<tr><td class="id-cell">${id}</td><td style="white-space:normal">${row.lbl}</td>`;
+    for (const mo of mths) {
+      const v   = row.months[mo];
+      const key = `${id}:${mo}`;
+      const act = activeSet.has(key);
+      if (v !== undefined) {
+        const style = act ? '' : 'color:#94a3b8;text-decoration:line-through';
+        html += `<td class="r" style="${style}">${fmtN(v)}</td>`;
+      } else {
+        html += `<td class="r"><span class="val-blank">—</span></td>`;
+      }
+    }
+    html += '</tr>';
+  }
+  tbl.innerHTML = html + '</tbody>';
+}
+
+window.commitLe = async function() {
+  const cells = leActiveCells();
+  if (!cells.length) { toast('No cells selected','warn'); return; }
+  const btn = document.getElementById('commit-btn-le');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Writing…';
+
+  try {
+    const year = _le.year;
+    // Ensure all required periods exist
+    const months = [...new Set(cells.map(c=>c.month))];
+    for (const mo of months) {
+      const pid = year * 100 + mo;
+      const {data:ep} = await sb.from('fpa_dim_period').select('id,is_closed').eq('id',pid).maybeSingle();
+      if (ep?.is_closed) throw new Error(`Period ${MONTHS[mo-1]} ${year} is locked`);
+      if (!ep) {
+        const {error:pe} = await sb.from('fpa_dim_period').insert({
+          id:pid, year, month:mo, label:`${MONTHS[mo-1]} ${year}`, is_closed:false });
+        if (pe) throw pe;
+      }
+    }
+
+    // Ensure version exists
+    let vid = _le.dbVersionId;
+    if (!vid) {
+      const {data:nv,error:ve} = await sb.from('fpa_versions').insert({
+        code: _le.versionCode,
+        kind: _le.versionKind,
+        period_id: year * 100 + 1,  // anchor to Jan of the year
+        is_active: true,
+      }).select('id').single();
+      if (ve) throw ve;
+      vid = nv.id;
+    }
+
+    // Build upsert rows
+    const rows = cells.map(c => ({
+      version_id: vid,
+      period_id:  year * 100 + c.month,
+      line_id:    c.lineId,
+      value:      c.value,
+    }));
+
+    const {error:fe} = await sb.from('fpa_facts').upsert(rows, {onConflict:'version_id,line_id,period_id'});
+    if (fe) throw fe;
+
+    await sb.from('fpa_audit_log').insert({
+      app:'data-manager', action:'upload_le',
+      version_id:vid, period_id: year * 100 + months[0], user_id: dmUser(),
+      meta: JSON.stringify({
+        cells: rows.length, version: _le.versionCode,
+        months: months.map(m=>MONTHS[m-1]).join(', '),
+        lines: [...new Set(cells.map(c=>c.lineId))].length,
+      }),
+    });
+
+    toast(`✓ ${rows.length} LE facts written · ${_le.versionCode}`,'ok');
+    btn.innerHTML = `✓ Done — ${rows.length} facts`;
+    _le.dbVersionId = vid; _le.dbExists = true;
+    await loadHistory();
+  } catch(e) {
+    console.error('[LE] commit error:',e);
+    toast('Write failed: '+e.message,'err');
+    btn.disabled=false; btn.textContent='⬆ Commit to Database';
+  }
+};
+
+window.resetLe = function() {
+  _le.cells=[]; _le.dbVersionId=null; _le.dbExists=false;
+  _le.monthActive=Array(12).fill(true);
+  document.getElementById('drop-zone-le').style.display='';
+  document.getElementById('le-parse-panel').style.display='none';
+  document.getElementById('commit-bar-le').style.display='none';
+  document.getElementById('le-alerts').innerHTML='';
+  document.getElementById('le-cb-warn').textContent='';
+  document.getElementById('fi-le').value='';
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EXPORT — period multi-version Excel
+// ═══════════════════════════════════════════════════════════════════════════════
+window.exportPeriod = async function(pid, label) {
+  toast(`Building export for ${label}…`, 'ok');
+  try {
+    // 1. Get all versions that have facts for this period
+    const {data:facts, error:fe} = await sb.from('fpa_facts')
+      .select('line_id, value, version_id')
+      .eq('period_id', pid);
+    if (fe) throw fe;
+    if (!facts || !facts.length) { toast('No data for this period','warn'); return; }
+
+    // 2. Get version metadata
+    const vids = [...new Set(facts.map(f=>f.version_id))];
+    const {data:versions, error:ve} = await sb.from('fpa_versions')
+      .select('id, code, kind')
+      .in('id', vids)
+      .order('code');
+    if (ve) throw ve;
+
+    const vMap = {}; (versions||[]).forEach(v=>{ vMap[v.id]=v; });
+    const vCodes = (versions||[]).map(v=>v.code);
+
+    // 3. Build line_id × version grid
+    const grid = {}; // { line_id: { versionId: value } }
+    for (const f of facts) {
+      if (!grid[f.line_id]) grid[f.line_id] = {};
+      grid[f.line_id][f.version_id] = f.value;
+    }
+
+    // 4. Build Excel using ALL_LINES order for rows
+    const header = ['Line_ID', 'Description', 'Section', ...vCodes];
+    const rows   = [header];
+    let lastSec  = null;
+
+    for (const line of ALL_LINES) {
+      if (!grid[line.id]) continue;
+      if (line.sec !== lastSec) {
+        rows.push([`--- ${LE_SEC_LABELS[line.sec]||line.sec} ---`, '', '',
+          ...vCodes.map(()=>'')]);
+        lastSec = line.sec;
+      }
+      rows.push([
+        line.id,
+        line.lbl,
+        line.sec,
+        ...vids.map(vid => grid[line.id][vid] ?? ''),
+      ]);
+    }
+
+    // 5. Add any line_ids not in ALL_LINES (e.g. custom)
+    const knownIds = new Set(ALL_LINES.map(l=>l.id));
+    const extraIds = Object.keys(grid).filter(id=>!knownIds.has(id));
+    if (extraIds.length) {
+      rows.push(['--- Other ---', '', '', ...vCodes.map(()=>'')]);
+      for (const id of extraIds)
+        rows.push([id, '', '', ...vids.map(vid=>grid[id][vid]??'')]);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:14},{wch:32},{wch:8},...vCodes.map(()=>({wch:16}))];
+    ws['!freeze'] = {xSplit:3, ySplit:1};
+
+    // Highlight header
+    const hdrStyle = {font:{bold:true},fill:{fgColor:{rgb:'1a3a5c'}},
+                      font:{color:{rgb:'FFFFFF'},bold:true}};
+    for (let c=0; c<header.length; c++) {
+      const ref = XLSX.utils.encode_cell({r:0,c});
+      if (ws[ref]) ws[ref].s = hdrStyle;
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, label.replace(/[^a-zA-Z0-9 _-]/g,'').substring(0,31));
+
+    // KPI sheet
+    const {data:kpis} = await sb.from('jps_kpi_actuals')
+      .select('kpi_code, value, adjusted_value')
+      .eq('period_id', pid);
+    if (kpis && kpis.length) {
+      const kpiRows = [['KPI Code','Value','Adjusted Value'],
+        ...kpis.map(k=>[k.kpi_code, k.value, k.adjusted_value])];
+      const wsK = XLSX.utils.aoa_to_sheet(kpiRows);
+      wsK['!cols'] = [{wch:16},{wch:16},{wch:16}];
+      XLSX.utils.book_append_sheet(wb, wsK, 'KPIs');
+    }
+
+    // Meta sheet
+    const metaRows = [
+      ['Export Info',''],
+      ['Period ID', pid],
+      ['Period Label', label],
+      ['Exported By', dmUser()],
+      ['Exported At', new Date().toISOString()],
+      ['Versions', vCodes.join(', ')],
+      ['Total Lines', Object.keys(grid).length],
+    ];
+    const wsM = XLSX.utils.aoa_to_sheet(metaRows);
+    wsM['!cols'] = [{wch:18},{wch:40}];
+    XLSX.utils.book_append_sheet(wb, wsM, 'Meta');
+
+    XLSX.writeFile(wb, `JPS_Export_${String(pid)}_${new Date().toISOString().slice(0,10)}.xlsx`);
+    toast(`✓ Exported ${label}`, 'ok');
+  } catch(e) {
+    console.error('[Export] error:', e);
+    toast('Export failed: '+e.message, 'err');
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VERSION MANAGER
+// ═══════════════════════════════════════════════════════════════════════════════
+window.loadVersionManager = async function() {
+  const wrap = document.getElementById('version-manager-wrap');
+  wrap.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">Loading…</div>';
+  try {
+    // Get all versions
+    const {data:versions, error:ve} = await sb.from('fpa_versions')
+      .select('id, code, kind, period_id, is_active, created_at')
+      .order('code', {ascending:false});
+    if (ve) throw ve;
+
+    if (!versions || !versions.length) {
+      wrap.innerHTML = '<div style="padding:28px;text-align:center;color:#94a3b8">No versions in database</div>';
+      return;
+    }
+
+    // Get row counts per version
+    const vids = versions.map(v=>v.id);
+    const {data:counts, error:ce} = await sb.from('fpa_facts')
+      .select('version_id')
+      .in('version_id', vids);
+    // Count per version
+    const cmap = {};
+    (counts||[]).forEach(r=>{ cmap[r.version_id] = (cmap[r.version_id]||0)+1; });
+
+    const KIND_PILL = {
+      ACTUAL: 'pill-act', LE:'pill-le', AOP:'pill-aop',
+      BUDGET:'pill-aop', HIST_ACTUAL:'pill-gl',
+    };
+
+    let html = `<table class="hist-tbl"><thead><tr>
+      <th>Version Code</th><th>Kind</th><th>Period</th>
+      <th style="text-align:right">Fact Rows</th><th>Created</th><th>Active</th><th>Action</th>
+    </tr></thead><tbody>`;
+
+    for (const v of versions) {
+      const count = cmap[v.id] || 0;
+      const pill  = `<span class="hist-pill ${KIND_PILL[v.kind]||'pill-aop'}">${esc(v.kind||'?')}</span>`;
+      const when  = v.created_at
+        ? new Date(v.created_at).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})
+        : '—';
+      const active = v.is_active
+        ? '<span class="st st-ok" style="font-size:10px">✓ Active</span>'
+        : '<span class="st st-blank" style="font-size:10px">Inactive</span>';
+      const del = `<button onclick="deleteVersion('${v.id}','${esc(v.code)}')"
+        style="padding:3px 10px;border-radius:6px;border:1px solid #fca5a5;background:#fef2f2;
+               color:#dc2626;font-size:10px;font-weight:700;cursor:pointer">Delete</button>`;
+      html += `<tr>
+        <td><strong style="font-family:monospace;font-size:12px">${esc(v.code)}</strong></td>
+        <td>${pill}</td>
+        <td style="font-family:monospace;font-size:11px;color:#64748b">${v.period_id||'—'}</td>
+        <td style="text-align:right;font-family:monospace;font-weight:700;color:${count?'#1e3a5c':'#94a3b8'}">${count.toLocaleString()}</td>
+        <td style="color:#64748b;font-size:11px">${esc(when)}</td>
+        <td>${active}</td>
+        <td>${del}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  } catch(e) {
+    console.error('[VersionMgr] error:', e);
+    wrap.innerHTML = `<div style="padding:28px;text-align:center;color:#dc2626">Error: ${esc(e.message)}</div>`;
+    toast('Version load failed: '+e.message, 'err');
+  }
+};
+
+window.deleteVersion = async function(vid, code) {
+  const {data:countRows} = await sb.from('fpa_facts').select('version_id').eq('version_id',vid).limit(1);
+  const hasData = countRows && countRows.length > 0;
+  const msg = hasData
+    ? `Delete version "${code}"?\n\nThis will permanently delete ALL fpa_facts rows for this version. This cannot be undone.`
+    : `Delete version "${code}"? (no fact rows attached)`;
+  if (!confirm(msg)) return;
+
+  try {
+    // Delete facts first (FK constraint)
+    const {error:fe} = await sb.from('fpa_facts').delete().eq('version_id', vid);
+    if (fe) throw fe;
+
+    // Delete version record
+    const {error:ve} = await sb.from('fpa_versions').delete().eq('id', vid);
+    if (ve) throw ve;
+
+    // Audit
+    await sb.from('fpa_audit_log').insert({
+      app:'data-manager', action:'delete_version', user_id:dmUser(),
+      meta: JSON.stringify({ version_id:vid, version_code:code }),
+    });
+
+    toast(`✓ Deleted version ${code}`, 'warn');
+    await loadVersionManager();
+    await loadStatusMatrix();
+  } catch(e) {
+    console.error('[Delete] error:', e);
+    toast('Delete failed: '+e.message, 'err');
+  }
+};
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async function init() {
+  try {
+    const {error} = await sb.from('fpa_versions').select('id').limit(1);
+    if(error) throw error;
+    document.getElementById('db-badge').textContent='⬤ DB Connected';
+    document.getElementById('db-badge').style.color='#22c55e';
+  } catch(e) {
+    document.getElementById('db-badge').textContent='⬤ DB Offline';
+    document.getElementById('db-badge').style.color='#ef4444';
+    toast('DB connection failed: '+e.message,'err');
+  }
+  // Restore saved user name
+  const savedUser = localStorage.getItem('jps_dm_user');
+  if (savedUser) document.getElementById('dm-user').value = savedUser;
+
+  await loadHistory();
+  leUpdateVersion();
+})();
+</script>
+</body>
+</html>

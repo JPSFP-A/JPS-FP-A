@@ -35,6 +35,10 @@ mockup.html
 !index.js
 !config.js
 !jps-monitor.js
+!jps-formatters.js
+!jps-platform-utils.js
+!jps-auth.js
+!jps-nav.js
 !fpa_check.js
 # Playwright tests — always include
 !tests/**
@@ -61,6 +65,9 @@ session_*.md
 team_task_tracker*.html
 proposal_*.html
 theme-preview.html
-Welcome.jpg
-JPS-Logo-*.png
+# Welcome.jpg and JPS-Logo-*.png are now tracked (needed for Vercel deploy)
 glossary.json
+
+# whole Claude dir + editor backups
+.claude/
+* - Copy.html

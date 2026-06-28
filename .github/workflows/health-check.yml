@@ -1,0 +1,23 @@
+name: Health Check
+
+on:
+  push:
+    branches:
+      - master
+  schedule:
+    # 0 12 * * 1-5 = 12:00 UTC weekdays = 08:00 Jamaica (UTC-5)
+    - cron: '0 12 * * 1-5'
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check live URL returns HTTP 200
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" https://jmfinancelab.com)
+          echo "HTTP status: $status"
+          if [ "$status" != "200" ]; then
+            echo "Health check FAILED — expected 200, got $status"
+            exit 1
+          fi
+          echo "Health check passed."
