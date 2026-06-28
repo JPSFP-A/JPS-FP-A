@@ -21,10 +21,13 @@
 <script src="shared/jps-formatters.js"></script>
 <script src="shared/jps-auth.js"></script>
 <script src="shared/jps-nav.js"></script>
+<script src="shared/jps-platform-utils.js"></script>
+<script src="shared/jps-states.js"></script>
 <script>if(window.JpsMonitor)JpsMonitor.setApp('hub');</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="shared/jps-theme.css" />
 <style>
 /* ============================================================
    JPS Finance Hub v2 — Design System
@@ -138,7 +141,7 @@ button { font-family: inherit; cursor: pointer; }
 .flash-kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid #d8e2ef}
 .flash-kpi-cell{padding:14px 18px;border-right:1px solid #d8e2ef}
 .flash-kpi-cell:last-child{border-right:none}
-.flash-kpi-label{font-size:9px;font-weight:700;color:#6b82a0;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+.flash-kpi-label{font-size:9px;font-weight:700;color:#4a6a8e;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
 .flash-kpi-val{font-size:19px;font-weight:800;color:#0d1e3a;font-family:'IBM Plex Mono',monospace}
 .flash-kpi-var{font-size:10px;margin-top:3px}
 .flash-section-header{padding:8px 28px;background:#f5f7fa;border-top:2px solid #003da5;border-bottom:1px solid #d8e2ef;font-size:10px;font-weight:800;color:#003da5;text-transform:uppercase;letter-spacing:.08em}
@@ -158,13 +161,13 @@ button { font-family: inherit; cursor: pointer; }
 .flash-two-col>div:last-child{border-right:none}
 .fv-pos{color:#059669;font-weight:700}
 .fv-neg{color:#dc2626;font-weight:700}
-.fv-neu{color:#6b82a0}
+.fv-neu{color:#4a6a8e}
 .flash-notes-area{padding:18px 28px;border-top:1px solid #d8e2ef}
 .flash-notes-area h3{font-size:11px;font-weight:800;color:#003da5;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
 .flash-note-entry{display:flex;gap:10px;margin-bottom:10px}
 .flash-note-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#003da5,#00aeef);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0}
 .flash-note-body{flex:1;background:#f8fafc;border:1px solid #dde5f0;border-radius:8px;padding:10px 14px}
-.flash-note-meta{font-size:9px;color:#6b82a0;display:flex;gap:10px;flex-wrap:wrap;margin-bottom:5px}
+.flash-note-meta{font-size:9px;color:#4a6a8e;display:flex;gap:10px;flex-wrap:wrap;margin-bottom:5px}
 .flash-note-author{font-weight:700;color:#1a2f4a}
 .flash-note-tag{padding:1px 8px;border-radius:10px;background:#e8f0fc;color:#003da5;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
 .flash-note-text{font-size:12px;color:#1a2f4a;line-height:1.55}
@@ -173,7 +176,7 @@ button { font-family: inherit; cursor: pointer; }
 .flash-note-input-row select{padding:8px 10px}
 .flash-note-input-row textarea{flex:1;min-width:220px;padding:9px 12px;resize:vertical}
 .flash-note-input-row select:focus,.flash-note-input-row textarea:focus{border-color:#003da5}
-.flash-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:#6b82a0;gap:12px}
+.flash-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:#4a6a8e;gap:12px}
 .flash-loading .fl-spinner{width:36px;height:36px;border:3px solid #d8e2ef;border-top-color:#003da5;border-radius:50%;animation:fl-spin .7s linear infinite}
 @keyframes fl-spin{to{transform:rotate(360deg)}}
 .flash-page-footer{background:#f5f7fa;border-top:1px solid #d8e2ef;padding:10px 28px;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#8099b8}
@@ -492,6 +495,19 @@ body.fsum-standalone #main{margin:0!important;max-width:100%!important;width:100
 .k-up   { color: var(--green); }
 .k-down { color: var(--rose); }
 .k-warn { color: var(--amber); }
+
+/* ── design-eng polish: KPI cards lift on hover + fade in (shared --jps tokens) ── */
+.kpi-card {
+  transition: transform var(--jps-dur) var(--jps-ease-out),
+              box-shadow var(--jps-dur) var(--jps-ease-out),
+              border-color var(--jps-dur) var(--jps-ease);
+  animation: jpsFadeUp var(--jps-dur-slow) var(--jps-ease-out) both;
+}
+.kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--jps-shadow-lg);
+  border-color: color-mix(in srgb, var(--jps-accent) 40%, var(--border));
+}
 
 /* ===================== TABLES ===================== */
 .card {
@@ -2447,103 +2463,11 @@ function _escHtml(s) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
-function esc(s) { return _escHtml(s); }
 
-const GLOSSARY = {
-  'EBITDA':   'Earnings Before Interest, Tax, Depreciation & Amortisation. Operating cash proxy.',
-  'EBIT':     'Earnings Before Interest and Tax. Operating profit after depreciation.',
-  'NFC':      'Net Finance Costs. Interest expense net of interest income.',
-  'OM':       'Operations & Maintenance expense. Day-to-day running costs.',
-  'CAPEX':    'Capital Expenditure. Spend on fixed assets (generation, T&D, customer).',
-  'IPP':      'Independent Power Producer. Third-party generation contracted by JPS.',
-  'T&D':      'Transmission & Distribution. The grid infrastructure.',
-  'EAF':      'Equivalent Availability Factor. % of time generation is available to produce.',
-  'EFOR':     'Equivalent Forced Outage Rate. % of time lost due to unplanned outages.',
-  'GCT':      'General Consumption Tax. Jamaica VAT equivalent, currently 15%.',
-  'SCT':      'Special Consumption Tax. Applied to certain fuel products in Jamaica.',
-  'BOJ':      'Bank of Jamaica. Sets monetary policy and publishes FX rates.',
-  'OUR':      'Office of Utilities Regulation. Regulates JPS tariff rates.',
-  'WACC':     'Weighted Average Cost of Capital. Hurdle rate for investment decisions.',
-  'DSO':      'Days Sales Outstanding. Average days to collect receivables.',
-  'DPO':      'Days Payable Outstanding. Average days to pay suppliers.',
-  'FCF':      'Free Cash Flow. Operating cash flow less capital expenditure.',
-  'AOP':      'Annual Operating Plan. The approved yearly budget.',
-  'LE':       'Latest Estimate. In-year reforecast combining actuals + revised outlook.',
-  'YTD':      'Year to Date. Cumulative from January to current period.',
-  'YTG':      'Year to Go. Remaining months from current period to year-end.',
-  'PY':       'Prior Year. Same period in the previous calendar/fiscal year.',
-  'CY':       'Current Year.',
-  'FAV':      'Favourable variance. Actual better than budget/LE.',
-  'UNF':      'Unfavourable variance. Actual worse than budget/LE.',
-  'DEPN':     'Depreciation. Systematic allocation of fixed asset cost over useful life (IAS 16).',
-  'WIP':      'Work In Progress. Capital projects not yet transferred to fixed assets.',
-  'IFRS 16':  'Lease accounting standard. Requires most leases on balance sheet.',
-  'kWh':      'Kilowatt-hour. Standard unit of electrical energy.',
-  'GWh':      'Gigawatt-hour. 1,000,000 kWh.',
-  'BTU':      'British Thermal Unit. Energy unit used for heat rate measurement.',
-  'kJ/kWh':   'Kilojoules per kilowatt-hour. Heat rate in SI units (lower = more efficient).',
-  'BTU/kWh':  'British Thermal Units per kWh. Heat rate in imperial units (lower = more efficient).',
-};
-function tip(term, override) {
-  const def = override || GLOSSARY[term] || GLOSSARY[term.toUpperCase()];
-  if (!def) return esc(term);
-  return `<span class="tip" data-tip="${esc(def)}">${esc(term)}</span>`;
-}
 
-/* ─── PLATFORM AUDIT — canonical v1 ───────────────────────────────────────
-   Contract: action (string), target (string|null), oldVal (any|null), newVal (any|null)
-   ───────────────────────────────────────────────────────────────────────── */
-var _auditProfileCache = null;
-var _lastLoginAuditKey = null, _lastLoginAuditTs = 0;
-async function _platformAudit(action, target, oldVal, newVal) {
-  try {
-    var _sb = _getSB();
-    var _cu = _user;
-    var _app = 'fpa';
-    if (!_sb || !_cu?.id) return;
-    if (action === 'login') {
-      var _lk = _cu.id + '|' + _app;
-      // sessionStorage survives page reloads within same browser session (60s window)
-      var _ssKey = 'jps_login_ts_' + _lk;
-      try {
-        var _lastTs = Number(sessionStorage.getItem(_ssKey) || 0);
-        if (Date.now() - _lastTs < 300000) return;
-        sessionStorage.setItem(_ssKey, String(Date.now()));
-      } catch (_) {
-        // sessionStorage unavailable (private mode etc.) — fall back to in-memory check
-        if (_lk === _lastLoginAuditKey && Date.now() - _lastLoginAuditTs < 10000) return;
-      }
-      _lastLoginAuditKey = _lk; _lastLoginAuditTs = Date.now();
-    }
-
-    // Resolve display name from user_profiles — one source of truth, cached per session
-    if (!_auditProfileCache || _auditProfileCache.id !== _cu.id) {
-      try {
-        var { data: _prof } = await _sb.from('profiles').select('name').eq('id', _cu.id).maybeSingle();
-        _auditProfileCache = { id: _cu.id, name: _prof?.name || null };
-      } catch { _auditProfileCache = { id: _cu.id, name: null }; }
-    }
-    var displayName = _auditProfileCache.name || _cu.name || _cu.email || 'system';
-
-    var role = _cu.accessRole || _cu.appRole || _cu.role || 'viewer';
-    var _ser = function(v) {
-      return v == null ? null
-        : typeof v === 'object' ? JSON.stringify(v)
-        : JSON.stringify({ v: String(v) });
-    };
-    await _sb.from('fpa_audit_log').insert({
-      user_id:   _cu.id   != null ? _cu.id : null,
-      user_name: displayName,
-      user_role: role === 'authenticated' ? 'viewer' : role,
-      app:       _app,
-      action:    String(action),
-      target:    target != null ? target : null,
-      old_val:   _ser(oldVal),
-      new_val:   _ser(newVal),
-    });
-  } catch (e) {
-    console.warn('[audit] write failed:', e && e.message);
-  }
+/* ─── PLATFORM AUDIT — via JpsPlatform.platformAudit (shared/jps-platform-utils.js) ── */
+function _platformAudit(action, target, oldVal, newVal) {
+  return JpsPlatform.platformAudit(_getSB(), 'fpa', _user, action, target, oldVal, newVal);
 }
 
 var _fmtN = JpsFmt._fmtN;
@@ -2557,9 +2481,6 @@ function _debounce(fn, ms) {
     t = setTimeout(function () { fn.apply(null, a); }, ms);
   };
 }
-// Public alias — matches spec signature debounce(fn, ms)
-function debounce(fn, ms) { return _debounce(fn, ms); }
-
 async function _sbQ(fn, opts) {
   opts = opts || {};
   const silent = !!opts.silent;
@@ -2595,7 +2516,6 @@ async function _sbQ(fn, opts) {
 }
 
 /* ---------- Toast ---------- */
-function _toast(msg, type) { toast(msg, type); }  // alias used internally
 function toast(msg, type) {
   type = type || 'info';
   const t = document.createElement('div');
@@ -2805,19 +2725,6 @@ async function resetConfirm() {
   }
 }
 
-function _initIdleTimeout(signOutFn) {
-  var IDLE_MS = 30 * 60 * 1000;
-  var _idleTimer = null;
-  function _reset() {
-    clearTimeout(_idleTimer);
-    _idleTimer = setTimeout(function() { try { signOutFn(); } catch(e){} window.location.reload(); }, IDLE_MS);
-  }
-  ['mousedown','mousemove','keydown','scroll','touchstart','click'].forEach(function(evt) {
-    document.addEventListener(evt, _reset, { passive: true });
-  });
-  _reset();
-}
-
 function afterLogin() {
   document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('hubScreen').classList.add('visible');
@@ -2827,7 +2734,7 @@ function afterLogin() {
     try { JpsMonitor._clientFn = _getSB; JpsMonitor.setUser(_user.id, _user.email); if(window.posthog)posthog.identify(_user.id, _user.email); if(window.Sentry){const _su={id:_user.id,email:_user.email}; if(typeof Sentry.setUser==='function')Sentry.setUser(_su); else if(typeof Sentry.onLoad==='function')Sentry.onLoad(function(){Sentry.setUser(_su);});} } catch (e) { console.error('[FPA] JpsMonitor.setUser failed:', e); }
   }
   _platformAudit('login', 'session', null, { email: _user.email });
-  _initIdleTimeout(function(){ _getSB().auth.signOut(); });
+  JpsPlatform._initIdleTimeout(function(){ _getSB().auth.signOut(); });
 }
 
 function enterPlatform() {
@@ -3406,9 +3313,9 @@ async function _cmSave(cell) {
   if (r && !r.error) {
     _cmCache[key] = note;
     _platformAudit('commentary:save', 'fpa_commentary', null, '');
-    _toast('Commentary saved', 'ok');
+    toast('Commentary saved', 'ok');
   } else {
-    _toast('Save failed — ' + ((r && r.error && r.error.message) || 'unknown error'), 'err');
+    toast('Save failed — ' + ((r && r.error && r.error.message) || 'unknown error'), 'err');
   }
   _cmCancel(cell);
 }
@@ -10634,22 +10541,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // ── Presence ─────────────────────────────────────────────────────────────────
 let _presenceCh = null;
 function _initPresence(client, email, appLabel, role) {
-  if (document.getElementById('_onlinePill')) return;
-  const pill = document.createElement('span');
-  pill.id = '_onlinePill';
-  pill.style.cssText = 'font-size:10px;font-weight:600;padding:2px 9px;border-radius:10px;background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2);white-space:nowrap;cursor:default;user-select:none;display:none;align-self:center';
-  const anchor = document.querySelector('.tb-right') || document.querySelector('#topbar') || document.querySelector('header');
-  if (anchor) anchor.prepend(pill);
-  _presenceCh = client.channel('jps:presence', { config: { presence: { key: email } } });
-  _presenceCh.on('presence', { event: 'sync' }, () => {
-    const all    = Object.values(_presenceCh.presenceState()).flat();
-    const others = all.filter(p => p.email !== email);
-    pill.style.display = 'inline-block';
-    pill.textContent   = others.length ? `● ${all.length} online` : '● just you';
-    pill.title = others.length ? 'Also online:\n' + others.map(u => `  ${u.email} — ${u.app}`).join('\n') : 'No one else is logged in';
-  }).subscribe(async s => {
-    if (s === 'SUBSCRIBED') await _presenceCh.track({ email, app: appLabel, role: role || 'viewer', since: new Date().toISOString() });
-  });
+  _presenceCh = JpsPlatform.initPresence(client, { email, appName: appLabel, role });
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
