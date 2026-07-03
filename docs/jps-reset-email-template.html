@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your sign-in code</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+
+        <!-- Logo / header -->
+        <tr><td align="center" style="padding-bottom:28px;">
+          <img src="https://jmfinancelab.com/JPS-Logo-2022-Outline-No-Tag-2.png" alt="Jamaica Public Service" width="80" height="80"
+               style="display:block;margin:0 auto 10px;" />
+          <p style="margin:0;font-size:15px;font-weight:700;color:#0d1e3a;letter-spacing:-0.01em;">Jamaica Public Service</p>
+          <p style="margin:0;font-size:11px;color:#4a6080;letter-spacing:0.05em;text-transform:uppercase;">Finance & Strategy Platform</p>
+        </td></tr>
+
+        <!-- Card -->
+        <tr><td style="background:#ffffff;border-radius:12px;border:1px solid #d8e2ef;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+
+          <!-- Blue top bar -->
+          <div style="height:4px;background:linear-gradient(90deg,#003da5,#00AEEF);"></div>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="padding:36px 40px 32px;">
+            <tr><td>
+              <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#003da5;letter-spacing:0.12em;text-transform:uppercase;">Verification Code</p>
+              <h1 style="margin:0 0 20px;font-size:24px;font-weight:800;color:#0d1e3a;line-height:1.2;">
+                Your sign-in code
+              </h1>
+              <p style="margin:0 0 28px;font-size:15px;color:#4a6080;line-height:1.6;">
+                Use the code below to access the JPS Finance &amp; Strategy Platform. It expires in <strong style="color:#0d1e3a;">10 minutes</strong> and can only be used once.
+              </p>
+
+              <!-- OTP Code Box -->
+              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
+                <tr>
+                  <td style="background:#f5f7fa;border:2px solid #b0c4de;border-radius:12px;padding:20px 36px;text-align:center;">
+                    <p style="margin:0 0 4px;font-size:11px;font-weight:600;color:#4a6080;letter-spacing:0.1em;text-transform:uppercase;">Your code</p>
+                    <p style="margin:0;font-size:40px;font-weight:900;letter-spacing:0.18em;color:#0d1e3a;font-variant-numeric:tabular-nums;">{{ .Token }}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 24px;font-size:13px;color:#8099b8;line-height:1.6;">
+                Enter this code on the sign-in page. If you didn't request this, you can safely ignore this email — your account won't be affected.
+              </p>
+
+              <div style="border-top:1px solid #e8eef6;padding-top:20px;">
+                <p style="margin:0;font-size:12px;color:#8099b8;">
+                  🔒 Never share this code with anyone, including JPS staff.
+                </p>
+              </div>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td align="center" style="padding-top:24px;">
+          <p style="margin:0 0 4px;font-size:12px;color:#8099b8;">Jamaica Public Service Company · Kingston, Jamaica</p>
+          <p style="margin:0;font-size:12px;">
+            <a href="{{ .SiteURL }}" style="color:#003da5;text-decoration:none;">jmfinancelab.com</a>
+            &nbsp;·&nbsp;
+            <span style="color:#8099b8;">Confidential · Internal Use Only</span>
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

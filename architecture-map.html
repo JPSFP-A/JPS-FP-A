@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FP&amp;A Hub — Architecture Map</title>
+<style>
+:root {
+  --bg:       #0F0F0F;
+  --panel:    #161616;
+  --panel-2:  #1c1c1c;
+  --border:   #2a2a2a;
+  --text:     #e8e8e8;
+  --muted:    #8a8a8a;
+  --client:   #4ea1ff;
+  --route:    #7bd389;
+  --service:  #c792ea;
+  --db:       #ffb86b;
+  --external: #ff6b9d;
+  --critical: #ff3860;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+/* TOP BAR */
+#topbar { height: 44px; min-height: 44px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; padding: 0 16px; flex-shrink: 0; }
+#topbar h1 { font-size: 14px; font-weight: 700; color: var(--text); }
+#topbar span { font-size: 11px; color: var(--muted); }
+.chip { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: all .15s; }
+.chip:hover { border-color: var(--client); color: var(--client); }
+.chip.active { background: var(--client); border-color: var(--client); color: #000; }
+#filters { display: flex; gap: 6px; margin-left: 12px; flex-wrap: wrap; }
+
+/* LAYOUT */
+#workspace { display: flex; flex: 1; overflow: hidden; }
+#canvas-wrap { flex: 1; position: relative; overflow: hidden; cursor: grab; }
+#canvas-wrap.dragging { cursor: grabbing; }
+#canvas { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+
+/* SIDEBAR */
+#sidebar { width: 300px; min-width: 300px; background: var(--panel); border-left: 1px solid var(--border); overflow-y: auto; padding: 16px; font-size: 12px; }
+#sidebar h2 { font-size: 13px; font-weight: 700; margin-bottom: 12px; color: var(--text); }
+.s-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 4px; margin-top: 12px; }
+.s-val { font-size: 12px; color: var(--text); line-height: 1.5; }
+.s-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; margin-top: 6px; }
+.finding { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; font-size: 11.5px; line-height: 1.5; color: var(--text); }
+.finding strong { color: var(--external); display: block; margin-bottom: 3px; font-size: 11px; }
+.edge-legend { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.el-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+.el-line { width: 28px; height: 2px; border-radius: 1px; }
+
+/* CLUSTER BOXES */
+.cluster-box { position: absolute; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,.015); pointer-events: none; }
+.cluster-label { position: absolute; top: -22px; left: 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+
+/* NODE */
+.node { position: absolute; border-radius: 7px; border: 1.5px solid; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: filter .15s, transform .1s; padding: 6px 8px; user-select: none; }
+.node:hover { filter: brightness(1.25); transform: scale(1.03); z-index: 10; }
+.node.selected { filter: brightness(1.4); box-shadow: 0 0 0 2px #fff4; z-index: 20; }
+.node-label { font-size: 10.5px; font-weight: 700; color: #fff; line-height: 1.3; }
+.node-sub { font-size: 9px; color: rgba(255,255,255,.5); margin-top: 2px; line-height: 1.2; }
+
+/* EDGES (SVG) */
+#svg-layer { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>JPS Finance Hub — Architecture Map</h1>
+  <span>index.html · 12 531 lines · Supabase bhrswnbenkvflpdjhfpa</span>
+  <div id="filters">
+    <button class="chip active" data-filter="all" onclick="setFilter('all',this)">Show All</button>
+    <button class="chip" data-filter="pages" onclick="setFilter('pages',this)">Pages</button>
+    <button class="chip" data-filter="data" onclick="setFilter('data',this)">Data Layer</button>
+    <button class="chip" data-filter="external" onclick="setFilter('external',this)">External APIs</button>
+    <button class="chip" data-filter="utils" onclick="setFilter('utils',this)">Shared Utils</button>
+    <button class="chip" data-filter="critical" onclick="setFilter('critical',this)">Critical Path</button>
+  </div>
+</div>
+
+<div id="workspace">
+  <div id="canvas-wrap">
+    <div id="canvas">
+      <svg id="svg-layer"></svg>
+      <!-- clusters and nodes injected by JS -->
+    </div>
+  </div>
+  <div id="sidebar" id="sidebar">
+    <h2 id="sb-title">Notable Findings</h2>
+    <div id="sb-body">
+      <div class="finding"><strong>Single-file monolith</strong>index.html is 12 531 lines of vanilla JS, CSS and HTML. Every page, utility, and DB call lives here — no bundler, no modules.</div>
+      <div class="finding"><strong>Anon key in source</strong>The Supabase anon key (_SB_ANON_KEY) is hard-coded in plain text. Combine with 219 open RLS advisor warnings — public tables may be readable without login.</div>
+      <div class="finding"><strong>fpa_derived_formulas single source of truth</strong>Derived lines (EBITDA, EBIT, net_inc, fin_cost) are computed server-side by DataManager and stored in fpa_facts. The Hub reads the store; the _arithEval() parser is a fallback only.</div>
+      <div class="finding"><strong>OCC write path</strong>All user cell edits go through fpa_facts_write_occ RPC (reads row_version first, rejects on mismatch). Safe against concurrent edits — but the Cash Workbench (p18) is the only page wired to this path.</div>
+      <div class="finding"><strong>p2 lines hardcoded list (~line 3987)</strong>Any new derived line_id added to fpa_derived_formulas must also be added to a hardcoded list in loadP2() or it resolves 0. Silent failure risk.</div>
+      <div class="finding"><strong>Report Builder drives p2, p17</strong>report_templates + report_lines tables (managed in DataManager) now control the P&amp;L and Management Report layouts. Hardcoded fallback still present if template fetch fails.</div>
+      <div class="finding"><strong>om_facts table may be empty</strong>April 2026 O&amp;M data (p11) depends on om_facts being populated. Admin re-upload required; no guard in loadP11().</div>
+      <div class="finding"><strong>Groq AI assistant</strong>p13 Scenario Planner calls a Supabase Edge Function (groq-chat) backed by a Groq/LLaMA API. Errors are logged to JpsMonitor but the user sees a silent toast.</div>
+
+      <div class="s-label" style="margin-top:16px">Edge Legend</div>
+      <div class="edge-legend">
+        <div class="el-row"><div class="el-line" style="background:#ff3860"></div> Critical path</div>
+        <div class="el-row"><div class="el-line" style="background:#ff9944"></div> API / RPC call</div>
+        <div class="el-row"><div class="el-line" style="background:#ffb86b"></div> DB read/write</div>
+        <div class="el-row"><div class="el-line" style="background:#4ea1ff"></div> Navigation / mount</div>
+        <div class="el-row"><div class="el-line" style="background:#555"></div> Normal dependency</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  DATA MODEL
+// ═══════════════════════════════════════════════════════════
+
+const clusters = [
+  { id: 'screens',  label: 'Screens / Entry Flow',  x:   20, y:  30, w: 280, h: 420 },
+  { id: 'pages',    label: 'Pages (p1–p18 + extras)', x: 330, y:  30, w: 310, h: 1060 },
+  { id: 'engine',   label: 'Data Engine',             x: 670, y:  30, w: 290, h: 660 },
+  { id: 'db',       label: 'Supabase Tables',         x: 990, y:  30, w: 270, h: 840 },
+  { id: 'external', label: 'External APIs',           x:1290, y:  30, w: 230, h: 280 },
+  { id: 'utils',    label: 'Shared Utilities',        x: 670, y: 720, w: 290, h: 370 },
+];
+
+const N = (id, cluster, label, sub, x, y, w, h, color, opts={}) =>
+  ({ id, cluster, label, sub, x, y, w, h, color, ...opts });
+
+const nodes = [
+  // ── SCREENS ──
+  N('welcome',    'screens', 'welcomeScreen',       'Login / role selector',       35,  60, 250, 54, '#4ea1ff', { plain: 'The login page. User enters email + password. Role cards (FP&A, Treasury, Exec…) shown for context. On success calls afterLogin().' }),
+  N('hub',        'screens', 'hubScreen',           'Platform hub / quick-nav',    35, 140, 250, 54, '#4ea1ff', { plain: 'Animated platform hub shown after login. Displays SVG flow diagram of all 10 JPS apps. Quick-launch buttons for key pages. Hides on Enter.' }),
+  N('appshell',   'screens', 'appShell',            'App shell (sidebar + topbar)',35, 220, 250, 54, '#4ea1ff', { plain: 'The persistent container. Left sidebar with nav items, top toolbar with year/view/version pills, notification bell, theme toggle, print button.' }),
+  N('topbar',     'screens', 'Topbar Controls',     '_CY year · Mo/YTD/FY · ver', 35, 300, 250, 54, '#4ea1ff', { plain: 'Year pills (_CY/_PY), view toggle (Monthly/YTD/Full Year), comparison version pills (Actuals / Budget / LE1 / LE2). All drive re-renders of active page.' }),
+  N('sidebar_nav','screens', 'Sidebar Navigation',  'nav() → navTo() → loadPage', 35, 380, 250, 54, '#4ea1ff', { plain: 'Clicking a nav item calls nav(), which calls navTo() to show the page section and loadPage() to fetch data on first visit (lazy load via _loadedPages Set).' }),
+
+  // ── PAGES ──
+  N('p1',   'pages', 'p1 — Executive Dashboard',   'KPI strip + P&L summary',    345,  60, 280, 46, '#7bd389', { plain: 'Top-level dashboard. Revenue/EBITDA/CapEx KPIs vs AOP. Dual P&L summary table. Operational KPIs sourced from jps_kpi_actuals + fpa_facts (gwh_billed).' }),
+  N('p2',   'pages', 'p2 — Income Statement',      'P&L · report_lines driven',  345, 120, 280, 46, '#7bd389', { plain: 'Full P&L. Reads from report_lines (template ID hardcoded). Standalone mode hides subsidiary. Tab between Consolidated / Executive views. Hardcoded fallback if template fetch fails.' }),
+  N('p3',   'pages', 'p3 — Balance Sheet',         'Assets / Liabilities / Eq',  345, 180, 280, 46, '#7bd389', { plain: 'Statement of Financial Position. Current vs Prior columns with movement. Data from fpa_facts. Col-view toggle (Period / YTD).' }),
+  N('p4',   'pages', 'p4 — Cash Flow Statement',   'Indirect method CF',          345, 240, 280, 46, '#7bd389', { plain: 'Indirect cash flow (Ops → Investing → Financing). Method toggle: period vs YTD. Reads fpa_facts lines cf_ops_net, cf_capex, etc.' }),
+  N('p5',   'pages', 'p5 — CapEx',                 'Projects + capex_projects',  345, 300, 280, 46, '#7bd389', { plain: 'Capital expenditure tracker. Reads fpa_facts (cf_capex, depn) and capex_projects table for project-level detail.' }),
+  N('p6',   'pages', 'p6 — IFRS / Below-EBITDA',  'IFRS 16 + fin cost schedules',345, 360, 280, 46, '#7bd389', { plain: 'Below-EBITDA items: interest expense, AFUDC, pref dividend, FX, IFRS 16. Reads fin_cost and sub-components from fpa_facts.' }),
+  N('p7',   'pages', 'p7 — Tariff Revenue',        'Rate class billing volumes',  345, 420, 280, 46, '#7bd389', { plain: 'Revenue by rate class. Tariff revenue and billed GWh. Uses jps_rate_class_actuals or fpa_facts lines for rate-class breakdown.' }),
+  N('p8',   'pages', 'p8 — Variance Analysis',     'Actual vs AOP bridge',        345, 480, 280, 46, '#7bd389', { plain: 'Full Actual vs AOP variance. Waterfall-style bridge by line. Reads two version sets from fpa_facts and computes delta and %.' }),
+  N('p9',   'pages', 'p9 — Financial Ratios',      'Profitability / liquidity',   345, 540, 280, 46, '#7bd389', { plain: 'Ratio page: EBITDA margin, net margin, current ratio, gearing. Computed from fpa_facts lines.' }),
+  N('p10',  'pages', 'p10 — KPI Scorecard',        'RAG vs annual target',        345, 600, 280, 46, '#7bd389', { plain: 'Operational and financial KPIs with RAG traffic light. Financial KPIs derived from fpa_facts in JS; operational from jps_kpi_actuals.' }),
+  N('p11',  'pages', 'p11 — O&M Expenditure',      'Cost item summary · om_facts',345, 660, 280, 46, '#7bd389', { plain: 'O&M cost detail by cost item group. Reads om_facts table (ACTUAL and BUDGET versions). Warning: April 2026 om_facts is empty.' }),
+  N('p12',  'pages', 'p12 — Budget vs LE',         '_dynVerA/_dynVerB comparison',345, 720, 280, 46, '#7bd389', { plain: 'Two-version comparison driven by Report Builder template. User picks any two versions (Actuals/AOP/LE1/LE2) via _dynVerA and _dynVerB toggles.' }),
+  N('p13',  'pages', 'p13 — Scenario Planner',     'fpa_scenarios + Groq AI',    345, 780, 280, 46, '#7bd389', { plain: 'Scenario planning tool. CRUD on fpa_scenarios table. Includes a Groq/LLaMA AI assistant via Supabase Edge Function groq-chat for narrative analysis.' }),
+  N('p14',  'pages', 'p14 — Waterfall Chart',      'Revenue bridge visual',       345, 840, 280, 46, '#7bd389', { plain: 'Visual waterfall chart showing revenue breakdown: non-fuel, fuel margin, IPP margin, EBITDA, EBIT. Canvas-rendered via Chart.js.' }),
+  N('p15',  'pages', 'p15 — Audit Trail',          'loadAuditFromDB()',           345, 900, 280, 46, '#7bd389', { plain: 'Reads platform audit log from Supabase. Shows all write events (facts:write, scenario:update, commentary:save, flash_note:save, report_line actions).' }),
+  N('p16',  'pages', 'p16 — Model Assumptions',    'fpa_assumptions · editable',  345, 960, 280, 46, '#7bd389', { plain: 'Planning assumptions table (fuel price, FX rate, inflation, etc.). Categorised tabs. Admin users can edit values. Writes back to fpa_assumptions.' }),
+  N('p17',  'pages', 'p17 — Management Report',    'Report Builder · report_lines',345,1020, 280, 46, '#7bd389', { plain: 'Management one-pager. Dynamically driven by pl_mgmt report_lines template. KPI strip, two-column P&L tables, Flash Notes with tagged commentary.' }),
+  N('p18',  'pages', 'p18 — Cash Workbench',       'Editable CF · OCC writes',    345,1080, 280, 46, '#7bd389', { plain: 'Interactive cash flow workbench. User edits cells; commits via fpa_facts_write_occ RPC (OCC pattern). Ratio grid (DSO, current ratio). Single page wired to OCC.' }),
+  N('padj', 'pages', 'p-adj — Adjustments',        'post_manual_adjustment RPC',  345, 500, 280, 46, '#c792ea', { plain: 'Manual adjustment log. Reads fpa_adjustments. Writes via post_manual_adjustment RPC. Reverse via reverse_adjustment RPC. Filtered by period/status.' }),
+  N('pfsum','pages', 'p-fsum — Financial Summary',  'Board pack composite',        345, 560, 280, 46, '#c792ea', { plain: 'Composite board pack page. Three-block layout (Actuals/AOP/FY-LE). Section toggles, PP&E drilldown. Standalone PDF mode via CSS fsum-standalone class.' }),
+
+  // ── ENGINE ──
+  N('navengine',   'engine', 'Navigation Engine',      'navTo() · loadPage() · lazy',685,  60, 260, 46, '#c792ea', { plain: 'navTo() hides/shows .page sections. loadPage() checks _loadedPages Set — only loads data on first visit. Prevents redundant DB calls.' }),
+  N('sbclient',    'engine', '_getSB() / _sbQ()',       'Supabase client + retry',    685, 130, 260, 46, '#c792ea', { plain: 'Lazy-initialised Supabase client (createClient once). _sbQ() wraps every query with 3-retry logic, exponential back-off on 429, JpsMonitor warning on errors.' }),
+  N('vmap',        'engine', '_ensureVMap()',           'fpa_versions TTL cache',      685, 200, 260, 46, '#c792ea', { plain: 'Loads version code→ID map from fpa_versions. 2-minute TTL cache. All page loaders call this first so they can resolve version codes to IDs.' }),
+  N('fetchfacts',  'engine', '_fetchFacts()',           'fpa_facts query + cache',     685, 270, 260, 46, '#c792ea', { plain: 'Core data fetcher. Builds cache key from (version, lines, period range). Reads fpa_facts table. Returns a Map keyed by line_id+period_id.' }),
+  N('derived',     'engine', '_computeDerived()',       'fpa_derived_formulas eval',   685, 340, 260, 46, '#c792ea', { plain: 'Loads formula rows from fpa_derived_formulas. Evaluates each formula via _arithEval() (recursive-descent parser, no eval()). Results are now pre-stored in fpa_facts by DataManager — this is a fallback.' }),
+  N('aritheval',   'engine', '_arithEval()',            'Safe arithmetic parser',      685, 410, 260, 46, '#c792ea', { plain: 'Recursive-descent arithmetic expression parser. Replaced an old Function() constructor call to fix CSP eval errors. Handles +−×÷ and line references.' }),
+  N('occwrite',    'engine', '_occWrite()',             'OCC write via RPC',           685, 480, 260, 46, '#critical', { plain: 'Optimistic Concurrency Control write. Reads current row_version from fpa_facts, passes it to fpa_facts_write_occ RPC. RPC rejects if another writer beat us.' }),
+  N('cache',       'engine', '_cachedFetch()',          '60s in-memory cache',         685, 550, 260, 46, '#c792ea', { plain: 'Generic TTL cache backed by a Map. Used for fpa_versions, fpa_scenarios, report_lines. _cacheInvalidate(pattern) purges matching keys after writes.' }),
+  N('audit',       'engine', '_platformAudit()',        'Writes platform_audit_log',   685, 620, 260, 46, '#c792ea', { plain: 'Every user-initiated write (login, facts:write, scenario:*, commentary:save, report_line:*) calls _platformAudit() which inserts to platform_audit_log.' }),
+  N('vercode',     'engine', '_verCode() / _ensureMaxMo()', 'UI pill → DB code',      685, 690, 260, 46, '#c792ea', { plain: 'Maps UI version pills (Budget/LE1/LE2/Actuals) to DB version codes (AOP_2026/LE_2026_01…). _ensureMaxMo() finds the latest loaded actuals month.' }),
+
+  // ── DB ──
+  N('db_facts',    'db', 'fpa_facts',              'Core fact store',            1005,  60, 240, 46, '#ffb86b', { plain: 'Central numeric store. Rows: (version_id, line_id, period_id, value, row_version). All financial line values, including derived lines pre-computed by DataManager.' }),
+  N('db_versions', 'db', 'fpa_versions',           'Version code → ID map',      1005, 130, 240, 46, '#ffb86b', { plain: 'Maps version codes (AOP_2026, LE_2026_01, ACTUALS_2026_01…) to integer IDs. is_active flag controls which appear in the UI version selector.' }),
+  N('db_formulas', 'db', 'fpa_derived_formulas',   'Formula definitions',         1005, 200, 240, 46, '#ffb86b', { plain: 'One row per derived line (EBITDA, EBIT, net_inc, fin_cost…). Stores the arithmetic formula string. DataManager evaluates and stores results in fpa_facts.' }),
+  N('db_rlines',   'db', 'report_lines',           'Report Builder rows',         1005, 270, 240, 46, '#ffb86b', { plain: 'Each row is one display line in a report template. Has sort_order, indent, line_id, format flags. Drives p2 (P&L), p17 (Management Report), p12 (Budget vs LE).' }),
+  N('db_rtpls',    'db', 'report_templates',       'Template definitions',        1005, 340, 240, 46, '#ffb86b', { plain: 'Parent record for each report layout. Links to report_lines. Managed in DataManager Report Builder. replaces_page field marks which old hardcoded page it supersedes.' }),
+  N('db_kpi',      'db', 'jps_kpi_actuals',        'Operational KPIs',           1005, 410, 240, 46, '#ffb86b', { plain: 'Non-financial KPIs (system losses, SAIDI, customer count). Loaded by p1 dashboard and p10 KPI scorecard. Separate from fpa_facts.' }),
+  N('db_scenarios','db', 'fpa_scenarios',          'Scenario records',            1005, 480, 240, 46, '#ffb86b', { plain: 'Named planning scenarios with assumption overrides. CRUD via p13 Scenario Planner. is_active flag controls which scenario is live.' }),
+  N('db_omfacts',  'db', 'om_facts',              'O&M cost actuals',            1005, 550, 240, 46, '#ffb86b', { plain: 'O&M expenditure by line_id, period, version (ACTUAL/BUDGET). Loaded by p11. Empty for April 2026 — requires re-upload via Admin Portal.' }),
+  N('db_capex',    'db', 'capex_projects',         'CapEx project list',          1005, 620, 240, 46, '#ffb86b', { plain: 'Project-level CapEx details (name, division, business_unit, sort_order). Joined with fpa_facts on p5 CapEx page.' }),
+  N('db_adj',      'db', 'fpa_adjustments',        'Manual adjustment log',       1005, 690, 240, 46, '#ffb86b', { plain: 'Records of all manual adjustments posted via post_manual_adjustment RPC. Filterable by period and status. Can be reversed.' }),
+  N('db_comm',     'db', 'fpa_commentary',         'Period commentary',           1005, 760, 240, 46, '#ffb86b', { plain: 'Narrative commentary attached to periods. Upserted (not inserted) so each period has one live commentary record. Shown on p1 dashboard.' }),
+  N('db_notes',    'db', 'fpa_flash_notes',        'Management report notes',     1005, 830, 240, 46, '#ffb86b', { plain: 'Tagged notes on the p17 Management Report. Author, tag, text. Appended on save. Loaded fresh each visit.' }),
+  N('db_audit_log','db', 'platform_audit_log',     'All write events',            1005, 900, 240, 46, '#ffb86b', { plain: 'Immutable log of every user action: login, facts:write, scenario:update, commentary:save, report_line:insert/update/delete. Shown on p15 Audit Trail.' }),
+
+  // ── EXTERNAL ──
+  N('ext_sentry',  'external', 'Sentry',           'Error monitoring CDN',        1305,  60, 200, 46, '#ff6b9d', { plain: 'Browser error tracking. Initialised with environment=fpa-hub. setUser called after login so errors are attributed to the logged-in analyst.' }),
+  N('ext_posthog', 'external', 'PostHog',          'Product analytics',           1305, 130, 200, 46, '#ff6b9d', { plain: 'Event analytics. posthog.identify() called after login. Used to track page navigation and feature usage without instrumenting every click manually.' }),
+  N('ext_groq',    'external', 'Groq Edge Fn',     'groq-chat Supabase fn · LLaMA',1305, 200, 200, 46, '#ff6b9d', { plain: 'Supabase Edge Function (groq-chat) backed by Groq LLaMA. Called from p13 Scenario Planner for AI narrative commentary. Errors logged to JpsMonitor.' }),
+
+  // ── UTILS ──
+  N('jpsmonitor',  'utils', 'JpsMonitor (shared)',  'Heartbeat · error · warning', 685, 750, 260, 46, '#4ea1ff', { plain: 'Shared monitoring helper. setApp("hub") called on load. setUser() after login. warning() / error() on every DB query failure. Heartbeat RPC every 60s.' }),
+  N('jpsauth',     'utils', 'jps-auth.js (shared)', 'SSO cookie jps_sso_v1',      685, 820, 260, 46, '#4ea1ff', { plain: 'Shared SSO handler. Sets jps_sso_v1 cookie on .jmfinancelab.com domain after login so other platform apps auto-login. _ssoRestore() on load.' }),
+  N('jpsnav',      'utils', 'jps-nav.js (shared)',  'Platform nav strip',          685, 890, 260, 46, '#4ea1ff', { plain: 'Injects the shared navigation strip across all 10 JPS platform apps. Calls get_my_app_access() RPC to show/hide links based on user roles.' }),
+  N('jpsfmt',      'utils', 'jps-formatters.js',    'Number / currency formatting',685, 960, 260, 46, '#4ea1ff', { plain: 'Shared formatting helpers: USD $000s, JMD thousands, percentage, basis points. Used everywhere numbers are rendered to avoid locale inconsistency.' }),
+  N('chartjs',     'utils', 'Chart.js 4.4',         'Canvas charts CDN',          685,1030, 260, 46, '#4ea1ff', { plain: 'Bar, line, and doughnut charts. Used on p1 dashboard, p14 waterfall, p9 ratios. Loaded from jsDelivr CDN.' }),
+  N('xlsx',        'utils', 'SheetJS (xlsx)',        'Excel export CDN',           685,1100, 260, 46, '#4ea1ff', { plain: 'Browser-side Excel generation. Used on upload templates and export buttons. Loaded from jsDelivr CDN.' }),
+];
+
+const edges = [
+  // Auth flow (critical)
+  { from:'welcome',    to:'sbclient',   kind:'critical', label:'signInWithPassword', tag:'auth' },
+  { from:'sbclient',   to:'welcome',    kind:'critical', label:'get_app_access RPC', tag:'auth' },
+  { from:'welcome',    to:'hub',        kind:'mount',    label:'afterLogin() → showHub()', tag:'auth' },
+  { from:'hub',        to:'appshell',   kind:'mount',    label:'enterPlatform()', tag:'auth' },
+  { from:'jpsauth',    to:'welcome',    kind:'normal',   label:'_ssoRestore()', tag:'auth' },
+
+  // Navigation
+  { from:'appshell',   to:'sidebar_nav',kind:'mount',    label:'sidebar nav', tag:'nav' },
+  { from:'sidebar_nav',to:'navengine',  kind:'mount',    label:'nav() call', tag:'nav' },
+  { from:'topbar',     to:'navengine',  kind:'mount',    label:'version/year/view change', tag:'nav' },
+  { from:'navengine',  to:'p1',         kind:'mount',    label:'loadP1()', tag:'nav' },
+  { from:'navengine',  to:'p2',         kind:'mount',    label:'loadP2()', tag:'nav' },
+  { from:'navengine',  to:'p3',         kind:'mount',    label:'loadP3()', tag:'nav' },
+  { from:'navengine',  to:'p4',         kind:'mount',    label:'loadP4()', tag:'nav' },
+  { from:'navengine',  to:'p5',         kind:'mount',    label:'loadP5()', tag:'nav' },
+  { from:'navengine',  to:'p6',         kind:'mount',    label:'loadP6()', tag:'nav' },
+  { from:'navengine',  to:'p7',         kind:'mount',    label:'loadP7()', tag:'nav' },
+  { from:'navengine',  to:'p8',         kind:'mount',    label:'loadP8()', tag:'nav' },
+  { from:'navengine',  to:'p9',         kind:'mount',    label:'loadP9()', tag:'nav' },
+  { from:'navengine',  to:'p10',        kind:'mount',    label:'loadP10()', tag:'nav' },
+  { from:'navengine',  to:'p11',        kind:'mount',    label:'loadP11()', tag:'nav' },
+  { from:'navengine',  to:'p12',        kind:'mount',    label:'loadP12()', tag:'nav' },
+  { from:'navengine',  to:'p13',        kind:'mount',    label:'loadP13()', tag:'nav' },
+  { from:'navengine',  to:'p14',        kind:'mount',    label:'loadP14()', tag:'nav' },
+  { from:'navengine',  to:'p15',        kind:'mount',    label:'loadAuditFromDB()', tag:'nav' },
+  { from:'navengine',  to:'p16',        kind:'mount',    label:'loadP16()', tag:'nav' },
+  { from:'navengine',  to:'p17',        kind:'mount',    label:'loadP17()', tag:'nav' },
+  { from:'navengine',  to:'p18',        kind:'mount',    label:'loadP18()', tag:'nav' },
+  { from:'navengine',  to:'padj',       kind:'mount',    label:'loadPAdj()', tag:'nav' },
+  { from:'navengine',  to:'pfsum',      kind:'mount',    label:'loadFinancialSummary()', tag:'nav' },
+
+  // Engine internals
+  { from:'vmap',       to:'sbclient',   kind:'db',       label:'fpa_versions SELECT', tag:'data' },
+  { from:'fetchfacts', to:'sbclient',   kind:'critical', label:'fpa_facts SELECT', tag:'data' },
+  { from:'derived',    to:'sbclient',   kind:'db',       label:'fpa_derived_formulas SELECT', tag:'data' },
+  { from:'derived',    to:'aritheval',  kind:'normal',   label:'evaluate formula', tag:'data' },
+  { from:'occwrite',   to:'sbclient',   kind:'critical', label:'fpa_facts_write_occ RPC', tag:'data' },
+  { from:'audit',      to:'sbclient',   kind:'db',       label:'platform_audit_log INSERT', tag:'data' },
+
+  // Pages → Engine
+  { from:'p1',    to:'fetchfacts',  kind:'db',    label:'fpa_facts', tag:'data' },
+  { from:'p1',    to:'sbclient',    kind:'db',    label:'jps_kpi_actuals', tag:'data' },
+  { from:'p1',    to:'sbclient',    kind:'db',    label:'fpa_commentary upsert', tag:'data' },
+  { from:'p2',    to:'fetchfacts',  kind:'db',    label:'fpa_facts', tag:'data' },
+  { from:'p2',    to:'sbclient',    kind:'db',    label:'report_lines SELECT', tag:'data' },
+  { from:'p3',    to:'fetchfacts',  kind:'db',    label:'fpa_facts', tag:'data' },
+  { from:'p4',    to:'fetchfacts',  kind:'db',    label:'fpa_facts', tag:'data' },
+  { from:'p5',    to:'fetchfacts',  kind:'db',    label:'fpa_facts + capex_projects', tag:'data' },
+  { from:'p6',    to:'fetchfacts',  kind:'db',    label:'fpa_facts', tag:'data' },
+  { from:'p7',    to:'fetchfacts',  kind:'db',    label:'fpa_facts', tag:'data' },
+  { from:'p8',    to:'fetchfacts',  kind:'db',    label:'fpa_facts (2 versions)', tag:'data' },
+  { from:'p9',    to:'fetchfacts',  kind:'db',    label:'fpa_facts', tag:'data' },
+  { from:'p10',   to:'fetchfacts',  kind:'db',    label:'fpa_facts', tag:'data' },
+  { from:'p10',   to:'sbclient',    kind:'db',    label:'jps_kpi_actuals', tag:'data' },
+  { from:'p11',   to:'sbclient',    kind:'db',    label:'om_facts SELECT', tag:'data' },
+  { from:'p12',   to:'fetchfacts',  kind:'db',    label:'fpa_facts (_dynVerA/_dynVerB)', tag:'data' },
+  { from:'p12',   to:'sbclient',    kind:'db',    label:'report_lines SELECT', tag:'data' },
+  { from:'p13',   to:'sbclient',    kind:'db',    label:'fpa_scenarios CRUD', tag:'data' },
+  { from:'p13',   to:'ext_groq',    kind:'api',   label:'fetch groq-chat', tag:'ai' },
+  { from:'p14',   to:'fetchfacts',  kind:'db',    label:'fpa_facts', tag:'data' },
+  { from:'p15',   to:'sbclient',    kind:'db',    label:'platform_audit_log SELECT', tag:'data' },
+  { from:'p16',   to:'sbclient',    kind:'db',    label:'fpa_assumptions SELECT/UPDATE', tag:'data' },
+  { from:'p17',   to:'fetchfacts',  kind:'db',    label:'fpa_facts', tag:'data' },
+  { from:'p17',   to:'sbclient',    kind:'db',    label:'report_lines (pl_mgmt)', tag:'data' },
+  { from:'p17',   to:'sbclient',    kind:'db',    label:'fpa_flash_notes', tag:'data' },
+  { from:'p18',   to:'fetchfacts',  kind:'db',    label:'fpa_facts', tag:'data' },
+  { from:'p18',   to:'occwrite',    kind:'critical', label:'cell commit', tag:'data' },
+  { from:'padj',  to:'sbclient',    kind:'api',   label:'post_manual_adjustment RPC', tag:'data' },
+  { from:'padj',  to:'sbclient',    kind:'api',   label:'reverse_adjustment RPC', tag:'data' },
+  { from:'pfsum', to:'fetchfacts',  kind:'db',    label:'fpa_facts (3 versions)', tag:'data' },
+
+  // Fetchfacts → DB
+  { from:'fetchfacts', to:'db_facts',    kind:'db',    label:'SELECT', tag:'db' },
+  { from:'vmap',       to:'db_versions', kind:'db',    label:'SELECT', tag:'db' },
+  { from:'derived',    to:'db_formulas', kind:'db',    label:'SELECT', tag:'db' },
+  { from:'occwrite',   to:'db_facts',    kind:'critical', label:'fpa_facts_write_occ RPC', tag:'db' },
+  { from:'audit',      to:'db_audit_log',kind:'db',    label:'INSERT', tag:'db' },
+  { from:'p1',         to:'db_comm',     kind:'db',    label:'fpa_commentary', tag:'db' },
+  { from:'p5',         to:'db_capex',    kind:'db',    label:'capex_projects', tag:'db' },
+  { from:'p10',        to:'db_kpi',      kind:'db',    label:'jps_kpi_actuals', tag:'db' },
+  { from:'p11',        to:'db_omfacts',  kind:'db',    label:'om_facts', tag:'db' },
+  { from:'p13',        to:'db_scenarios',kind:'db',    label:'fpa_scenarios', tag:'db' },
+  { from:'p15',        to:'db_audit_log',kind:'db',    label:'platform_audit_log', tag:'db' },
+  { from:'p16',        to:'db_facts',    kind:'db',    label:'fpa_assumptions', tag:'db' },
+  { from:'p17',        to:'db_notes',    kind:'db',    label:'fpa_flash_notes', tag:'db' },
+  { from:'p2',         to:'db_rlines',   kind:'db',    label:'report_lines', tag:'db' },
+  { from:'p17',        to:'db_rlines',   kind:'db',    label:'report_lines', tag:'db' },
+  { from:'db_rtpls',   to:'db_rlines',   kind:'normal',label:'1:many', tag:'db' },
+  { from:'p1',         to:'db_kpi',      kind:'db',    label:'jps_kpi_actuals', tag:'db' },
+  { from:'padj',       to:'db_adj',      kind:'db',    label:'fpa_adjustments', tag:'db' },
+
+  // Utilities
+  { from:'jpsmonitor', to:'sbclient',   kind:'normal', label:'record_heartbeat RPC', tag:'utils' },
+  { from:'jpsmonitor', to:'ext_sentry', kind:'api',    label:'Sentry.captureException', tag:'utils' },
+  { from:'welcome',    to:'ext_posthog',kind:'api',    label:'posthog.identify()', tag:'utils' },
+  { from:'welcome',    to:'ext_sentry', kind:'api',    label:'Sentry.setUser()', tag:'utils' },
+  { from:'p14',        to:'chartjs',    kind:'normal', label:'Chart render', tag:'utils' },
+  { from:'jpsnav',     to:'sbclient',   kind:'db',     label:'get_my_app_access RPC', tag:'utils' },
+];
+
+const FIXES = {};
+const KNOWN_BUGS = {
+  'p2_hardcoded_lines': 'New derived line_ids added to fpa_derived_formulas must be manually added to the hardcoded list in loadP2() around line 3987 or they resolve 0.',
+  'om_facts_empty':     'om_facts has 0 rows for April 2026. loadP11() has no guard — it renders an empty table silently.',
+  'anon_key_exposed':   'Supabase anon key hard-coded in source. 219 open RLS advisor warnings — some HR/treasury views may be readable without auth.',
+};
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════
+
+const CANVAS_W = 1560, CANVAS_H = 1200;
+const canvas = document.getElementById('canvas');
+const svgEl  = document.getElementById('svg-layer');
+svgEl.setAttribute('width',  CANVAS_W);
+svgEl.setAttribute('height', CANVAS_H);
+
+// Draw clusters
+clusters.forEach(c => {
+  const box = document.createElement('div');
+  box.className = 'cluster-box';
+  box.style.cssText = `left:${c.x}px;top:${c.y + 22}px;width:${c.w}px;height:${c.h}px;`;
+  const lbl = document.createElement('div');
+  lbl.className = 'cluster-label';
+  lbl.textContent = c.label;
+  box.appendChild(lbl);
+  canvas.appendChild(box);
+});
+
+// Draw nodes
+let selectedNode = null;
+nodes.forEach(n => {
+  const el = document.createElement('div');
+  el.className = 'node';
+  el.id = 'node-' + n.id;
+  el.dataset.id = n.id;
+  el.dataset.cluster = n.cluster;
+  el.dataset.color = n.color;
+  el.style.cssText = `left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px;border-color:${n.color};background:${n.color}18;`;
+  el.innerHTML = `<div class="node-label">${n.label}</div><div class="node-sub">${n.sub}</div>`;
+  el.addEventListener('click', e => { e.stopPropagation(); selectNode(n); });
+  canvas.appendChild(el);
+});
+
+// Draw edges
+function midpoint(n, side) {
+  const cx = n.x + n.w / 2;
+  const cy = n.y + n.h / 2;
+  return { x: cx, y: cy };
+}
+
+const COLOR_MAP = { critical:'#ff3860', api:'#ff9944', db:'#ffb86b', mount:'#4ea1ff', normal:'#444' };
+
+edges.forEach((e, i) => {
+  const fn = nodes.find(n => n.id === e.from);
+  const tn = nodes.find(n => n.id === e.to);
+  if (!fn || !tn) return;
+
+  const fx = fn.x + fn.w / 2, fy = fn.y + fn.h / 2;
+  const tx = tn.x + tn.w / 2, ty = tn.y + tn.h / 2;
+
+  // Simple curved path
+  const dx = tx - fx, dy = ty - fy;
+  const cx1 = fx + dx * 0.4 + dy * 0.05;
+  const cy1 = fy + dy * 0.1 - dx * 0.05;
+  const cx2 = fx + dx * 0.6 + dy * 0.05;
+  const cy2 = fy + dy * 0.9 - dx * 0.05;
+
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const d = `M${fx},${fy} C${cx1},${cy1} ${cx2},${cy2} ${tx},${ty}`;
+  const col = COLOR_MAP[e.kind] || '#444';
+  path.setAttribute('d', d);
+  path.setAttribute('stroke', col);
+  path.setAttribute('stroke-width', e.kind === 'critical' ? '2' : '1.2');
+  path.setAttribute('fill', 'none');
+  path.setAttribute('opacity', '0.55');
+  path.setAttribute('stroke-dasharray', e.kind === 'normal' ? '4 3' : 'none');
+  path.dataset.tag = e.tag || 'all';
+  path.dataset.from = e.from;
+  path.dataset.to = e.to;
+  path.dataset.kind = e.kind;
+  svgEl.appendChild(path);
+});
+
+// ── Sidebar ──
+function selectNode(n) {
+  document.querySelectorAll('.node').forEach(el => el.classList.remove('selected'));
+  const el = document.getElementById('node-' + n.id);
+  if (el) el.classList.add('selected');
+  selectedNode = n.id;
+  highlightEdges(n.id);
+
+  const outEdges = edges.filter(e => e.from === n.id);
+  const inEdges  = edges.filter(e => e.to === n.id);
+
+  const tagColors = { pages:'#7bd389', data:'#c792ea', external:'#ff6b9d', utils:'#4ea1ff', screens:'#4ea1ff', db:'#ffb86b', engine:'#c792ea' };
+  const tc = tagColors[n.cluster] || '#fff';
+
+  document.getElementById('sb-title').textContent = n.label;
+  document.getElementById('sb-body').innerHTML = `
+    <span class="s-tag" style="background:${tc}22;color:${tc};border:1px solid ${tc}44">${n.cluster}</span>
+    <div class="s-label">Description</div>
+    <div class="s-val">${n.plain || n.sub}</div>
+    ${outEdges.length ? `<div class="s-label">Calls / Writes (${outEdges.length})</div>
+      <div class="s-val">${outEdges.map(e=>`<div style="padding:2px 0;color:${COLOR_MAP[e.kind]||'#ccc'}">${e.label} → <strong style="color:var(--text)">${e.to}</strong></div>`).join('')}</div>` : ''}
+    ${inEdges.length ? `<div class="s-label">Called by (${inEdges.length})</div>
+      <div class="s-val">${inEdges.map(e=>`<div style="padding:2px 0;color:var(--muted)">${e.from} <span style="color:${COLOR_MAP[e.kind]||'#ccc'}">${e.label}</span></div>`).join('')}</div>` : ''}
+  `;
+}
+
+function highlightEdges(nodeId) {
+  svgEl.querySelectorAll('path').forEach(p => {
+    const isRelated = p.dataset.from === nodeId || p.dataset.to === nodeId;
+    p.setAttribute('opacity', isRelated ? '1' : '0.08');
+    p.setAttribute('stroke-width', isRelated ? (p.dataset.kind === 'critical' ? '2.5' : '1.8') : '1');
+  });
+}
+
+canvas.addEventListener('click', () => {
+  document.querySelectorAll('.node').forEach(el => el.classList.remove('selected'));
+  svgEl.querySelectorAll('path').forEach(p => {
+    p.setAttribute('opacity', '0.55');
+    p.setAttribute('stroke-width', p.dataset.kind === 'critical' ? '2' : '1.2');
+  });
+  selectedNode = null;
+  document.getElementById('sb-title').textContent = 'Notable Findings';
+  document.getElementById('sb-body').innerHTML = `
+    <div class="finding"><strong>Single-file monolith</strong>index.html is 12 531 lines of vanilla JS, CSS and HTML. Every page, utility, and DB call lives here.</div>
+    <div class="finding"><strong>Anon key in source</strong>Supabase anon key hard-coded. 219 open RLS advisor warnings.</div>
+    <div class="finding"><strong>fpa_derived_formulas single source of truth</strong>Derived lines pre-stored in fpa_facts by DataManager. Hub reads the store; _arithEval() is a fallback.</div>
+    <div class="finding"><strong>OCC write path</strong>Only p18 Cash Workbench uses fpa_facts_write_occ RPC. Other pages are read-only.</div>
+    <div class="finding"><strong>p2 hardcoded line list</strong>New derived line_ids must be manually added around line 3987 or resolve 0 silently.</div>
+    <div class="finding"><strong>om_facts may be empty</strong>April 2026 O&M data depends on an Admin re-upload. loadP11() has no guard.</div>
+    <div class="finding"><strong>Report Builder controls p2 + p17</strong>report_templates + report_lines now drive layouts. Hardcoded fallback still exists.</div>
+    <div class="finding"><strong>Groq AI assistant in p13</strong>Calls groq-chat Supabase Edge Function backed by LLaMA. Errors toast silently.</div>
+    <div class="edge-legend" style="margin-top:16px">
+      <div class="s-label">Edge Legend</div>
+      <div class="el-row"><div class="el-line" style="background:#ff3860"></div> Critical path</div>
+      <div class="el-row"><div class="el-line" style="background:#ff9944"></div> API / RPC call</div>
+      <div class="el-row"><div class="el-line" style="background:#ffb86b"></div> DB read/write</div>
+      <div class="el-row"><div class="el-line" style="background:#4ea1ff"></div> Navigation / mount</div>
+      <div class="el-row"><div class="el-line" style="background:#555"></div> Normal dependency</div>
+    </div>
+  `;
+});
+
+// ── Filter chips ──
+function setFilter(f, btn) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+
+  const clusterMap = {
+    pages: ['pages'],
+    data: ['engine','db'],
+    external: ['external'],
+    utils: ['utils'],
+  };
+
+  const criticalNodes = new Set(['welcome','sbclient','fetchfacts','occwrite','p18','db_facts','vmap','navengine']);
+
+  nodes.forEach(n => {
+    const el = document.getElementById('node-' + n.id);
+    if (!el) return;
+    let show = true;
+    if (f === 'pages')    show = n.cluster === 'pages' || n.cluster === 'screens';
+    else if (f === 'data') show = ['engine','db'].includes(n.cluster);
+    else if (f === 'external') show = n.cluster === 'external';
+    else if (f === 'utils') show = n.cluster === 'utils';
+    else if (f === 'critical') show = criticalNodes.has(n.id);
+    el.style.opacity = show ? '1' : '0.08';
+  });
+
+  svgEl.querySelectorAll('path').forEach(p => {
+    let show = true;
+    if (f === 'critical') show = p.dataset.kind === 'critical';
+    else if (f !== 'all') {
+      const fn = nodes.find(n => n.id === p.dataset.from);
+      const tn = nodes.find(n => n.id === p.dataset.to);
+      const cls = clusterMap[f] || [];
+      if (f === 'pages') show = (fn && (fn.cluster==='pages'||fn.cluster==='screens')) || (tn && (tn.cluster==='pages'||tn.cluster==='screens'));
+      else show = (fn && cls.includes(fn.cluster)) || (tn && cls.includes(tn.cluster));
+    }
+    p.setAttribute('opacity', show ? '0.55' : '0.04');
+  });
+}
+
+// ── Pan + Zoom ──
+const wrap = document.getElementById('canvas-wrap');
+let scale = 0.62, offX = 20, offY = 20, dragging = false, startX, startY, startOX, startOY;
+
+function applyTransform() {
+  canvas.style.transform = `translate(${offX}px,${offY}px) scale(${scale})`;
+}
+applyTransform();
+
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = wrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  const newScale = Math.max(0.2, Math.min(2.5, scale * delta));
+  offX = mx - (mx - offX) * (newScale / scale);
+  offY = my - (my - offY) * (newScale / scale);
+  scale = newScale;
+  applyTransform();
+}, { passive: false });
+
+wrap.addEventListener('mousedown', e => {
+  if (e.target.closest('.node')) return;
+  dragging = true; wrap.classList.add('dragging');
+  startX = e.clientX; startY = e.clientY; startOX = offX; startOY = offY;
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  offX = startOX + e.clientX - startX;
+  offY = startOY + e.clientY - startY;
+  applyTransform();
+});
+window.addEventListener('mouseup', () => { dragging = false; wrap.classList.remove('dragging'); });
+</script>
+</body>
+</html>

@@ -1,0 +1,242 @@
+/* ============================================================
+   JPS Platform — Shared Theme (tokens + motion/focus/depth polish)
+   ------------------------------------------------------------
+   Canonical source: D:\Projects\shared\jps-theme.css
+   Deploy: copy into each app's shared/ folder and add ONE line to <head>:
+       <link rel="stylesheet" href="shared/jps-theme.css" />
+   (Place it AFTER the app's own font links; before or after its <style> is fine.)
+
+   SAFE BY DESIGN:
+   - Every token is namespaced --jps-* — it never overwrites an app's
+     own --bg/--accent/--shadow variables.
+   - Every polish rule uses :where(...) = ZERO specificity, so any rule
+     the app already has wins. This only fills gaps (focus rings,
+     smooth transitions, press feedback) — it cannot break existing styles.
+   - The focus ring adapts to each app's accent (--teal / --accent),
+     falling back to platform blue.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  /* platform font — apps should not override this */
+  --jps-font: 'IBM Plex Sans', system-ui, sans-serif;
+  --jps-font-mono: 'IBM Plex Mono', monospace;
+
+  /* motion */
+  --jps-ease:      cubic-bezier(.4, 0, .2, 1);
+  --jps-ease-out:  cubic-bezier(.16, 1, .3, 1);
+  --jps-dur-fast:  .12s;
+  --jps-dur:       .18s;
+  --jps-dur-slow:  .26s;
+
+  /* depth (namespaced — does not touch app --shadow) */
+  --jps-shadow-sm: 0 1px 2px rgba(20,20,46,.10);
+  --jps-shadow:    0 4px 12px -2px rgba(20,20,46,.16);
+  --jps-shadow-lg: 0 12px 28px -8px rgba(20,20,46,.28);
+
+  /* radius */
+  --jps-radius:    8px;
+  --jps-radius-lg: 12px;
+
+  /* focus: follows the app's accent, falls back to platform blue */
+  --jps-accent: var(--teal, var(--accent, var(--primary, #00aeef)));
+}
+
+/* Platform-wide font enforcement — zero specificity, apps can still override body explicitly */
+:where(body) {
+  font-family: var(--jps-font);
+}
+
+/* ---- Accessible keyboard focus ring (outline, so it never clobbers box-shadow) ---- */
+:where(a, button, input, select, textarea, summary, [tabindex], [role="button"]):focus-visible {
+  outline: 2px solid var(--jps-accent);
+  outline-offset: 2px;
+}
+
+/* ---- Smooth form-control focus/border transitions ---- */
+:where(input, select, textarea) {
+  transition: border-color var(--jps-dur) var(--jps-ease),
+              box-shadow   var(--jps-dur) var(--jps-ease);
+}
+
+/* ---- Form validation states ----
+   Uses :user-invalid (fires only after user interaction) with :invalid fallback.
+   Apps opt in by adding .jps-form to <form> — avoids flashing on page load. ---- */
+.jps-form :where(input, select, textarea):user-invalid,
+.jps-form.was-validated :where(input, select, textarea):invalid {
+  border-color: #e24b4b !important;
+  box-shadow: 0 0 0 3px rgba(226,75,75,.12);
+}
+.jps-form :where(input, select, textarea):user-valid,
+.jps-form.was-validated :where(input, select, textarea):valid {
+  border-color: #15803d !important;
+}
+.jps-form .jps-field-error {
+  display: none;
+  font-size: 11px;
+  color: #e24b4b;
+  margin-top: 3px;
+}
+.jps-form :where(input,select,textarea):user-invalid ~ .jps-field-error,
+.jps-form.was-validated :where(input,select,textarea):invalid ~ .jps-field-error {
+  display: block;
+}
+
+/* ---- Disabled button state ---- */
+:where(button, .btn, [role="button"]):disabled,
+:where(button, .btn, [role="button"])[aria-disabled="true"] {
+  opacity: .45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ---- Modal body scroll lock (applied by jps-states.js) ---- */
+body.jps-modal-open {
+  overflow: hidden;
+}
+
+/* ---- Buttons: subtle press feedback (additive — look is unchanged) ---- */
+:where(button, .btn, [role="button"]) {
+  transition: background-color var(--jps-dur) var(--jps-ease),
+              border-color     var(--jps-dur) var(--jps-ease),
+              color            var(--jps-dur) var(--jps-ease),
+              opacity          var(--jps-dur) var(--jps-ease),
+              transform        var(--jps-dur-fast) var(--jps-ease);
+}
+:where(button, .btn, [role="button"]):active {
+  transform: scale(.97);
+}
+
+/* ---- Opt-in utilities (add the class to use them) ---- */
+.jps-elevate {
+  box-shadow: var(--jps-shadow-sm);
+  transition: transform var(--jps-dur) var(--jps-ease-out),
+              box-shadow var(--jps-dur) var(--jps-ease-out),
+              border-color var(--jps-dur) var(--jps-ease);
+}
+.jps-elevate:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--jps-shadow-lg);
+}
+.jps-elevate:active {
+  transform: translateY(0);
+  transition-duration: var(--jps-dur-fast);
+}
+
+@keyframes jpsFadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.jps-fade-in { animation: jpsFadeUp var(--jps-dur-slow) var(--jps-ease-out) both; }
+
+/* ---- Respect the user's reduced-motion preference (accessibility) ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+   JPS Shared States — spinner, empty, toast
+   Import jps-states.js to use JS helpers that target these classes.
+   ============================================================ */
+
+/* Loading spinner */
+.jps-spinner {
+  display: inline-block;
+  width: 20px; height: 20px;
+  border: 2px solid rgba(0,174,239,.2);
+  border-top-color: #00aeef;
+  border-radius: 50%;
+  animation: jpsSpinRot .7s linear infinite;
+  flex-shrink: 0;
+}
+.jps-spinner-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px 16px;
+  color: var(--muted, #888);
+  font-size: 13px;
+}
+@keyframes jpsSpinRot { to { transform: rotate(360deg); } }
+
+/* Empty state */
+.jps-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 16px;
+  text-align: center;
+}
+.jps-empty-icon {
+  font-size: 28px;
+  opacity: .35;
+}
+.jps-empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #1a2535);
+}
+.jps-empty-sub {
+  font-size: 12px;
+  color: var(--muted, #888);
+  max-width: 280px;
+}
+
+/* Toast notifications */
+#jps-toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2147483001;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.jps-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: var(--jps-font);
+  box-shadow: var(--jps-shadow);
+  pointer-events: all;
+  animation: jpsToastIn .2s var(--jps-ease-out) both;
+  min-width: 240px;
+  max-width: 360px;
+}
+.jps-toast.hiding { animation: jpsToastOut .18s var(--jps-ease) forwards; }
+.jps-toast-info    { background: #0d1e3a; color: #cfe3f5; }
+.jps-toast-success { background: #064e3b; color: #a7f3d0; }
+.jps-toast-warn    { background: #78350f; color: #fde68a; }
+.jps-toast-error   { background: #7f1d1d; color: #fecaca; }
+.jps-toast-msg     { flex: 1; line-height: 1.4; }
+.jps-toast-close   { background: transparent; border: none; cursor: pointer; opacity: .6; font-size: 16px; color: inherit; padding: 0 2px; line-height: 1; }
+.jps-toast-close:hover { opacity: 1; }
+@keyframes jpsToastIn  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes jpsToastOut { to   { opacity: 0; transform: translateY(8px); } }
+
+/* Button loading state */
+.jps-btn-loading {
+  position: relative;
+  pointer-events: none;
+  opacity: .7;
+}
+.jps-btn-loading::after {
+  content: '';
+  position: absolute;
+  right: 10px; top: 50%;
+  width: 12px; height: 12px;
+  margin-top: -6px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: jpsSpinRot .7s linear infinite;
+}

@@ -1112,8 +1112,8 @@ td.dyn-click:hover{background:rgba(0,61,165,.04)}
           <button class="ws-login-btn" id="resetSendBtn" onclick="resetSendCode()">Send reset code</button>
           <div id="resetStep2" style="display:none">
             <div class="ws-field" style="margin-top:12px">
-              <label class="ws-label">6-digit code (from email)</label>
-              <input class="ws-input" id="resetCode" type="text" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code">
+              <label class="ws-label">Sign-in code (from email)</label>
+              <input class="ws-input" id="resetCode" type="text" inputmode="numeric" maxlength="8" placeholder="12345678" autocomplete="one-time-code">
             </div>
             <div class="ws-field">
               <label class="ws-label">New password (min 8 chars)</label>
@@ -2688,7 +2688,7 @@ async function resetSendCode() {
     var r = await sb.auth.resetPasswordForEmail(email);
     if (r.error) throw r.error;
     document.getElementById('resetStep2').style.display = 'block';
-    errEl.textContent = 'If that email is registered, a 6-digit code was sent. Check inbox and spam.';
+    errEl.textContent = 'If that email is registered, a code was sent. Check inbox and spam.';
     document.getElementById('resetCode').focus();
   } catch (e) {
     errEl.textContent = e.message || 'Could not send reset code.';
@@ -2701,7 +2701,7 @@ async function resetConfirm() {
   var code    = document.getElementById('resetCode').value.trim();
   var newPass = document.getElementById('resetNewPass').value;
   var errEl   = document.getElementById('loginError'); errEl.textContent = '';
-  if (!code || code.length < 6) { errEl.textContent = 'Enter the 6-digit code.'; return; }
+  if (!code || code.length < 6) { errEl.textContent = 'Enter the code from your email.'; return; }
   if (!newPass || newPass.length < 8) { errEl.textContent = 'New password must be at least 8 characters.'; return; }
   var btn = document.getElementById('resetConfirmBtn');
   btn.disabled = true; btn.textContent = 'Verifying…';
@@ -6279,6 +6279,13 @@ async function flashRefresh() {
     annual: 'Full Year ' + g.yr,
   }[g.fView] || (mons[g.mo-1] + ' ' + g.yr);
 
+  // Cache for data-driven XLSX export (flashExportXLSXData reads these)
+  window._flashLastFactsA     = factsA;
+  window._flashLastFactsB     = factsB;
+  window._flashLastLabelA     = labelA;
+  window._flashLastLabelB     = labelB;
+  window._flashLastPeriodLabel = viewLabel;
+
   var setEl = function(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; };
   setEl('flashLabelA',   labelA);
   setEl('flashLabelB',   labelB);
@@ -6405,7 +6412,23 @@ function flashExportPDF() {
 function _xlsxExport(tbl) {
   if (typeof XLSX === 'undefined') { toast('Excel library not loaded yet — try again','w'); return; }
   var wb = XLSX.utils.book_new();
-  var ws = XLSX.utils.table_to_sheet(tbl, { raw: false });
+  // raw:true preserves numeric cell values; SheetJS parses <td> text as numbers where possible
+  var ws = XLSX.utils.table_to_sheet(tbl, { raw: true });
+  // ── Column widths ──────────────────────────────────────────────────────────
+  var range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  var colCount = range.e.c + 1;
+  var cols = [];
+  for (var ci = 0; ci < colCount; ci++) cols.push({ wch: ci === 0 ? 36 : 18 });
+  ws['!cols'] = cols;
+  // ── Freeze top row ─────────────────────────────────────────────────────────
+  ws['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activePane: 'bottomLeft' };
+  // ── Number format on all non-header numeric cells ─────────────────────────
+  for (var R = range.s.r + 1; R <= range.e.r; R++) {
+    for (var C = range.s.c + 1; C <= range.e.c; C++) {
+      var addr = XLSX.utils.encode_cell({ r: R, c: C });
+      if (ws[addr] && ws[addr].t === 'n') ws[addr].z = '#,##0';
+    }
+  }
   XLSX.utils.book_append_sheet(wb, ws, 'JPS Report');
   var mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var yr2 = _activeYear, maxMo2 = (_yearMaxMo[yr2] != null) ? _yearMaxMo[yr2] : 12;
@@ -6415,9 +6438,203 @@ function _xlsxExport(tbl) {
   toast('Downloaded: ' + fname, 'ok');
 }
 function flashExportXLSX() {
+  // p17 Management Report — use data-driven export (numbers stay numeric, includes all sections + balance check)
+  if (document.querySelector('.page.active#p17')) {
+    flashExportXLSXData();
+    return;
+  }
   var tbl = document.querySelector('.page.active .tbl-wrap table') || document.querySelector('.page.active table');
   if (!tbl) { toast('No table on this page to export','w'); return; }
   try { _xlsxExport(tbl); } catch(e) { toast('Export failed: ' + e.message, 'w'); }
+}
+
+// ── p17 data-driven XLSX export ───────────────────────────────────────────────
+// Builds workbook directly from factsA/factsB (already in JS) rather than
+// scraping the DOM table. Benefits: numbers are real numbers (not text), all
+// three sections (P&L, BS, Metrics) land on one sheet, balance check is auditable.
+function flashExportXLSXData() {
+  if (typeof XLSX === 'undefined') { toast('Excel library not loaded yet — try again','w'); return; }
+  // Grab the last-rendered context and facts from module-level cache
+  var g = (typeof _flashGetGlobalCtx === 'function') ? _flashGetGlobalCtx() : null;
+  // _flashLastFacts is set in flashRefresh after data loads (see below)
+  var factsA = (window._flashLastFactsA) || {};
+  var factsB = (window._flashLastFactsB) || {};
+  var labelA = (window._flashLastLabelA) || 'Actual';
+  var labelB = (window._flashLastLabelB) || 'Comparison';
+  var periodLabel = (window._flashLastPeriodLabel) || '';
+
+  var N = '#,##0';       // integer thousands
+  var N2 = '#,##0.00';   // two decimals
+  var PCT = '0.0%';      // percentage
+
+  var wb = XLSX.utils.book_new();
+
+  // ── Sheet 1: P&L ──────────────────────────────────────────────────────────
+  var plDefs = _flashPLTpl || [
+    {section:'Revenue'},
+    {id:'fuel_rev',     name:'Fuel Clause Revenue'},
+    {id:'ipp_fr',       name:'IPP Fuel Recovery'},
+    {id:'nr_rev',       name:'Non-Fuel Revenue'},
+    {id:'nr_cust_charge',name:'Customer Charge'},
+    {id:'other_r',      name:'Other Operating Revenue'},
+    {id:'pl_total_sales',name:'Total Revenue',         subtotal:true},
+    {section:'Cost of Sales'},
+    {id:'fuel_cost',    name:'Fuel Cost'},
+    {id:'ipp_cost',     name:'IPP & Purchased Power'},
+    {section:'Operating Expenses'},
+    {id:'opex',         name:'O&M Expense'},
+    {id:'ebitda',       name:'EBITDA',                 subtotal:true},
+    {section:'Non-Operating'},
+    {id:'depn',         name:'Depreciation & Amort.'},
+    {id:'ebit',         name:'EBIT',                   subtotal:true},
+    {id:'nfc_int_exp',  name:'Interest Expense'},
+    {id:'nfc_int_inc',  name:'Interest Income'},
+    {id:'pretax',       name:'Net Profit Before Tax',  subtotal:true},
+    {section:'Taxation'},
+    {id:'tax',          name:'Income Tax'},
+    {id:'net_inc',      name:'Net Profit After Tax',   total:true},
+  ];
+
+  var plRows = [['Management Report — P&L (' + periodLabel + ')']];
+  plRows.push(['Line Item', labelA, labelB, 'Variance', 'Var %']);
+  plDefs.forEach(function(r) {
+    if (r.section) { plRows.push([r.section, null, null, null, null]); return; }
+    var vA = factsA[r.id] ?? null;
+    var vB = factsB[r.id] ?? null;
+    var diff = (vA != null && vB != null) ? vA - vB : null;
+    var pct  = (diff != null && vB && vB !== 0) ? diff / Math.abs(vB) : null;
+    // strip HTML entities from name
+    var nm = (r.label_override || r.name || r.id).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+    plRows.push([nm, vA, vB, diff, pct]);
+  });
+
+  var wsP = XLSX.utils.aoa_to_sheet(plRows);
+  wsP['!cols'] = [{ wch: 34 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 10 }];
+  wsP['!freeze'] = { xSplit: 0, ySplit: 2, topLeftCell: 'A3', activePane: 'bottomLeft' };
+  // Apply number formats from row 3 onward (row index 2+)
+  for (var ri = 2; ri < plRows.length; ri++) {
+    var row = plRows[ri];
+    if (row[1] != null || row[2] != null) {
+      var cols2 = [{ c: 1, z: N }, { c: 2, z: N }, { c: 3, z: N }, { c: 4, z: PCT }];
+      cols2.forEach(function(col) {
+        var addr = XLSX.utils.encode_cell({ r: ri, c: col.c });
+        if (wsP[addr] && wsP[addr].t === 'n') wsP[addr].z = col.z;
+      });
+    }
+  }
+  XLSX.utils.book_append_sheet(wb, wsP, 'P&L');
+
+  // ── Sheet 2: Balance Sheet ────────────────────────────────────────────────
+  var bsRows = [
+    ['Balance Sheet Highlights (' + periodLabel + ')'],
+    ['Item', labelA, labelB, 'Variance'],
+    ['Cash & Equivalents',     factsA['cash']  ?? null, factsB['cash']  ?? null, (factsA['cash']  ?? null) != null && (factsB['cash']  ?? null) != null ? (factsA['cash']  ?? 0) - (factsB['cash']  ?? 0) : null],
+    ['Trade Receivables',      factsA['recv']  ?? null, factsB['recv']  ?? null, (factsA['recv']  ?? null) != null && (factsB['recv']  ?? null) != null ? (factsA['recv']  ?? 0) - (factsB['recv']  ?? 0) : null],
+    ['Total Assets',           factsA['tot_a'] ?? null, factsB['tot_a'] ?? null, (factsA['tot_a'] ?? null) != null && (factsB['tot_a'] ?? null) != null ? (factsA['tot_a'] ?? 0) - (factsB['tot_a'] ?? 0) : null],
+    ['Long-Term Debt',         factsA['ltd']   ?? null, factsB['ltd']   ?? null, (factsA['ltd']   ?? null) != null && (factsB['ltd']   ?? null) != null ? (factsA['ltd']   ?? 0) - (factsB['ltd']   ?? 0) : null],
+    ['Lease Liabilities',      factsA['leases']?? null, factsB['leases']?? null, (factsA['leases']?? null) != null && (factsB['leases']?? null) != null ? (factsA['leases']?? 0) - (factsB['leases']?? 0) : null],
+  ];
+  var wsBS = XLSX.utils.aoa_to_sheet(bsRows);
+  wsBS['!cols'] = [{ wch: 26 }, { wch: 18 }, { wch: 18 }, { wch: 14 }];
+  wsBS['!freeze'] = { xSplit: 0, ySplit: 2, topLeftCell: 'A3', activePane: 'bottomLeft' };
+  for (var bri = 2; bri < bsRows.length; bri++) {
+    [1, 2, 3].forEach(function(ci) {
+      var addr = XLSX.utils.encode_cell({ r: bri, c: ci });
+      if (wsBS[addr] && wsBS[addr].t === 'n') wsBS[addr].z = N;
+    });
+  }
+  XLSX.utils.book_append_sheet(wb, wsBS, 'Balance Sheet');
+
+  // ── Sheet 3: Key Metrics ──────────────────────────────────────────────────
+  var revA = factsA['pl_total_sales'] || 0, revB = factsB['pl_total_sales'] || 0;
+  var ebA  = factsA['ebitda'] || 0,         ebB  = factsB['ebitda'] || 0;
+  var niA  = factsA['net_inc'] || 0,        niB  = factsB['net_inc'] || 0;
+  var gwA  = factsA['stat_billed_gwh'] || 0,gwB  = factsB['stat_billed_gwh'] || 0;
+  var metRows = [
+    ['Key Metrics (' + periodLabel + ')'],
+    ['Metric', labelA, labelB],
+    ['EBITDA Margin %',   revA ? ebA / revA : null, revB ? ebB / revB : null],
+    ['Net Margin %',      revA ? niA / revA : null, revB ? niB / revB : null],
+    ['Debt / EBITDA (x)', ebA  ? (factsA['ltd']||0) / ebA : null, ebB ? (factsB['ltd']||0) / ebB : null],
+    ['Revenue / MWh ($)', gwA  ? revA / gwA : null, gwB ? revB / gwB : null],
+    ['Fuel Cost / Rev %', revA ? (factsA['fuel_cost']||0) / revA : null, revB ? (factsB['fuel_cost']||0) / revB : null],
+  ];
+  var wsMet = XLSX.utils.aoa_to_sheet(metRows);
+  wsMet['!cols'] = [{ wch: 24 }, { wch: 14 }, { wch: 14 }];
+  wsMet['!freeze'] = { xSplit: 0, ySplit: 2, topLeftCell: 'A3', activePane: 'bottomLeft' };
+  // Row 2: EBITDA Margin — Fuel Cost/Rev: percentage
+  [2, 3, 6].forEach(function(ri) {
+    [1, 2].forEach(function(ci) {
+      var addr = XLSX.utils.encode_cell({ r: ri, c: ci });
+      if (wsMet[addr] && wsMet[addr].t === 'n') wsMet[addr].z = PCT;
+    });
+  });
+  // Row 4: Debt/EBITDA — two decimals
+  [4].forEach(function(ri) {
+    [1, 2].forEach(function(ci) {
+      var addr = XLSX.utils.encode_cell({ r: ri, c: ci });
+      if (wsMet[addr] && wsMet[addr].t === 'n') wsMet[addr].z = N2;
+    });
+  });
+  // Row 5: Revenue/MWh — integer
+  [5].forEach(function(ri) {
+    [1, 2].forEach(function(ci) {
+      var addr = XLSX.utils.encode_cell({ r: ri, c: ci });
+      if (wsMet[addr] && wsMet[addr].t === 'n') wsMet[addr].z = N;
+    });
+  });
+  XLSX.utils.book_append_sheet(wb, wsMet, 'Metrics');
+
+  // ── Sheet 4: Balance Check ────────────────────────────────────────────────
+  // P&L coherence check (not double-entry BS check — we only have IS lines in flash)
+  var totalRev    = factsA['pl_total_sales'] ?? 0;
+  var fuelCost    = factsA['fuel_cost']      ?? 0;
+  var ippCost     = factsA['ipp_cost']       ?? 0;
+  var grossProfit = factsA['pl_gross_profit'] ?? (totalRev - fuelCost - ippCost);
+  var opex        = factsA['opex_total']     ?? (factsA['opex'] ?? 0);
+  var ebitdaCalc  = grossProfit - opex;
+  var ebitdaStored= factsA['ebitda']         ?? 0;
+  var ebitdaDiff  = Math.abs(ebitdaCalc - ebitdaStored);
+  var netIncCalc  = (factsA['pretax'] ?? 0) - (factsA['tax'] ?? 0) - (factsA['oth_tax'] ?? 0);
+  var netIncStored= factsA['net_inc']        ?? 0;
+  var netDiff     = Math.abs(netIncCalc - netIncStored);
+  var THRESH      = 1; // $1 rounding tolerance
+  var chkRows = [
+    ['P&L Coherence Check — ' + labelA + ' (' + periodLabel + ')'],
+    ['Check', 'Computed', 'Stored', 'Difference', 'Status'],
+    ['EBITDA = Gross Profit − OPEX', ebitdaCalc, ebitdaStored, ebitdaCalc - ebitdaStored, ebitdaDiff <= THRESH ? 'PASS' : 'FAIL ⚠'],
+    ['Net Income = Pretax − Tax',    netIncCalc,  netIncStored,  netIncCalc  - netIncStored,  netDiff  <= THRESH ? 'PASS' : 'FAIL ⚠'],
+  ];
+  // Missing data flags
+  var missing = [];
+  var keyLines = ['pl_total_sales','fuel_cost','ipp_cost','opex','ebitda','depn','ebit','nfc_int_exp','pretax','tax','net_inc'];
+  keyLines.forEach(function(k) {
+    if (factsA[k] == null || factsA[k] === 0) missing.push(k);
+  });
+  chkRows.push([]);
+  chkRows.push(['Missing / zero lines in ' + labelA + ' (' + missing.length + ' of ' + keyLines.length + ')']);
+  if (missing.length) {
+    missing.forEach(function(k) { chkRows.push(['  ' + k, 'NO DATA', null, null, 'FLAG']); });
+  } else {
+    chkRows.push(['  All key P&L lines present', null, null, null, 'OK']);
+  }
+  var wsChk = XLSX.utils.aoa_to_sheet(chkRows);
+  wsChk['!cols'] = [{ wch: 38 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 12 }];
+  [2, 3].forEach(function(ri) {
+    [1, 2, 3].forEach(function(ci) {
+      var addr = XLSX.utils.encode_cell({ r: ri, c: ci });
+      if (wsChk[addr] && wsChk[addr].t === 'n') wsChk[addr].z = N;
+    });
+  });
+  XLSX.utils.book_append_sheet(wb, wsChk, 'Balance Check');
+
+  // ── Write file ────────────────────────────────────────────────────────────
+  var mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var yr2 = _activeYear, maxMo2 = (_yearMaxMo[yr2] != null) ? _yearMaxMo[yr2] : 12;
+  var mo2 = (_activeMo > 0 && _activeMo <= maxMo2) ? _activeMo : maxMo2;
+  var fname = 'JPS_MgmtReport_' + mons[mo2 - 1] + '_' + yr2 + '.xlsx';
+  XLSX.writeFile(wb, fname);
+  toast('Downloaded: ' + fname, 'ok');
 }
 function flashExportXLSXCard(btn) {
   var card = btn ? btn.closest('.card') : null;
