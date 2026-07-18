@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>JPS Data Manager</title>
+<script src="shared/jps-auth.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -186,10 +187,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   </div>
   <div style="display:flex;align-items:center;gap:8px">
     <span style="font-size:11px;color:var(--muted)">User:</span>
-    <input id="dm-user" placeholder="your name" maxlength="40"
-      style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:rgba(255,255,255,.08);
-             color:#d4e2f4;font-size:12px;width:130px"
-      oninput="localStorage.setItem('jps_dm_user',this.value.trim())">
+    <!-- Read-only: the real signed-in identity (set by _requireAuth), not a
+         free-text field anyone could type any name into for the audit log. -->
+    <span id="dm-user" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:rgba(255,255,255,.08);
+             color:#d4e2f4;font-size:12px">…</span>
   </div>
   <div id="db-badge" class="db-badge">⬤ Connecting…</div>
 </div>
@@ -715,10 +716,40 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const SB_URL = 'https://bhrswnbenkvflpdjhfpa.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJocnN3bmJlbmt2ZmxwZGpoZnBhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI5MTkwMDEsImV4cCI6MjA1ODQ5NTAwMX0.9oMwXHgOjCvOjT1bpqXkbx5y_R0MHxj1A7VTjuH1p3M';
-const sb = createClient(SB_URL, SB_KEY);
+// Shared platform-cookie storage (JpsAuth) so a session created by logging
+// into index.html (or any other JPS app) is recognized here too -- this
+// page previously had NO auth check at all despite writing/deleting
+// fpa_facts, fpa_versions, and jps_kpi_actuals.
+const sb = createClient(SB_URL, SB_KEY, window.JpsAuth ? window.JpsAuth.clientOptions() : undefined);
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const MONTHS_UP = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
+// ── Auth gate ─────────────────────────────────────────────────────────────
+// This tool writes and can hard-delete GL/actuals/LE facts -- require a
+// real Finance Hub session (same gate index.html itself uses) before any
+// of the page's upload/delete handlers can run. Redirects to the Hub login
+// if there's no session or the session has no fpa_hub access.
+let _dmUser = null; // real authenticated identity, replaces the old
+                     // localStorage-spoofable dmUser()
+
+async function _requireAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    location.replace('index.html');
+    return false;
+  }
+  const { data: accRows, error: accErr } = await sb.rpc('get_app_access', { p_app_id: 'fpa_hub' });
+  if (accErr || !accRows?.[0]?.can_access) {
+    await sb.auth.signOut();
+    location.replace('index.html');
+    return false;
+  }
+  _dmUser = session.user.email || session.user.id;
+  return true;
+}
+
+let _dmAuthReady = _requireAuth();
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 window.setMode = function(mode) {
@@ -1016,6 +1047,7 @@ function renderRecon() {
 }
 
 window.commitCorp = async function() {
+  if(!_dmUser){ toast('Not authenticated — please sign in.','err'); return; }
   if(!_cPeriod||!_cRows.length) return;
   const pid=_cPeriod.id;
   const btn=document.getElementById('commit-btn-corp');
@@ -1355,6 +1387,7 @@ function renderTrsTables() {
 }
 
 window.commitTrs = async function() {
+  if(!_dmUser){ toast('Not authenticated — please sign in.','err'); return; }
   if (!_trs.period) { toast('No period detected','warn'); return; }
   const pid  = _trs.period.id;
   const btn  = document.getElementById('commit-btn-trs');
@@ -1641,6 +1674,7 @@ window.handleDebtFile = async function(file) {
 };
 
 window.commitDebtSchedule = async function() {
+  if(!_dmUser){ toast('Not authenticated — please sign in.','err'); return; }
   const rows = window._debtRows;
   if (!rows || rows.length === 0) { toast('No data to commit', 'err'); return; }
 
@@ -1824,6 +1858,7 @@ function renderKpiTables() {
 }
 
 window.commitKpi = async function() {
+  if(!_dmUser){ toast('Not authenticated — please sign in.','err'); return; }
   const withData = _kpi.rows.filter(r => r.hasData);
   if (!withData.length) { toast('No KPI data to write','warn'); return; }
   const btn = document.getElementById('commit-btn-kpi');
@@ -2041,7 +2076,10 @@ function esc(s) {
 }
 
 function dmUser() {
-  return localStorage.getItem('jps_dm_user') || 'anonymous';
+  // Real authenticated identity (set by _requireAuth), not a client-writable
+  // localStorage string -- the audit log (fpa_audit_log.user_id) needs this
+  // to actually mean something.
+  return _dmUser || 'anonymous';
 }
 
 function fmtN(v) {
@@ -2462,6 +2500,7 @@ function parsePeriodStr(s) {
 }
 
 window.commitGl = async function() {
+  if(!_dmUser){ toast('Not authenticated — please sign in.','err'); return; }
   if(!_gl.period||!_gl.extracted.length){toast('Nothing to commit','warn');return;}
   const pid  = _gl.period.id;
   const btn  = document.getElementById('commit-btn-gl');
@@ -2915,6 +2954,7 @@ function renderLeGrid(tbl, grid, allMonths, secFilter) {
 }
 
 window.commitLe = async function() {
+  if(!_dmUser){ toast('Not authenticated — please sign in.','err'); return; }
   const cells = leActiveCells();
   if (!cells.length) { toast('No cells selected','warn'); return; }
   const btn = document.getElementById('commit-btn-le');
@@ -3169,6 +3209,7 @@ window.loadVersionManager = async function() {
 };
 
 window.deleteVersion = async function(vid, code) {
+  if(!_dmUser){ toast('Not authenticated — please sign in.','err'); return; }
   const {data:countRows} = await sb.from('fpa_facts').select('version_id').eq('version_id',vid).limit(1);
   const hasData = countRows && countRows.length > 0;
   const msg = hasData
@@ -3202,6 +3243,13 @@ window.deleteVersion = async function(vid, code) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 (async function init() {
+  // Block on the auth gate before anything else -- if it fails, _requireAuth
+  // has already redirected away, so bail out here rather than let the
+  // connection check / history load / upload UI touch the DB first.
+  const ok = await _dmAuthReady;
+  if (!ok) return;
+  document.getElementById('dm-user').textContent = _dmUser;
+
   try {
     const {error} = await sb.from('fpa_versions').select('id').limit(1);
     if(error) throw error;
@@ -3212,9 +3260,6 @@ window.deleteVersion = async function(vid, code) {
     document.getElementById('db-badge').style.color='#ef4444';
     toast('DB connection failed: '+e.message,'err');
   }
-  // Restore saved user name
-  const savedUser = localStorage.getItem('jps_dm_user');
-  if (savedUser) document.getElementById('dm-user').value = savedUser;
 
   await loadHistory();
   leUpdateVersion();

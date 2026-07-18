@@ -1,5 +1,7 @@
 # Deploy only the main app file + shared modules
 *
 !index.html
+!architecture-map.html
+!data-manager.html
 !shared
 !shared/**
