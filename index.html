@@ -13,6 +13,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>JPS Finance Hub — v2</title>
+<meta name="description" content="JPS Finance Hub — FP&A reporting, budgeting, and forecasting platform." />
+<meta property="og:title" content="JPS Finance Hub" />
+<meta property="og:description" content="JPS Finance Hub — FP&A reporting, budgeting, and forecasting platform." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://jmfinancelab.com/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23111827'/><text x='16' y='22' font-family='Georgia,serif' font-size='16' font-weight='700' fill='%23EAB308' text-anchor='middle'>JF</text></svg>"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
@@ -10799,14 +10806,44 @@ let _dynTab       = 'detail';   // 'exec' | 'detail'
 let _dynVerA      = 'actuals';  // left column version: 'actuals' | 'aop' | 'le'
 let _dynVerB      = 'aop';      // right column version: 'actuals' | 'aop' | 'le'
 
+let _dynForecastVersions = []; // fpa_versions where kind='FORECAST' — scenarios saved from v2 Driver Model
+async function _dynLoadForecastVersions() {
+  var sb = _getSB();
+  if (!sb) return;
+  try {
+    var r = await sb.from('fpa_versions').select('id,code,name,year,status,created_at')
+      .eq('kind', 'FORECAST').order('created_at', { ascending: false }).limit(25);
+    _dynForecastVersions = r.data || [];
+  } catch(e) {
+    console.error('[dyn] load forecast versions', e);
+    _dynForecastVersions = [];
+  }
+  _dynRefreshVerSelector();
+}
+// v is one of 'actuals'|'aop'|'le', or a raw fpa_versions.code (a FORECAST scenario picked from the dropdown)
 function _verCode(v, yr) {
   if (v === 'aop') return 'AOP_' + yr;
   if (v === 'le')  return 'LE_' + yr + '_02';
-  return null; // 'actuals' — caller handles monthly vs annual
+  if (v === 'actuals') return null; // caller handles monthly vs annual
+  return v;
 }
-function _verLabel(v) { return v === 'actuals' ? 'Actuals' : v === 'aop' ? 'AOP' : 'LE'; }
+function _verLabel(v) {
+  if (v === 'actuals') return 'Actuals';
+  if (v === 'aop') return 'AOP';
+  if (v === 'le') return 'LE';
+  var f = _dynForecastVersions.find(function(x){ return x.code === v; });
+  return f ? f.name : v;
+}
 function _dynSetVerA(v) { _dynVerA = v; dynRender(); }
 function _dynSetVerB(v) { _dynVerB = v; dynRender(); }
+function _dynForecastOptionsHtml(selected) {
+  if (!_dynForecastVersions.length) return '';
+  var isForecastSelected = !['actuals','aop','le'].includes(selected);
+  return '<option value="" disabled' + (isForecastSelected ? '' : ' selected') + '>Forecast…</option>' +
+    _dynForecastVersions.map(function(f) {
+      return '<option value="' + f.code + '"' + (selected===f.code?' selected':'') + '>' + _escHtml(f.name) + ' (' + f.status + ')</option>';
+    }).join('');
+}
 function _dynRefreshVerSelector() {
   ['dynVerSelStatic','dynVerSelDyn'].forEach(function(id) {
     var el = document.getElementById(id);
@@ -10816,10 +10853,12 @@ function _dynRefreshVerSelector() {
       ['actuals','aop','le'].map(function(v) {
         return '<button class="dyn-cv-btn' + (_dynVerA===v?' active':'') + '" onclick="_dynSetVerA(\'' + v + '\')">' + _verLabel(v) + '</button>';
       }).join('') +
+      (_dynForecastVersions.length ? '<select class="dyn-cv-btn" style="padding:1px 2px" onchange="_dynSetVerA(this.value)">' + _dynForecastOptionsHtml(_dynVerA) + '</select>' : '') +
       '<span style="font-size:10px;color:var(--muted);margin:0 2px 0 8px">vs:</span>' +
       ['actuals','aop','le'].map(function(v) {
         return '<button class="dyn-cv-btn' + (_dynVerB===v?' active':'') + '" onclick="_dynSetVerB(\'' + v + '\')">' + _verLabel(v) + '</button>';
-      }).join('');
+      }).join('') +
+      (_dynForecastVersions.length ? '<select class="dyn-cv-btn" style="padding:1px 2px" onchange="_dynSetVerB(this.value)">' + _dynForecastOptionsHtml(_dynVerB) + '</select>' : '');
   });
 }
 let _dynInspect   = false; // inspect mode: show line_id + coverage badge per row
@@ -11287,6 +11326,7 @@ async function dynInitTemplates() {
     _dynTplsReady();
   }
   _dynBuildNav();
+  _dynLoadForecastVersions();
 }
 
 function _dynBuildNav() {
