@@ -23,6 +23,8 @@
     { id: 'cash',        accessId: 'cashflow',    name: 'Cash',           url: 'https://cash.jmfinancelab.com' },
     { id: 'workforce',   accessId: 'labour_cap',  name: 'Workforce',      url: 'https://workforce.jmfinancelab.com' },
     { id: 'tracker',     accessId: 'tracker',     name: 'Tracker',        url: 'https://tracker.jmfinancelab.com' },
+    { id: 'ops',         accessId: 'ops',         name: 'Ops',            url: 'https://ops.jmfinancelab.com' },
+    { id: 'propel',      accessId: 'propel',      name: 'Propel',         url: 'https://propel.jmfinancelab.com' },
     { id: 'admin',       accessId: 'admin',       name: 'Admin',          url: 'https://admin.jmfinancelab.com' }
   ];
 
@@ -244,7 +246,11 @@
       if (_linkEls[app.id])     _linkEls[app.id].style.opacity = '.4';
       if (_dropLinkEls[app.id]) _dropLinkEls[app.id].style.opacity = '.4';
     });
-    _client.rpc('get_my_app_access').then(function (res) {
+    /* Explicit .schema('public') -- get_my_app_access only exists in public,
+       but apps bind whatever client they use for their own data, which may
+       default to a different schema (e.g. propel). Forcing it here removes
+       the ambiguity regardless of what the caller's client defaults to. */
+    _client.schema('public').rpc('get_my_app_access').then(function (res) {
       if (res.error || !Array.isArray(res.data)) {
         if (res.error) console.warn('[jps-nav] access RPC failed, showing all links:', res.error.message);
         APPS.forEach(function (app) {
