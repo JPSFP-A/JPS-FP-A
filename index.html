@@ -2356,6 +2356,7 @@ function _getSB() {
           detectSessionInUrl: false,
         },
       });
+    try { if (window.JpsAuth && window.JpsAuth.startSessionSync) JpsAuth.startSessionSync(_sb); } catch(e){ console.warn('JpsAuth.startSessionSync failed', e); }
     try { if (window.JpsNav) JpsNav.bind(_sb); } catch(e){ console.warn('JpsNav bind failed', e); }
   }
   return _sb;

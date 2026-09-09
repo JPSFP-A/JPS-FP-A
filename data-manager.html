@@ -721,6 +721,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 // page previously had NO auth check at all despite writing/deleting
 // fpa_facts, fpa_versions, and jps_kpi_actuals.
 const sb = createClient(SB_URL, SB_KEY, window.JpsAuth ? window.JpsAuth.clientOptions() : undefined);
+try { if (window.JpsAuth && window.JpsAuth.startSessionSync) window.JpsAuth.startSessionSync(sb); } catch(e){ console.warn('JpsAuth.startSessionSync failed', e); }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const MONTHS_UP = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];

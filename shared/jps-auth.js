@@ -89,6 +89,73 @@
           throw e;
         })
         .finally(function () { self.storage.removeItem(STORAGE_KEY); });
+    },
+    /* Cross-app session sync -- mitigates a refresh-token race inherent to
+     * sharing one cookie-backed session across many independent origins.
+     * Each subdomain runs its own supabase-js client with its own
+     * autoRefreshToken timer. Refresh tokens rotate on use: whichever app
+     * refreshes first writes the new token pair to the shared cookie, and
+     * every other already-open app is left holding the now-consumed
+     * refresh token in memory. When that app's own timer later fires,
+     * Supabase rejects the reused refresh token and the client silently
+     * drops to anonymous -- every subsequent authenticated write then
+     * fails RLS with "new row violates row-level security policy", not an
+     * auth error, because the request goes out anon rather than failing to
+     * send. There's no native cross-origin signal for this (the `storage`
+     * event that lets supabase-js coordinate same-origin tabs never fires
+     * for cookies, and each subdomain is a different origin anyway), so
+     * this polls the shared cookie directly and adopts whatever's newest
+     * via setSession() -- an app that lost the race picks up the winner's
+     * fresh tokens instead of trying (and failing) to refresh its own
+     * stale copy.
+     *
+     * Call once, right after creating the client:
+     *   var client = supabase.createClient(URL, KEY, JpsAuth.clientOptions())
+     *   JpsAuth.startSessionSync(client)
+     */
+    startSessionSync: function (client, opts) {
+      var self = this;
+      var intervalMs = (opts && opts.intervalMs) || 15000;
+      var lastSeenToken = null;
+      var timer = null;
+
+      function storedSession() {
+        try {
+          var raw = self.storage.getItem(STORAGE_KEY);
+          if (!raw) return null;
+          var parsed = JSON.parse(raw);
+          return (parsed && parsed.access_token && parsed.refresh_token) ? parsed : null;
+        } catch (e) { return null; }
+      }
+
+      function sync() {
+        var stored = storedSession();
+        if (!stored || stored.access_token === lastSeenToken) return;
+        client.auth.getSession().then(function (res) {
+          var current = res && res.data && res.data.session;
+          if (current && current.access_token === stored.access_token) {
+            lastSeenToken = stored.access_token;
+            return;
+          }
+          // Storage holds a token this client hasn't adopted -- another
+          // tab/app already refreshed. Adopt it directly rather than
+          // letting our own refresh timer fire later with our stale
+          // (already-used) refresh token.
+          return client.auth.setSession({
+            access_token: stored.access_token,
+            refresh_token: stored.refresh_token
+          }).then(function () { lastSeenToken = stored.access_token; });
+        }).catch(function (e) {
+          if (root.JpsMonitor && JpsMonitor.logError) JpsMonitor.logError('jps-auth sessionSync', e);
+        });
+      }
+
+      timer = root.setInterval(sync, intervalMs);
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) sync(); });
+      root.addEventListener('focus', sync);
+      sync();
+
+      return function stopSessionSync() { root.clearInterval(timer); };
     }
   };
 
