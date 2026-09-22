@@ -2473,9 +2473,47 @@ function _escHtml(s) {
 }
 
 
-/* ─── PLATFORM AUDIT — via JpsPlatform.platformAudit (shared/jps-platform-utils.js) ── */
-function _platformAudit(action, target, oldVal, newVal) {
-  return JpsPlatform.platformAudit(_getSB(), 'fpa', _user, action, target, oldVal, newVal);
+/* ─── PLATFORM AUDIT ─────────────────────────────────────────────────────
+   Was delegating to JpsPlatform.platformAudit(), which this app's shared/
+   jps-platform-utils.js has never actually defined (that file here is a
+   different, same-named module for derived-formula sync) -- every call
+   silently threw "JpsPlatform is not defined" and no audit row was ever
+   written. Self-contained now, and routed through the write-audit-log Edge
+   Function, which stamps user_id from the verified JWT and ip_address from
+   the real request -- neither spoofable by the browser. ─────────────────── */
+async function _platformAudit(action, target, oldVal, newVal) {
+  try {
+    const sb = _getSB();
+    if (!sb || !_user?.id) return;
+    if (action === 'login') {
+      const _lk = _user.id + '|fpa';
+      const _ssKey = 'jps_login_ts_' + _lk;
+      const _lastTs = Number(sessionStorage.getItem(_ssKey) || 0);
+      if (Date.now() - _lastTs < 300000) return;
+      sessionStorage.setItem(_ssKey, String(Date.now()));
+    }
+    const role = _user.accessRole || _user.appRole || _user.role || 'viewer';
+    const _ser = v => v == null ? null
+      : typeof v === 'object' ? JSON.stringify(v)
+      : JSON.stringify({ v: String(v) });
+    const { error } = await sb.functions.invoke('write-audit-log', {
+      body: {
+        table: 'fpa_audit_log',
+        fields: {
+          user_name: _user.name || _user.email || 'system',
+          user_role: role === 'authenticated' ? 'viewer' : role,
+          app:       'fpa',
+          action:    String(action),
+          target:    target ?? null,
+          old_val:   _ser(oldVal),
+          new_val:   _ser(newVal),
+        },
+      },
+    });
+    if (error) console.warn('[audit] write-audit-log failed:', error.message);
+  } catch (e) {
+    console.warn('[audit] write failed:', e?.message);
+  }
 }
 
 var _fmtN = JpsFmt._fmtN;
