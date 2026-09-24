@@ -28,6 +28,11 @@
     { id: 'admin',       accessId: 'admin',       name: 'Admin',          url: 'https://admin.jmfinancelab.com' }
   ];
 
+  /* Legal pack lives on the docs site; shown on every app so users see the
+     monitoring/privacy terms they agree to by signing in. */
+  var LEGAL_BASE = 'https://docs.jmfinancelab.com/legal/';
+  var LEGAL_LINKS = [['Terms', 'terms.html'], ['Privacy', 'privacy.html']];
+
   var BAR_H   = 38;
   var _client     = null;
   var _emailEl    = null;
@@ -80,6 +85,7 @@
         '#jps-nav-links{display:none;}' +
         '#jps-nav-hamburger{display:inline-block;}' +
         '#jps-nav-email{display:none;}' +
+        '#jps-nav-legal{display:none !important;}' +
       '}';
     document.head.appendChild(s);
   }
@@ -153,6 +159,18 @@
     /* spacer */
     bar.appendChild(el('span', 'flex:1;'));
 
+    /* legal links (desktop) */
+    var legal = el('span', 'display:flex;gap:10px;margin-right:12px;flex-shrink:0;');
+    legal.id = 'jps-nav-legal';
+    LEGAL_LINKS.forEach(function (l) {
+      var a = el('a', 'color:#8fa9c4;text-decoration:none;font-size:11.5px;', l[0]);
+      a.href = LEGAL_BASE + l[1];
+      a.target = '_blank';
+      a.rel = 'noopener';
+      legal.appendChild(a);
+    });
+    bar.appendChild(legal);
+
     /* hamburger */
     _hamburger = el('button', '', '☰');
     _hamburger.id = 'jps-nav-hamburger';
@@ -205,6 +223,17 @@
         if (e.key === 'Escape') { closeMenu(); if (_hamburger) _hamburger.focus(); }
       });
       _dropLinkEls[app.id] = a;
+      _dropdown.appendChild(a);
+    });
+
+    /* legal links (mobile dropdown) */
+    LEGAL_LINKS.forEach(function (l) {
+      var a = el('a', 'font-size:12.5px;color:#8fa9c4;', l[0]);
+      a.href = LEGAL_BASE + l[1];
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.setAttribute('role', 'menuitem');
+      a.addEventListener('click', function () { closeMenu(); });
       _dropdown.appendChild(a);
     });
 
