@@ -14,10 +14,13 @@ jobs:
     steps:
       - name: Check live URL returns HTTP 200
         run: |
-          status=$(curl -s -o /dev/null -w "%{http_code}" https://jmfinancelab.com)
-          echo "HTTP status: $status"
-          if [ "$status" != "200" ]; then
-            echo "Health check FAILED — expected 200, got $status"
-            exit 1
-          fi
-          echo "Health check passed."
+          # HEAD request with retries: headers are enough to prove the site is up, and a single 403/5xx from a
+          # GitHub runner has been transient.
+          for attempt in 1 2 3; do
+            status=$(curl -s -I -o /dev/null -w "%{http_code}" https://jmfinancelab.com)
+            echo "Attempt $attempt: HTTP status $status"
+            if [ "$status" = "200" ]; then echo "Health check passed."; exit 0; fi
+            [ "$attempt" -lt 3 ] && sleep 30
+          done
+          echo "Health check FAILED: expected 200, last status $status"
+          exit 1
