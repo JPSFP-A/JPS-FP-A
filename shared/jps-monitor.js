@@ -61,6 +61,82 @@
     } catch(e) {}
   }
 
+  // ── Data-access audit: views, exports, prints ─────────
+  // Records who opened, downloaded or printed data, through the log_data_access RPC
+  // (public.audit_log, shown in the IT audit view). The database stamps the user and the real
+  // source IP; this script only says what happened. Nothing is logged until setUser() has run.
+  function _warn(what, err) {
+    try { if (root.console) root.console.warn('[audit]', what, (err && err.message) || err || ''); } catch (e) {}
+  }
+  function _appId() {
+    return String(_app || 'unknown').toLowerCase().replace(/[^a-z0-9_-]/g, '-').slice(0, 40);
+  }
+  function _audit(action, details) {
+    try {
+      if (!_cfn || !_uid) return;
+      var c = _cfn();
+      if (!c || !c.rpc) return;
+      c.rpc('log_data_access', { p_app: _appId(), p_action: action, p_details: details || {} })
+        .then(function (r) { if (r && r.error) _warn(action, r.error); }, function (e) { _warn(action, e); });
+    } catch (e) { _warn(action, e); }
+  }
+  // Page path plus hash route. A hash that looks like a credential is dropped, never logged.
+  function _target() {
+    try {
+      var loc = root.location;
+      if (!loc) return '';
+      var h = loc.hash || '';
+      if (/token|code=|key=|secret|password|session/i.test(h)) h = '';
+      return (loc.pathname + h).slice(0, 200);
+    } catch (e) { return ''; }
+  }
+  var _lastEvt = {};
+  function _once(kind, key) {
+    var now = Date.now();
+    var last = _lastEvt[kind];
+    if (last && last.key === key && now - last.t < 3000) return false;
+    _lastEvt[kind] = { key: key, t: now };
+    return true;
+  }
+  function _noteDownload(a) {
+    var name = String(a.getAttribute('download') || '').slice(0, 200);
+    if (_once('dl', name)) _audit('data_exported', { file: name, target: _target() });
+  }
+  function _view() { _audit('data_viewed', { target: _target() }); }
+
+  var _hooked = false;
+  function _installHooks() {
+    if (_hooked || !root.document || !root.HTMLAnchorElement) return;
+    _hooked = true;
+    var aClick = root.HTMLAnchorElement.prototype.click;
+    root.HTMLAnchorElement.prototype.click = function () {
+      try { if (this.hasAttribute('download')) _noteDownload(this); } catch (e) { _warn('download hook', e); }
+      return aClick.apply(this, arguments);
+    };
+    // FileSaver-style libraries trigger the download by dispatching a click event on a detached anchor.
+    var dispatch = root.EventTarget.prototype.dispatchEvent;
+    root.EventTarget.prototype.dispatchEvent = function (ev) {
+      try {
+        if (ev && ev.type === 'click' && this instanceof root.HTMLAnchorElement && this.hasAttribute('download')) _noteDownload(this);
+      } catch (e) { _warn('download hook', e); }
+      return dispatch.apply(this, arguments);
+    };
+    // A person clicking a visible download link.
+    root.document.addEventListener('click', function (ev) {
+      try {
+        var a = ev.target && ev.target.closest && ev.target.closest('a[download]');
+        if (a) _noteDownload(a);
+      } catch (e) { _warn('download hook', e); }
+    }, true);
+    // window.print() and Ctrl+P both fire beforeprint.
+    root.addEventListener('beforeprint', function () {
+      if (_once('print', _target())) _audit('data_printed', { target: _target() });
+    });
+    root.addEventListener('hashchange', _view);
+    root.addEventListener('popstate', _view);
+  }
+  _installHooks();
+
   // ── Public API ────────────────────────────────────────
   var JpsMonitor = {
 
@@ -81,7 +157,12 @@
       _email = email || null;
       _cfn   = JpsMonitor._clientFn || _cfn;
       _beat();
+      _view();
     },
+
+    /** Explicit hook for an in-app page or report change that does not change the URL. */
+    auditView:   function(target) { _audit('record_viewed', { target: String(target || _target()).slice(0, 200) }); },
+    auditExport: function(what, rows) { _audit('data_exported', { file: String(what || '').slice(0, 200), rows: rows == null ? null : rows, target: _target() }); },
 
     // info/warning are console-only (originally no-ops) — avoids flooding the audit table.
     info:    function(evt, msg) { try { if (root.console) root.console.info('[mon]', evt, msg || ''); } catch(e){} },
