@@ -2651,7 +2651,7 @@ async function doLogin() {
       if (errEl) { errEl.textContent = 'Access check failed. Contact admin or try again.'; errEl.style.display = 'block'; }
       return;
     }
-    if (!accessRole) {
+    if (!accRows?.[0]?.can_access || !accessRole) {
       await sb.auth.signOut();
       const errEl = document.getElementById('loginError');
       if (errEl) { errEl.textContent = 'No Finance Hub access. Contact your administrator.'; errEl.style.display = 'block'; }
